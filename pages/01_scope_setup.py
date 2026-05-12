@@ -1,8 +1,8 @@
 """
 P-02 Scope set-up (placeholder for the demo).
 
-This page currently only renders a small Leafmap map so we can verify that
-the Streamlit + Leafmap integration works end-to-end. The full scope-setup
+This page currently only renders a small geemap map so we can verify that
+the Streamlit + geemap integration works end-to-end. The full scope-setup
 flow comes in a later iteration.
 """
 
@@ -51,13 +51,13 @@ st.title("Scope set-up")
 st.info(
     "Demo placeholder. Full scope-setup (GSCO catalogue, upload, manual entry) "
     "comes in a later iteration. For now this page proves the multi-page flow "
-    "works and that Leafmap renders inside Streamlit."
+    "works and that geemap renders inside Streamlit."
 )
 
 # ----------------------------------------------------------------------------
 # Tiny map demo.
 # ----------------------------------------------------------------------------
-st.subheader("Map test — Leafmap inside Streamlit")
+st.subheader("Map test — Geemap inside Streamlit")
 st.caption(
     "If you see an interactive map with a satellite basemap and a marker at "
     "Cambridge, UK, the stack is working."
@@ -93,7 +93,7 @@ st.markdown(
 
     - Streamlit multi-page navigation routes from the landing page here.
     - User-type state survives the page transition.
-    - Leafmap renders inline with a satellite basemap and a marker.
+    - Geemap renders inline with a satellite basemap and a marker.
     - The sign-out flow clears state and returns to landing.
 
     **Next iteration**

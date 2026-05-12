@@ -7,7 +7,6 @@ a working reference you can keep, copy, or delete once the real indicator
 pages are built on top of the same pattern.
 
 Pattern to remember:
-- Pages that DON'T touch Earth Engine    → use `import leafmap.foliumap as leafmap`
 - Pages that DO touch Earth Engine       → use `import geemap.foliumap as geemap`
                                             and call `require_earth_engine()` first
 """
