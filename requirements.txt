@@ -1,0 +1,38 @@
+# GSCO Demo — Python dependencies
+#
+# Tested versions (Python 3.11). These pins are based on opengeos/streamlit-geospatial
+# (the canonical leafmap + geemap + streamlit reference repo, maintained by the
+# leafmap/geemap author) plus explicit pins on packages that have been the source
+# of breakage:
+#   - setuptools <81 (newer versions remove pkg_resources, which leafmap uses)
+#   - ipython <9     (geemap currently imports from the pre-9 IPython API)
+#   - leafmap + geemap pinned to a known-compatible pair
+#
+# If you change Python version or rebuild from scratch, re-test this set before
+# touching production.
+
+# Pin setuptools below 81 — newer versions drop pkg_resources, which leafmap uses.
+setuptools>=68,<81
+
+# Pin IPython below 9 — geemap imports from the pre-9 IPython API.
+ipython>=8,<9
+
+# UI framework
+streamlit>=1.30,<2.0
+
+# Geospatial mapping. The [extra] extras for geemap pull in the additional
+# dependencies the foliumap submodule needs.
+geemap[extra]==0.34.4
+folium>=0.16,<0.18
+streamlit-folium>=0.20
+
+# Earth Engine
+earthengine-api>=0.1.380
+
+# Data and stats — for indicator computation later
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+
+# Geocoding — Nominatim wrapper, used by the P-02 upload path later
+geopy>=2.4
