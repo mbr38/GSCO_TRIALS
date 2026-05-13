@@ -36,3 +36,6 @@ scipy>=1.11
 
 # Geocoding — Nominatim wrapper, used by the P-02 upload path later
 geopy>=2.4
+
+# Testing — synthetic-payload tests for the engine
+pytest>=8.0

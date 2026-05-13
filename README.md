@@ -1,7 +1,7 @@
 # GSCO Environmental Decision-Support Demo
 
 A Streamlit demo for the GSCO environmental monitoring tool. Built from
-`PLFS_v3.md` and `Wireframes_All_v3.md`.
+`PLFS_v4.md` and `Wireframes_All_v4.md`.
 
 ## Current scope
 

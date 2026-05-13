@@ -11,20 +11,19 @@ import streamlit as st
 from utils.state import require_user_type, sign_out
 from utils.ee_init import require_earth_engine
 
-require_user_type()
-require_earth_engine()                  # ← add EE guard before importing geemap
-
-import geemap.foliumap as geemap        # ← use geemap instead
-# ----------------------------------------------------------------------------
-# Guard: this page requires a user type to be set on the landing page.
-# ----------------------------------------------------------------------------
-require_user_type()
-
 st.set_page_config(
     page_title="Scope set-up — GSCO",
     page_icon="🌍",
     layout="wide",
 )
+
+# ----------------------------------------------------------------------------
+# Guard: this page requires a user type to be set on the landing page.
+# ----------------------------------------------------------------------------
+require_user_type()
+require_earth_engine()
+
+import geemap.foliumap as geemap
 
 # ----------------------------------------------------------------------------
 # Persistent navigation.
