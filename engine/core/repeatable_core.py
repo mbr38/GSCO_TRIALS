@@ -64,9 +64,16 @@ def site_value(
     ).getInfo()
     value = info.get(band) if info else None
     if value is None:
+        # One extra getInfo on the failure path only — saves debugging time
+        # when a buffer / time-range combination produces no usable pixels.
+        n_total = int(image_collection.size().getInfo() or 0)
         raise IndicatorComputeError(
             indicator_id=band,
-            reason="site buffer has no valid pixels",
+            reason=(
+                f"site buffer has no valid pixels "
+                f"({n_total} observations in time_range; "
+                f"scale={scale}m; buffer={aoi['radius_km']}km)"
+            ),
         )
     return float(value)
 
@@ -104,17 +111,17 @@ def background_value(
         bestEffort=True,
         maxPixels=int(1e9),
     ).getInfo()
-    if not info:
-        raise IndicatorComputeError(
-            indicator_id=band,
-            reason="background ring reducer returned no info",
-        )
-    median = info.get(f"{band}_median")
-    std = info.get(f"{band}_stdDev")
+    median = info.get(f"{band}_median") if info else None
+    std = info.get(f"{band}_stdDev") if info else None
     if median is None or std is None:
+        n_total = int(image_collection.size().getInfo() or 0)
         raise IndicatorComputeError(
             indicator_id=band,
-            reason="background ring has no valid pixels",
+            reason=(
+                f"background ring has no valid pixels "
+                f"({n_total} observations in time_range; "
+                f"scale={scale}m; buffer={aoi['radius_km']}km)"
+            ),
         )
     return float(median), float(std)
 

@@ -48,6 +48,25 @@ DW_WATER_CLASS: str = "water"
 CAMS_MIN_VALID_PCT: float = 0.5
 
 # ---------------------------------------------------------------------------
+# Air Pollution pillar  (IC_v4 §1.3 / GEE_Database_List §2 / MAIAC user guide)
+# ---------------------------------------------------------------------------
+
+# IC_v4 §1.3 — O3 score is capped at 0.5: O3 is a context indicator, not a
+# primary pollution-burden term.
+O3_SCORE_CAP: float = 0.5
+
+# MODIS MAIAC AOD_QA byte layout (MAIAC v6.1 user guide):
+#   bits 0-2  : Cloud Mask
+#   bit  3    : Land/Water Mask
+#   bits 4-7  : Adjacency Mask
+#   bits 8-11 : AOD QA  ← we keep pixels where these bits are 0 (best retrieval)
+#   bits 12-14: Algorithm Initialization
+#   bit  15   : Glint Mask
+# 0b1111_0000_0000 == 0xF00 == 3840 isolates bits 8-11. engine/air.py masks
+# any pixel where (AOD_QA & this mask) != 0.
+AOD_QA_VALID_BIT_MASK: int = 0xF00
+
+# ---------------------------------------------------------------------------
 # Verbal summary  (Verbal_Summary §3)
 # ---------------------------------------------------------------------------
 DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD: float = 0.40
