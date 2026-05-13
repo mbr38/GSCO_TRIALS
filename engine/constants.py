@@ -57,6 +57,10 @@ DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD: float = 0.40
 # ---------------------------------------------------------------------------
 BACKGROUND_RING_MAX_KM: float = 200.0
 
+# 5:1 background-to-site ratio per IC_v4 §6.2 — used by engine/core/buffers.py
+# to default the background ring radius when not supplied explicitly.
+BACKGROUND_RING_RADIUS_MULTIPLE = 5
+
 # ---------------------------------------------------------------------------
 # Pillar weights — v1 rescaled forms
 # ---------------------------------------------------------------------------
