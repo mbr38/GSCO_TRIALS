@@ -1,8 +1,12 @@
-"""Synthetic-payload tests for engine.ghg (Milestone 5a).
+"""Synthetic-payload tests for engine.ghg (Milestones 5a + 5c + 5.5).
 
 All tests bypass Earth Engine: `engine.ghg.compute_ghg_indicator_snapshot`
-is monkey-patched for `run_pillar` integration tests; the standalone
-sub-aggregate / pillar-aggregate tests run on pure-Python payloads.
+and `engine.ghg.compute_co2_snapshot` are monkey-patched for `run_pillar`
+integration tests; the standalone sub-aggregate / pillar-aggregate tests
+run on pure-Python payloads.
+
+Real-EE smoke tests for CO₂ live in tests/test_ghg_integration.py
+(skipped unless RUN_EE_TESTS=1).
 """
 
 from __future__ import annotations
@@ -11,9 +15,11 @@ import math
 
 import pytest
 
+from engine.constants import CO2_TO_C_RATIO
 from engine.ghg import (
     GHG_INDICATOR_CONFIG,
     GhgIndicatorConfig,
+    _co2_relative_intensity_and_score,
     compute_ch4_context_adjusted,
     compute_ch4_hotspot_signal,
     compute_co2_context,
@@ -46,8 +52,9 @@ _TIME_RANGE = ("2026-01-01", "2026-04-01")
 # ---------------------------------------------------------------------------
 
 class TestConfigIntegrity:
-    def test_two_indicators_registered(self) -> None:
-        assert set(GHG_INDICATOR_CONFIG.keys()) == {"ch4", "viirs"}
+    def test_three_indicators_registered(self) -> None:
+        # M5.5 added CO₂ via ODIAC; M5a had only CH₄ + VIIRS.
+        assert set(GHG_INDICATOR_CONFIG.keys()) == {"ch4", "viirs", "co2"}
 
     @pytest.mark.parametrize("key", list(GHG_INDICATOR_CONFIG.keys()))
     def test_each_entry_has_required_fields(self, key: str) -> None:
@@ -72,22 +79,267 @@ class TestConfigIntegrity:
             "site", "anomaly", "trend", "confidence", "score",
         )
 
+    def test_co2_emits_seven_measurement_set(self) -> None:
+        # Per Schema_v2 §3.1 (M5.5 update): CO₂ uses a custom 7-key set
+        # with `.relative_intensity` replacing the old `.anomaly`.
+        assert GHG_INDICATOR_CONFIG["co2"].emitted_measurements == (
+            "mean", "total", "relative_intensity",
+            "trend", "trend_p", "confidence", "score",
+        )
+
+    def test_co2_asset_id_and_native_scale(self) -> None:
+        cfg = GHG_INDICATOR_CONFIG["co2"]
+        assert cfg.asset_id == "projects/supply-chain-observatory/assets/odiac"
+        assert cfg.band == "b1"
+        assert cfg.scale_m == 1000.0
+        assert "CO₂" in cfg.display_unit or "CO2" in cfg.display_unit
+
 
 # ---------------------------------------------------------------------------
-# 2. compute_co2_snapshot is the wrapper that raises NotImplementedError
+# 2. compute_co2_snapshot — M5.5 activated ODIAC implementation
 # ---------------------------------------------------------------------------
 
-class TestCo2Stub:
-    def test_compute_co2_snapshot_raises_with_deferred_message(self) -> None:
-        with pytest.raises(NotImplementedError, match="M5.5"):
+class _FakeReducerResult:
+    """Stand-in for ee.Image.reduceRegion result. Returns a dict whose
+    `.get(band)` yields an object with `.getInfo()` returning `value`.
+    """
+
+    def __init__(self, value: float) -> None:
+        self._value = value
+
+    def get(self, _band: str) -> "_FakeReducerResult":
+        return self
+
+    def getInfo(self) -> float:
+        return self._value
+
+
+class _FakeSummedImage:
+    """Stand-in for the `ic.sum()` result. Tracks reduceRegion(geometry=...)
+    calls so the test can route site vs ring reductions to different values.
+    """
+
+    def __init__(self, *, site_sum: float, site_mean: float, ring_mean: float) -> None:
+        self._site_sum = site_sum
+        self._site_mean = site_mean
+        self._ring_mean = ring_mean
+        # Tracks the order of reduceRegion calls per (reducer_kind, geom_id).
+        self._call_log: list[tuple[str, int]] = []
+
+    def reduceRegion(self, reducer, geometry, **_kw):     # noqa: N803 — EE API name
+        # Geometry comes from monkey-patched site_buffer / background_ring;
+        # we use id() to distinguish them.
+        reducer_kind = type(reducer).__name__
+        geom_id = id(geometry)
+        self._call_log.append((reducer_kind, geom_id))
+        # The reducer types EE returns are stubbed so they don't carry
+        # introspectable kind info; we route by call order instead because
+        # compute_co2_snapshot always calls: (site sum, site mean, ring mean).
+        idx = len(self._call_log) - 1
+        if idx == 0:
+            return _FakeReducerResult(self._site_sum)
+        if idx == 1:
+            return _FakeReducerResult(self._site_mean)
+        return _FakeReducerResult(self._ring_mean)
+
+
+class _FakeIc:
+    """Chain-friendly stand-in for ee.ImageCollection mirrored after the
+    Air fake — supports filterDate, size().getInfo(), select(), sum().
+    """
+
+    def __init__(
+        self, *, n_months: int, site_sum: float, site_mean: float, ring_mean: float,
+    ) -> None:
+        self._n_months = n_months
+        self._site_sum = site_sum
+        self._site_mean = site_mean
+        self._ring_mean = ring_mean
+
+    def filterDate(self, *_a, **_kw):
+        return self
+
+    def size(self):
+        class _Size:
+            def __init__(inner_self, n): inner_self._n = n
+            def getInfo(inner_self): return inner_self._n
+        return _Size(self._n_months)
+
+    def select(self, _band):
+        return self
+
+    def sum(self):
+        return _FakeSummedImage(
+            site_sum=self._site_sum,
+            site_mean=self._site_mean,
+            ring_mean=self._ring_mean,
+        )
+
+
+@pytest.fixture
+def fake_co2_ee(monkeypatch):
+    """Replace EE surfaces used by compute_co2_snapshot.
+
+    Returns a factory that installs a synthetic ImageCollection with the
+    given per-pixel and ring statistics. Also stubs `ee.Reducer.sum` and
+    `ee.Reducer.mean` because the real EE client requires an initialised
+    session to construct Reducer instances.
+    """
+    def install(*, n_months: int = 3, site_sum: float = 100.0,
+                site_mean: float = 5.0, ring_mean: float = 1.0):
+        fake_ic = _FakeIc(
+            n_months=n_months, site_sum=site_sum,
+            site_mean=site_mean, ring_mean=ring_mean,
+        )
+        monkeypatch.setattr(
+            "engine.ghg.ee.ImageCollection", lambda *_a, **_kw: fake_ic,
+        )
+        # Reducer.* doesn't work without an EE session — stub it to a
+        # sentinel; _FakeSummedImage.reduceRegion ignores the reducer arg
+        # anyway and routes by call order.
+        class _FakeReducerKind:
+            pass
+        monkeypatch.setattr(
+            "engine.ghg.ee.Reducer",
+            type("FakeReducer", (), {
+                "sum":  staticmethod(lambda: _FakeReducerKind()),
+                "mean": staticmethod(lambda: _FakeReducerKind()),
+            }),
+        )
+        # site_buffer / background_ring just need to return distinguishable
+        # objects — actual geometry isn't inspected by the fake.
+        monkeypatch.setattr(
+            "engine.ghg.site_buffer", lambda *_a, **_kw: object(),
+        )
+        monkeypatch.setattr(
+            "engine.ghg.background_ring", lambda *_a, **_kw: object(),
+        )
+        return fake_ic
+    return install
+
+
+_AOI_CO2 = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 50}
+_CO2_TIME_RANGE = ("2023-01-01", "2023-04-01")
+
+
+class TestCo2Snapshot:
+    def test_compute_co2_snapshot_returns_seven_measurement_set(
+        self, fake_co2_ee,
+    ) -> None:
+        fake_co2_ee(n_months=3, site_sum=100.0, site_mean=5.0, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        for measurement in (
+            "mean", "total", "relative_intensity",
+            "trend", "trend_p", "confidence", "score",
+        ):
+            assert f"ghg.co2.{measurement}" in result
+        # Provenance carries the audit-traceable conversion factor.
+        prov = result["_provenance.ghg.co2"]
+        assert prov["asset_id"] == "projects/supply-chain-observatory/assets/odiac"
+        assert prov["band"] == "b1"
+        assert prov["n_months"] == 3
+        assert prov["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
+
+    def test_compute_co2_snapshot_score_clamps_to_zero_below_regional(
+        self, fake_co2_ee,
+    ) -> None:
+        # site mean < ring mean → relative_intensity < 1 → score = 0.
+        fake_co2_ee(n_months=3, site_sum=10.0, site_mean=0.5, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        assert result["ghg.co2.score"] == 0.0
+        # relative_intensity is reported as the raw 0.5; it's the SCORE that's clamped.
+        assert result["ghg.co2.relative_intensity"] == pytest.approx(0.5)
+
+    def test_compute_co2_snapshot_score_saturates_at_ten_times(
+        self, fake_co2_ee,
+    ) -> None:
+        # site_mean = 10 × ring_mean → relative_intensity = 10 → score = 1.
+        fake_co2_ee(n_months=3, site_sum=100.0, site_mean=10.0, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        assert result["ghg.co2.score"] == pytest.approx(1.0)
+
+    def test_compute_co2_snapshot_score_midpoint_at_sqrt_ten(
+        self, fake_co2_ee,
+    ) -> None:
+        # log10(sqrt(10)) / log10(10) = 0.5 — verifies the log scaling.
+        fake_co2_ee(
+            n_months=3, site_sum=100.0,
+            site_mean=math.sqrt(10.0), ring_mean=1.0,
+        )
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        assert result["ghg.co2.score"] == pytest.approx(0.5, abs=1e-6)
+
+    def test_compute_co2_snapshot_total_conversion_factor(
+        self, fake_co2_ee,
+    ) -> None:
+        # site_sum = 100 t C summed over 3 monthly grids. Annualisation
+        # factor = 12 / 3 = 4. CO₂ conversion = 44/12. So total in t CO₂/yr
+        # = 100 × 4 × (44/12) ≈ 1466.67.
+        fake_co2_ee(n_months=3, site_sum=100.0, site_mean=5.0, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        expected_total = 100.0 * (12.0 / 3.0) * CO2_TO_C_RATIO
+        assert result["ghg.co2.total"] == pytest.approx(expected_total)
+
+    def test_compute_co2_snapshot_pixel_size_guard(self) -> None:
+        # ODIAC native pixel is 1 km — a 0.5 km buffer fails before any EE
+        # call so we don't need the fake.
+        with pytest.raises(IndicatorComputeError, match=r"smaller than ODIAC"):
             compute_co2_snapshot(
-                aoi=_AOI, time_range=_TIME_RANGE,
+                aoi={"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 0.5},
+                time_range=_CO2_TIME_RANGE,
                 mode="screening", ee_client=None,
             )
 
-    def test_compute_co2_context_returns_none_in_v1(self) -> None:
-        # The sub-aggregate is a different function — it just returns None
-        # because ghg.co2.score isn't in the payload until M5.5.
+    def test_compute_co2_snapshot_empty_time_range(
+        self, fake_co2_ee,
+    ) -> None:
+        # ODIAC covers 2020-2023. n_months=0 → IndicatorComputeError.
+        fake_co2_ee(n_months=0, site_sum=0.0, site_mean=0.0, ring_mean=0.0)
+        with pytest.raises(IndicatorComputeError, match=r"no ODIAC monthly grids"):
+            compute_co2_snapshot(
+                aoi=_AOI_CO2,
+                time_range=("2030-01-01", "2030-04-01"),
+                mode="screening", ee_client=None,
+            )
+
+
+class TestCo2RelativeIntensityHelper:
+    def test_returns_none_when_ring_mean_zero(self) -> None:
+        # Division-by-zero guard.
+        rel, score = _co2_relative_intensity_and_score(site_mean=5.0, ring_mean=0.0)
+        assert rel is None
+        assert score is None
+
+    def test_caps_relative_intensity_at_ten(self) -> None:
+        # 100× regional background → capped at 10× (CARMA-overlap proxy).
+        rel, score = _co2_relative_intensity_and_score(site_mean=100.0, ring_mean=1.0)
+        assert rel == pytest.approx(10.0)
+        assert score == pytest.approx(1.0)
+
+
+class TestCo2ContextActivation:
+    def test_compute_co2_context_returns_score_when_present(self) -> None:
+        # M5.5 — co2.score is now present in payload after compute_co2_snapshot.
+        result = compute_co2_context({"ghg.co2.score": 0.42})
+        assert result == {"ghg.co2_context": 0.42}
+
+    def test_compute_co2_context_returns_none_when_score_missing(self) -> None:
+        # CO₂ unselected or compute_co2_snapshot failed → graceful null.
         result = compute_co2_context({})
         assert result == {"ghg.co2_context": None}
 
@@ -272,7 +524,10 @@ class TestRunPillar:
         assert result["ghg.fire_or_regional_transport_risk"] == 0.40
         assert result["ghg.ch4_context_adjusted"] is not None
 
-        # Three CO₂-dependent sub-aggregate stubs are None.
+        # Three CO₂-dependent sub-aggregates are None — CO₂ isn't in the
+        # selection here so ghg.co2.score never lands in the payload, and
+        # the dependent sub-aggregates null-propagate. The CO₂-selected
+        # happy path lives in test_co2_selected_activates_all_sub_aggregates.
         assert result["ghg.co2_context"] is None
         assert result["ghg.fossil_combustion_score"] is None
         assert result["ghg.activity_adjusted_co2"] is None
@@ -374,6 +629,60 @@ class TestRunPillar:
         assert "ghg.ch4.score" in err.indicator_ids
         assert "ghg.viirs.confidence" in err.indicator_ids
 
+    def test_co2_selected_activates_all_sub_aggregates(self, monkeypatch) -> None:
+        # M5.5 — when CO₂ is in the selection AND the snapshot succeeds,
+        # ghg.co2_context, ghg.fossil_combustion_score, and
+        # ghg.activity_adjusted_co2 all activate.
+
+        def _fake_co2_snapshot(aoi, time_range, mode, ee_client):
+            return {
+                "ghg.co2.mean":               5.0,
+                "ghg.co2.total":              1500.0,
+                "ghg.co2.relative_intensity": 5.0,
+                "ghg.co2.trend":              None,
+                "ghg.co2.trend_p":            None,
+                "ghg.co2.confidence":         1.0,
+                "ghg.co2.score":              0.7,
+                "_provenance.ghg.co2":        {"asset_id": "FAKE/ODIAC"},
+            }
+
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+            if indicator == "ch4":
+                return _fake_ch4_snapshot(include_air_keys=True)
+            if indicator == "viirs":
+                return _fake_viirs_snapshot()
+            raise AssertionError(f"unexpected indicator {indicator!r}")
+
+        monkeypatch.setattr(
+            "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
+        )
+        monkeypatch.setattr("engine.ghg.compute_co2_snapshot", _fake_co2_snapshot)
+
+        result = run_pillar(
+            aoi=_AOI,
+            time_range=_TIME_RANGE,
+            mode="screening",
+            selected_indicators={
+                "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
+            },
+            ee_client=None,
+        )
+
+        # CO₂ measurement keys present.
+        for measurement in (
+            "mean", "total", "relative_intensity",
+            "trend", "trend_p", "confidence", "score",
+        ):
+            assert f"ghg.co2.{measurement}" in result
+
+        # All three CO₂-dependent sub-aggregates activated.
+        assert result["ghg.co2_context"] == 0.7
+        assert result["ghg.fossil_combustion_score"] is not None
+        assert result["ghg.activity_adjusted_co2"] is not None
+
+        # Core audit support uses the M5.5-rebalanced weights with CO₂.
+        assert result["ghg.core_audit_support"] is not None
+
 
 # ---------------------------------------------------------------------------
 # Sanity tests for the smaller helpers
@@ -429,14 +738,37 @@ class TestCh4HotspotSignal:
         assert out["ghg.ch4_hotspot_signal"] is None
 
 
-class TestCo2DependentStubs:
+class TestCo2DependentFormulas:
+    """M5.5 — these formulas were stubs in M5a but activate as soon as
+    ghg.co2_context is non-None (i.e. CO₂ is selected and ODIAC succeeded).
+    """
+
+    def test_fossil_combustion_score_activated_when_all_inputs_present(self) -> None:
+        # 0.50·co2 + 0.30·combustion + 0.20·activity
+        out = compute_fossil_combustion_score({
+            "ghg.co2_context":      0.40,
+            "ghg.combustion_proxy": 0.50,
+            "ghg.activity_score":   0.30,
+        })
+        expected = 0.50 * 0.40 + 0.30 * 0.50 + 0.20 * 0.30
+        assert out["ghg.fossil_combustion_score"] == pytest.approx(expected)
+
     def test_fossil_combustion_score_none_when_co2_missing(self) -> None:
-        # CO₂ context is None in v1, so the formula null-propagates.
+        # Still null-propagates when CO₂ wasn't selected.
         out = compute_fossil_combustion_score({
             "ghg.co2_context":      None,
             "ghg.combustion_proxy": 0.5,
         })
         assert out["ghg.fossil_combustion_score"] is None
+
+    def test_activity_adjusted_co2_activated_when_both_inputs_present(self) -> None:
+        # 0.70·co2 + 0.30·activity
+        out = compute_activity_adjusted_co2({
+            "ghg.co2_context":    0.40,
+            "ghg.activity_score": 0.60,
+        })
+        expected = 0.70 * 0.40 + 0.30 * 0.60
+        assert out["ghg.activity_adjusted_co2"] == pytest.approx(expected)
 
     def test_activity_adjusted_co2_none_when_co2_missing(self) -> None:
         out = compute_activity_adjusted_co2({
@@ -451,8 +783,31 @@ class TestCo2DependentStubs:
 
 
 class TestCoreGhgAuditSupport:
+    """M5.5 — weights rebalanced from (0.39 / 0.28 / 0.22 / 0.11) to
+    (0.39 / 0.28 / 0.27 / 0.06) so VIIRS isn't double-counted with the
+    ODIAC diffuse-allocation branch. See engine/constants.py for the
+    full rationale.
+    """
+
+    def test_full_four_term_weighted_sum_with_co2_active(self) -> None:
+        # M5.5 — CO₂ is now in v1; all four terms contribute.
+        payload = {
+            "ghg.co2_context":          0.60,
+            "ghg.ch4_context_adjusted": 0.50,
+            "ghg.combustion_proxy":     0.40,
+            "ghg.activity_score":       0.30,
+        }
+        selected = set(payload.keys())
+        out = compute_core_ghg_audit_support(payload, selected)
+        # New weights (0.39 / 0.28 / 0.27 / 0.06).
+        expected = (
+            0.39 * 0.60 + 0.28 * 0.50 + 0.27 * 0.40 + 0.06 * 0.30
+        )
+        assert out["ghg.core_audit_support"] == pytest.approx(expected)
+
     def test_renormalises_over_present_terms_without_co2(self) -> None:
-        # No CO₂ context in v1 → renormalise over the three non-CO₂ terms.
+        # Legacy code path — when CO₂ wasn't selected, renormalise the
+        # remaining three (post-M5.5 weights: 0.28 + 0.27 + 0.06 = 0.61).
         payload = {
             "ghg.ch4_context_adjusted": 0.50,
             "ghg.combustion_proxy":     0.40,
@@ -464,10 +819,7 @@ class TestCoreGhgAuditSupport:
             "ghg.activity_score",
         }
         out = compute_core_ghg_audit_support(payload, selected)
-        # CORE_GHG_AUDIT_SUPPORT_WEIGHTS = co2=0.39, ch4_adj=0.28,
-        # combustion=0.22, activity=0.11. Without co2 the renormalised
-        # denominator is 0.28 + 0.22 + 0.11 = 0.61.
-        expected = (0.28 * 0.50 + 0.22 * 0.40 + 0.11 * 0.30) / 0.61
+        expected = (0.28 * 0.50 + 0.27 * 0.40 + 0.06 * 0.30) / 0.61
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
 

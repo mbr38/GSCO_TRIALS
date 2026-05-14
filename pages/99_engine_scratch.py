@@ -196,7 +196,7 @@ left_col, right_col = st.columns([3, 2])
 with right_col:
     if mode == "Full screening (all pillars)":
         st.info(
-            "Full screening runs 9 Air + 2 GHG + 7 Nature sequential Earth "
+            "Full screening runs 9 Air + 3 GHG + 7 Nature sequential Earth "
             "Engine queries — first run can take 60–180 seconds."
         )
 
@@ -459,24 +459,43 @@ with right_col:
             )
 
         # G. GHG per-indicator breakdown table. VIIRS lacks z (reduced
-        # measurement set per Schema_v2 §3.1), so its row's Z-score
-        # column will render "—".
+        # measurement set per Schema_v2 §3.1) and CO₂ has neither `site`
+        # nor `z` (custom 7-key set per Schema_v2 §3.1 + M5.5 rename: it
+        # uses `mean` and `relative_intensity`). Empty cells render "—".
         st.divider()
         st.markdown("**GHG — Per-indicator breakdown**")
         ghg_rows = []
         for ind in GHG_INDICATOR_CONFIG.keys():
-            ghg_rows.append({
-                "Indicator":  ind.upper(),
-                "Site":       _fmt(rresult.get(f"ghg.{ind}.site"), 2),
-                "Score":      _fmt(rresult.get(f"ghg.{ind}.score"), 2),
-                "Z-score":    _fmt(rresult.get(f"ghg.{ind}.z"), 2),
-                "Confidence": _fmt(rresult.get(f"ghg.{ind}.confidence"), 2),
-            })
+            if ind == "co2":
+                ghg_rows.append({
+                    "Indicator":  "CO2 (ODIAC)",
+                    "Site":       _fmt(rresult.get("ghg.co2.mean"), 2),
+                    "Score":      _fmt(rresult.get("ghg.co2.score"), 2),
+                    "Z-score":    "—",        # ODIAC has no z; uses relative_intensity.
+                    "Confidence": _fmt(rresult.get("ghg.co2.confidence"), 2),
+                })
+            else:
+                ghg_rows.append({
+                    "Indicator":  ind.upper(),
+                    "Site":       _fmt(rresult.get(f"ghg.{ind}.site"), 2),
+                    "Score":      _fmt(rresult.get(f"ghg.{ind}.score"), 2),
+                    "Z-score":    _fmt(rresult.get(f"ghg.{ind}.z"), 2),
+                    "Confidence": _fmt(rresult.get(f"ghg.{ind}.confidence"), 2),
+                })
         st.dataframe(
             pd.DataFrame(ghg_rows),
             hide_index=True,
             use_container_width=True,
         )
+
+        # Annualised CO₂ emissions caption — the headline ODIAC number
+        # that's most legible to a non-technical audience.
+        co2_total = rresult.get("ghg.co2.total")
+        if co2_total is not None:
+            st.caption(
+                f"Annual CO₂ emissions within buffer: **{co2_total:,.0f} t CO₂/yr** "
+                f"(ODIAC, site mean × buffer area, converted from t C)"
+            )
 
         # H. Nature pillar aggregates — the two that feed the cross-pillar composite.
         st.divider()

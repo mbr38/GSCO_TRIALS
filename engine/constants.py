@@ -107,12 +107,18 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
     "confidence": 0.15,
 }
 
-# IC_v4 §2.3 — Core GHG Audit Support (v1 rescaled form)
+# IC_v4 §2.3 — Core GHG Audit Support (v1 rescaled form, M5.5 adjusted).
+# Original IC v4 weights had VIIRS at 0.11 and combustion_proxy at 0.22.
+# With ODIAC activated in M5.5, VIIRS now contributes both directly through
+# ghg.activity_score AND indirectly via ODIAC's diffuse allocation branch
+# (per docs/m5.5_followups.md). Reduce ghg.activity_score to 0.06 and
+# redistribute the freed 0.05 to ghg.combustion_proxy to keep the
+# remaining-three sum unchanged. Sums to 1.00.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
     "ghg.co2_context":          0.39,
     "ghg.ch4_context_adjusted": 0.28,
-    "ghg.combustion_proxy":     0.22,
-    "ghg.activity_score":       0.11,
+    "ghg.combustion_proxy":     0.27,   # M5.5: was 0.22, +0.05
+    "ghg.activity_score":       0.06,   # M5.5: was 0.11, −0.05
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).
@@ -139,6 +145,12 @@ GHG_FOLLOWUP_WEIGHTS: dict[str, float] = {
 # due to swath geometry, even though the L3 grid is 1113 m. Used by
 # engine/ghg.py's spatial_resolution_suitability placeholder.
 CH4_NATIVE_SCALE_M: float = 7000.0
+
+# Molecular-weight ratio CO₂ / C = 44 / 12 ≈ 3.667. ODIAC stores fossil
+# emissions as t C (tonnes of carbon), not t CO₂; multiplying by this
+# ratio converts carbon mass to the CO₂-mass units that downstream
+# reporting / ESRS / GRI expect. Used by engine/ghg.compute_co2_snapshot.
+CO2_TO_C_RATIO: float = 44.0 / 12.0
 
 # IC_v4 §1.2 — Air sub-aggregate weights. Each dict sums to 1.00.
 PM_OR_AEROSOL_WEIGHTS: dict[str, float] = {

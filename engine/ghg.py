@@ -1,24 +1,27 @@
 """GHG pillar — single-value indicators, sub-aggregates, and pillar
-aggregates (Milestone 5a).
+aggregates (Milestones 5a + 5c + 5.5).
 
-M5a covers CH₄ and VIIRS only. CO₂ context (ODIAC) is deferred to M5.5 —
-the ODIAC asset isn't yet in the GEE catalogue and requires a personal
-upload. GHG quality sub-scores are placeholders pending the IC_v5 §6.3
-confidence-formula doc fix (same TODO chain as Air's confidence).
-
-DONE(M5c): orchestrator needs to expose its accumulated payload to
-  run_pillar (or compute borrowed sub-aggregates after each pillar) so
-  GHG's combustion_proxy / fire_or_regional_transport_risk can read Air's
-  values at runtime.
+M5.5 — CO₂ activated via the ODIAC personal asset
+(projects/supply-chain-observatory/assets/odiac). Three single-value
+indicators (CH₄, CO₂, VIIRS), the three CO₂-dependent sub-aggregates
+(ghg.co2_context, ghg.fossil_combustion_score, ghg.activity_adjusted_co2),
+and full pillar-aggregate computation are all live. GHG quality sub-scores
+are still placeholders pending the IC_v5 §6.3 confidence-formula doc fix
+(same TODO chain as Air's confidence).
 
 Layers (mirrors engine/air.py architecture):
-1. Single-value indicators (IC_v4 §2.1 / Schema_v2 §3.1) — ch4, viirs.
-   CO₂ stub: `compute_co2_snapshot` raises NotImplementedError.
+1. Single-value indicators (IC_v4 §2.1 / Schema_v2 §3.1) — ch4, co2, viirs.
+   CO₂ uses a custom 7-key measurement set with `.relative_intensity` in
+   place of `.anomaly` (M5.5 rename per m5.5_followups.md: ODIAC is an
+   emissions allocation, not an atmospheric measurement, so the
+   six-step "anomaly" framing was misleading).
 2. GHG quality sub-scores (Schema_v2 §3.4) — temporal_coverage,
    spatial_resolution_suitability, retrieval_inventory_quality,
    nearby_source_isolation. All placeholders pending IC_v5 §6.3.
-3. Sub-aggregates (IC_v4 §2.2 / Schema_v2 §3.2) — five computable in v1,
-   three CO₂-dependent stubs that null-propagate.
+3. Sub-aggregates (IC_v4 §2.2 / Schema_v2 §3.2) — eight, all activatable
+   in v1: ch4_hotspot_signal, combustion_proxy, activity_score,
+   fire_or_regional_transport_risk, ch4_context_adjusted, co2_context,
+   fossil_combustion_score, activity_adjusted_co2.
 4. Pillar aggregates (IC_v4 §2.3 / Schema_v2 §3.3) — five aggregate scores.
 5. `run_pillar` — orchestrator entry point.
 
@@ -32,10 +35,10 @@ Cross-pillar dependency (resolved M5c):
   computation so the borrow chain resolves, then strips them before return
   so only GHG-pillar keys are emitted.
 
-TODOs deferred from this milestone:
-- TODO(M5.5): wire CO₂ context once ODIAC asset is ingested. Activates
-  three sub-aggregate stubs (ghg.co2_context, ghg.fossil_combustion_score,
-  ghg.activity_adjusted_co2).
+TODOs still deferred:
+- TODO(v1.x): CARMA-overlap flag — when ODIAC's Site_Buffer overlaps a
+  CARMA point source the score should carry a `carma_overlap=True`
+  provenance flag and the limiting-factor template should surface it.
 - TODO(IC_v5): replace placeholder GHG quality sub-scores with real
   formulas once §6.3 lands.
 - TODO(IC_v5): no wind, no sector match in v1 — Wind_Consistency,
@@ -51,14 +54,21 @@ import ee
 from engine.constants import (
     ANOMALY_Z_THRESHOLD,
     CH4_NATIVE_SCALE_M,
+    CO2_TO_C_RATIO,
     CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
     GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
     NORMALISATION_K,
 )
 from engine.core import six_step
+from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import PILLAR_GHG, make_id
+
+
+# Math import for the log-based CO₂ score (kept local — no other GHG
+# function needs it).
+import math
 
 
 # ---------------------------------------------------------------------------
@@ -109,12 +119,35 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
             "site", "anomaly", "trend", "confidence", "score",
         ),
     ),
-    # TODO(M5.5): "co2": GhgIndicatorConfig(...) once ODIAC is ingested.
+    # M5.5 — ODIAC monthly grids, ingested as ImageCollection on the GSCO
+    # GCP project. Band `b1` is the default ODIAC raster band name (not
+    # renamed at ingestion). Each pixel value is t C (tonnes of carbon, not
+    # CO₂) per cell per month. The C → CO₂ molecular conversion
+    # (CO2_TO_C_RATIO = 44/12) and the monthly → annual scaling (×12) are
+    # applied inside compute_co2_snapshot after the reduceRegion sum, not
+    # via scale_factor on the collection — keeps raw arithmetic simple and
+    # the conversion explicit / audit-traceable.
+    "co2": GhgIndicatorConfig(
+        asset_id="projects/supply-chain-observatory/assets/odiac",
+        band="b1",
+        scale_factor=1.0,
+        scale_m=1000.0,                # ODIAC native pixel ≈ 1 km.
+        display_unit="t CO₂/yr",
+        # Schema_v2 §3.1 — CO₂ emits a custom 7-key measurement set
+        # distinct from both CH₄ (9-key full) and VIIRS (5-key reduced).
+        # `relative_intensity` replaces the original `anomaly` per M5.5
+        # follow-ups: ODIAC is an emissions allocation, not an atmospheric
+        # column observation, so "anomaly" was the wrong framing.
+        emitted_measurements=(
+            "mean", "total", "relative_intensity",
+            "trend", "trend_p", "confidence", "score",
+        ),
+    ),
 }
 
 
-# Sub-aggregate weight dicts for the CO₂-dependent stubs. Both formulas
-# null-propagate today (co2_context is None until M5.5 wires ODIAC).
+# Sub-aggregate weight dicts for the two CO₂-dependent composites. Both
+# activate in M5.5 once ghg.co2.score is in the payload.
 # IC_v4 §2.2
 _FOSSIL_COMBUSTION_WEIGHTS: dict[str, float] = {
     "ghg.co2_context":      0.50,
@@ -214,20 +247,184 @@ def compute_viirs_activity(
 
 
 def compute_co2_snapshot(
-    aoi: dict, time_range: tuple[str, str], mode: str, ee_client,
+    aoi: dict, time_range: tuple[str, str], mode: str, ee_client,  # noqa: ARG001
 ) -> dict:
-    """CO₂ context snapshot — STUB in M5a, raises NotImplementedError.
+    """ODIAC fossil CO₂ context snapshot (IC_v4 §2.1 / Schema_v2 §3.1).
 
-    ODIAC is the canonical CO₂ inventory product but isn't in the public
-    GEE catalogue; it requires a personal asset upload. Activates in M5.5.
+    ODIAC is an emissions inventory, not an atmospheric observation. The
+    site-vs-background six-step pattern doesn't apply directly — instead
+    we compute:
 
-    Note: this is the indicator-snapshot wrapper. The sub-aggregate
-    `compute_co2_context(payload)` is a separate function that returns
-    None until M5.5 makes `ghg.co2.score` available in the payload.
+    - `mean`               — average annualised flux density across buffer
+                             pixels, expressed in t CO₂/yr per pixel.
+    - `total`              — sum of annualised emissions within Site_Buffer
+                             (t CO₂/yr across the whole AOI).
+    - `relative_intensity` — site mean ÷ background ring mean. Labelled
+                             "relative_intensity" not "anomaly" because
+                             ODIAC is an allocation product, not a measured
+                             baseline (see docs/m5.5_followups.md).
+    - `score`              — log-scaled 0-1 form of relative_intensity:
+                             1× regional → 0, 10× regional → 1.
+
+    The C → CO₂ molecular conversion (CO2_TO_C_RATIO = 44/12) and the
+    monthly → annual scaling (×12) are applied here, not in
+    GHG_INDICATOR_CONFIG, so the conversion is explicit and traceable in
+    the provenance block.
+
+    Raises:
+        IndicatorComputeError: pixel-size guard fires (buffer < ODIAC native pixel)
+                               or ODIAC has no pixels in the buffer / time_range.
     """
-    raise NotImplementedError(
-        "CO₂ context deferred to M5.5 — ODIAC asset not yet ingested"
+    cfg = GHG_INDICATOR_CONFIG["co2"]
+    radius_km = aoi["radius_km"]
+    if cfg.scale_m > radius_km * 1000:
+        raise IndicatorComputeError(
+            indicator_id=make_id(PILLAR_GHG, "co2"),
+            reason=(
+                f"site buffer ({radius_km} km) smaller than ODIAC "
+                f"native pixel ({cfg.scale_m / 1000:.1f} km) — "
+                f"increase radius or omit CO₂ from selection"
+            ),
+        )
+
+    ic = ee.ImageCollection(cfg.asset_id).filterDate(*time_range)
+    n_months = int(ic.size().getInfo() or 0)
+    if n_months == 0:
+        raise IndicatorComputeError(
+            indicator_id=make_id(PILLAR_GHG, "co2"),
+            reason=(
+                f"no ODIAC monthly grids found in time_range {time_range} — "
+                f"asset {cfg.asset_id!r} covers 2020-2023 only"
+            ),
+        )
+
+    site_geom = site_buffer(aoi["centre"], radius_km)
+    ring_geom = background_ring(aoi["centre"], radius_km)
+
+    # ODIAC b1 holds t C *per cell per month*; sum the cells inside the
+    # buffer over time, divide by n_months and multiply by 12 to annualise,
+    # then multiply by CO2_TO_C_RATIO to convert C → CO₂.
+    # `ic.sum()` adds the months element-wise: sum_pixel = Σ_months tC.
+    summed_image = ic.select(cfg.band).sum()
+
+    site_sum_t_c = float(
+        summed_image.reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=site_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).get(cfg.band).getInfo()
+        or 0.0
     )
+    site_mean_t_c = float(
+        summed_image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=site_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).get(cfg.band).getInfo()
+        or 0.0
+    )
+    ring_mean_t_c = float(
+        summed_image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=ring_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).get(cfg.band).getInfo()
+        or 0.0
+    )
+
+    # Annualise: `summed_image` is Σ months over time_range, so the mean
+    # per month is (Σ months) / n_months; the annualised value is ×12.
+    annualisation = 12.0 / n_months
+    site_total_t_co2 = site_sum_t_c * annualisation * CO2_TO_C_RATIO
+    site_mean_t_co2 = site_mean_t_c * annualisation * CO2_TO_C_RATIO
+    ring_mean_t_co2 = ring_mean_t_c * annualisation * CO2_TO_C_RATIO
+
+    relative_intensity, score = _co2_relative_intensity_and_score(
+        site_mean_t_co2, ring_mean_t_co2,
+    )
+
+    return _format_co2_result(
+        cfg=cfg,
+        total=site_total_t_co2,
+        mean=site_mean_t_co2,
+        relative_intensity=relative_intensity,
+        score=score,
+        n_months=n_months,
+        time_range=time_range,
+    )
+
+
+# Cap on relative_intensity: values > 10× regional background almost always
+# indicate the buffer overlaps a CARMA-listed point source (single mega-
+# emitter pixel dominating the small buffer). v1 clamps; v1.x will flag
+# explicitly via the deferred CARMA-overlap provenance flag — see
+# docs/m5.5_followups.md.
+_CO2_RELATIVE_INTENSITY_CAP: float = 10.0
+
+
+def _co2_relative_intensity_and_score(
+    site_mean: float, ring_mean: float,
+) -> tuple[float | None, float | None]:
+    """Compute (relative_intensity, score) for the CO₂ snapshot.
+
+    Score formula: `clamp(log10(max(rel_intensity, 1)) / log10(10), 0, 1)`.
+    At 1× regional background → score 0; at 10× background → score 1.
+    Saturates log-style rather than linear so a 2× site doesn't read as
+    "moderately concerning" — emissions are heavy-tailed.
+
+    TODO(v1.x): CARMA-overlap flag — when the buffer overlaps a CARMA
+    power-plant point, set carma_overlap=True in provenance and surface in
+    the limiting-factor template per docs/m5.5_followups.md.
+    """
+    if ring_mean <= 0:
+        return None, None
+    rel = min(site_mean / ring_mean, _CO2_RELATIVE_INTENSITY_CAP)
+    safe_rel = max(rel, 1.0)
+    score = math.log10(safe_rel) / math.log10(_CO2_RELATIVE_INTENSITY_CAP)
+    return rel, max(0.0, min(1.0, score))
+
+
+def _format_co2_result(
+    cfg: GhgIndicatorConfig,
+    *,
+    total: float,
+    mean: float,
+    relative_intensity: float | None,
+    score: float | None,
+    n_months: int,
+    time_range: tuple[str, str],
+) -> dict:
+    """Map computed values onto the canonical CO₂ measurement IDs.
+
+    `trend` / `trend_p` are None pending the same M5+ trend.py wiring used
+    by Air and CH₄. `confidence` is the same placeholder pattern as
+    elsewhere (1.0 when we have data — IC_v5 §6.3 doc gap).
+    """
+    return {
+        make_id(PILLAR_GHG, "co2", "mean"):               mean,
+        make_id(PILLAR_GHG, "co2", "total"):              total,
+        make_id(PILLAR_GHG, "co2", "relative_intensity"): relative_intensity,
+        make_id(PILLAR_GHG, "co2", "trend"):              None,
+        make_id(PILLAR_GHG, "co2", "trend_p"):            None,
+        # Placeholder confidence: 1.0 when the snapshot computed at all;
+        # see _placeholder_confidence's docstring re IC_v5 §6.3 doc gap.
+        make_id(PILLAR_GHG, "co2", "confidence"):         1.0 if score is not None else None,
+        make_id(PILLAR_GHG, "co2", "score"):              score,
+        "_provenance.ghg.co2": {
+            "asset_id":           cfg.asset_id,
+            "band":               cfg.band,
+            "time_range":         time_range,
+            "n_months":           n_months,
+            "c_to_co2_factor":    CO2_TO_C_RATIO,
+            "annualisation_note": "monthly t C → annual t CO₂ via ×(12/n_months)·(44/12)",
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +465,9 @@ def compute_retrieval_inventory_quality(payload: dict) -> dict:
     so the aggregate retrieval quality is decent but not best-in-class.
     Treating as constant for v1.
 
-    TODO(M5.5): plumb real qa_value from TROPOMI CH₄ + ODIAC vintage flag.
+    TODO(v1.x): plumb real qa_value from TROPOMI CH₄ + ODIAC vintage flag —
+    ODIAC ingestion landed in M5.5 but the per-asset vintage property isn't
+    yet wired into this score.
     """
     return {"ghg.retrieval_inventory_quality": 0.7}
 
@@ -359,8 +558,10 @@ def compute_ch4_context_adjusted(payload: dict) -> dict:
 def compute_co2_context(payload: dict) -> dict:
     """IC_v4 §2.2 — alias of `ghg.co2.score`.
 
-    STUB in M5a: `ghg.co2.score` isn't computed until M5.5 wires ODIAC, so
-    this returns None and downstream sub-aggregates null-propagate.
+    Activated in M5.5 with the ODIAC personal asset. Returns None if the
+    CO₂ snapshot failed (e.g. no overlap with ODIAC's 2020-2023 coverage)
+    or `ghg.co2.score` is otherwise unavailable, in which case downstream
+    sub-aggregates that depend on it null-propagate.
     """
     return {"ghg.co2_context": payload.get("ghg.co2.score")}
 
@@ -368,7 +569,8 @@ def compute_co2_context(payload: dict) -> dict:
 def compute_fossil_combustion_score(payload: dict) -> dict:
     """IC_v4 §2.2 — `0.50·co2_context + 0.30·combustion_proxy + 0.20·activity_score`.
 
-    STUB in M5a: co2_context is None until M5.5, so this returns None.
+    Activated in M5.5: returns the weighted sum when all three inputs are
+    present; strict-null-propagates if any is missing.
     """
     return {
         "ghg.fossil_combustion_score": _weighted_sum_strict(
@@ -380,7 +582,13 @@ def compute_fossil_combustion_score(payload: dict) -> dict:
 def compute_activity_adjusted_co2(payload: dict) -> dict:
     """IC_v4 §2.2 — `0.70·co2_context + 0.30·activity_score`.
 
-    STUB in M5a: co2_context is None until M5.5, so this returns None.
+    Activated in M5.5: returns the weighted sum when both inputs are
+    present; strict-null-propagates if either is missing.
+
+    TODO(v1.x): per docs/m5.5_followups.md this term arguably triple-counts
+    VIIRS (which already feeds ghg.activity_score directly and ODIAC
+    indirectly via the diffuse allocation branch). Either drop or reframe
+    as a diagnostic-only output once we have field validation data.
     """
     return {
         "ghg.activity_adjusted_co2": _weighted_sum_strict(
@@ -399,8 +607,10 @@ def compute_core_ghg_audit_support(
     """IC_v4 §2.3 — weighted sum per CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
 
     `selected` restricts which terms contribute; weights renormalise over
-    the surviving set. Without CO₂ in v1, the four-term formula
-    renormalises naturally over the three non-CO₂ terms.
+    the surviving set. Before M5.5 the four-term formula renormalised
+    naturally over the three non-CO₂ terms; now that ODIAC is wired all
+    four (co2 / ch4_adj / combustion / activity) typically contribute,
+    using the M5.5-rebalanced weights (combustion 0.27, activity 0.06).
     """
     candidates = {
         k: payload[k] for k in CORE_GHG_AUDIT_SUPPORT_WEIGHTS
@@ -532,13 +742,24 @@ def run_pillar(
 
     for ind_key in sorted(indicator_keys):
         try:
-            snapshot = compute_ghg_indicator_snapshot(
-                aoi=aoi,
-                indicator=ind_key,
-                time_range=time_range,
-                mode=mode,
-                ee_client=ee_client,
-            )
+            # CO₂ has a bespoke ODIAC pipeline (inventory product, not a
+            # column density), so it bypasses six_step. All other GHG
+            # indicators flow through compute_ghg_indicator_snapshot.
+            if ind_key == "co2":
+                snapshot = compute_co2_snapshot(
+                    aoi=aoi,
+                    time_range=time_range,
+                    mode=mode,
+                    ee_client=ee_client,
+                )
+            else:
+                snapshot = compute_ghg_indicator_snapshot(
+                    aoi=aoi,
+                    indicator=ind_key,
+                    time_range=time_range,
+                    mode=mode,
+                    ee_client=ee_client,
+                )
         except IndicatorComputeError as err:
             cfg = GHG_INDICATOR_CONFIG[ind_key]
             for measurement in cfg.emitted_measurements:
@@ -585,7 +806,8 @@ def run_pillar(
     payload.update(compute_nearby_source_isolation(payload))
 
     # Sub-aggregates — dependency order: Air-borrowed first (so dependents
-    # downstream see them), then CH₄-side, then stubs.
+    # downstream see them), then CH₄-side, then the three CO₂-dependent
+    # composites (activated in M5.5 once ODIAC is wired).
     payload.update(compute_combustion_proxy(payload))
     payload.update(compute_fire_or_regional_transport_risk(payload))
     payload.update(compute_ch4_hotspot_signal(payload))

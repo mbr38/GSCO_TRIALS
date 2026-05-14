@@ -31,9 +31,16 @@ MEASUREMENT_SUFFIXES: tuple[str, ...] = (
     "trend", "trend_p", "confidence", "score",
 )
 
-# CO2 is an emissions inventory, not a column density — different measurements (schema §3.1)
+# CO2 is an emissions inventory, not a column density — different
+# measurements (schema §3.1). M5.5 renamed `.anomaly` → `.relative_intensity`
+# because ODIAC is an emissions allocation product, not an atmospheric
+# observation; "anomaly" implied a physical baseline measurement it doesn't
+# actually have. `.trend_p` joins the set so CO₂ matches CH₄'s trend
+# reporting shape. Schema_v2 §3.1 doc update is pending — see
+# docs/m5.5_followups.md.
 CO2_MEASUREMENT_SUFFIXES: tuple[str, ...] = (
-    "mean", "total", "anomaly", "trend", "confidence", "score",
+    "mean", "total", "relative_intensity",
+    "trend", "trend_p", "confidence", "score",
 )
 
 # VIIRS NTL — reduced set (schema §3.1)
