@@ -14,6 +14,7 @@ EE init → EE-dependent imports.
 
 from datetime import date, timedelta
 
+import pandas as pd
 import streamlit as st
 
 from utils.state import require_user_type, sign_out
@@ -31,10 +32,10 @@ require_earth_engine()
 import ee
 import geemap.foliumap as geemap
 
-from engine.air import AIR_POLLUTANT_CONFIG, compute_pollutant_snapshot
+from engine.air import AIR_POLLUTANT_CONFIG, compute_pollutant_snapshot, run_pillar
 from engine.constants import BACKGROUND_RING_MAX_KM, BACKGROUND_RING_RADIUS_MULTIPLE
 from engine.core.buffers import background_ring, site_buffer
-from engine.exceptions import IndicatorComputeError
+from engine.exceptions import IndicatorComputeError, PillarComputeError
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +86,9 @@ def _fmt(value: float | None, decimals: int = 3) -> str:
 st.session_state.setdefault("scratch_preset", "Mid-Atlantic (clean reference)")
 st.session_state.setdefault("scratch_lat", 0.0)
 st.session_state.setdefault("scratch_lon", -30.0)
+# Cached result from the last successful Run snapshot. None until the user
+# clicks Run for the first time; cleared whenever sidebar inputs drift.
+st.session_state.setdefault("scratch_last_run", None)
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +120,16 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 with st.sidebar:
+    mode = st.radio(
+        "Mode",
+        ["Single pollutant", "Full pillar (all 9)"],
+        help=(
+            "Single pollutant runs compute_pollutant_snapshot for one selected "
+            "pollutant. Full pillar runs run_pillar across all nine — produces "
+            "the air-pillar aggregate score."
+        ),
+    )
+
     st.subheader("Location")
     st.selectbox(
         "Quick presets",
@@ -137,8 +151,15 @@ with st.sidebar:
     st.subheader("AOI")
     radius_km = st.slider("Radius (km)", min_value=1, max_value=50, value=5)
 
-    st.subheader("Pollutant + time range")
-    pollutant = st.selectbox("Pollutant", list(AIR_POLLUTANT_CONFIG.keys()))
+    if mode == "Single pollutant":
+        st.subheader("Pollutant + time range")
+        pollutant: str | None = st.selectbox(
+            "Pollutant", list(AIR_POLLUTANT_CONFIG.keys()),
+        )
+    else:
+        # Full pillar mode uses all nine pollutants — no individual selector.
+        st.subheader("Time range")
+        pollutant = None
     today = date.today()
     start_date = st.date_input("Start date", value=today - timedelta(days=93))
     end_date = st.date_input("End date", value=today - timedelta(days=3))
@@ -148,92 +169,279 @@ with st.sidebar:
 # Main panel
 # ---------------------------------------------------------------------------
 
-cfg = AIR_POLLUTANT_CONFIG[pollutant]
+cfg = AIR_POLLUTANT_CONFIG[pollutant] if pollutant is not None else None
 centre = {"lat": lat, "lon": lon}
 background_km = min(BACKGROUND_RING_RADIUS_MULTIPLE * radius_km, BACKGROUND_RING_MAX_KM)
 time_range = (start_date.isoformat(), end_date.isoformat())
 
+# Drift detection — clear the cached result whenever any sidebar input has
+# changed since the last Run, so the displayed map and metrics never outlive
+# their inputs. `mode` is part of the tuple so switching mode also clears.
+current_inputs = (
+    mode, lat, lon, radius_km, pollutant,
+    start_date.isoformat(), end_date.isoformat(),
+)
+last = st.session_state.get("scratch_last_run")
+if last is not None and last["inputs"] != current_inputs:
+    st.session_state.scratch_last_run = None
+    last = None
+
 left_col, right_col = st.columns([3, 2])
 
-with left_col:
-    site_geom = site_buffer(centre, radius_km)
-    ring_geom = background_ring(centre, radius_km)
-    layer_ic = (
-        ee.ImageCollection(cfg.asset_id)
-        .filterDate(*time_range)
-        .select(cfg.band)
-    )
-
-    m = geemap.Map(center=[lat, lon], zoom=8)
-    m.add_basemap("SATELLITE")
-    m.addLayer(layer_ic.mean(), _VIZ_PARAMS[pollutant], f"{pollutant} mean")
-    m.addLayer(site_geom, {"color": "blue"}, "Site buffer")
-    m.addLayer(ring_geom, {"color": "red"}, "Background ring")
-    m.to_streamlit(height=550)
-
-
 with right_col:
+    if mode == "Full pillar (all 9)":
+        st.info(
+            "Full pillar mode runs 9 sequential Earth Engine queries — "
+            "first run can take 30–90 seconds."
+        )
+
     run = st.button("Run snapshot", type="primary", use_container_width=True)
 
     if run:
         aoi = {"centre": centre, "radius_km": radius_km}
         try:
-            with st.spinner("Running engine..."):
-                result = compute_pollutant_snapshot(
-                    aoi=aoi,
-                    pollutant=pollutant,
-                    time_range=time_range,
-                    mode="screening",
-                    ee_client=None,
-                )
-        except IndicatorComputeError as err:
+            if mode == "Single pollutant":
+                with st.spinner("Running engine..."):
+                    result = compute_pollutant_snapshot(
+                        aoi=aoi,
+                        pollutant=pollutant,
+                        time_range=time_range,
+                        mode="screening",
+                        ee_client=None,
+                    )
+            elif mode == "Full pillar (all 9)":
+                selected = {f"air.{p}.score" for p in AIR_POLLUTANT_CONFIG.keys()}
+                with st.spinner("Running full air pillar..."):
+                    result = run_pillar(
+                        aoi=aoi,
+                        time_range=time_range,
+                        mode="screening",
+                        selected_indicators=selected,
+                        ee_client=None,
+                    )
+        except (IndicatorComputeError, PillarComputeError) as err:
             st.error(f"Compute failed: {err}")
         else:
-            site_v       = result[f"air.{pollutant}.site"]
-            background_v = result[f"air.{pollutant}.background"]
-            anomaly_v    = result[f"air.{pollutant}.anomaly"]
-            z_v          = result[f"air.{pollutant}.z"]
-            hf_v         = result[f"air.{pollutant}.hf"]
-            score_v      = result[f"air.{pollutant}.score"]
-            confidence_v = result[f"air.{pollutant}.confidence"]
+            st.session_state.scratch_last_run = {
+                "inputs":     current_inputs,
+                "mode":       mode,
+                "result":     result,
+                "cfg":        cfg,
+                "time_range": time_range,
+                "lat":        lat,
+                "lon":        lon,
+                "radius_km":  radius_km,
+                "pollutant":  pollutant,
+            }
+            last = st.session_state.scratch_last_run
 
-            # Headline — the score, big and prominent.
-            st.markdown("### Result")
-            st.metric(
-                label="Score",
-                value=_fmt(score_v, 2),
-                delta="of 1.00",
-                delta_color="off",
+    if last is not None and last["mode"] == "Single pollutant":
+        rresult    = last["result"]
+        rcfg       = last["cfg"]
+        rpollutant = last["pollutant"]
+
+        site_v       = rresult[f"air.{rpollutant}.site"]
+        background_v = rresult[f"air.{rpollutant}.background"]
+        anomaly_v    = rresult[f"air.{rpollutant}.anomaly"]
+        z_v          = rresult[f"air.{rpollutant}.z"]
+        hf_v         = rresult[f"air.{rpollutant}.hf"]
+        score_v      = rresult[f"air.{rpollutant}.score"]
+        confidence_v = rresult[f"air.{rpollutant}.confidence"]
+
+        # Headline — the score, big and prominent.
+        st.markdown("### Result")
+        st.metric(
+            label="Score",
+            value=_fmt(score_v, 2),
+            delta="of 1.00",
+            delta_color="off",
+        )
+        st.caption(
+            "Score is a 0–1 measure of how unusual the site value is compared "
+            "to its surrounding background ring, normalised against background "
+            "variability. 0 means the site matches its surroundings; 1 means "
+            "the site is at or above 3 standard deviations from background. "
+            "Thresholds: below 0.33 = low concern (green), 0.33–0.66 = elevated "
+            "(amber), above 0.66 = high concern (red)."
+        )
+
+        # Raw values — measurements on the left, statistical context on the right.
+        st.divider()
+        st.markdown("**Raw values**")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f"**Site value**  \n{_fmt(site_v, 2)} {rcfg.display_unit}")
+            st.markdown(f"**Anomaly**  \n{_fmt(anomaly_v, 2)} {rcfg.display_unit}")
+        with col_b:
+            st.markdown(f"**Background**  \n{_fmt(background_v, 2)} {rcfg.display_unit}")
+            st.markdown(f"**Z-score**  \n{_fmt(z_v, 2)} σ")
+
+        # Quality — second-order concerns, visually separated.
+        st.divider()
+        st.markdown("**Quality**")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f"**Confidence**  \n{_fmt(confidence_v, 2)}")
+        with col_b:
+            st.markdown(f"**Hotspot frequency**  \n{_fmt(hf_v, 2)}")
+
+        with st.expander("Full payload"):
+            st.json(rresult)
+
+        with st.expander("Provenance"):
+            st.json(rresult[f"_provenance.air.{rpollutant}"])
+
+    elif last is not None and last["mode"] == "Full pillar (all 9)":
+        rresult = last["result"]
+
+        # A. Headline — pillar follow-up priority is the audience-facing score.
+        st.markdown("### Air pillar — Audit follow-up priority")
+        st.metric(
+            label="Score",
+            value=_fmt(rresult.get("air.audit_followup_priority"), 2),
+            delta="of 1.00",
+            delta_color="off",
+        )
+        st.caption(
+            "Score is a 0–1 measure of how unusual the site value is compared "
+            "to its surrounding background ring, normalised against background "
+            "variability. 0 means the site matches its surroundings; 1 means "
+            "the site is at or above 3 standard deviations from background. "
+            "Thresholds: below 0.33 = low concern (green), 0.33–0.66 = elevated "
+            "(amber), above 0.66 = high concern (red)."
+        )
+
+        # B. Pillar aggregates — the four that feed audit_followup_priority.
+        st.divider()
+        st.markdown("**Pillar aggregates**")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(
+                "**Pollution proxy score**  \n"
+                f"{_fmt(rresult.get('air.pollution_proxy_score'), 2)}"
+            )
+            st.markdown(
+                "**Trend score**  \n"
+                f"{_fmt(rresult.get('air.trend_score'), 2)}"
+            )
+        with col_b:
+            st.markdown(
+                "**Spatiotemporal anomaly**  \n"
+                f"{_fmt(rresult.get('air.spatiotemporal_anomaly_score'), 2)}"
+            )
+            st.markdown(
+                "**Attribution confidence**  \n"
+                f"{_fmt(rresult.get('air.attribution_confidence_score'), 2)}"
             )
 
-            # Raw values — measurements on the left, statistical context on the right.
-            st.divider()
-            st.markdown("**Raw values**")
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.markdown(f"**Site value**  \n{_fmt(site_v, 2)} {cfg.display_unit}")
-                st.markdown(f"**Anomaly**  \n{_fmt(anomaly_v, 2)} {cfg.display_unit}")
-            with col_b:
-                st.markdown(f"**Background**  \n{_fmt(background_v, 2)} {cfg.display_unit}")
-                st.markdown(f"**Z-score**  \n{_fmt(z_v, 2)} σ")
+        # C. Sub-aggregates — six derived 0-1 scores per IC_v4 §1.2.
+        st.divider()
+        st.markdown("**Sub-aggregates**")
+        sub_cols_top = st.columns(3)
+        sub_cols_top[0].markdown(
+            "**PM / Aerosol**  \n"
+            f"{_fmt(rresult.get('air.pm_or_aerosol'), 2)}"
+        )
+        sub_cols_top[1].markdown(
+            "**Industrial combustion**  \n"
+            f"{_fmt(rresult.get('air.industrial_combustion_proxy'), 2)}"
+        )
+        sub_cols_top[2].markdown(
+            "**Heavy industry**  \n"
+            f"{_fmt(rresult.get('air.heavy_industry_score'), 2)}"
+        )
+        sub_cols_bot = st.columns(3)
+        sub_cols_bot[0].markdown(
+            "**VOC / photochemical**  \n"
+            f"{_fmt(rresult.get('air.voc_photochemical'), 2)}"
+        )
+        sub_cols_bot[1].markdown(
+            "**Smoke / dust transport**  \n"
+            f"{_fmt(rresult.get('air.smoke_dust_regional_transport'), 2)}"
+        )
+        sub_cols_bot[2].markdown(
+            "**Industrial burden**  \n"
+            f"{_fmt(rresult.get('air.industrial_air_pollution_burden'), 2)}"
+        )
 
-            # Quality — second-order concerns, visually separated.
-            st.divider()
-            st.markdown("**Quality**")
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.markdown(f"**Confidence**  \n{_fmt(confidence_v, 2)}")
-            with col_b:
-                st.markdown(f"**Hotspot frequency**  \n{_fmt(hf_v, 2)}")
+        # D. Per-pollutant breakdown — flat table for quick cross-comparison.
+        st.divider()
+        st.markdown("**Per-pollutant breakdown**")
+        rows = []
+        for p in AIR_POLLUTANT_CONFIG.keys():
+            rows.append({
+                "Pollutant":  p.upper(),
+                "Site":       _fmt(rresult.get(f"air.{p}.site"), 2),
+                "Score":      _fmt(rresult.get(f"air.{p}.score"), 2),
+                "Z-score":    _fmt(rresult.get(f"air.{p}.z"), 2),
+                "Confidence": _fmt(rresult.get(f"air.{p}.confidence"), 2),
+            })
+        st.dataframe(
+            pd.DataFrame(rows),
+            hide_index=True,
+            use_container_width=True,
+        )
 
-            with st.expander("Full payload"):
-                st.json(result)
+        # E. Failures — surfaced as a warning expander when present.
+        if rresult.get("_failures"):
+            with st.expander(
+                f"⚠ {len(rresult['_failures'])} pollutant(s) failed to compute"
+            ):
+                for fail in rresult["_failures"]:
+                    st.write(
+                        f"- **{fail['pollutant'].upper()}**: {fail['reason']}"
+                    )
 
-            with st.expander("Provenance"):
-                st.json(result[f"_provenance.air.{pollutant}"])
+        # F. Full payload — debug expander, unchanged from Single mode.
+        with st.expander("Full payload"):
+            st.json(rresult)
+
+    else:
+        st.info("Configure inputs and click **Run snapshot**.")
 
     st.caption(
         f"Queried `{start_date.isoformat()}` → `{end_date.isoformat()}`  ·  "
         f"site buffer **{radius_km} km**  ·  "
         f"background ring **{background_km} km**"
     )
+
+with left_col:
+    # Base map + buffers always render against current sidebar inputs — they
+    # are the constant spatial anchor for the audience.
+    site_geom = site_buffer(centre, radius_km)
+    ring_geom = background_ring(centre, radius_km)
+
+    m = geemap.Map(center=[lat, lon], zoom=8)
+    m.add_basemap("SATELLITE")
+
+    # Pollutant layer first (bottom) — only in Single pollutant mode, and only
+    # when last_run matches current inputs. Full pillar mode skips it because
+    # rendering all 9 layers as overlaps would be unreadable.
+    if (
+        st.session_state.scratch_last_run is not None
+        and st.session_state.scratch_last_run["inputs"] == current_inputs
+        and st.session_state.scratch_last_run["mode"] == "Single pollutant"
+    ):
+        layer_ic = (
+            ee.ImageCollection(cfg.asset_id)
+            .filterDate(*time_range)
+            .select(cfg.band)
+        )
+        m.addLayer(
+            layer_ic.mean(),
+            _VIZ_PARAMS[pollutant],
+            f"{pollutant} mean",
+        )
+
+    # Outlines on top so they remain visible. fillColor="00000000" is fully
+    # transparent (RGBA with alpha = 0); width=2 keeps the stroke crisp
+    # without dominating the basemap.
+    def _outline(geom, colour: str, name: str) -> None:
+        fc = ee.FeatureCollection([ee.Feature(geom)])
+        styled = fc.style(color=colour, fillColor="00000000", width=2)
+        m.addLayer(styled, {}, name)
+
+    _outline(ring_geom, "red", "Background ring")
+    _outline(site_geom, "blue", "Site buffer")
+
+    m.to_streamlit(height=550)

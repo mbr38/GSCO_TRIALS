@@ -126,3 +126,33 @@ GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
     "ghg.retrieval_inventory_quality":    0.27,
     "ghg.nearby_source_isolation":        0.13,
 }
+
+# IC_v4 §1.2 — Air sub-aggregate weights. Each dict sums to 1.00.
+PM_OR_AEROSOL_WEIGHTS: dict[str, float] = {
+    "air.pm25.score": 0.60,
+    "air.aai.score":  0.40,
+}
+INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS: dict[str, float] = {
+    "air.no2.score": 0.60,
+    "air.co.score":  0.40,
+}
+HEAVY_INDUSTRY_WEIGHTS: dict[str, float] = {
+    "air.so2.score":     0.60,
+    "air.no2.score":     0.30,
+    "air.pm_or_aerosol": 0.10,
+}
+VOC_PHOTOCHEMICAL_WEIGHTS: dict[str, float] = {
+    "air.hcho.score": 0.50,
+    "air.no2.score":  0.30,
+    "air.o3.score":   0.20,
+}
+SMOKE_DUST_TRANSPORT_WEIGHTS: dict[str, float] = {
+    "air.co.score":      0.40,
+    "air.aai.score":     0.40,
+    "air.pm_or_aerosol": 0.20,
+}
+INDUSTRIAL_BURDEN_WEIGHTS: dict[str, float] = {
+    "air.no2.score":     0.40,
+    "air.so2.score":     0.35,
+    "air.pm_or_aerosol": 0.25,
+}

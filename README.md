@@ -7,7 +7,6 @@ A Streamlit demo for the GSCO environmental monitoring tool. Built from
 
 - ✅ **P-01 Landing** — user-type selection.
 - ✅ **P-02 Scope set-up** — placeholder with geemap test (no EE).
-- ✅ **Earth Engine test page** — reference page showing the geemap + EE + Streamlit pattern.
 - ⏳ Everything else (P-03 through P-11) — later iterations.
 
 ## Required setup
@@ -121,7 +120,6 @@ Browser opens at `http://localhost:8501`.
 1. Landing page with two role cards.
 2. Click a role → routed to the scope-setup page.
 3. Scope-setup shows a persistent header and a satellite map of Cambridge.
-4. In the sidebar, click "Earth engine test" → Sentinel-2 composite renders.
 
 ## Project structure
 
@@ -130,12 +128,12 @@ gsco-demo/
 ├── app.py                          # P-01 Landing
 ├── pages/
 │   ├── 01_scope_setup.py           # P-02 + geemap test
-│   └── 02_earth_engine_test.py     # Reference: geemap + EE
+│   └── 99_engine_scratch.py        # Dev scratch — engine debug UI (delete when P-05 lands)
 ├── utils/
 │   ├── __init__.py
 │   ├── state.py                    # Session state
 │   └── ee_init.py                  # Cached EE initialiser
-├── indicators/                     # (empty for now)
+├── engine/                         # Indicator engine (M1+)
 ├── data/
 ├── tests/
 ├── requirements.txt

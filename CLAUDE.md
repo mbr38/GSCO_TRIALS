@@ -33,7 +33,7 @@ gsco-demo/
 ├── app.py                          ✅ P-01 Landing — user-type selection, session init, routes to P-02
 ├── pages/
 │   ├── 01_scope_setup.py           ⚠️ P-02 placeholder — renders a Cambridge map to prove the stack
-│   └── 02_earth_engine_test.py     ✅ EE integration reference page — keep as a template for P-05/P-06
+│   └── 99_engine_scratch.py        🧪 Developer scratch — Air pillar debug UI; throwaway when P-05 lands
 ├── utils/
 │   ├── __init__.py
 │   ├── state.py                    ✅ init_session / set_user_type / sign_out / require_user_type
@@ -93,9 +93,9 @@ When the engine work starts you'll also need:
 
 | # | Milestone | Status | Files |
 |---|---|---|---|
-| 1 | `engine/constants.py` + `engine/ids.py` | ⏳ **NEXT** | new |
-| 2 | `engine/core/` subpackage | not started | new |
-| 3 | `engine/air.py` (simplest pillar) | not started | new |
+| 1 | `engine/constants.py` + `engine/ids.py` | done | new |
+| 2 | `engine/core/` subpackage | done | new |
+| 3 | `engine/air.py` (simplest pillar) | done 3a, doing 3b | new |
 | 4 | `engine/orchestrator.py::ScreeningRun` | not started | new |
 | 5 | `engine/ghg.py` and `engine/nature.py` | not started | new |
 | 6 | `engine/verbal_summary.py` | not started | new |
@@ -103,7 +103,7 @@ When the engine work starts you'll also need:
 | UI-B | P-02 Scope setup (real, not placeholder) | placeholder | `pages/01_scope_setup.py` |
 | UI-C | P-03 Workflow Hub | not started | new page |
 | UI-D | P-04 Inspect setup | not started | new page |
-| UI-E | P-05 Screening results | not started | new page (use `pages/02_earth_engine_test.py` as the EE-pattern reference) |
+| UI-E | P-05 Screening results | not started | new page (use `pages/99_engine_scratch.py` as the EE-pattern reference) |
 | UI-F → UI-K | P-06 through P-11 | not started | new pages |
 
 Engine milestones 1 through 4 should ship before the result-page UI (P-05/P-06) so the UI has real data to render. UI for P-02, P-03, P-04 can proceed in parallel with the engine.
@@ -167,4 +167,4 @@ These are the prompts that match the structured docs well:
 
 ---
 
-*Last reviewed: 13 May 2026. If the doc set evolves (new versions of PLFS, Wireframes, etc.), update §2 of this file before starting work against the new versions.*
+*Last reviewed: 14 May 2026. If the doc set evolves (new versions of PLFS, Wireframes, etc.), update §2 of this file before starting work against the new versions.*

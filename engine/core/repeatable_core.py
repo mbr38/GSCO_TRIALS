@@ -39,6 +39,14 @@ except ImportError:
     _seasonality = None  # type: ignore[assignment]
 
 
+# Earth Engine's compute graph aborts a `.map().getInfo()` chain once the
+# collection exceeds ~5000 elements. The per-date site series only feeds HF
+# (hotspot frequency), so capping at the most recent N observations is a
+# screening-grade approximation: a 90-day window has ~30-60 Sentinel-5P
+# observations, well under the cap; longer windows become recency-weighted.
+_PER_DATE_SERIES_MAX_OBSERVATIONS: int = 100
+
+
 # ---------------------------------------------------------------------------
 # Step 1 — site value (IC_v4 §0.2)
 # ---------------------------------------------------------------------------
@@ -252,7 +260,18 @@ def _per_date_site_series(
     band: str,
     scale: float | None = None,
 ) -> list[float]:
-    """Per-date Site_Buffer mean across `image_collection`."""
+    """Per-date Site_Buffer mean across `image_collection`.
+
+    Capped at the most recent `_PER_DATE_SERIES_MAX_OBSERVATIONS` images via
+    `.limit(N)` because EE's compute graph aborts a `.map().getInfo()` chain
+    once the collection grows past ~5000 elements — running the air pillar
+    across all 9 pollutants crossed that limit in practice. The output feeds
+    HF only, so a recency-weighted approximation is acceptable for screening.
+
+    TODO(M5+): replace this with a fully server-side HF computation using
+    `ee.Reducer.sum()` over a per-image z-test — would remove the cap and
+    cut overall EE compute cost.
+    """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
 
     def _reduce(image: ee.Image) -> ee.Feature:
@@ -265,7 +284,14 @@ def _per_date_site_series(
         ).get(band)
         return ee.Feature(None, {"value": value})
 
-    fc = image_collection.select(band).map(_reduce).getInfo() or {}
+    fc = (
+        image_collection
+        .select(band)
+        .limit(_PER_DATE_SERIES_MAX_OBSERVATIONS)
+        .map(_reduce)
+        .getInfo()
+        or {}
+    )
     features = fc.get("features", [])
     return [
         float(feat["properties"]["value"])

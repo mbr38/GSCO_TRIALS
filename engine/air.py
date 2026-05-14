@@ -1,16 +1,24 @@
-"""Air Pollution pillar — single-value indicators (Milestone 3a).
+"""Air Pollution pillar — single-value indicators, sub-aggregates, and
+pillar aggregates (Milestone 3b).
 
-Implements the nine single-value air-pollution indicators per IC_v4 §1.1 and
-Indicator_ID_Schema_v2.md §2.1: no2, so2, co, hcho, o3, aai, pm25, pm10, aod.
-Each indicator runs the IC_v4 §0.2 six-step pipeline via engine.core.six_step,
-maps the result to canonical IDs (`air.<pollutant>.<measurement>`), applies
-any per-pollutant score cap (only O3 in v1, IC_v4 §1.3), and attaches a
-`_provenance.air.<pollutant>` block.
+Layers in this module:
+1. Single-value indicators (IC_v4 §1.1 / Schema_v2 §2.1) — the nine pollutants
+   no2, so2, co, hcho, o3, aai, pm25, pm10, aod. Each runs the IC_v4 §0.2
+   six-step pipeline via engine.core.six_step, maps the result to canonical
+   IDs (`air.<pollutant>.<measurement>`), applies any per-pollutant score cap
+   (only O3 in v1, IC_v4 §1.3), and attaches a `_provenance.air.<pollutant>`
+   block.
+2. Sub-aggregates (IC_v4 §1.2 / Schema_v2 §2.2) — six derived 0-1 scores
+   combining pollutant scores via fixed weights. `pm_or_aerosol` has a CAMS
+   fallback per IC_v4 §1.2 E4; the other five are strict (any missing
+   dependency → result is None).
+3. Pillar aggregates (IC_v4 §1.3 / Schema_v2 §2.3) — five aggregate scores
+   computed over selected pollutants, with weights renormalised when terms
+   are missing.
+4. `run_pillar` — single entry point the orchestrator (M4) will call.
 
-Deferred to Milestone 3b:
-- Sub-aggregates (`air.pm_or_aerosol`, `air.industrial_combustion_proxy`, etc.).
-- Pillar aggregates (`air.pollution_proxy_score`, `air.audit_followup_priority`, …).
-- `run_pillar` entry point for the orchestrator.
+Deferred to Milestone 4: run_pillar is wired up, but the orchestrator
+(ScreeningRun, TrendRun) that calls it lives in M4.
 
 Quality notes (v1 baseline):
 - OFFL Sentinel-5P assets only; NRTI fallback for very recent dates is deferred to M4.
@@ -20,15 +28,17 @@ Quality notes (v1 baseline):
   (N_valid/N_total)·1.0 placeholder from M2 (engine/core/repeatable_core.
   _placeholder_confidence). Real QA-band integration into `mean_qa` is deferred
   until the IC §6.3 doc gap is fixed.
-- TODO(M3b): apply per-pollutant `qa_value > 0.75` filter on Sentinel-5P bands
+- TODO(M4+): apply per-pollutant `qa_value > 0.75` filter on Sentinel-5P bands
   where available (NO2, SO2, CO, HCHO, O3, AAI).
+- TODO(M5+): trend values are still None from M2 (engine/core/trend.py not
+  implemented), so in trend mode `compute_trend_score` returns None.
 
 Mode handling:
 - The `mode` parameter is accepted for signature stability with
-  Engine_Module_Skeleton §2.1 but does NOT change single-value computation
-  in v1. The orchestrator (M4) picks the time_range based on mode; here we
-  just compute with whatever time_range we're handed. Mode-dependent zeroing
-  of `Trend_Score` happens at the pillar-aggregate level (M3b), not here.
+  Engine_Module_Skeleton §2.1. For single-value indicators it has no effect.
+  At the pillar-aggregate level, `compute_trend_score` returns 0.0 in
+  screening mode (so the Trend term doesn't pull the follow-up score) and
+  the actual trend mean in trend mode.
 """
 
 from __future__ import annotations
@@ -38,10 +48,22 @@ from typing import Callable
 
 import ee
 
-from engine.constants import AOD_QA_VALID_BIT_MASK, O3_SCORE_CAP
+from engine.constants import (
+    AIR_FOLLOWUP_WEIGHTS,
+    AIR_POLLUTION_PROXY_WEIGHTS,
+    AOD_QA_VALID_BIT_MASK,
+    HEAVY_INDUSTRY_WEIGHTS,
+    INDUSTRIAL_BURDEN_WEIGHTS,
+    INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS,
+    NORMALISATION_K,
+    O3_SCORE_CAP,
+    PM_OR_AEROSOL_WEIGHTS,
+    SMOKE_DUST_TRANSPORT_WEIGHTS,
+    VOC_PHOTOCHEMICAL_WEIGHTS,
+)
 from engine.core import six_step
-from engine.exceptions import IndicatorComputeError
-from engine.ids import PILLAR_AIR, make_id
+from engine.exceptions import IndicatorComputeError, PillarComputeError
+from engine.ids import AIR_SUB_AGGREGATES, PILLAR_AIR, make_id
 
 
 # ---------------------------------------------------------------------------
@@ -291,3 +313,372 @@ def _format_result(
         "time_range": time_range,
     }
     return result
+
+
+# ---------------------------------------------------------------------------
+# Aggregation helpers
+# ---------------------------------------------------------------------------
+
+def _renormalise_weights(
+    weights: dict[str, float],
+    present_keys: set[str],
+) -> dict[str, float]:
+    """Subset `weights` to `present_keys` and rescale so values sum to 1.0.
+
+    Returns an empty dict when no keys overlap; callers should treat that as
+    "no aggregate computable" (i.e. result is None, not 0.0).
+    """
+    relevant = {k: v for k, v in weights.items() if k in present_keys}
+    total = sum(relevant.values())
+    if total == 0:
+        return {}
+    return {k: v / total for k, v in relevant.items()}
+
+
+def _weighted_sum_strict(
+    payload: dict,
+    weights: dict[str, float],
+) -> float | None:
+    """Weighted sum over `weights` keys. If any key is missing or None in
+    `payload`, return None — sub-aggregates should not produce a misleading
+    partial result from incomplete inputs.
+    """
+    total = 0.0
+    for key, weight in weights.items():
+        value = payload.get(key)
+        if value is None:
+            return None
+        total += weight * value
+    return total
+
+
+def _pollutant_keys_from_selected(selected: set[str]) -> set[str]:
+    """Map canonical IDs back to the pollutant keys in AIR_POLLUTANT_CONFIG.
+
+    Accepts both `"air.<pollutant>"` and `"air.<pollutant>.<measurement>"`
+    forms. Anything that doesn't resolve to a known pollutant is ignored —
+    the orchestrator (M4) is responsible for validating selection upstream.
+    """
+    pollutants: set[str] = set()
+    for ind_id in selected:
+        parts = ind_id.split(".")
+        if len(parts) >= 2 and parts[0] == PILLAR_AIR and parts[1] in AIR_POLLUTANT_CONFIG:
+            pollutants.add(parts[1])
+    return pollutants
+
+
+# Per-pollutant ID prefixes are useful for the per-pollutant pillar aggregates
+# (anomaly / confidence / trend) that iterate over the nine single-value
+# pollutants and pick `.z`, `.confidence`, etc. out of the payload.
+_SINGLE_VALUE_POLLUTANTS: tuple[str, ...] = tuple(AIR_POLLUTANT_CONFIG.keys())
+
+# IC_v4 §1.3 — the four pillar-aggregate IDs that feed `audit_followup_priority`,
+# in the same key order as AIR_FOLLOWUP_WEIGHTS.
+_FOLLOWUP_TERM_TO_ID: dict[str, str] = {
+    "proxy":      "air.pollution_proxy_score",
+    "anomaly":    "air.spatiotemporal_anomaly_score",
+    "trend":      "air.trend_score",
+    "confidence": "air.attribution_confidence_score",
+}
+
+
+# ---------------------------------------------------------------------------
+# Sub-aggregates  (IC_v4 §1.2 / Schema_v2 §2.2)
+# ---------------------------------------------------------------------------
+
+def compute_pm_or_aerosol(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.60·pm25.score + 0.40·aai.score`, with the CAMS fallback.
+
+    The CAMS fallback (E4 trigger) fires when `air.pm25.score` is None or the
+    CAMS site value (`air.pm25.site`) is null — both indicate the CAMS reading
+    is unusable. The fallback uses `1.00·aai.score`. Returns None if the
+    fallback also has no AAI to use.
+
+    Returns:
+        {
+          "air.pm_or_aerosol": float | None,
+          "_provenance.air.pm_or_aerosol": {"formula": "primary" | "fallback_aai_only"},
+        }
+    """
+    pm25_score = payload.get("air.pm25.score")
+    pm25_site = payload.get("air.pm25.site")
+
+    if pm25_score is None or pm25_site is None:
+        return {
+            "air.pm_or_aerosol": payload.get("air.aai.score"),
+            "_provenance.air.pm_or_aerosol": {"formula": "fallback_aai_only"},
+        }
+
+    return {
+        "air.pm_or_aerosol": _weighted_sum_strict(payload, PM_OR_AEROSOL_WEIGHTS),
+        "_provenance.air.pm_or_aerosol": {"formula": "primary"},
+    }
+
+
+def compute_industrial_combustion_proxy(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.60·no2.score + 0.40·co.score`.
+
+    Also re-exported via the GHG pillar later (IC_v4 §2.2 borrows the same
+    formula under `ghg.combustion_proxy`).
+    """
+    return {
+        "air.industrial_combustion_proxy": _weighted_sum_strict(
+            payload, INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS,
+        ),
+    }
+
+
+def compute_heavy_industry_score(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.60·so2.score + 0.30·no2.score + 0.10·pm_or_aerosol`."""
+    return {
+        "air.heavy_industry_score": _weighted_sum_strict(
+            payload, HEAVY_INDUSTRY_WEIGHTS,
+        ),
+    }
+
+
+def compute_voc_photochemical(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.50·hcho.score + 0.30·no2.score + 0.20·o3.score`."""
+    return {
+        "air.voc_photochemical": _weighted_sum_strict(
+            payload, VOC_PHOTOCHEMICAL_WEIGHTS,
+        ),
+    }
+
+
+def compute_smoke_dust_regional_transport(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.40·co.score + 0.40·aai.score + 0.20·pm_or_aerosol`."""
+    return {
+        "air.smoke_dust_regional_transport": _weighted_sum_strict(
+            payload, SMOKE_DUST_TRANSPORT_WEIGHTS,
+        ),
+    }
+
+
+def compute_industrial_air_pollution_burden(payload: dict) -> dict:
+    """IC_v4 §1.2 — `0.40·no2.score + 0.35·so2.score + 0.25·pm_or_aerosol`."""
+    return {
+        "air.industrial_air_pollution_burden": _weighted_sum_strict(
+            payload, INDUSTRIAL_BURDEN_WEIGHTS,
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pillar aggregates  (IC_v4 §1.3 / Schema_v2 §2.3)
+# ---------------------------------------------------------------------------
+
+def compute_air_pollution_proxy_score(
+    payload: dict,
+    selected: set[str],
+) -> dict:
+    """IC_v4 §1.3 — weighted sum per AIR_POLLUTION_PROXY_WEIGHTS over the terms
+    in `selected` that are present in `payload`. Weights renormalised over the
+    surviving set.
+
+    `selected` is expected to contain canonical IDs (atomic `.score` IDs and
+    any sub-aggregate IDs the caller wants included). run_pillar augments the
+    user-supplied set with the computed sub-aggregate IDs before calling this.
+    """
+    candidates = {
+        k: payload[k] for k in AIR_POLLUTION_PROXY_WEIGHTS
+        if k in selected and payload.get(k) is not None
+    }
+    if not candidates:
+        return {"air.pollution_proxy_score": None}
+    weights = _renormalise_weights(AIR_POLLUTION_PROXY_WEIGHTS, set(candidates.keys()))
+    score = sum(weights[k] * candidates[k] for k in candidates)
+    return {"air.pollution_proxy_score": score}
+
+
+def compute_spatiotemporal_anomaly_score(
+    payload: dict,
+    selected: set[str],
+) -> dict:
+    """IC_v4 §1.3 — mean of per-pollutant z-scores, clamped to [0, 1] via
+    `min(max(z / NORMALISATION_K, 0), 1)` (z can be negative when the site is
+    below background, and saturates at k=3 per IC_v4 §0.4).
+
+    Iterates over the nine single-value pollutants, including only those whose
+    `.score` ID is in `selected` and whose `.z` value is present in `payload`.
+    Returns None if no pollutants survive both filters.
+    """
+    contributions: list[float] = []
+    for pol in _SINGLE_VALUE_POLLUTANTS:
+        if make_id(PILLAR_AIR, pol, "score") not in selected:
+            continue
+        z = payload.get(make_id(PILLAR_AIR, pol, "z"))
+        if z is None:
+            continue
+        contributions.append(min(max(z / NORMALISATION_K, 0.0), 1.0))
+    if not contributions:
+        return {"air.spatiotemporal_anomaly_score": None}
+    return {
+        "air.spatiotemporal_anomaly_score": sum(contributions) / len(contributions),
+    }
+
+
+def compute_trend_score(
+    payload: dict,
+    selected: set[str],
+    mode: str,
+) -> dict:
+    """IC_v4 §1.3 — mean of per-pollutant trend slopes across `selected`.
+
+    In screening mode, returns 0.0 so the Trend term in
+    `compute_air_audit_followup_priority` doesn't drag the score in either
+    direction. In trend mode, trend values are still None from M2 — the
+    function returns None until `engine/core/trend.py` lands.
+
+    TODO(M5+): once trend.py exists and `compute_pollutant_snapshot` returns
+    real `.trend` floats, this will compute a meaningful mean in trend mode.
+    """
+    if mode == "screening":
+        return {"air.trend_score": 0.0}
+
+    trends: list[float] = []
+    for pol in _SINGLE_VALUE_POLLUTANTS:
+        if make_id(PILLAR_AIR, pol, "score") not in selected:
+            continue
+        trend = payload.get(make_id(PILLAR_AIR, pol, "trend"))
+        if trend is None:
+            continue
+        trends.append(trend)
+    if not trends:
+        return {"air.trend_score": None}
+    return {"air.trend_score": sum(trends) / len(trends)}
+
+
+def compute_attribution_confidence_score(
+    payload: dict,
+    selected: set[str],
+) -> dict:
+    """IC_v4 §1.3 — mean of per-pollutant confidence across `selected`."""
+    contributions: list[float] = []
+    for pol in _SINGLE_VALUE_POLLUTANTS:
+        if make_id(PILLAR_AIR, pol, "score") not in selected:
+            continue
+        conf = payload.get(make_id(PILLAR_AIR, pol, "confidence"))
+        if conf is None:
+            continue
+        contributions.append(conf)
+    if not contributions:
+        return {"air.attribution_confidence_score": None}
+    return {
+        "air.attribution_confidence_score": sum(contributions) / len(contributions),
+    }
+
+
+def compute_air_audit_followup_priority(
+    payload: dict,
+    mode: str,
+) -> dict:
+    """IC_v4 §1.3 — weighted sum per AIR_FOLLOWUP_WEIGHTS over the four pillar
+    aggregates. Missing terms are skipped and weights renormalised over the
+    surviving set.
+
+    `mode` is accepted for signature stability; mode-dependent behaviour
+    lives upstream in `compute_trend_score` (which returns 0.0 in screening
+    and the real trend mean in trend mode).
+    """
+    candidates: dict[str, float] = {}
+    for term in AIR_FOLLOWUP_WEIGHTS:
+        value = payload.get(_FOLLOWUP_TERM_TO_ID[term])
+        if value is None:
+            continue
+        candidates[term] = value
+    if not candidates:
+        return {"air.audit_followup_priority": None}
+    weights = _renormalise_weights(AIR_FOLLOWUP_WEIGHTS, set(candidates.keys()))
+    score = sum(weights[term] * candidates[term] for term in candidates)
+    return {"air.audit_followup_priority": score}
+
+
+# ---------------------------------------------------------------------------
+# Pillar entry point
+# ---------------------------------------------------------------------------
+
+def run_pillar(
+    aoi: dict,
+    time_range: tuple[str, str],
+    mode: str,
+    selected_indicators: set[str],
+    ee_client,
+) -> dict:
+    """Compute every selected Air indicator + sub-aggregates + pillar aggregates.
+
+    Logic (Engine_Module_Skeleton §2.1):
+    1. Resolve `selected_indicators` to a set of pollutant keys.
+    2. For each pollutant, call `compute_pollutant_snapshot` and merge the
+       result. Single-pollutant failures degrade gracefully — the affected
+       IDs go to None in the payload and the failure is recorded in
+       `_failures`.
+    3. Compute the six sub-aggregates (each handles missing deps internally).
+    4. Compute the five pillar aggregates over an augmented `selected` set
+       (atomic IDs + the sub-aggregate IDs that successfully computed).
+    5. Return the merged payload.
+
+    Raises `PillarComputeError` if every selected pollutant fails to compute —
+    the orchestrator (M4) catches this to render the P-05 S2_Partial UI state.
+    """
+    pollutant_keys = _pollutant_keys_from_selected(selected_indicators)
+    payload: dict = {}
+    failures: list[dict] = []
+
+    for pol_key in sorted(pollutant_keys):
+        try:
+            snapshot = compute_pollutant_snapshot(
+                aoi=aoi,
+                pollutant=pol_key,
+                time_range=time_range,
+                mode=mode,
+                ee_client=ee_client,
+            )
+        except IndicatorComputeError as err:
+            for measurement in _MEASUREMENT_KEYS:
+                payload[make_id(PILLAR_AIR, pol_key, measurement)] = None
+            failures.append({
+                "pollutant":    pol_key,
+                "indicator_id": err.indicator_id,
+                "reason":       err.reason,
+            })
+        else:
+            payload.update(snapshot)
+
+    if pollutant_keys and len(failures) == len(pollutant_keys):
+        affected = [
+            make_id(PILLAR_AIR, p, m)
+            for p in sorted(pollutant_keys)
+            for m in _MEASUREMENT_KEYS
+        ]
+        raise PillarComputeError(
+            pillar=PILLAR_AIR,
+            indicator_ids=affected,
+            reason="all selected air pollutants failed to compute",
+        )
+
+    # Sub-aggregates — pm_or_aerosol first because three others depend on it.
+    payload.update(compute_pm_or_aerosol(payload))
+    payload.update(compute_industrial_combustion_proxy(payload))
+    payload.update(compute_voc_photochemical(payload))
+    payload.update(compute_heavy_industry_score(payload))
+    payload.update(compute_smoke_dust_regional_transport(payload))
+    payload.update(compute_industrial_air_pollution_burden(payload))
+
+    # Pillar aggregates — augment `selected` so sub-aggregates with non-None
+    # values can contribute to AIR_POLLUTION_PROXY_WEIGHTS.
+    augmented_selected: set[str] = set(selected_indicators)
+    for sub_id in AIR_SUB_AGGREGATES:
+        if payload.get(sub_id) is not None:
+            augmented_selected.add(sub_id)
+
+    payload.update(compute_air_pollution_proxy_score(payload, augmented_selected))
+    payload.update(compute_spatiotemporal_anomaly_score(payload, augmented_selected))
+    payload.update(compute_trend_score(payload, augmented_selected, mode))
+    payload.update(compute_attribution_confidence_score(payload, augmented_selected))
+    payload.update(compute_air_audit_followup_priority(payload, mode))
+
+    if failures:
+        payload["_failures"] = failures
+
+    return payload

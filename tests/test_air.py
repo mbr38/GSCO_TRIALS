@@ -1,7 +1,8 @@
-"""Synthetic-payload tests for engine.air (Milestone 3a, single-value indicators).
+"""Synthetic-payload tests for engine.air (Milestones 3a + 3b).
 
 Tests do not touch Earth Engine. `ee.ImageCollection` is stubbed with a
-chain-friendly fake; `engine.air.six_step` is monkey-patched per test.
+chain-friendly fake; `engine.air.six_step` and `compute_pollutant_snapshot`
+are monkey-patched per test as needed.
 
 Real-EE smoke tests live in tests/test_air_integration.py (skipped unless
 `RUN_EE_TESTS=1` is set).
@@ -9,16 +10,38 @@ Real-EE smoke tests live in tests/test_air_integration.py (skipped unless
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from engine.air import (
     AIR_POLLUTANT_CONFIG,
     PollutantConfig,
     apply_aod_qa_mask,
+    compute_air_audit_followup_priority,
+    compute_air_pollution_proxy_score,
+    compute_attribution_confidence_score,
+    compute_heavy_industry_score,
+    compute_industrial_air_pollution_burden,
+    compute_industrial_combustion_proxy,
+    compute_pm_or_aerosol,
     compute_pollutant_snapshot,
+    compute_smoke_dust_regional_transport,
+    compute_spatiotemporal_anomaly_score,
+    compute_trend_score,
+    compute_voc_photochemical,
+    run_pillar,
 )
-from engine.constants import O3_SCORE_CAP
-from engine.exceptions import IndicatorComputeError
+from engine.constants import (
+    HEAVY_INDUSTRY_WEIGHTS,
+    INDUSTRIAL_BURDEN_WEIGHTS,
+    INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS,
+    O3_SCORE_CAP,
+    PM_OR_AEROSOL_WEIGHTS,
+    SMOKE_DUST_TRANSPORT_WEIGHTS,
+    VOC_PHOTOCHEMICAL_WEIGHTS,
+)
+from engine.exceptions import IndicatorComputeError, PillarComputeError
 
 
 # ---------------------------------------------------------------------------
@@ -280,3 +303,336 @@ class TestPixelSizeGuard:
                 mode="screening",
                 ee_client=None,
             )
+
+
+# ===========================================================================
+# Milestone 3b — sub-aggregates, pillar aggregates, run_pillar
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Sub-aggregate weight integrity  (IC_v4 §1.2)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("name,weights", [
+    ("PM_OR_AEROSOL_WEIGHTS",              PM_OR_AEROSOL_WEIGHTS),
+    ("INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS", INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS),
+    ("HEAVY_INDUSTRY_WEIGHTS",              HEAVY_INDUSTRY_WEIGHTS),
+    ("VOC_PHOTOCHEMICAL_WEIGHTS",           VOC_PHOTOCHEMICAL_WEIGHTS),
+    ("SMOKE_DUST_TRANSPORT_WEIGHTS",        SMOKE_DUST_TRANSPORT_WEIGHTS),
+    ("INDUSTRIAL_BURDEN_WEIGHTS",           INDUSTRIAL_BURDEN_WEIGHTS),
+])
+def test_sub_aggregate_weights_sum_to_one(name: str, weights: dict) -> None:
+    total = sum(weights.values())
+    assert math.isclose(total, 1.0, abs_tol=1e-9), f"{name} sum was {total}"
+
+
+# ---------------------------------------------------------------------------
+# Sub-aggregate happy paths  (IC_v4 §1.2)
+# ---------------------------------------------------------------------------
+
+class TestSubAggregateFormulas:
+    def test_industrial_combustion_proxy(self) -> None:
+        payload = {"air.no2.score": 0.5, "air.co.score": 0.4}
+        out = compute_industrial_combustion_proxy(payload)
+        assert out["air.industrial_combustion_proxy"] == pytest.approx(0.60 * 0.5 + 0.40 * 0.4)
+
+    def test_heavy_industry_score(self) -> None:
+        payload = {
+            "air.so2.score":     0.5,
+            "air.no2.score":     0.4,
+            "air.pm_or_aerosol": 0.3,
+        }
+        out = compute_heavy_industry_score(payload)
+        expected = 0.60 * 0.5 + 0.30 * 0.4 + 0.10 * 0.3
+        assert out["air.heavy_industry_score"] == pytest.approx(expected)
+
+    def test_voc_photochemical(self) -> None:
+        payload = {
+            "air.hcho.score": 0.5,
+            "air.no2.score":  0.4,
+            "air.o3.score":   0.3,
+        }
+        out = compute_voc_photochemical(payload)
+        expected = 0.50 * 0.5 + 0.30 * 0.4 + 0.20 * 0.3
+        assert out["air.voc_photochemical"] == pytest.approx(expected)
+
+    def test_smoke_dust_regional_transport(self) -> None:
+        payload = {
+            "air.co.score":      0.5,
+            "air.aai.score":     0.4,
+            "air.pm_or_aerosol": 0.3,
+        }
+        out = compute_smoke_dust_regional_transport(payload)
+        expected = 0.40 * 0.5 + 0.40 * 0.4 + 0.20 * 0.3
+        assert out["air.smoke_dust_regional_transport"] == pytest.approx(expected)
+
+    def test_industrial_air_pollution_burden(self) -> None:
+        payload = {
+            "air.no2.score":     0.5,
+            "air.so2.score":     0.4,
+            "air.pm_or_aerosol": 0.3,
+        }
+        out = compute_industrial_air_pollution_burden(payload)
+        expected = 0.40 * 0.5 + 0.35 * 0.4 + 0.25 * 0.3
+        assert out["air.industrial_air_pollution_burden"] == pytest.approx(expected)
+
+    def test_strict_returns_none_when_any_dependency_missing(self) -> None:
+        # Sub-aggregates (other than pm_or_aerosol) are strict — any None dep
+        # makes the whole thing None rather than a misleading partial sum.
+        payload = {"air.no2.score": 0.5}   # co.score missing
+        out = compute_industrial_combustion_proxy(payload)
+        assert out["air.industrial_combustion_proxy"] is None
+
+
+# ---------------------------------------------------------------------------
+# compute_pm_or_aerosol — CAMS fallback (IC_v4 §1.2 E4)
+# ---------------------------------------------------------------------------
+
+class TestPmOrAerosolFallback:
+    def test_primary_path_when_pm25_and_aai_both_present(self) -> None:
+        payload = {
+            "air.pm25.score": 0.5,
+            "air.pm25.site":  25.0,
+            "air.aai.score":  0.4,
+        }
+        out = compute_pm_or_aerosol(payload)
+        assert out["air.pm_or_aerosol"] == pytest.approx(0.60 * 0.5 + 0.40 * 0.4)
+        assert out["_provenance.air.pm_or_aerosol"] == {"formula": "primary"}
+
+    def test_fallback_when_pm25_site_is_none(self) -> None:
+        payload = {
+            "air.pm25.score": 0.5,
+            "air.pm25.site":  None,
+            "air.aai.score":  0.6,
+        }
+        out = compute_pm_or_aerosol(payload)
+        assert out["air.pm_or_aerosol"] == 0.6
+        assert out["_provenance.air.pm_or_aerosol"] == {"formula": "fallback_aai_only"}
+
+    def test_fallback_when_pm25_score_is_none(self) -> None:
+        payload = {
+            "air.pm25.score": None,
+            "air.pm25.site":  25.0,
+            "air.aai.score":  0.7,
+        }
+        out = compute_pm_or_aerosol(payload)
+        assert out["air.pm_or_aerosol"] == 0.7
+        assert out["_provenance.air.pm_or_aerosol"] == {"formula": "fallback_aai_only"}
+
+    def test_returns_none_when_both_pm25_and_aai_unavailable(self) -> None:
+        payload = {
+            "air.pm25.score": None,
+            "air.pm25.site":  None,
+            "air.aai.score":  None,
+        }
+        out = compute_pm_or_aerosol(payload)
+        assert out["air.pm_or_aerosol"] is None
+        # Fallback provenance is still reported — the trigger fired, AAI just
+        # had no value to contribute either.
+        assert out["_provenance.air.pm_or_aerosol"] == {"formula": "fallback_aai_only"}
+
+
+# ---------------------------------------------------------------------------
+# Pillar-aggregate renormalisation  (IC_v4 §1.3)
+# ---------------------------------------------------------------------------
+
+class TestPillarAggregateRenormalisation:
+    def test_pollution_proxy_score_renormalises_over_two_present_pollutants(self) -> None:
+        # Only no2 and so2 are in the payload (and in selected). Weights from
+        # AIR_POLLUTION_PROXY_WEIGHTS for these are 0.30 and 0.20; renormalise
+        # over the sum 0.50.
+        payload = {"air.no2.score": 0.5, "air.so2.score": 0.4}
+        selected = {"air.no2.score", "air.so2.score"}
+        out = compute_air_pollution_proxy_score(payload, selected)
+        expected = (0.30 * 0.5 + 0.20 * 0.4) / (0.30 + 0.20)
+        assert out["air.pollution_proxy_score"] == pytest.approx(expected)
+
+    def test_pollution_proxy_score_none_when_no_terms_survive(self) -> None:
+        out = compute_air_pollution_proxy_score(payload={}, selected=set())
+        assert out["air.pollution_proxy_score"] is None
+
+
+# ---------------------------------------------------------------------------
+# compute_trend_score mode handling
+# ---------------------------------------------------------------------------
+
+class TestTrendScoreModeHandling:
+    def test_screening_mode_returns_zero(self) -> None:
+        # Zero regardless of inputs — the Trend term contributes nothing to
+        # follow-up priority in screening mode.
+        out = compute_trend_score(payload={}, selected=set(), mode="screening")
+        assert out["air.trend_score"] == 0.0
+
+    def test_screening_mode_returns_zero_even_with_trend_values_present(self) -> None:
+        payload = {"air.no2.trend": 0.123}
+        selected = {"air.no2.score"}
+        out = compute_trend_score(payload, selected, mode="screening")
+        assert out["air.trend_score"] == 0.0
+
+    def test_trend_mode_returns_none_when_all_trend_values_are_none(self) -> None:
+        # Trend values are still None pending engine/core/trend.py (M5+).
+        payload = {"air.no2.trend": None, "air.so2.trend": None}
+        selected = {"air.no2.score", "air.so2.score"}
+        out = compute_trend_score(payload, selected, mode="trend")
+        assert out["air.trend_score"] is None
+
+
+# ---------------------------------------------------------------------------
+# compute_air_audit_followup_priority — renormalisation on missing terms
+# ---------------------------------------------------------------------------
+
+class TestAirAuditFollowupPartialMissing:
+    def test_renormalises_when_trend_aggregate_missing(self) -> None:
+        # Trend missing (None) → drop the 0.20 weight, renormalise the rest.
+        payload = {
+            "air.pollution_proxy_score":          0.5,
+            "air.spatiotemporal_anomaly_score":   0.4,
+            "air.trend_score":                    None,
+            "air.attribution_confidence_score":   0.7,
+        }
+        out = compute_air_audit_followup_priority(payload, mode="trend")
+        # Surviving weights: proxy=0.35, anomaly=0.30, confidence=0.15, sum=0.80
+        expected = (0.35 * 0.5 + 0.30 * 0.4 + 0.15 * 0.7) / 0.80
+        assert out["air.audit_followup_priority"] == pytest.approx(expected)
+
+    def test_returns_none_when_all_inputs_missing(self) -> None:
+        out = compute_air_audit_followup_priority(payload={}, mode="screening")
+        assert out["air.audit_followup_priority"] is None
+
+
+# ---------------------------------------------------------------------------
+# run_pillar
+# ---------------------------------------------------------------------------
+
+_MEASUREMENT_KEYS_FULL: tuple[str, ...] = (
+    "site", "background", "anomaly", "z", "hf",
+    "trend", "trend_p", "confidence", "score",
+)
+
+
+def _fake_snapshot(
+    pollutant: str,
+    *,
+    score: float = 0.5,
+    site:  float = 10.0,
+    z:     float = 2.0,
+) -> dict:
+    """Build a synthetic compute_pollutant_snapshot return dict."""
+    return {
+        f"air.{pollutant}.site":       site,
+        f"air.{pollutant}.background": site * 0.5,
+        f"air.{pollutant}.anomaly":    site * 0.5,
+        f"air.{pollutant}.z":          z,
+        f"air.{pollutant}.hf":         0.3,
+        f"air.{pollutant}.trend":      None,
+        f"air.{pollutant}.trend_p":    None,
+        f"air.{pollutant}.confidence": 0.8,
+        f"air.{pollutant}.score":      score,
+        f"_provenance.air.{pollutant}": {
+            "asset_id":   "FAKE/ASSET",
+            "time_range": _TIME_RANGE,
+        },
+    }
+
+
+class TestRunPillar:
+    def test_full_payload_with_three_pollutants(self, monkeypatch) -> None:
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+            return _fake_snapshot(pollutant)
+        monkeypatch.setattr("engine.air.compute_pollutant_snapshot", fake_compute)
+
+        result = run_pillar(
+            aoi={"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 50},
+            time_range=_TIME_RANGE,
+            mode="screening",
+            selected_indicators={"air.no2.score", "air.so2.score", "air.co.score"},
+            ee_client=None,
+        )
+
+        # Every pollutant's nine canonical keys are present.
+        for pol in ("no2", "so2", "co"):
+            for measurement in _MEASUREMENT_KEYS_FULL:
+                assert f"air.{pol}.{measurement}" in result, f"missing air.{pol}.{measurement}"
+
+        # All five pillar aggregates present.
+        for agg_id in (
+            "air.pollution_proxy_score",
+            "air.spatiotemporal_anomaly_score",
+            "air.trend_score",
+            "air.attribution_confidence_score",
+            "air.audit_followup_priority",
+        ):
+            assert agg_id in result
+
+        # Sub-aggregates: those whose deps are present should be non-None.
+        # no2+co both present → industrial_combustion_proxy non-None.
+        assert result["air.industrial_combustion_proxy"] is not None
+        # pm25 not selected → pm_or_aerosol uses fallback path; aai also not
+        # selected, so fallback returns None.
+        assert result["air.pm_or_aerosol"] is None
+
+        # No failures.
+        assert "_failures" not in result
+
+    def test_single_pollutant_failure_degrades_gracefully(self, monkeypatch) -> None:
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+            if pollutant == "so2":
+                raise IndicatorComputeError(
+                    indicator_id="air.so2",
+                    reason="background ring has no valid pixels",
+                )
+            return _fake_snapshot(pollutant)
+        monkeypatch.setattr("engine.air.compute_pollutant_snapshot", fake_compute)
+
+        result = run_pillar(
+            aoi={"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 50},
+            time_range=_TIME_RANGE,
+            mode="screening",
+            selected_indicators={"air.no2.score", "air.so2.score", "air.co.score"},
+            ee_client=None,
+        )
+
+        # The failing pollutant's IDs are all None.
+        for measurement in _MEASUREMENT_KEYS_FULL:
+            assert result[f"air.so2.{measurement}"] is None
+
+        # The other two computed normally.
+        assert result["air.no2.score"] == 0.5
+        assert result["air.co.score"] == 0.5
+
+        # _failures has the right entry.
+        assert "_failures" in result
+        assert len(result["_failures"]) == 1
+        failure = result["_failures"][0]
+        assert failure["pollutant"] == "so2"
+        assert failure["indicator_id"] == "air.so2"
+        assert "no valid pixels" in failure["reason"]
+
+        # Pillar aggregates still computable from the two surviving pollutants.
+        assert result["air.audit_followup_priority"] is not None
+
+    def test_all_pollutants_failing_raises_pillar_compute_error(self, monkeypatch) -> None:
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+            raise IndicatorComputeError(
+                indicator_id=f"air.{pollutant}",
+                reason="no valid pixels",
+            )
+        monkeypatch.setattr("engine.air.compute_pollutant_snapshot", fake_compute)
+
+        with pytest.raises(PillarComputeError) as excinfo:
+            run_pillar(
+                aoi={"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 50},
+                time_range=_TIME_RANGE,
+                mode="screening",
+                selected_indicators={"air.no2.score", "air.so2.score", "air.co.score"},
+                ee_client=None,
+            )
+
+        err = excinfo.value
+        assert err.pillar == "air"
+        # 3 pollutants × 9 measurements = 27 affected IDs.
+        assert len(err.indicator_ids) == 3 * len(_MEASUREMENT_KEYS_FULL)
+        # Spot-check that every expected ID is in the affected list.
+        assert "air.no2.score" in err.indicator_ids
+        assert "air.so2.confidence" in err.indicator_ids
+        assert "air.co.trend_p" in err.indicator_ids
