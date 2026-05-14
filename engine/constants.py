@@ -169,3 +169,65 @@ INDUSTRIAL_BURDEN_WEIGHTS: dict[str, float] = {
     "air.so2.score":     0.35,
     "air.pm_or_aerosol": 0.25,
 }
+
+# IC_v4 §3.2 — Nature sub-aggregate weights.
+# Biodiversity_Exposure rescales over the three v1 terms (the
+# Buffer_Sensitivity_v1 term is 0 in v1 per §7.1). Each rescaled weight is
+# the IC raw weight divided by the surviving sum 0.90.
+BIODIVERSITY_EXPOSURE_WEIGHTS: dict[str, float] = {
+    "nature.kba.proximity_score":           0.40 / 0.90,
+    "nature.sensitive_land_cover_presence": 0.30 / 0.90,
+    "nature.water_or_flooded_veg_exposure": 0.20 / 0.90,
+}
+
+# IC_v4 §3.2 — Habitat_Conversion. Each `_pct` term is clamped to [0, 1]
+# via `clamp(loss_fraction / CONVERSION_SATURATION_PCT, 0, 1)` before
+# weighting; the `_norm` suffix marks the post-clamp ID in the payload.
+HABITAT_CONVERSION_WEIGHTS: dict[str, float] = {
+    "nature.habitat.natural_loss_pct_norm": 0.35,
+    "nature.habitat.nat_to_built_pct_norm": 0.25,
+    "nature.habitat.nat_to_bare_pct_norm":  0.20,
+    "nature.forest_loss.pct_norm":          0.10,
+    "nature.habitat.annualised_rate_score": 0.10,
+}
+
+# IC_v4 §3.2 + §7.4 — Vegetation_Condition_v1 (EVI removed). The negative
+# weight on recovery is intentional: positive recovery signal subtracts
+# from concern.
+VEGETATION_CONDITION_WEIGHTS: dict[str, float] = {
+    "nature.ndvi.inverted_anomaly": 0.45,
+    "nature.ndvi.negative_trend":   0.25,
+    "nature.low_ndvi.pct_norm":     0.20,
+    "nature.recovery.score":       -0.10,
+}
+
+# IC_v4 §3.3 — Nature_Quality_Attribution. Six confidence-side sub-scores.
+# Sums to 1.00.
+NATURE_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
+    "nature.valid_pixel_coverage":      0.20,
+    "nature.cloud_observation_quality": 0.20,
+    "nature.dw.class_confidence":       0.20,
+    "nature.seasonal_comparability":    0.15,
+    "nature.supplier_spatial_link":     0.15,
+    "nature.external_driver_screening": 0.10,
+}
+
+# IC_v4 §3.3 — Nature_FollowUp_Priority. Sums to 1.00.
+NATURE_FOLLOWUP_WEIGHTS: dict[str, float] = {
+    "biodiversity_exposure": 0.30,
+    "habitat_conversion":    0.30,
+    "vegetation_condition":  0.25,
+    "quality_attribution":   0.15,
+}
+
+# IC_v4 §3.2 sub-formula tunables.
+# KBA proximity decay (km): `exp(-dist_km / KBA_DISTANCE_DECAY_KM)` halves
+# every ~7 km — concern decays fast but not catastrophically.
+KBA_DISTANCE_DECAY_KM: float = 10.0
+# Negative_Vegetation_Trend threshold: −0.01 NDVI/yr means losing 0.10 NDVI
+# over a decade. Below that rate the slope is inside natural inter-annual
+# variability and not reliably distinguishable from noise.
+NDVI_NEGATIVE_TREND_THRESHOLD: float = -0.01
+# Water_or_FloodedVegetation_Exposure saturation point: 20% combined
+# aquatic/wetland cover = score 1.0.
+WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
