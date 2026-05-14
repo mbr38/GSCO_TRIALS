@@ -32,7 +32,9 @@ require_earth_engine()
 import ee
 import geemap.foliumap as geemap
 
-from engine.air import AIR_POLLUTANT_CONFIG, compute_pollutant_snapshot, run_pillar
+from engine.air import AIR_POLLUTANT_CONFIG, compute_pollutant_snapshot
+from engine.ghg import GHG_INDICATOR_CONFIG
+from engine.orchestrator import ScreeningRun
 from engine.constants import BACKGROUND_RING_MAX_KM, BACKGROUND_RING_RADIUS_MULTIPLE
 from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
@@ -122,11 +124,12 @@ st.divider()
 with st.sidebar:
     mode = st.radio(
         "Mode",
-        ["Single pollutant", "Full pillar (all 9)"],
+        ["Single pollutant", "Full screening (all pillars)"],
         help=(
             "Single pollutant runs compute_pollutant_snapshot for one selected "
-            "pollutant. Full pillar runs run_pillar across all nine — produces "
-            "the air-pillar aggregate score."
+            "pollutant. Full screening runs ScreeningRun across Air + GHG — "
+            "produces both per-pillar follow-up priorities and the cross-pillar "
+            "composite score."
         ),
     )
 
@@ -189,9 +192,9 @@ if last is not None and last["inputs"] != current_inputs:
 left_col, right_col = st.columns([3, 2])
 
 with right_col:
-    if mode == "Full pillar (all 9)":
+    if mode == "Full screening (all pillars)":
         st.info(
-            "Full pillar mode runs 9 sequential Earth Engine queries — "
+            "Full screening runs 9 Air + 2 GHG sequential Earth Engine queries — "
             "first run can take 30–90 seconds."
         )
 
@@ -209,16 +212,19 @@ with right_col:
                         mode="screening",
                         ee_client=None,
                     )
-            elif mode == "Full pillar (all 9)":
-                selected = {f"air.{p}.score" for p in AIR_POLLUTANT_CONFIG.keys()}
-                with st.spinner("Running full air pillar..."):
-                    result = run_pillar(
+            elif mode == "Full screening (all pillars)":
+                selected = (
+                    {f"air.{p}.score" for p in AIR_POLLUTANT_CONFIG.keys()}
+                    | {f"ghg.{i}.score" for i in GHG_INDICATOR_CONFIG.keys()}
+                )
+                with st.spinner("Running full screening (Air + GHG)..."):
+                    result = ScreeningRun(
                         aoi=aoi,
-                        time_range=time_range,
-                        mode="screening",
                         selected_indicators=selected,
+                        time_range=time_range,
                         ee_client=None,
-                    )
+                        centre_metadata={"source": "engine scratch page"},
+                    ).run()
         except (IndicatorComputeError, PillarComputeError) as err:
             st.error(f"Compute failed: {err}")
         else:
@@ -291,29 +297,56 @@ with right_col:
         with st.expander("Provenance"):
             st.json(rresult[f"_provenance.air.{rpollutant}"])
 
-    elif last is not None and last["mode"] == "Full pillar (all 9)":
+    elif last is not None and last["mode"] == "Full screening (all pillars)":
         rresult = last["result"]
 
-        # A. Headline — pillar follow-up priority is the audience-facing score.
-        st.markdown("### Air pillar — Audit follow-up priority")
+        # A. Headline — cross-pillar composite is the top-level audience number.
+        st.markdown("### Cross-pillar composite")
         st.metric(
-            label="Score",
-            value=_fmt(rresult.get("air.audit_followup_priority"), 2),
+            label="Overall screening score",
+            value=_fmt(rresult.get("composite.overall_screening"), 2),
             delta="of 1.00",
             delta_color="off",
         )
         st.caption(
-            "Score is a 0–1 measure of how unusual the site value is compared "
-            "to its surrounding background ring, normalised against background "
-            "variability. 0 means the site matches its surroundings; 1 means "
-            "the site is at or above 3 standard deviations from background. "
-            "Thresholds: below 0.33 = low concern (green), 0.33–0.66 = elevated "
-            "(amber), above 0.66 = high concern (red)."
+            "Composite is the equal-weighted mean of per-pillar follow-up "
+            "priorities (Air + GHG today). Each pillar's priority is itself a "
+            "0–1 measure of how unusual the site is vs its surrounding "
+            "background ring. Thresholds: below 0.33 = low concern (green), "
+            "0.33–0.66 = elevated (amber), above 0.66 = high concern (red). "
+            "Composite confidence is the minimum across the per-pillar "
+            "confidence aggregates."
         )
 
-        # B. Pillar aggregates — the four that feed audit_followup_priority.
+        comp_col_a, comp_col_b = st.columns(2)
+        with comp_col_a:
+            st.markdown(
+                "**Composite confidence**  \n"
+                f"{_fmt(rresult.get('composite.confidence'), 2)}"
+            )
+        with comp_col_b:
+            st.markdown(
+                f"**Pillars run**  \n{', '.join(rresult['_meta']['pillars_run'])}"
+            )
+
+        # B. Per-pillar follow-up priorities side by side.
         st.divider()
-        st.markdown("**Pillar aggregates**")
+        st.markdown("**Per-pillar follow-up priority**")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(
+                "**Air**  \n"
+                f"{_fmt(rresult.get('air.audit_followup_priority'), 2)}"
+            )
+        with col_b:
+            st.markdown(
+                "**GHG**  \n"
+                f"{_fmt(rresult.get('ghg.audit_followup_priority'), 2)}"
+            )
+
+        # C. Air pillar aggregates — the four that feed air.audit_followup_priority.
+        st.divider()
+        st.markdown("**Air — Pillar aggregates**")
         col_a, col_b = st.columns(2)
         with col_a:
             st.markdown(
@@ -334,9 +367,9 @@ with right_col:
                 f"{_fmt(rresult.get('air.attribution_confidence_score'), 2)}"
             )
 
-        # C. Sub-aggregates — six derived 0-1 scores per IC_v4 §1.2.
+        # D. Air sub-aggregates — six derived 0-1 scores per IC_v4 §1.2.
         st.divider()
-        st.markdown("**Sub-aggregates**")
+        st.markdown("**Air — Sub-aggregates**")
         sub_cols_top = st.columns(3)
         sub_cols_top[0].markdown(
             "**PM / Aerosol**  \n"
@@ -364,12 +397,12 @@ with right_col:
             f"{_fmt(rresult.get('air.industrial_air_pollution_burden'), 2)}"
         )
 
-        # D. Per-pollutant breakdown — flat table for quick cross-comparison.
+        # E. Air per-pollutant breakdown table.
         st.divider()
-        st.markdown("**Per-pollutant breakdown**")
-        rows = []
+        st.markdown("**Air — Per-pollutant breakdown**")
+        air_rows = []
         for p in AIR_POLLUTANT_CONFIG.keys():
-            rows.append({
+            air_rows.append({
                 "Pollutant":  p.upper(),
                 "Site":       _fmt(rresult.get(f"air.{p}.site"), 2),
                 "Score":      _fmt(rresult.get(f"air.{p}.score"), 2),
@@ -377,22 +410,79 @@ with right_col:
                 "Confidence": _fmt(rresult.get(f"air.{p}.confidence"), 2),
             })
         st.dataframe(
-            pd.DataFrame(rows),
+            pd.DataFrame(air_rows),
             hide_index=True,
             use_container_width=True,
         )
 
-        # E. Failures — surfaced as a warning expander when present.
-        if rresult.get("_failures"):
-            with st.expander(
-                f"⚠ {len(rresult['_failures'])} pollutant(s) failed to compute"
-            ):
-                for fail in rresult["_failures"]:
-                    st.write(
-                        f"- **{fail['pollutant'].upper()}**: {fail['reason']}"
-                    )
+        # F. GHG pillar aggregates + sub-aggregates side by side.
+        st.divider()
+        st.markdown("**GHG — Pillar aggregates**")
+        gcol_a, gcol_b = st.columns(2)
+        with gcol_a:
+            st.markdown(
+                "**Core audit support**  \n"
+                f"{_fmt(rresult.get('ghg.core_audit_support'), 2)}"
+            )
+            st.markdown(
+                "**Trend**  \n"
+                f"{_fmt(rresult.get('ghg.trend'), 2)}"
+            )
+        with gcol_b:
+            st.markdown(
+                "**Spatiotemporal anomaly**  \n"
+                f"{_fmt(rresult.get('ghg.spatiotemporal_anomaly'), 2)}"
+            )
+            st.markdown(
+                "**Data quality attribution**  \n"
+                f"{_fmt(rresult.get('ghg.data_quality_attribution'), 2)}"
+            )
 
-        # F. Full payload — debug expander, unchanged from Single mode.
+        # G. GHG per-indicator breakdown table. VIIRS lacks z (reduced
+        # measurement set per Schema_v2 §3.1), so its row's Z-score
+        # column will render "—".
+        st.divider()
+        st.markdown("**GHG — Per-indicator breakdown**")
+        ghg_rows = []
+        for ind in GHG_INDICATOR_CONFIG.keys():
+            ghg_rows.append({
+                "Indicator":  ind.upper(),
+                "Site":       _fmt(rresult.get(f"ghg.{ind}.site"), 2),
+                "Score":      _fmt(rresult.get(f"ghg.{ind}.score"), 2),
+                "Z-score":    _fmt(rresult.get(f"ghg.{ind}.z"), 2),
+                "Confidence": _fmt(rresult.get(f"ghg.{ind}.confidence"), 2),
+            })
+        st.dataframe(
+            pd.DataFrame(ghg_rows),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        # H. Failures — now namespaced as {pillar: [failures]} after M5c.
+        if rresult.get("_failures"):
+            failures_dict = rresult["_failures"]
+            total = sum(len(v) for v in failures_dict.values())
+            with st.expander(f"⚠ {total} failure(s) across pillars"):
+                for pillar_name, failure_list in failures_dict.items():
+                    st.markdown(f"**{pillar_name.upper()} pillar**")
+                    for fail in failure_list:
+                        if fail.get("type") == "pillar_wide":
+                            st.write(
+                                "- _pillar-wide failure_: "
+                                f"{fail.get('reason', 'unknown')}"
+                            )
+                        else:
+                            label = (
+                                fail.get("pollutant")
+                                or fail.get("indicator")
+                                or fail.get("indicator_id", "?")
+                            )
+                            st.write(
+                                f"- **{str(label).upper()}**: "
+                                f"{fail.get('reason', 'unknown')}"
+                            )
+
+        # I. Full payload — debug expander, unchanged from Single mode.
         with st.expander("Full payload"):
             st.json(rresult)
 
@@ -415,8 +505,8 @@ with left_col:
     m.add_basemap("SATELLITE")
 
     # Pollutant layer first (bottom) — only in Single pollutant mode, and only
-    # when last_run matches current inputs. Full pillar mode skips it because
-    # rendering all 9 layers as overlaps would be unreadable.
+    # when last_run matches current inputs. Full screening mode skips it because
+    # rendering all 9 Air + 2 GHG layers as overlaps would be unreadable.
     if (
         st.session_state.scratch_last_run is not None
         and st.session_state.scratch_last_run["inputs"] == current_inputs

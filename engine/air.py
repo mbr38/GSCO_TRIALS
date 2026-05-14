@@ -604,8 +604,14 @@ def run_pillar(
     mode: str,
     selected_indicators: set[str],
     ee_client,
+    *,
+    accumulated_payload: dict | None = None,  # noqa: ARG001 — Air has no cross-pillar borrows
 ) -> dict:
     """Compute every selected Air indicator + sub-aggregates + pillar aggregates.
+
+    `accumulated_payload` (M5c) is accepted for orchestrator signature parity
+    but unused — Air doesn't borrow from any other pillar.
+
 
     Logic (Engine_Module_Skeleton §2.1):
     1. Resolve `selected_indicators` to a set of pollutant keys.

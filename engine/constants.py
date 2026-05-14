@@ -127,6 +127,19 @@ GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
     "ghg.nearby_source_isolation":        0.13,
 }
 
+# IC_v4 §2.3 — GHG Audit Follow-Up Priority terms. Sums to 1.00.
+GHG_FOLLOWUP_WEIGHTS: dict[str, float] = {
+    "core_support": 0.40,
+    "anomaly":      0.25,
+    "trend":        0.20,
+    "quality":      0.15,
+}
+
+# Schema_v2 §3.4 — Sentinel-5P CH₄'s real on-ground footprint is ~7 km
+# due to swath geometry, even though the L3 grid is 1113 m. Used by
+# engine/ghg.py's spatial_resolution_suitability placeholder.
+CH4_NATIVE_SCALE_M: float = 7000.0
+
 # IC_v4 §1.2 — Air sub-aggregate weights. Each dict sums to 1.00.
 PM_OR_AEROSOL_WEIGHTS: dict[str, float] = {
     "air.pm25.score": 0.60,
