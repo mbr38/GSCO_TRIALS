@@ -82,19 +82,25 @@ def _fake_air_payload() -> dict:
 def _patch_air(monkeypatch, run_pillar_fn) -> None:
     """Replace orchestrator._PILLARS['air'] for the duration of the test.
 
-    Also stubs 'ghg' to a no-op returning {}, so the M4-era tests can keep
-    asserting Air-only composite behaviour without picking up real GHG
-    contributions (the real ghg.run_pillar would produce non-None quality
+    Also stubs 'ghg' and 'nature' to no-ops returning {}, so the M4-era tests
+    can keep asserting Air-only composite behaviour without picking up real
+    GHG or Nature contributions (each would produce non-None quality
     sub-scores even with an empty selection).
     """
     monkeypatch.setitem(orchestrator._PILLARS, "air", run_pillar_fn)
     monkeypatch.setitem(orchestrator._PILLARS, "ghg", lambda **_kw: {})
+    monkeypatch.setitem(orchestrator._PILLARS, "nature", lambda **_kw: {})
 
 
 def _patch_both(monkeypatch, air_fn, ghg_fn) -> None:
-    """Replace both pillar functions for two-pillar (M5c) tests."""
+    """Replace both pillar functions for two-pillar (M5c) tests.
+
+    Nature is stubbed to a no-op so the M5c-era assertions about Air+GHG
+    composite still hold once M5b wires the third pillar.
+    """
     monkeypatch.setitem(orchestrator._PILLARS, "air", air_fn)
     monkeypatch.setitem(orchestrator._PILLARS, "ghg", ghg_fn)
+    monkeypatch.setitem(orchestrator._PILLARS, "nature", lambda **_kw: {})
 
 
 # ---------------------------------------------------------------------------
@@ -126,11 +132,12 @@ class TestHappyPathSinglePillar:
         result = self._run(monkeypatch)
         assert result["composite.confidence"] == pytest.approx(0.72)
 
-    def test_meta_pillars_run_lists_both_wired_pillars(self, monkeypatch) -> None:
-        # M5c wired GHG, so the orchestrator now attempts both pillars even
-        # when this test stubs GHG to a no-op via `_patch_air`.
+    def test_meta_pillars_run_lists_all_wired_pillars(self, monkeypatch) -> None:
+        # M5b/M5c wired GHG + Nature, so the orchestrator now attempts all
+        # three pillars even when this test stubs GHG and Nature to no-ops
+        # via `_patch_air`.
         result = self._run(monkeypatch)
-        assert result["_meta"]["pillars_run"] == ["air", "ghg"]
+        assert result["_meta"]["pillars_run"] == ["air", "ghg", "nature"]
 
     def test_meta_computed_at_is_valid_iso_timestamp(self, monkeypatch) -> None:
         result = self._run(monkeypatch)
@@ -227,7 +234,7 @@ class TestPillarWideFailure:
         # Air was attempted (and failed); GHG is stubbed to a no-op by
         # `_patch_air`. Both are listed because the orchestrator records
         # every pillar in `_PILLARS` regardless of outcome.
-        assert result["_meta"]["pillars_run"] == ["air", "ghg"]
+        assert result["_meta"]["pillars_run"] == ["air", "ghg", "nature"]
 
 
 # ---------------------------------------------------------------------------
@@ -385,7 +392,7 @@ class TestTwoPillarHappyPath:
         assert result["composite.confidence"] == pytest.approx(min(0.72, 0.65))
 
         # Both pillars listed in _meta.
-        assert result["_meta"]["pillars_run"] == ["air", "ghg"]
+        assert result["_meta"]["pillars_run"] == ["air", "ghg", "nature"]
 
         # No failures.
         assert "_failures" not in result
@@ -498,7 +505,7 @@ class TestAirSucceedsGhgPillarWideFails:
         )
 
         # Both pillars still listed — GHG was attempted, it just failed.
-        assert result["_meta"]["pillars_run"] == ["air", "ghg"]
+        assert result["_meta"]["pillars_run"] == ["air", "ghg", "nature"]
 
 
 class TestBothPillarsPillarWideFail:

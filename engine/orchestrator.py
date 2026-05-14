@@ -1,4 +1,4 @@
-"""Cross-pillar orchestrator (Milestone 5c — Air + GHG; Nature lands in M5b).
+"""Cross-pillar orchestrator (Milestones 5c + 5b — Air + GHG + Nature).
 
 `ScreeningRun` is the only entry point the UI result pages (P-05+) should
 call. It takes the AOI + selected indicators + time range, runs each
@@ -24,10 +24,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Callable
 
-from engine import air, ghg
+from engine import air, ghg, nature
 from engine.exceptions import PillarComputeError
-
-# TODO: M5b — add `from engine import nature` import.
 
 
 # Mapping of pillar name → run_pillar callable. Iteration order = execution
@@ -38,9 +36,9 @@ from engine.exceptions import PillarComputeError
 # use monkeypatch.setitem(orchestrator._PILLARS, "<pillar>", ...) rather than
 # monkeypatch.setattr on engine.<pillar>.run_pillar.
 _PILLARS: dict[str, Callable[..., dict]] = {
-    "air": air.run_pillar,
-    "ghg": ghg.run_pillar,
-    # TODO: M5b — "nature": nature.run_pillar,
+    "air":    air.run_pillar,
+    "ghg":    ghg.run_pillar,
+    "nature": nature.run_pillar,
 }
 
 # IC_v4 §4 — composite score is the equal-weighted mean of per-pillar
@@ -48,7 +46,7 @@ _PILLARS: dict[str, Callable[..., dict]] = {
 _PILLAR_PRIORITY_IDS: tuple[str, ...] = (
     "air.audit_followup_priority",
     "ghg.audit_followup_priority",
-    # TODO: M5b — "nature.followup_priority"
+    "nature.followup_priority",
 )
 
 # IC_v4 §4 — composite confidence is the minimum across the pillars that
@@ -56,7 +54,7 @@ _PILLAR_PRIORITY_IDS: tuple[str, ...] = (
 _PILLAR_CONFIDENCE_IDS: tuple[str, ...] = (
     "air.attribution_confidence_score",
     "ghg.data_quality_attribution",
-    # TODO: M5b — "nature.quality_attribution"
+    "nature.quality_attribution",
 )
 
 
@@ -205,6 +203,5 @@ class ScreeningRun:
                 "computed_at":         datetime.now(timezone.utc).isoformat(),
                 "selected_indicators": sorted(self.selected_indicators),
                 "pillars_run":         list(_PILLARS.keys()),
-                # TODO: M5b — pillars_run extends to ["air", "ghg", "nature"].
             },
         }

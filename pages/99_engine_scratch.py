@@ -1,9 +1,10 @@
-"""Developer scratch page — Air pillar (Milestone 3a debug UI).
+"""Developer scratch page — all three pillars (M5b debug UI).
 
-Throwaway debugging UI, NOT part of the user-facing wireframes. Calls
-engine.air.compute_pollutant_snapshot from the browser so we can visually
-verify the engine returns sensible numbers before the real result pages
-(P-05+) exist. Delete once P-05 lands.
+Throwaway debugging UI, NOT part of the user-facing wireframes. Single
+pollutant mode calls engine.air.compute_pollutant_snapshot; full screening
+mode runs ScreeningRun across Air + GHG + Nature so we can visually verify
+the engine returns sensible numbers before the real result pages (P-05+)
+exist. Delete once P-05 lands.
 
 Filename is 99_ so Streamlit's alphabetical page ordering keeps this at
 the bottom of the sidebar, separated from the real P-01..P-11 pages.
@@ -34,6 +35,7 @@ import geemap.foliumap as geemap
 
 from engine.air import AIR_POLLUTANT_CONFIG, compute_pollutant_snapshot
 from engine.ghg import GHG_INDICATOR_CONFIG
+from engine.nature import NATURE_INDICATOR_CONFIG
 from engine.orchestrator import ScreeningRun
 from engine.constants import BACKGROUND_RING_MAX_KM, BACKGROUND_RING_RADIUS_MULTIPLE
 from engine.core.buffers import background_ring, site_buffer
@@ -101,7 +103,7 @@ st.warning(
     "Developer scratch page — not part of the user-facing tool. "
     "Delete when P-05 lands."
 )
-st.title("Engine scratch — Air pillar")
+st.title("Engine scratch (all pillars)")
 
 nav_left, nav_right = st.columns([4, 1])
 with nav_left:
@@ -194,8 +196,8 @@ left_col, right_col = st.columns([3, 2])
 with right_col:
     if mode == "Full screening (all pillars)":
         st.info(
-            "Full screening runs 9 Air + 2 GHG sequential Earth Engine queries — "
-            "first run can take 30–90 seconds."
+            "Full screening runs 9 Air + 2 GHG + 7 Nature sequential Earth "
+            "Engine queries — first run can take 60–180 seconds."
         )
 
     run = st.button("Run snapshot", type="primary", use_container_width=True)
@@ -213,11 +215,24 @@ with right_col:
                         ee_client=None,
                     )
             elif mode == "Full screening (all pillars)":
+                # Pick a representative emitted ID per Nature indicator so
+                # `_pillar_selection` routes it correctly. The orchestrator
+                # then forwards the full set to nature.run_pillar.
+                _NATURE_SEED_IDS: dict[str, str] = {
+                    "kba":         "nature.kba.proximity_score",
+                    "dw":          "nature.dw.trees_pct",
+                    "habitat":     "nature.habitat.natural_loss_ha",
+                    "forest_loss": "nature.forest_loss.ha",
+                    "ndvi":        "nature.ndvi.score",
+                    "water":       "nature.water.area_now_ha",
+                    "recovery":    "nature.recovery.score",
+                }
                 selected = (
                     {f"air.{p}.score" for p in AIR_POLLUTANT_CONFIG.keys()}
                     | {f"ghg.{i}.score" for i in GHG_INDICATOR_CONFIG.keys()}
+                    | {_NATURE_SEED_IDS[k] for k in NATURE_INDICATOR_CONFIG.keys()}
                 )
-                with st.spinner("Running full screening (Air + GHG)..."):
+                with st.spinner("Running full screening (Air + GHG + Nature)..."):
                     result = ScreeningRun(
                         aoi=aoi,
                         selected_indicators=selected,
@@ -310,8 +325,8 @@ with right_col:
         )
         st.caption(
             "Composite is the equal-weighted mean of per-pillar follow-up "
-            "priorities (Air + GHG today). Each pillar's priority is itself a "
-            "0–1 measure of how unusual the site is vs its surrounding "
+            "priorities (Air + GHG + Nature). Each pillar's priority is itself "
+            "a 0–1 measure of how unusual the site is vs its surrounding "
             "background ring. Thresholds: below 0.33 = low concern (green), "
             "0.33–0.66 = elevated (amber), above 0.66 = high concern (red). "
             "Composite confidence is the minimum across the per-pillar "
@@ -332,7 +347,7 @@ with right_col:
         # B. Per-pillar follow-up priorities side by side.
         st.divider()
         st.markdown("**Per-pillar follow-up priority**")
-        col_a, col_b = st.columns(2)
+        col_a, col_b, col_c = st.columns(3)
         with col_a:
             st.markdown(
                 "**Air**  \n"
@@ -342,6 +357,11 @@ with right_col:
             st.markdown(
                 "**GHG**  \n"
                 f"{_fmt(rresult.get('ghg.audit_followup_priority'), 2)}"
+            )
+        with col_c:
+            st.markdown(
+                "**Nature**  \n"
+                f"{_fmt(rresult.get('nature.followup_priority'), 2)}"
             )
 
         # C. Air pillar aggregates — the four that feed air.audit_followup_priority.
@@ -458,7 +478,99 @@ with right_col:
             use_container_width=True,
         )
 
-        # H. Failures — now namespaced as {pillar: [failures]} after M5c.
+        # H. Nature pillar aggregates — the two that feed the cross-pillar composite.
+        st.divider()
+        st.markdown("**Nature — Pillar aggregates**")
+        ncol_a, ncol_b = st.columns(2)
+        with ncol_a:
+            st.markdown(
+                "**Follow-up priority**  \n"
+                f"{_fmt(rresult.get('nature.followup_priority'), 2)}"
+            )
+            st.markdown(
+                "**Spatiotemporal anomaly**  \n"
+                f"{_fmt(rresult.get('nature.spatiotemporal_anomaly_score'), 2)}"
+            )
+        with ncol_b:
+            st.markdown(
+                "**Quality attribution**  \n"
+                f"{_fmt(rresult.get('nature.quality_attribution'), 2)}"
+            )
+
+        # I. Nature sub-aggregates — the three exposure-side scores per IC §3.2.
+        st.divider()
+        st.markdown("**Nature — Sub-aggregates**")
+        n_sub_cols = st.columns(3)
+        n_sub_cols[0].markdown(
+            "**Biodiversity exposure**  \n"
+            f"{_fmt(rresult.get('nature.biodiversity_exposure'), 2)}"
+        )
+        n_sub_cols[1].markdown(
+            "**Habitat conversion**  \n"
+            f"{_fmt(rresult.get('nature.habitat.conversion_score'), 2)}"
+        )
+        n_sub_cols[2].markdown(
+            "**Vegetation condition**  \n"
+            f"{_fmt(rresult.get('nature.vegetation_condition'), 2)}"
+        )
+
+        # J. Nature per-indicator breakdown. Each row picks the most
+        # representative numeric output per indicator. KBA shows
+        # dist/overlap/score; DW shows the dominant class + its percentage;
+        # habitat / forest / NDVI / water show the headline raw value.
+        st.divider()
+        st.markdown("**Nature — Per-indicator breakdown**")
+        nature_rows = [
+            {
+                "Indicator": "KBA",
+                "Value":     _fmt(rresult.get("nature.kba.dist_km"), 2),
+                "Unit":      "km to KBA",
+                "Score":     _fmt(rresult.get("nature.kba.proximity_score"), 2),
+            },
+            {
+                "Indicator": "DW (dominant)",
+                "Value":     rresult.get("nature.dw.dominant_class") or "—",
+                "Unit":      "class label",
+                "Score":     _fmt(rresult.get("nature.sensitive_land_cover_presence"), 2),
+            },
+            {
+                "Indicator": "Habitat conv.",
+                "Value":     _fmt(rresult.get("nature.habitat.natural_loss_ha"), 1),
+                "Unit":      "ha lost",
+                "Score":     _fmt(rresult.get("nature.habitat.conversion_score"), 2),
+            },
+            {
+                "Indicator": "Forest loss",
+                "Value":     _fmt(rresult.get("nature.forest_loss.ha"), 1),
+                "Unit":      "ha lost",
+                "Score":     _fmt(rresult.get("nature.forest_loss.pct"), 2),
+            },
+            {
+                "Indicator": "NDVI",
+                "Value":     _fmt(rresult.get("nature.ndvi.mean"), 2),
+                "Unit":      "dimensionless",
+                "Score":     _fmt(rresult.get("nature.ndvi.score"), 2),
+            },
+            {
+                "Indicator": "Water exposure",
+                "Value":     _fmt(rresult.get("nature.water.area_now_ha"), 1),
+                "Unit":      "ha water",
+                "Score":     _fmt(rresult.get("nature.water_or_flooded_veg_exposure"), 2),
+            },
+            {
+                "Indicator": "Recovery",
+                "Value":     _fmt(rresult.get("nature.recovery.score"), 2),
+                "Unit":      "score",
+                "Score":     _fmt(rresult.get("nature.recovery.score"), 2),
+            },
+        ]
+        st.dataframe(
+            pd.DataFrame(nature_rows),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        # K. Failures — now namespaced as {pillar: [failures]} after M5c.
         if rresult.get("_failures"):
             failures_dict = rresult["_failures"]
             total = sum(len(v) for v in failures_dict.values())
@@ -482,7 +594,7 @@ with right_col:
                                 f"{fail.get('reason', 'unknown')}"
                             )
 
-        # I. Full payload — debug expander, unchanged from Single mode.
+        # L. Full payload — debug expander, unchanged from Single mode.
         with st.expander("Full payload"):
             st.json(rresult)
 
