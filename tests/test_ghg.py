@@ -48,6 +48,45 @@ _TIME_RANGE = ("2026-01-01", "2026-04-01")
 
 
 # ---------------------------------------------------------------------------
+# 0. _time_range_in_coverage helper (M5.5c)
+# ---------------------------------------------------------------------------
+
+class TestTimeRangeCoverage:
+    def test_none_coverage_always_returns_true(self) -> None:
+        from engine.ghg import _time_range_in_coverage
+        assert _time_range_in_coverage(("2026-01-01", "2026-04-01"), None) is True
+
+    def test_overlapping_range_returns_true(self) -> None:
+        from engine.ghg import _time_range_in_coverage
+        # User range straddles the end of coverage.
+        assert _time_range_in_coverage(
+            ("2023-10-01", "2024-03-01"),
+            ("2020-01-01", "2023-12-31"),
+        ) is True
+
+    def test_fully_outside_after_coverage_returns_false(self) -> None:
+        from engine.ghg import _time_range_in_coverage
+        assert _time_range_in_coverage(
+            ("2026-01-01", "2026-04-01"),
+            ("2020-01-01", "2023-12-31"),
+        ) is False
+
+    def test_fully_outside_before_coverage_returns_false(self) -> None:
+        from engine.ghg import _time_range_in_coverage
+        assert _time_range_in_coverage(
+            ("2015-01-01", "2015-04-01"),
+            ("2020-01-01", "2023-12-31"),
+        ) is False
+
+    def test_fully_inside_coverage_returns_true(self) -> None:
+        from engine.ghg import _time_range_in_coverage
+        assert _time_range_in_coverage(
+            ("2022-01-01", "2022-04-01"),
+            ("2020-01-01", "2023-12-31"),
+        ) is True
+
+
+# ---------------------------------------------------------------------------
 # 1. GHG_INDICATOR_CONFIG integrity
 # ---------------------------------------------------------------------------
 
@@ -93,6 +132,24 @@ class TestConfigIntegrity:
         assert cfg.band == "b1"
         assert cfg.scale_m == 1000.0
         assert "CO₂" in cfg.display_unit or "CO2" in cfg.display_unit
+
+    def test_co2_has_coverage_window_set(self) -> None:
+        # M5.5c — ODIAC publishes annual grids 2020-2023.
+        cfg = GHG_INDICATOR_CONFIG["co2"]
+        assert cfg.coverage_window == ("2020-01-01", "2023-12-31")
+
+    def test_ch4_and_viirs_have_no_coverage_window(self) -> None:
+        # Sentinel-5P CH₄ and VIIRS NTL are both still actively updated.
+        assert GHG_INDICATOR_CONFIG["ch4"].coverage_window is None
+        assert GHG_INDICATOR_CONFIG["viirs"].coverage_window is None
+
+    def test_co2_data_type_is_inventory(self) -> None:
+        cfg = GHG_INDICATOR_CONFIG["co2"]
+        assert cfg.data_type == "emissions_inventory_allocation"
+
+    def test_ch4_and_viirs_data_type_is_satellite(self) -> None:
+        assert GHG_INDICATOR_CONFIG["ch4"].data_type == "satellite_observation"
+        assert GHG_INDICATOR_CONFIG["viirs"].data_type == "satellite_observation"
 
 
 # ---------------------------------------------------------------------------
@@ -236,12 +293,23 @@ class TestCo2Snapshot:
             "trend", "trend_p", "confidence", "score",
         ):
             assert f"ghg.co2.{measurement}" in result
-        # Provenance carries the audit-traceable conversion factor.
+        # Provenance carries the audit-traceable conversion factor and
+        # (M5.5c) the inventory-vs-observation honesty fields. M5.6 moved
+        # n_months into observations.count and c_to_co2_factor into extra;
+        # allocation_method folded into method_note; role_in_pillar dropped.
         prov = result["_provenance.ghg.co2"]
         assert prov["asset_id"] == "projects/supply-chain-observatory/assets/odiac"
         assert prov["band"] == "b1"
-        assert prov["n_months"] == 3
-        assert prov["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
+        assert prov["observations"]["count"] == 3
+        assert prov["observations"]["unit"] == "monthly_grids"
+        assert prov["extra"]["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
+        assert prov["data_type"] == "emissions_inventory_allocation"
+        assert prov["data_source"] == "ODIAC / NIES Japan"
+        assert prov["method_note"] is not None
+        assert "CARMA" in prov["method_note"]
+        # M5.5b's role_in_pillar field was dropped in M5.6 — data_type
+        # carries the same information more honestly.
+        assert "role_in_pillar" not in prov
 
     def test_compute_co2_snapshot_score_clamps_to_zero_below_regional(
         self, fake_co2_ee,
@@ -305,17 +373,9 @@ class TestCo2Snapshot:
                 mode="screening", ee_client=None,
             )
 
-    def test_compute_co2_snapshot_empty_time_range(
-        self, fake_co2_ee,
-    ) -> None:
-        # ODIAC covers 2020-2023. n_months=0 → IndicatorComputeError.
-        fake_co2_ee(n_months=0, site_sum=0.0, site_mean=0.0, ring_mean=0.0)
-        with pytest.raises(IndicatorComputeError, match=r"no ODIAC monthly grids"):
-            compute_co2_snapshot(
-                aoi=_AOI_CO2,
-                time_range=("2030-01-01", "2030-04-01"),
-                mode="screening", ee_client=None,
-            )
+    # M5.5c — `test_compute_co2_snapshot_empty_time_range` was removed
+    # along with the `n_months == 0` raise inside compute_co2_snapshot.
+    # Out-of-coverage handling moved to run_pillar (TestPresentDayScreeningSkipsOdiac).
 
 
 class TestCo2RelativeIntensityHelper:
@@ -629,10 +689,16 @@ class TestRunPillar:
         assert "ghg.ch4.score" in err.indicator_ids
         assert "ghg.viirs.confidence" in err.indicator_ids
 
-    def test_co2_selected_activates_all_sub_aggregates(self, monkeypatch) -> None:
-        # M5.5 — when CO₂ is in the selection AND the snapshot succeeds,
-        # ghg.co2_context, ghg.fossil_combustion_score, and
-        # ghg.activity_adjusted_co2 all activate.
+    def test_co2_selected_activates_sub_aggregates_but_not_core_audit(
+        self, monkeypatch,
+    ) -> None:
+        # M5.5b — CO₂ snapshot still runs and the three CO₂-dependent
+        # sub-aggregates still activate, but they no longer feed
+        # ghg.core_audit_support (which is now CH₄ + combustion + activity).
+        # M5.5c — time_range must be inside ODIAC's coverage_window
+        # (2020-2023) so the coverage check passes and the snapshot runs;
+        # _TIME_RANGE is a 2026 window which would now be skipped.
+        in_coverage_range = ("2023-01-01", "2023-04-01")
 
         def _fake_co2_snapshot(aoi, time_range, mode, ee_client):
             return {
@@ -658,9 +724,9 @@ class TestRunPillar:
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", _fake_co2_snapshot)
 
-        result = run_pillar(
+        result_high_co2 = run_pillar(
             aoi=_AOI,
-            time_range=_TIME_RANGE,
+            time_range=in_coverage_range,
             mode="screening",
             selected_indicators={
                 "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
@@ -673,15 +739,112 @@ class TestRunPillar:
             "mean", "total", "relative_intensity",
             "trend", "trend_p", "confidence", "score",
         ):
-            assert f"ghg.co2.{measurement}" in result
+            assert f"ghg.co2.{measurement}" in result_high_co2
 
-        # All three CO₂-dependent sub-aggregates activated.
-        assert result["ghg.co2_context"] == 0.7
-        assert result["ghg.fossil_combustion_score"] is not None
-        assert result["ghg.activity_adjusted_co2"] is not None
+        # CO₂-dependent sub-aggregates still compute (display-only).
+        assert result_high_co2["ghg.co2_context"] == 0.7
+        assert result_high_co2["ghg.fossil_combustion_score"] is not None
+        assert result_high_co2["ghg.activity_adjusted_co2"] is not None
 
-        # Core audit support uses the M5.5-rebalanced weights with CO₂.
+        # Core audit support comes from the live trio only — proof: rerun
+        # with a wildly different CO₂ score and assert the composite
+        # doesn't move.
+        def _fake_co2_snapshot_low(aoi, time_range, mode, ee_client):
+            payload = _fake_co2_snapshot(aoi, time_range, mode, ee_client)
+            payload["ghg.co2.score"] = 0.01
+            return payload
+
+        monkeypatch.setattr("engine.ghg.compute_co2_snapshot", _fake_co2_snapshot_low)
+        result_low_co2 = run_pillar(
+            aoi=_AOI,
+            time_range=in_coverage_range,
+            mode="screening",
+            selected_indicators={
+                "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
+            },
+            ee_client=None,
+        )
+
+        assert result_high_co2["ghg.core_audit_support"] is not None
+        assert result_low_co2["ghg.core_audit_support"] is not None
+        # Identical despite a 0.69 swing in ghg.co2.score — CO₂ is out.
+        assert result_high_co2["ghg.core_audit_support"] == pytest.approx(
+            result_low_co2["ghg.core_audit_support"],
+        )
+
+
+class TestPresentDayScreeningSkipsOdiac:
+    """M5.5c — verify that present-day screening (time range outside
+    ODIAC's 2020-2023 coverage) skips CO₂ silently, with no failure
+    entry, and the live composite still computes from the surviving
+    indicators. Replaces the M5.5b-era variant that asserted
+    IndicatorComputeError; the coverage_window check moved the skip
+    decision upstream so compute_co2_snapshot is never even called.
+    """
+
+    def test_present_day_skips_co2_without_failure(self, monkeypatch) -> None:
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+            if indicator == "ch4":
+                return _fake_ch4_snapshot(include_air_keys=True)
+            if indicator == "viirs":
+                return _fake_viirs_snapshot()
+            raise AssertionError(f"unexpected indicator {indicator!r}")
+
+        # If the spy fires, M5.5c didn't skip ODIAC — that's the bug.
+        spy_called: list[tuple] = []
+
+        def fake_co2_snapshot(aoi, time_range, mode, ee_client):
+            spy_called.append((time_range,))
+            return {}
+
+        monkeypatch.setattr(
+            "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
+        )
+        monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
+
+        result = run_pillar(
+            aoi=_AOI,
+            time_range=("2026-02-10", "2026-05-11"),  # outside ODIAC coverage
+            mode="screening",
+            selected_indicators={
+                "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
+            },
+            ee_client=None,
+        )
+
+        # Critical: compute_co2_snapshot was NOT called.
+        assert spy_called == [], (
+            "compute_co2_snapshot should not be called when time_range "
+            "is outside ODIAC's coverage_window"
+        )
+
+        # CO₂ keys are None-filled (so downstream null-propagation works).
+        for measurement in (
+            "mean", "total", "relative_intensity",
+            "trend", "trend_p", "confidence", "score",
+        ):
+            assert result[f"ghg.co2.{measurement}"] is None
+
+        # Provenance flags the skip reason.
+        prov = result["_provenance.ghg.co2"]
+        assert prov["skipped_reason"] == "out_of_coverage"
+        assert prov["coverage_window"] == ("2020-01-01", "2023-12-31")
+        assert prov["data_type"] == "emissions_inventory_allocation"
+
+        # No CO₂ entry in _failures.
+        # `_failures` is a flat list at the GHG-pillar level (the
+        # orchestrator namespaces it per-pillar later).
+        co2_failures = [
+            f for f in result.get("_failures", [])
+            if f.get("indicator") == "co2"
+        ]
+        assert co2_failures == [], (
+            f"CO₂ should not appear in _failures when skipped; got {co2_failures}"
+        )
+
+        # Live composite still computes from CH₄ + combustion + activity.
         assert result["ghg.core_audit_support"] is not None
+        assert result["ghg.audit_followup_priority"] is not None
 
 
 # ---------------------------------------------------------------------------
@@ -783,35 +946,54 @@ class TestCo2DependentFormulas:
 
 
 class TestCoreGhgAuditSupport:
-    """M5.5 — weights rebalanced from (0.39 / 0.28 / 0.22 / 0.11) to
-    (0.39 / 0.28 / 0.27 / 0.06) so VIIRS isn't double-counted with the
-    ODIAC diffuse-allocation branch. See engine/constants.py for the
-    full rationale.
+    """M5.5b — ODIAC demoted from the live composite. The three surviving
+    live signals (CH₄ + combustion + activity) carry rescaled weights
+    (0.46 / 0.44 / 0.10) that sum to 1.00. See engine/constants.py for
+    the full rationale.
     """
 
-    def test_full_four_term_weighted_sum_with_co2_active(self) -> None:
-        # M5.5 — CO₂ is now in v1; all four terms contribute.
+    def test_full_three_term_weighted_sum_post_m55b(self) -> None:
+        # M5.5b — CO₂ no longer in the live composite; the three surviving
+        # terms (CH₄ + combustion + activity) carry the full weight.
         payload = {
-            "ghg.co2_context":          0.60,
             "ghg.ch4_context_adjusted": 0.50,
             "ghg.combustion_proxy":     0.40,
             "ghg.activity_score":       0.30,
         }
         selected = set(payload.keys())
         out = compute_core_ghg_audit_support(payload, selected)
-        # New weights (0.39 / 0.28 / 0.27 / 0.06).
         expected = (
-            0.39 * 0.60 + 0.28 * 0.50 + 0.27 * 0.40 + 0.06 * 0.30
+            0.46 * 0.50 + 0.44 * 0.40 + 0.10 * 0.30
         )
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
-    def test_renormalises_over_present_terms_without_co2(self) -> None:
-        # Legacy code path — when CO₂ wasn't selected, renormalise the
-        # remaining three (post-M5.5 weights: 0.28 + 0.27 + 0.06 = 0.61).
-        payload = {
+    def test_co2_context_in_payload_does_not_affect_composite(self) -> None:
+        # Regression guard: post-M5.5b, including ghg.co2_context in the
+        # payload (and in `selected`) must not change the composite — it's
+        # simply not in CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
+        payload_with = {
+            "ghg.co2_context":          0.90,  # would heavily shift if it counted
             "ghg.ch4_context_adjusted": 0.50,
             "ghg.combustion_proxy":     0.40,
             "ghg.activity_score":       0.30,
+        }
+        payload_without = {
+            k: v for k, v in payload_with.items() if k != "ghg.co2_context"
+        }
+        out_with = compute_core_ghg_audit_support(payload_with, set(payload_with))
+        out_without = compute_core_ghg_audit_support(
+            payload_without, set(payload_without),
+        )
+        assert out_with["ghg.core_audit_support"] == pytest.approx(
+            out_without["ghg.core_audit_support"],
+        )
+
+    def test_renormalises_when_one_live_term_missing(self) -> None:
+        # Activity missing (None) → drop the 0.10 weight, renormalise the rest.
+        payload = {
+            "ghg.ch4_context_adjusted": 0.50,
+            "ghg.combustion_proxy":     0.40,
+            "ghg.activity_score":       None,
         }
         selected = {
             "ghg.ch4_context_adjusted",
@@ -819,7 +1001,8 @@ class TestCoreGhgAuditSupport:
             "ghg.activity_score",
         }
         out = compute_core_ghg_audit_support(payload, selected)
-        expected = (0.28 * 0.50 + 0.27 * 0.40 + 0.06 * 0.30) / 0.61
+        # Surviving sum: 0.46 + 0.44 = 0.90
+        expected = (0.46 * 0.50 + 0.44 * 0.40) / 0.90
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
 
@@ -835,3 +1018,119 @@ class TestGhgTrendModeHandling:
             mode="trend",
         )
         assert out["ghg.trend"] is None
+
+
+# ---------------------------------------------------------------------------
+# M5.6 — canonical provenance shape
+# ---------------------------------------------------------------------------
+
+_CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "asset_id", "band", "data_type", "data_source",
+    "native_scale_m", "method_note", "time_range",
+    "coverage_window", "skipped_reason", "observations", "extra",
+)
+
+
+class TestProvenanceShape:
+    """Every GHG indicator must emit the canonical 11-field provenance
+    block via engine.core.build_provenance — including CO₂ on both the
+    happy and out-of-coverage paths.
+    """
+
+    def test_co2_provenance_canonical_keys_in_order(
+        self, fake_co2_ee,
+    ) -> None:
+        fake_co2_ee(n_months=3, site_sum=100.0, site_mean=5.0, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result["_provenance.ghg.co2"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+
+    def test_co2_provenance_carries_canonical_fields(self, fake_co2_ee) -> None:
+        fake_co2_ee(n_months=3, site_sum=100.0, site_mean=5.0, ring_mean=1.0)
+        result = compute_co2_snapshot(
+            aoi=_AOI_CO2, time_range=_CO2_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result["_provenance.ghg.co2"]
+        assert prov["data_type"] == "emissions_inventory_allocation"
+        assert prov["data_source"] == "ODIAC / NIES Japan"
+        assert prov["coverage_window"] == ("2020-01-01", "2023-12-31")
+        assert prov["observations"]["count"] == 3
+        assert prov["observations"]["unit"] == "monthly_grids"
+        assert prov["extra"]["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
+        # M5.5b's role_in_pillar field was dropped in M5.6.
+        assert "role_in_pillar" not in prov
+
+    def test_co2_skip_path_provenance_shape(self, monkeypatch) -> None:
+        # The out-of-coverage skip path also uses build_provenance.
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+            if indicator == "ch4":
+                return _fake_ch4_snapshot(include_air_keys=True)
+            if indicator == "viirs":
+                return _fake_viirs_snapshot()
+            raise AssertionError(f"unexpected indicator {indicator!r}")
+        monkeypatch.setattr(
+            "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
+        )
+
+        result = run_pillar(
+            aoi=_AOI,
+            time_range=("2026-02-10", "2026-05-11"),  # outside ODIAC
+            mode="screening",
+            selected_indicators={
+                "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
+            },
+            ee_client=None,
+        )
+        prov = result["_provenance.ghg.co2"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+        assert prov["skipped_reason"] == "out_of_coverage"
+        assert prov["observations"]["count"] == 0
+        assert prov["observations"]["unit"] == "monthly_grids"
+        assert prov["data_type"] == "emissions_inventory_allocation"
+        assert prov["data_source"] == "ODIAC / NIES Japan"
+
+    def test_ch4_format_result_emits_canonical_provenance(self) -> None:
+        # CH₄ goes through compute_ghg_indicator_snapshot → _format_result,
+        # not the CO₂ bespoke path. Call _format_result directly with a
+        # synthetic raw payload to exercise the build_provenance call site
+        # without needing a fake EE session.
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["ch4"]
+        result = _format_result(
+            indicator="ch4",
+            cfg=cfg,
+            raw={
+                "site": 1900.0, "background": 1880.0, "anomaly": 20.0,
+                "z": 2.5, "hf": 0.40, "trend": None, "trend_p": None,
+                "confidence": 0.80, "score": 0.60,
+            },
+            time_range=_TIME_RANGE,
+        )
+        prov = result["_provenance.ghg.ch4"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+        assert prov["data_type"] == "satellite_observation"
+        assert "Sentinel-5P" in prov["data_source"]
+        assert prov["band"] == "CH4_column_volume_mixing_ratio_dry_air"
+        assert prov["coverage_window"] is None
+        assert prov["skipped_reason"] is None
+
+    def test_viirs_format_result_emits_canonical_provenance(self) -> None:
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["viirs"]
+        result = _format_result(
+            indicator="viirs",
+            cfg=cfg,
+            raw={
+                "site": 25.0, "anomaly": 10.0, "trend": None,
+                "confidence": 0.70, "score": 0.50,
+            },
+            time_range=_TIME_RANGE,
+        )
+        prov = result["_provenance.ghg.viirs"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+        assert prov["data_type"] == "satellite_observation"
+        assert "VIIRS" in prov["data_source"]

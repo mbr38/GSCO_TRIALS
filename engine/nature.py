@@ -65,7 +65,7 @@ from engine.constants import (
     VEGETATION_CONDITION_WEIGHTS,
     WATER_FLOODED_VEG_SATURATION_PCT,
 )
-from engine.core import six_step
+from engine.core import build_provenance, six_step
 from engine.core.buffers import site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import DW_CLASS_TO_ID_SLUG, PILLAR_NATURE
@@ -96,6 +96,11 @@ class NatureIndicatorConfig:
     `emitted_keys` constrains which canonical IDs the indicator's compute
     function returns — KBA emits a tiny vector-derived set, DW emits per-class
     fractions, NDVI emits the standard six-step measurement set, etc.
+
+    `data_type` / `data_source` feed the M5.6 canonical provenance schema —
+    see docs/provenance_schema.md. Nature has the most varied set of data
+    types of any pillar (reference vector data, ML-classified rasters,
+    direct satellite NDVI), so each indicator overrides the default.
     """
 
     asset_id: str
@@ -109,6 +114,12 @@ class NatureIndicatorConfig:
     # config-integrity tests in tests/test_nature.py and by run_pillar's
     # failure-path to mark every affected ID as None.
     emitted_keys: tuple[str, ...] = field(default_factory=tuple)
+    # M5.6 — provenance metadata. Defaults are placeholders to surface
+    # config gaps loudly: an indicator that forgot to override will emit
+    # a misleading "satellite_observation" tag, which fails the new
+    # TestProvenanceShape assertions in tests/test_nature.py.
+    data_type: str = "satellite_observation"
+    data_source: str = ""
 
 
 # IC_v4 §3.1 + Indicator_ID_Schema_v2.md §4 + GEE_Database_List §4.
@@ -122,6 +133,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.kba.overlap_pct",
             "nature.kba.proximity_score",
         ),
+        data_type="reference_dataset",
+        data_source="BirdLife International (Key Biodiversity Areas)",
     ),
     "dw": NatureIndicatorConfig(
         asset_id="GOOGLE/DYNAMICWORLD/V1",
@@ -136,6 +149,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.sensitive_land_cover_presence",
             "nature.water_or_flooded_veg_exposure",
         ),
+        data_type="ml_classified_satellite",
+        data_source="Google / WRI (Dynamic World V1)",
     ),
     "habitat": NatureIndicatorConfig(
         asset_id="GOOGLE/DYNAMICWORLD/V1",
@@ -150,6 +165,11 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.habitat.bare_expansion_ha",
             "nature.habitat.annualised_rate",
         ),
+        # Habitat conversion is derived from two DW composites; the
+        # underlying classification asset is what the data_source field
+        # documents (the derivation itself lives in method_note).
+        data_type="ml_classified_satellite",
+        data_source="Google / WRI (Dynamic World V1)",
     ),
     "forest_loss": NatureIndicatorConfig(
         asset_id="UMD/hansen/global_forest_change_2023_v1_11",
@@ -158,6 +178,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.forest_loss.ha",
             "nature.forest_loss.pct",
         ),
+        data_type="ml_classified_satellite",
+        data_source="UMD / Hansen Global Forest Change",
     ),
     "ndvi": NatureIndicatorConfig(
         asset_id="MODIS/061/MOD13Q1",
@@ -173,6 +195,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.low_ndvi.ha",
             "nature.low_ndvi.pct",
         ),
+        data_type="satellite_observation",
+        data_source="NASA MODIS (MOD13Q1)",
     ),
     "water": NatureIndicatorConfig(
         asset_id="GOOGLE/DYNAMICWORLD/V1",  # Per GEE §4.3 — DW replaces JRC GSW for v1.
@@ -181,6 +205,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.water.area_now_ha",
             "nature.flooded_veg.area_now_ha",
         ),
+        data_type="ml_classified_satellite",
+        data_source="Google / WRI (Dynamic World V1)",
     ),
     "recovery": NatureIndicatorConfig(
         asset_id="MODIS/061/MOD13Q1",       # NDVI-trend-derived.
@@ -191,6 +217,8 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.recovery.bare_reduction_ha",
             "nature.recovery.score",
         ),
+        data_type="satellite_observation",
+        data_source="NASA MODIS (MOD13Q1)",
     ),
 }
 
@@ -279,8 +307,18 @@ def _nature_keys_from_selected(selected: set[str]) -> set[str]:
 # Single-value indicators  (IC_v4 §3.1 / Schema_v2 §4.1)
 # ---------------------------------------------------------------------------
 
-def compute_kba_proximity(aoi: dict, ee_client) -> dict:  # noqa: ARG001 — ee_client parity
+def compute_kba_proximity(
+    aoi: dict,
+    time_range: tuple[str, str] | None = None,
+    ee_client=None,                                     # noqa: ARG001 — parity
+) -> dict:
     """Vector-based KBA proximity / overlap (IC_v4 §3.1 / Schema_v2 §4.1).
+
+    `time_range` is accepted for provenance consistency only — KBA is
+    reference vector data and doesn't vary with time. None defaults to
+    a static-snapshot sentinel; the dispatcher in run_pillar passes the
+    user's request window through so the provenance block documents the
+    request context.
 
     Computes:
     - `nature.kba.dist_km`         — distance from the AOI centre to the
@@ -315,6 +353,7 @@ def compute_kba_proximity(aoi: dict, ee_client) -> dict:  # noqa: ARG001 — ee_
         # No KBAs within 50 km of the buffer → score collapses to 0.0.
         return _format_kba_result(
             dist_km=50.0, overlap_ha=0.0, overlap_pct=0.0,
+            time_range=time_range,
         )
 
     # Distance from the AOI centre point to the union of nearby KBA polygons.
@@ -331,28 +370,54 @@ def compute_kba_proximity(aoi: dict, ee_client) -> dict:  # noqa: ARG001 — ee_
 
     return _format_kba_result(
         dist_km=dist_km, overlap_ha=overlap_ha, overlap_pct=overlap_pct,
+        time_range=time_range,
     )
 
 
+# M5.6 — sentinel "no time range applies" for static reference data. KBA
+# polygons don't vary with time, but the canonical provenance schema
+# requires `time_range`; we surface the user's request window when present
+# and this sentinel otherwise so reviewers see explicitly that the field
+# isn't a real lookup window.
+_STATIC_SNAPSHOT_TIME_RANGE: tuple[str, str] = ("static", "static")
+
+
 def _format_kba_result(
-    dist_km: float, overlap_ha: float, overlap_pct: float,
+    dist_km: float,
+    overlap_ha: float,
+    overlap_pct: float,
+    time_range: tuple[str, str] | None = None,
 ) -> dict:
     """IC §3.2 sub-formula: `max(overlap_pct/100, exp(-dist_km/decay))`.
 
     Centralised so `compute_kba_proximity` and tests share one mapping.
+    `time_range` is documented in provenance only; KBA is reference data.
     """
     score = max(
         overlap_pct / 100.0,
         math.exp(-dist_km / KBA_DISTANCE_DECAY_KM),
     )
+    cfg = NATURE_INDICATOR_CONFIG["kba"]
+    effective_time_range = time_range if time_range is not None else _STATIC_SNAPSHOT_TIME_RANGE
     return {
         "nature.kba.dist_km":         dist_km,
         "nature.kba.overlap_ha":      overlap_ha,
         "nature.kba.overlap_pct":     overlap_pct,
         "nature.kba.proximity_score": _clamp01(score),
-        "_provenance.nature.kba": {
-            "asset_id": KBA_ASSET_ID,
-        },
+        "_provenance.nature.kba": build_provenance(
+            asset_id=cfg.asset_id,
+            band=None,
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=effective_time_range,
+            method_note=(
+                "vector distance + buffer intersection; "
+                f"score = max(overlap_pct/100, exp(-dist_km/{KBA_DISTANCE_DECAY_KM}))"
+            ),
+            observations={"count": 1, "unit": "static_snapshot"},
+            extra={"distance_decay_km": KBA_DISTANCE_DECAY_KM},
+        ),
     }
 
 
@@ -445,10 +510,17 @@ def compute_current_land_cover(
         water_like_pct / WATER_FLOODED_VEG_SATURATION_PCT,
     )
 
-    result["_provenance.nature.dw"] = {
-        "asset_id":   cfg.asset_id,
-        "time_range": time_range,
-    }
+    result["_provenance.nature.dw"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band="label",
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note="DW 90-day mode composite; class fractions via frequencyHistogram",
+        observations=None,  # TODO(v1.x): track DW image count from filterBounds().
+        extra={"composite_window_days": DW_COMPOSITE_WINDOW_DAYS},
+    )
     return result
 
 
@@ -560,11 +632,24 @@ def compute_habitat_conversion(
         "nature.habitat.built_expansion_ha":  built_expansion_ha,
         "nature.habitat.bare_expansion_ha":   bare_expansion_ha,
         "nature.habitat.annualised_rate":     annualised_rate_ha_per_yr,
-        "_provenance.nature.habitat": {
-            "asset_id":           cfg.asset_id,
-            "time_range":         time_range,
-            "baseline_time_range": (baseline_start, baseline_end),
-        },
+        "_provenance.nature.habitat": build_provenance(
+            asset_id=cfg.asset_id,
+            band="label",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                f"DW mode composite (current vs baseline {HABITAT_BASELINE_YEARS}y "
+                "earlier); class-fraction deltas → natural→non-natural attribution"
+            ),
+            observations=None,  # TODO(v1.x): track DW image count per window.
+            extra={
+                "baseline_time_range": (baseline_start, baseline_end),
+                "baseline_years":      HABITAT_BASELINE_YEARS,
+                "conversion_saturation_pct": CONVERSION_SATURATION_PCT,
+            },
+        ),
     }
 
 
@@ -648,10 +733,20 @@ def compute_forest_loss(
     return {
         "nature.forest_loss.ha":  ha,
         "nature.forest_loss.pct": pct,
-        "_provenance.nature.forest_loss": {
-            "asset_id":   cfg.asset_id,
-            "time_range": time_range,
-        },
+        "_provenance.nature.forest_loss": build_provenance(
+            asset_id=cfg.asset_id,
+            band="lossyear",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "Hansen lossyear band; pixels with lossyear in time_range "
+                "weighted by ee.Image.pixelArea()"
+            ),
+            observations={"count": 1, "unit": "annual_rasters"},
+            extra={},
+        ),
     }
 
 
@@ -725,10 +820,22 @@ def compute_ndvi_condition(
         "nature.low_ndvi.ha":           low_ndvi_ha,
         "nature.low_ndvi.pct":          low_ndvi_pct,
         "nature.low_ndvi.pct_norm":     low_ndvi_pct_norm,
-        "_provenance.nature.ndvi": {
-            "asset_id":   cfg.asset_id,
-            "time_range": time_range,
-        },
+        "_provenance.nature.ndvi": build_provenance(
+            asset_id=cfg.asset_id,
+            band="NDVI",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "MOD13Q1 NDVI ÷ 10000; IC §0.2 six-step pipeline with "
+                f"direction={cfg.direction!r} (lower NDVI = worse)"
+            ),
+            observations={"count": 1, "unit": "16day_composites"},
+            extra={
+                "ndvi_negative_trend_threshold": NDVI_NEGATIVE_TREND_THRESHOLD,
+            },
+        ),
     }
 
 
@@ -823,11 +930,20 @@ def compute_water_exposure(
     return {
         "nature.water.area_now_ha":        water_ha,
         "nature.flooded_veg.area_now_ha":  flooded_ha,
-        "_provenance.nature.water": {
-            "asset_id":   cfg.asset_id,
-            "time_range": time_range,
-            "note":       "DW water + flooded_vegetation per GEE §4.3 (JRC GSW deferred)",
-        },
+        "_provenance.nature.water": build_provenance(
+            asset_id=cfg.asset_id,
+            band="label",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "DW water + flooded_vegetation pixel counts via "
+                "frequencyHistogram (JRC GSW deferred per GEE §4.3)"
+            ),
+            observations=None,  # TODO(v1.x): track DW image count.
+            extra={},
+        ),
     }
 
 
@@ -851,15 +967,27 @@ def compute_recovery_signal(
     can still compute through the −0.10 weight on this term. Raw `_pct` /
     `_ha` fields are None until per-pixel trend mapping lands.
     """
+    cfg = NATURE_INDICATOR_CONFIG["recovery"]
     return {
         "nature.recovery.ndvi_improvement_pct": None,
         "nature.recovery.natural_cover_gain_ha": None,
         "nature.recovery.bare_reduction_ha":     None,
         "nature.recovery.score":                 0.0,
-        "_provenance.nature.recovery": {
-            "note":       "v1 placeholder — 0.0 baseline; wires once engine/core/trend.py lands",
-            "time_range": time_range,
-        },
+        "_provenance.nature.recovery": build_provenance(
+            asset_id=cfg.asset_id,
+            band="NDVI",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "v1 placeholder — score=0.0 baseline; wires once "
+                "engine/core/trend.py lands per-pixel NDVI improvement and "
+                "natural-cover-gain attribution"
+            ),
+            observations=None,
+            extra={"placeholder": True},
+        ),
     }
 
 
@@ -1101,7 +1229,7 @@ def run_pillar(
     # Sequential dispatch — the dict ordering here is the authoritative
     # compute order for Nature (KBA → DW → habitat → forest → NDVI → water → recovery).
     dispatch = {
-        "kba":         lambda: compute_kba_proximity(aoi, ee_client),
+        "kba":         lambda: compute_kba_proximity(aoi, time_range, ee_client),
         "dw":          lambda: compute_current_land_cover(aoi, time_range, ee_client),
         "habitat":     lambda: compute_habitat_conversion(aoi, time_range, ee_client),
         "forest_loss": lambda: compute_forest_loss(aoi, time_range, ee_client),

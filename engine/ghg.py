@@ -1,5 +1,33 @@
 """GHG pillar — single-value indicators, sub-aggregates, and pillar
-aggregates (Milestones 5a + 5c + 5.5).
+aggregates (Milestones 5a + 5c + 5.5 + 5.5b + 5.5c).
+
+M5.5c — coverage_window + data_type honesty. `GhgIndicatorConfig` carries
+two new optional fields: `coverage_window` (None for always-available
+indicators, ("2020-01-01", "2023-12-31") for ODIAC) and `data_type`
+("satellite_observation" for CH₄ / VIIRS, "emissions_inventory_allocation"
+for ODIAC). run_pillar checks coverage_window before dispatching each
+indicator's snapshot; out-of-coverage indicators are skipped silently
+with None-filled measurement keys and a provenance block carrying
+`skipped_reason="out_of_coverage"`. No `_failures` entry — skipping is
+expected, not a failure. This stops a present-day screening run from
+queueing four futile EE calls trying to read ODIAC for a date range
+where it has no data. compute_co2_snapshot's provenance now spells out
+that ODIAC is a modelled allocation, not a measured atmosphere.
+
+M5.5b — ODIAC demoted from the live composite. ODIAC's 2+ year vintage
+lag means it cannot drive present-day screening (e.g. a May 2026 run
+against a 90-day window in 2026 has zero ODIAC coverage and was
+previously failing the whole CO₂ branch). CO₂ snapshot still computes
+when in ODIAC's coverage window (2020-2023); the values still display
+(ghg.co2.mean / total / relative_intensity / score) and the three
+CO₂-dependent sub-aggregates still compute (ghg.co2_context,
+ghg.fossil_combustion_score, ghg.activity_adjusted_co2). These are
+diagnostic / display only and no longer feed compute_core_ghg_audit_support.
+
+The live CO₂ proxy is now CH₄ + Combustion_Proxy + Activity_Score
+(rescaled in CORE_GHG_AUDIT_SUPPORT_WEIGHTS by 1/0.61 to preserve
+relative proportions). Offline validation that this trio correlates
+with ODIAC values is tracked as a v1 deliverable in m5.5_followups.md.
 
 M5.5 — CO₂ activated via the ODIAC personal asset
 (projects/supply-chain-observatory/assets/odiac). Three single-value
@@ -60,7 +88,7 @@ from engine.constants import (
     GHG_FOLLOWUP_WEIGHTS,
     NORMALISATION_K,
 )
-from engine.core import six_step
+from engine.core import build_provenance, six_step
 from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import PILLAR_GHG, make_id
@@ -97,6 +125,26 @@ class GhgIndicatorConfig:
         "site", "background", "anomaly", "z", "hf",
         "trend", "trend_p", "confidence", "score",
     )
+    # M5.5c — optional (start_iso, end_iso) for indicators with finite
+    # coverage. None means "always available" (Sentinel-5P CH₄ and VIIRS
+    # NTL — both still actively updated). When set, run_pillar skips the
+    # indicator silently if the user's time_range doesn't overlap the
+    # coverage window. The skipped-indicator case populates None-filled
+    # measurement keys and a provenance block with
+    # `skipped_reason="out_of_coverage"`, but does NOT register an entry
+    # in `_failures` — out-of-coverage is an expected case, not a failure.
+    coverage_window: tuple[str, str] | None = None
+    # M5.5c / M5.6 — honesty about what kind of data this indicator emits.
+    # UI and offline validators surface this so users and auditors aren't
+    # misled about whether a value was measured from space or modelled
+    # from statistics. The full set of allowed values lives in
+    # engine/core/provenance.py::_ALLOWED_DATA_TYPES (M5.6); v1 GHG uses
+    # "satellite_observation" (CH₄, VIIRS) and
+    # "emissions_inventory_allocation" (ODIAC).
+    data_type: str = "satellite_observation"
+    # M5.6 — human-readable data-source label that lands in provenance.
+    # Default matches S5P TROPOMI; explicit overrides per-indicator.
+    data_source: str = "Copernicus / ESA (Sentinel-5P TROPOMI)"
 
 
 # IC_v4 §2.1 + Indicator_ID_Schema_v2.md §3.1 + GEE_Database_List §3.
@@ -107,6 +155,9 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         scale_factor=1.0,
         scale_m=1113.2,
         display_unit="ppb",
+        # data_type / data_source default to S5P satellite_observation —
+        # correct for CH₄; explicit here for clarity.
+        data_source="Copernicus / ESA (Sentinel-5P TROPOMI)",
     ),
     "viirs": GhgIndicatorConfig(
         asset_id="NASA/VIIRS/002/VNP46A2",
@@ -118,6 +169,7 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         emitted_measurements=(
             "site", "anomaly", "trend", "confidence", "score",
         ),
+        data_source="NASA / NOAA (VIIRS VNP46A2)",
     ),
     # M5.5 — ODIAC monthly grids, ingested as ImageCollection on the GSCO
     # GCP project. Band `b1` is the default ODIAC raster band name (not
@@ -142,6 +194,14 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
             "mean", "total", "relative_intensity",
             "trend", "trend_p", "confidence", "score",
         ),
+        # M5.5c — ODIAC publishes annual grids 2020-2023 (latest vintage
+        # is ODIAC2024 covering through Dec 2023). run_pillar consults this
+        # window before dispatching to compute_co2_snapshot; out-of-coverage
+        # time ranges are skipped silently rather than burning EE calls
+        # that we already know will return zero monthly grids.
+        coverage_window=("2020-01-01", "2023-12-31"),
+        data_type="emissions_inventory_allocation",
+        data_source="ODIAC / NIES Japan",
     ),
 }
 
@@ -251,9 +311,27 @@ def compute_co2_snapshot(
 ) -> dict:
     """ODIAC fossil CO₂ context snapshot (IC_v4 §2.1 / Schema_v2 §3.1).
 
-    ODIAC is an emissions inventory, not an atmospheric observation. The
-    site-vs-background six-step pattern doesn't apply directly — instead
-    we compute:
+    IMPORTANT — ODIAC is an emissions INVENTORY, not a satellite
+    observation. NIES Japan compiles ODIAC by allocating national-level
+    fossil-fuel CO₂ statistics down to a 1 km grid using the CARMA
+    point-source database (for large facilities) and VIIRS nightlights
+    (for diffuse emissions). The values are *attributed* to grid cells,
+    not *measured* at them.
+
+    This distinction matters for reviewers and auditors: the per-cell
+    numbers reflect a modelled allocation, not observed CO₂ enhancement.
+    The provenance block on every snapshot carries
+    `data_type="emissions_inventory_allocation"` so downstream UI and
+    validation can be explicit about this.
+
+    Coverage: 2020-2023 only. Vintage lag is 2+ years and growing —
+    ODIAC is updated roughly every 1-2 years. M5.5b demoted ODIAC from
+    the live composite for this reason. M5.5c added a coverage_window
+    check in run_pillar so present-day runs skip ODIAC silently rather
+    than queueing futile EE calls.
+
+    The site-vs-background six-step pattern doesn't apply directly to
+    this inventory data — instead we compute:
 
     - `mean`               — average annualised flux density across buffer
                              pixels, expressed in t CO₂/yr per pixel.
@@ -288,15 +366,14 @@ def compute_co2_snapshot(
         )
 
     ic = ee.ImageCollection(cfg.asset_id).filterDate(*time_range)
+    # `n_months` is still read for the annualisation factor below and
+    # surfaced in provenance. The historical "n_months == 0 → raise" guard
+    # has been removed: run_pillar's M5.5c coverage_window check now skips
+    # this function entirely for time ranges outside 2020-2023, so the
+    # branch was dead code. If a future caller dispatches CO₂ outside its
+    # coverage window without using run_pillar, the divide-by-zero in
+    # `annualisation = 12.0 / n_months` will surface the bug loudly.
     n_months = int(ic.size().getInfo() or 0)
-    if n_months == 0:
-        raise IndicatorComputeError(
-            indicator_id=make_id(PILLAR_GHG, "co2"),
-            reason=(
-                f"no ODIAC monthly grids found in time_range {time_range} — "
-                f"asset {cfg.asset_id!r} covers 2020-2023 only"
-            ),
-        )
 
     site_geom = site_buffer(aoi["centre"], radius_km)
     ring_geom = background_ring(aoi["centre"], radius_km)
@@ -416,14 +493,27 @@ def _format_co2_result(
         # see _placeholder_confidence's docstring re IC_v5 §6.3 doc gap.
         make_id(PILLAR_GHG, "co2", "confidence"):         1.0 if score is not None else None,
         make_id(PILLAR_GHG, "co2", "score"):              score,
-        "_provenance.ghg.co2": {
-            "asset_id":           cfg.asset_id,
-            "band":               cfg.band,
-            "time_range":         time_range,
-            "n_months":           n_months,
-            "c_to_co2_factor":    CO2_TO_C_RATIO,
-            "annualisation_note": "monthly t C → annual t CO₂ via ×(12/n_months)·(44/12)",
-        },
+        # M5.6 — canonical provenance via build_provenance. ODIAC-specific
+        # fields (c_to_co2_factor) go into `extra`; the M5.5b
+        # `role_in_pillar` field is dropped — `data_type` carries the same
+        # information more honestly, and "not in live composite" is
+        # encoded in CORE_GHG_AUDIT_SUPPORT_WEIGHTS itself.
+        "_provenance.ghg.co2": build_provenance(
+            asset_id=cfg.asset_id,
+            band=cfg.band,
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "monthly t C → annual t CO₂ via ×(12/n_months)·(44/12); "
+                "national totals × CARMA point sources + VIIRS "
+                "nightlights → 1 km grid"
+            ),
+            coverage_window=cfg.coverage_window,
+            observations={"count": n_months, "unit": "monthly_grids"},
+            extra={"c_to_co2_factor": CO2_TO_C_RATIO},
+        ),
     }
 
 
@@ -558,10 +648,11 @@ def compute_ch4_context_adjusted(payload: dict) -> dict:
 def compute_co2_context(payload: dict) -> dict:
     """IC_v4 §2.2 — alias of `ghg.co2.score`.
 
-    Activated in M5.5 with the ODIAC personal asset. Returns None if the
-    CO₂ snapshot failed (e.g. no overlap with ODIAC's 2020-2023 coverage)
-    or `ghg.co2.score` is otherwise unavailable, in which case downstream
-    sub-aggregates that depend on it null-propagate.
+    Activated in M5.5; demoted to display-only in M5.5b — no longer feeds
+    compute_core_ghg_audit_support, which is now driven by the three live
+    signals (CH₄ + combustion + activity). This function still emits the
+    value so the UI can render it as standing-exposure context, and so
+    offline validation harnesses can compare it against the live trio.
     """
     return {"ghg.co2_context": payload.get("ghg.co2.score")}
 
@@ -569,8 +660,9 @@ def compute_co2_context(payload: dict) -> dict:
 def compute_fossil_combustion_score(payload: dict) -> dict:
     """IC_v4 §2.2 — `0.50·co2_context + 0.30·combustion_proxy + 0.20·activity_score`.
 
-    Activated in M5.5: returns the weighted sum when all three inputs are
-    present; strict-null-propagates if any is missing.
+    Activated in M5.5; display-only in M5.5b. No longer drives the live
+    composite; kept for offline validation and for UI "ODIAC says X"
+    captions. Strict-null-propagates if any input is missing.
     """
     return {
         "ghg.fossil_combustion_score": _weighted_sum_strict(
@@ -582,13 +674,15 @@ def compute_fossil_combustion_score(payload: dict) -> dict:
 def compute_activity_adjusted_co2(payload: dict) -> dict:
     """IC_v4 §2.2 — `0.70·co2_context + 0.30·activity_score`.
 
-    Activated in M5.5: returns the weighted sum when both inputs are
-    present; strict-null-propagates if either is missing.
+    Activated in M5.5; display-only in M5.5b. No longer drives the live
+    composite; kept for offline validation. Strict-null-propagates if
+    either input is missing.
 
     TODO(v1.x): per docs/m5.5_followups.md this term arguably triple-counts
     VIIRS (which already feeds ghg.activity_score directly and ODIAC
-    indirectly via the diffuse allocation branch). Either drop or reframe
-    as a diagnostic-only output once we have field validation data.
+    indirectly via the diffuse allocation branch). Now that ODIAC isn't
+    in the live composite the urgency is lower, but the triple-counting
+    concern remains for whatever validation work uses this term.
     """
     return {
         "ghg.activity_adjusted_co2": _weighted_sum_strict(
@@ -606,11 +700,14 @@ def compute_core_ghg_audit_support(
 ) -> dict:
     """IC_v4 §2.3 — weighted sum per CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
 
-    `selected` restricts which terms contribute; weights renormalise over
-    the surviving set. Before M5.5 the four-term formula renormalised
-    naturally over the three non-CO₂ terms; now that ODIAC is wired all
-    four (co2 / ch4_adj / combustion / activity) typically contribute,
-    using the M5.5-rebalanced weights (combustion 0.27, activity 0.06).
+    Post-M5.5b: CO₂ is no longer in this composite. The three live signals
+    (CH₄ + combustion + activity) are rescaled to sum to 1.00 in
+    CORE_GHG_AUDIT_SUPPORT_WEIGHTS (0.46 / 0.44 / 0.10). `selected`
+    restricts which terms contribute; weights renormalise over the
+    surviving set. If a present-day screening run includes CO₂ but ODIAC
+    is unavailable (time range outside 2020-2023), this aggregate still
+    computes from the surviving three terms — that's the whole point of
+    the M5.5b demotion.
     """
     candidates = {
         k: payload[k] for k in CORE_GHG_AUDIT_SUPPORT_WEIGHTS
@@ -739,8 +836,48 @@ def run_pillar(
     indicator_keys = _ghg_indicator_keys_from_selected(selected_indicators)
     payload: dict = {}
     failures: list[dict] = []
+    # M5.5c — `attempted_keys` is the subset of indicator_keys whose
+    # coverage_window overlapped the user's time_range, i.e. the indicators
+    # we actually tried to compute. The "all failed" PillarComputeError
+    # check below uses this set so that out-of-coverage skips don't count
+    # as failures (a present-day run with only CO₂ selected would otherwise
+    # trip PillarComputeError because the single selected indicator was
+    # skipped, not failed).
+    attempted_keys: set[str] = set()
 
     for ind_key in sorted(indicator_keys):
+        cfg = GHG_INDICATOR_CONFIG[ind_key]
+
+        # M5.5c — skip silently when out of coverage. CO₂ via ODIAC is the
+        # only v1 indicator with a coverage_window (2020-2023). Present-day
+        # runs hit this path; the indicator's keys are None-filled and the
+        # pillar score computes from the other indicators. No `_failures`
+        # entry — out-of-coverage is an expected case, not a failure.
+        if not _time_range_in_coverage(time_range, cfg.coverage_window):
+            for measurement in cfg.emitted_measurements:
+                payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
+            # M5.6 — canonical provenance even on the skip path. The
+            # zero-count observations field tells reviewers explicitly
+            # that no images were actually pulled. `observations.unit` is
+            # ODIAC-specific today (it's the only indicator with a
+            # coverage_window in v1); generalise when CH₄/VIIRS or other
+            # indicators acquire windows.
+            payload[f"_provenance.ghg.{ind_key}"] = build_provenance(
+                asset_id=cfg.asset_id,
+                band=cfg.band,
+                data_type=cfg.data_type,
+                data_source=cfg.data_source,
+                native_scale_m=cfg.scale_m,
+                time_range=time_range,
+                coverage_window=cfg.coverage_window,
+                skipped_reason="out_of_coverage",
+                observations={"count": 0, "unit": "monthly_grids"},
+                extra={},
+            )
+            continue
+
+        attempted_keys.add(ind_key)
+
         try:
             # CO₂ has a bespoke ODIAC pipeline (inventory product, not a
             # column density), so it bypasses six_step. All other GHG
@@ -761,7 +898,6 @@ def run_pillar(
                     ee_client=ee_client,
                 )
         except IndicatorComputeError as err:
-            cfg = GHG_INDICATOR_CONFIG[ind_key]
             for measurement in cfg.emitted_measurements:
                 payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
             failures.append({
@@ -772,10 +908,10 @@ def run_pillar(
         else:
             payload.update(snapshot)
 
-    if indicator_keys and len(failures) == len(indicator_keys):
+    if attempted_keys and len(failures) == len(attempted_keys):
         affected = [
             make_id(PILLAR_GHG, ind, m)
-            for ind in sorted(indicator_keys)
+            for ind in sorted(attempted_keys)
             for m in GHG_INDICATOR_CONFIG[ind].emitted_measurements
         ]
         raise PillarComputeError(
@@ -889,10 +1025,20 @@ def _format_result(
         value = score if measurement == "score" else raw.get(measurement)
         result[make_id(PILLAR_GHG, indicator, measurement)] = value
 
-    result[f"_provenance.ghg.{indicator}"] = {
-        "asset_id":   cfg.asset_id,
-        "time_range": time_range,
-    }
+    result[f"_provenance.ghg.{indicator}"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band=cfg.band,
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note=None,
+        coverage_window=cfg.coverage_window,
+        # TODO(v1.x): track six_step's actual image count and surface as
+        # observations={"count": n, "unit": "daily_images"}.
+        observations=None,
+        extra={},
+    )
     return result
 
 
@@ -926,6 +1072,25 @@ def _weighted_sum_strict(
             return None
         total += weight * value
     return total
+
+
+def _time_range_in_coverage(
+    time_range: tuple[str, str],
+    coverage_window: tuple[str, str] | None,
+) -> bool:
+    """Return True iff `time_range` overlaps `coverage_window`.
+
+    `coverage_window=None` means "always available" → returns True.
+    ISO date strings are lexicographically sortable so we don't need
+    full date parsing here: two ranges (a_s, a_e) and (b_s, b_e) overlap
+    iff a_s <= b_e AND b_s <= a_e. Used by run_pillar to skip ODIAC
+    silently when the user's time_range is outside 2020-2023.
+    """
+    if coverage_window is None:
+        return True
+    user_start, user_end = time_range
+    cov_start, cov_end = coverage_window
+    return user_start <= cov_end and cov_start <= user_end
 
 
 def _ghg_indicator_keys_from_selected(selected: set[str]) -> set[str]:

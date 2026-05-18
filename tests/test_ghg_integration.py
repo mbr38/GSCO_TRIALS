@@ -79,9 +79,11 @@ class TestCo2SnapshotIntegration:
         assert 0.0 <= score <= 1.0
 
         # Provenance carries the audit-traceable conversion factor.
+        # M5.6 — n_months → observations.count; c_to_co2_factor → extra.
         prov = result["_provenance.ghg.co2"]
         assert prov["asset_id"] == "projects/supply-chain-observatory/assets/odiac"
         assert prov["band"] == "b1"
-        assert prov["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
+        assert prov["extra"]["c_to_co2_factor"] == pytest.approx(CO2_TO_C_RATIO)
         # Q1 2023 expects 3 monthly grids.
-        assert prov["n_months"] == 3
+        assert prov["observations"]["count"] == 3
+        assert prov["observations"]["unit"] == "monthly_grids"

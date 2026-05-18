@@ -489,13 +489,35 @@ with right_col:
         )
 
         # Annualised CO₂ emissions caption — the headline ODIAC number
-        # that's most legible to a non-technical audience.
+        # that's most legible to a non-technical audience. M5.5b: ODIAC
+        # is standing-exposure context only; the caption labels that
+        # explicitly so users don't expect it in the live composite.
+        # M5.5c: differentiate the two None paths — silently-skipped vs
+        # genuinely-failed — using the provenance block's skipped_reason.
         co2_total = rresult.get("ghg.co2.total")
         if co2_total is not None:
             st.caption(
-                f"Annual CO₂ emissions within buffer: **{co2_total:,.0f} t CO₂/yr** "
-                f"(ODIAC, site mean × buffer area, converted from t C)"
+                f"**ODIAC inventory estimate** (not satellite-measured): "
+                f"**{co2_total:,.0f} t CO₂/yr** allocated to this buffer from "
+                f"national totals via CARMA + nightlights. *Standing-exposure "
+                f"context (2020-2023); not in live pillar score.*"
             )
+        else:
+            # CO₂ was either skipped by M5.5c's coverage_window check or
+            # failed at snapshot time. Differentiate via provenance.
+            co2_prov = rresult.get("_provenance.ghg.co2", {})
+            if co2_prov.get("skipped_reason") == "out_of_coverage":
+                st.caption(
+                    "*ODIAC CO₂ inventory not queried — selected time range "
+                    "is outside ODIAC's 2020-2023 coverage window. The live "
+                    "GHG pillar score (CH₄ + combustion + activity) is "
+                    "unaffected and still computes.*"
+                )
+            else:
+                st.caption(
+                    "*ODIAC CO₂ inventory unavailable for the selected "
+                    "configuration. The live GHG pillar score is unaffected.*"
+                )
 
         # H. Nature pillar aggregates — the two that feed the cross-pillar composite.
         st.divider()

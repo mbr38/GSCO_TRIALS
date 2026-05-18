@@ -636,3 +636,76 @@ class TestRunPillar:
         assert "air.no2.score" in err.indicator_ids
         assert "air.so2.confidence" in err.indicator_ids
         assert "air.co.trend_p" in err.indicator_ids
+
+
+# ---------------------------------------------------------------------------
+# M5.6 — canonical provenance shape
+# ---------------------------------------------------------------------------
+
+_CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "asset_id", "band", "data_type", "data_source",
+    "native_scale_m", "method_note", "time_range",
+    "coverage_window", "skipped_reason", "observations", "extra",
+)
+
+
+class TestProvenanceShape:
+    """Every Air pollutant must emit the canonical 11-field provenance
+    block constructed via engine.core.build_provenance. Per-pollutant
+    fields (CAMS modelled note, AOD bit mask, etc.) land in `extra`.
+    """
+
+    @pytest.mark.parametrize("pollutant", list(AIR_POLLUTANT_CONFIG.keys()))
+    def test_every_pollutant_emits_canonical_keys(
+        self, fake_ee, fake_six_step, pollutant: str,
+    ) -> None:
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant=pollutant, time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result[f"_provenance.air.{pollutant}"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+
+    def test_no2_provenance_flags_satellite_data_type(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="no2", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result["_provenance.air.no2"]
+        assert prov["data_type"] == "satellite_observation"
+        assert "Sentinel-5P" in prov["data_source"]
+        assert prov["native_scale_m"] == 1113.2
+        assert prov["time_range"] == _TIME_RANGE
+        assert isinstance(prov["extra"], dict)
+
+    def test_pm25_provenance_flags_cams_as_model_output(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="pm25", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result["_provenance.air.pm25"]
+        assert prov["data_type"] == "gridded_model_output"
+        assert "CAMS" in prov["data_source"]
+        assert prov["method_note"] is not None
+        assert "modelled, not measured" in prov["method_note"]
+        assert "cams_min_valid_pct" in prov["extra"]
+
+    def test_aod_provenance_carries_qa_bit_mask_in_extra(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="aod", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result["_provenance.air.aod"]
+        assert prov["data_type"] == "satellite_observation"
+        assert "MAIAC" in prov["data_source"]
+        assert "aod_qa_bit_mask" in prov["extra"]

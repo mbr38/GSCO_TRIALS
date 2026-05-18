@@ -524,9 +524,15 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
                 reason=f"synthetic failure for {name}",
             )
 
-    def fake_kba(aoi, ee_client):
+    def fake_kba(aoi, time_range=None, ee_client=None):
+        # M5.6 — compute_kba_proximity now takes time_range for provenance
+        # consistency (KBA is reference data, but the user's request window
+        # is documented in provenance).
         _maybe_fail("kba")
-        return _format_kba_result(dist_km=2.0, overlap_ha=5.0, overlap_pct=10.0)
+        return _format_kba_result(
+            dist_km=2.0, overlap_ha=5.0, overlap_pct=10.0,
+            time_range=time_range,
+        )
 
     def fake_dw(aoi, time_range, ee_client):
         _maybe_fail("dw")
@@ -756,3 +762,62 @@ class TestBufferAreaHa:
         # multiplied by 100 to convert fraction to pct = 100 → score 1.0 (saturated).
         score = min((twenty_pct_ha / buffer_ha * 100.0) / WATER_FLOODED_VEG_SATURATION_PCT, 1.0)
         assert score == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# M5.6 — canonical provenance shape
+# ---------------------------------------------------------------------------
+
+_CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "asset_id", "band", "data_type", "data_source",
+    "native_scale_m", "method_note", "time_range",
+    "coverage_window", "skipped_reason", "observations", "extra",
+)
+
+
+class TestProvenanceShape:
+    """Every Nature indicator must emit the canonical 11-field provenance
+    block. Tests exercise the construction paths that don't require EE.
+    """
+
+    def test_kba_provenance_canonical_keys_and_reference_data_type(self) -> None:
+        # _format_kba_result is the canonical path for KBA provenance —
+        # tested directly so we don't need a fake EE.
+        out = _format_kba_result(
+            dist_km=2.0, overlap_ha=5.0, overlap_pct=10.0,
+            time_range=_TIME_RANGE,
+        )
+        prov = out["_provenance.nature.kba"]
+        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
+        assert prov["data_type"] == "reference_dataset"
+        assert "BirdLife" in prov["data_source"]
+        assert prov["observations"]["unit"] == "static_snapshot"
+        assert prov["observations"]["count"] == 1
+        assert prov["extra"]["distance_decay_km"] == 10.0
+
+    def test_kba_provenance_uses_static_sentinel_when_no_time_range(self) -> None:
+        # When compute_kba_proximity is called without a time_range
+        # (tests calling it directly), the provenance carries a sentinel.
+        out = _format_kba_result(
+            dist_km=2.0, overlap_ha=5.0, overlap_pct=10.0,
+            time_range=None,
+        )
+        assert out["_provenance.nature.kba"]["time_range"] == ("static", "static")
+
+    @pytest.mark.parametrize("indicator,expected_type,expected_source_substring", [
+        ("kba",         "reference_dataset",       "BirdLife"),
+        ("dw",          "ml_classified_satellite", "Dynamic World"),
+        ("habitat",     "ml_classified_satellite", "Dynamic World"),
+        ("forest_loss", "ml_classified_satellite", "Hansen"),
+        ("ndvi",        "satellite_observation",   "MODIS"),
+        ("water",       "ml_classified_satellite", "Dynamic World"),
+        ("recovery",    "satellite_observation",   "MODIS"),
+    ])
+    def test_config_advertises_correct_provenance_metadata(
+        self, indicator: str, expected_type: str, expected_source_substring: str,
+    ) -> None:
+        # Pin per-indicator metadata at the config layer — these strings
+        # land in every provenance block constructed via build_provenance.
+        cfg = NATURE_INDICATOR_CONFIG[indicator]
+        assert cfg.data_type == expected_type
+        assert expected_source_substring in cfg.data_source

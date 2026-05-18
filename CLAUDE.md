@@ -10,7 +10,7 @@ The architecture, page-by-page behaviour, indicator formulas, and engine code st
 
 ## 2. Authoritative documents
 
-These seven documents in `docs/` are the source of truth. Cite them by name when answering questions, and never modify any of them without explicit confirmation.
+These documents in `docs/` are the source of truth. Cite them by name when answering questions, and never modify any of them without explicit confirmation.
 
 | Document | Purpose |
 |---|---|
@@ -21,6 +21,7 @@ These seven documents in `docs/` are the source of truth. Cite them by name when
 | `docs/GEE_Database_List_v3.md` | Earth Engine asset IDs and operational notes |
 | `docs/Verbal_Summary_Templates_v1.md` | Deterministic prose generator for P-05's verbal summary |
 | `docs/Engine_Module_Skeleton_v1.md` | **The implementation blueprint — directory layout, function signatures, orchestrator class structure.** Start here for any new code. |
+| `docs/provenance_schema.md` | Canonical provenance schema (M5.6) — every indicator emits an 11-field provenance block via `engine.core.build_provenance`. |
 
 If two documents disagree on a detail, **`Indicators_Computation_v4.md` wins for formulas, `Wireframes_All_v4.md` wins for UI behaviour, `PLFS_v4.md` wins for everything else.** Flag the conflict in chat — don't silently resolve it.
 
@@ -129,6 +130,8 @@ Engine milestones 1 through 4 should ship before the result-page UI (P-05/P-06) 
 **Streamlit page numbering.** Streamlit auto-orders pages alphabetically by filename. Use `01_`, `02_`, etc. to control the sidebar order. The P-number from the wireframes is **not** the same as the Streamlit page number — keep a mapping in the file's docstring.
 
 **Tests first for the engine.** The pillar modules have no GEE side effects in synthetic-payload tests — test the formulas before testing the EE integration. See `docs/Engine_Module_Skeleton_v1.md` §8.
+
+**Provenance (M5.6).** Every single-value indicator emits a `_provenance.<pillar>.<indicator>` block constructed via `engine.core.build_provenance(...)` — never inline as an ad-hoc dict. The canonical 11-field schema, the five `data_type` categories, and the `extra` escape-hatch policy live in `docs/provenance_schema.md`. New indicators must populate `data_type` and `data_source` on the indicator's config dataclass; the snapshot function then threads those through `build_provenance`. Strict validation: `build_provenance` raises `ValueError` for unknown `data_type` / `observations.unit` values at construction time.
 
 ## 8. Things to NOT do
 

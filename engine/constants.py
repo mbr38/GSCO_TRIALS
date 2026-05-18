@@ -107,18 +107,31 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
     "confidence": 0.15,
 }
 
-# IC_v4 §2.3 — Core GHG Audit Support (v1 rescaled form, M5.5 adjusted).
-# Original IC v4 weights had VIIRS at 0.11 and combustion_proxy at 0.22.
-# With ODIAC activated in M5.5, VIIRS now contributes both directly through
-# ghg.activity_score AND indirectly via ODIAC's diffuse allocation branch
-# (per docs/m5.5_followups.md). Reduce ghg.activity_score to 0.06 and
-# redistribute the freed 0.05 to ghg.combustion_proxy to keep the
-# remaining-three sum unchanged. Sums to 1.00.
+# IC_v4 §2.3 — Core GHG Audit Support (M5.5b: ODIAC demoted).
+# ODIAC's CO₂ context is no longer in the live composite — its 2+ year
+# vintage lag means it can't drive a live screening signal (present-day
+# runs against time ranges outside 2020-2023 fail entirely with CO₂ in
+# the formula). ODIAC still computes and displays as standing-exposure
+# context; it's just outside the formula. The three live signals
+# (CH₄ + combustion proxy + activity score) are rescaled by 1/0.61 to
+# preserve their relative proportions over the surviving terms. Sums to 1.00.
+#
+# Methodological upgrade: this also resolves the VIIRS double-counting
+# and the ODIAC "anomaly" framing concerns flagged in m5.5_followups.md —
+# ODIAC isn't competing with the activity / combustion terms any more.
+#
+# See docs/m5.5_followups.md "M5.5b" section for the full rationale and
+# the deferred validation-harness work that justifies the CH4 + combustion
+# + activity trio as a live CO₂ proxy.
+#
+# Pre-M5.5b values (kept for reference): co2 0.39, ch4_adj 0.28,
+# combustion 0.27, activity 0.06 (sum non-CO₂ = 0.61). Each non-CO₂
+# weight is divided by 0.61, then rounded to two decimals so the dict
+# reads cleanly: 0.46 + 0.44 + 0.10 = 1.00 exactly.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
-    "ghg.co2_context":          0.39,
-    "ghg.ch4_context_adjusted": 0.28,
-    "ghg.combustion_proxy":     0.27,   # M5.5: was 0.22, +0.05
-    "ghg.activity_score":       0.06,   # M5.5: was 0.11, −0.05
+    "ghg.ch4_context_adjusted": 0.46,   # M5.5b: 0.28 / 0.61 ≈ 0.459 → 0.46
+    "ghg.combustion_proxy":     0.44,   # M5.5b: 0.27 / 0.61 ≈ 0.443 → 0.44
+    "ghg.activity_score":       0.10,   # M5.5b: 0.06 / 0.61 ≈ 0.098 → 0.10
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).

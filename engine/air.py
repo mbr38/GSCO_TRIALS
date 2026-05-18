@@ -52,6 +52,7 @@ from engine.constants import (
     AIR_FOLLOWUP_WEIGHTS,
     AIR_POLLUTION_PROXY_WEIGHTS,
     AOD_QA_VALID_BIT_MASK,
+    CAMS_MIN_VALID_PCT,
     HEAVY_INDUSTRY_WEIGHTS,
     INDUSTRIAL_BURDEN_WEIGHTS,
     INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS,
@@ -61,7 +62,7 @@ from engine.constants import (
     SMOKE_DUST_TRANSPORT_WEIGHTS,
     VOC_PHOTOCHEMICAL_WEIGHTS,
 )
-from engine.core import six_step
+from engine.core import build_provenance, six_step
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import AIR_SUB_AGGREGATES, PILLAR_AIR, make_id
 
@@ -77,6 +78,10 @@ class PollutantConfig:
     `scale_factor` converts native physical units to the display unit;
     `scale_m` is the EE reduceRegion scale (metres), set per data source to
     match the asset's native pixel resolution.
+
+    `data_type` / `data_source` feed the M5.6 canonical provenance schema —
+    see docs/provenance_schema.md. Default values cover the seven S5P-style
+    pollutants; CAMS PM and MODIS MAIAC override.
     """
 
     asset_id: str
@@ -87,6 +92,10 @@ class PollutantConfig:
     direction: str = "higher_is_worse"
     score_cap: float | None = None
     preprocess: Callable[[ee.Image], ee.Image] | None = None
+    # M5.6 — provenance metadata. Defaults match S5P TROPOMI; explicit
+    # overrides per-pollutant cover CAMS PM (gridded model) and MODIS AOD.
+    data_type: str = "satellite_observation"
+    data_source: str = "Copernicus / ESA (Sentinel-5P TROPOMI)"
 
 
 def apply_aod_qa_mask(image: ee.Image) -> ee.Image:
@@ -156,6 +165,8 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         scale_factor=1e9,                 # kg/m³ → µg/m³
         scale_m=44544.0,                  # CAMS NRT global grid
         display_unit="µg/m³",
+        data_type="gridded_model_output",
+        data_source="ECMWF CAMS reanalysis",
     ),
     "pm10": PollutantConfig(
         asset_id="ECMWF/CAMS/NRT",
@@ -163,6 +174,8 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         scale_factor=1e9,
         scale_m=44544.0,
         display_unit="µg/m³",
+        data_type="gridded_model_output",
+        data_source="ECMWF CAMS reanalysis",
     ),
     "aod": PollutantConfig(
         asset_id="MODIS/061/MCD19A2_GRANULES",
@@ -171,6 +184,8 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         scale_m=1000.0,                   # MODIS MAIAC AOD native
         display_unit="dimensionless",
         preprocess=apply_aod_qa_mask,
+        data_source="NASA MODIS MAIAC",
+        # data_type defaults to satellite_observation — correct for MAIAC.
     ),
 }
 
@@ -308,11 +323,48 @@ def _format_result(
         value = score if measurement == "score" else raw.get(measurement)
         result[make_id(PILLAR_AIR, pollutant, measurement)] = value
 
-    result[f"_provenance.air.{pollutant}"] = {
-        "asset_id": cfg.asset_id,
-        "time_range": time_range,
-    }
+    result[f"_provenance.air.{pollutant}"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band=cfg.band,
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note=_air_method_note(pollutant),
+        # TODO(v1.x): track six_step's actual image count and surface it
+        # here as observations={"count": n, "unit": "daily_images"}. For
+        # now compute_pollutant_snapshot doesn't track the count.
+        observations=None,
+        extra=_air_extra(pollutant),
+    )
     return result
+
+
+# M5.6 — provenance extras / method notes per pollutant. Centralised here
+# rather than inlined into _format_result so the format function stays
+# tight and the per-pollutant exceptions are auditable.
+
+def _air_method_note(pollutant: str) -> str | None:
+    """Pollutant-specific method note for canonical provenance.
+
+    PM2.5 / PM10 flag CAMS as modelled, not measured — important context
+    a reviewer needs without having to read the data_type field too.
+    AOD documents the bit-mask. Others have no special note in v1.
+    """
+    if pollutant in ("pm25", "pm10"):
+        return "CAMS reanalysis; PM2.5/PM10 are modelled, not measured"
+    if pollutant == "aod":
+        return "MODIS MAIAC; AOD_QA bits 8-11 mask non-best retrievals"
+    return None
+
+
+def _air_extra(pollutant: str) -> dict:
+    """Pollutant-specific `extra` dict — only AOD and PM populate it in v1."""
+    if pollutant == "aod":
+        return {"aod_qa_bit_mask": f"0x{AOD_QA_VALID_BIT_MASK:X}"}
+    if pollutant in ("pm25", "pm10"):
+        return {"cams_min_valid_pct": CAMS_MIN_VALID_PCT}
+    return {}
 
 
 # ---------------------------------------------------------------------------
