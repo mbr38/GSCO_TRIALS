@@ -88,6 +88,30 @@ Each renderer is independent — pick up in **v1.x** as demand warrants.
 
 ---
 
+## P-04 — activate Region and Supplier centre modes (deferred M-P04)
+
+M-P04 ships P-04 with the Region and Supplier centre tabs disabled.
+Both require a `supplyChain` object from P-02 (Scope Setup), which
+isn't built yet. Activate them when P-02 lands by replacing the
+informational tab content in `ui/components/p04_form.py` with the
+real selectors per Wireframes_All_v4 §P-04 C1–C2.
+
+---
+
+## P-04 — add the time-range selector + Run Trend (deferred M-P04)
+
+The time-range selector (C7) is hidden in screening mode per
+Wireframes §P-04 C7; screening always uses the latest 90-day window.
+It appears with P-06 (Trend View). When P-06 lands:
+
+- Activate the Run Trend button in `ui/components/p04_form.py`.
+- Show the time-range selector only when trend mode is selected.
+- Route Run Trend → P-06 with `mode = "monitoring"` in `screening_setup`.
+
+Targeted at the P-06 milestone, not strict v1.x.
+
+---
+
 ## M5.5 follow-ups (original — do these when wiring ODIAC / CO₂)
 
 ## High priority

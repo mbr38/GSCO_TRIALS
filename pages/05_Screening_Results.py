@@ -227,11 +227,15 @@ def _render_s2(state: PageState) -> None:
 
 def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     """Multi-indicator screening view (M-UI-E.1 through .5)."""
+    # M-P04 polish — pass the user's selection through to C4b/C9 so
+    # deselected indicators don't render as failures.
+    selected = set(setup.get("indicators", []))
+
     st.title("Screening Results")
     _render_c1_header(setup, result)
-    render_c9_partial_banner(result)
+    render_c9_partial_banner(result, selected)
     render_c3_summary(result)
-    render_c4b_kpi_grid(result)
+    render_c4b_kpi_grid(result, selected)
     render_c5_drilldowns(result)
     render_c6_confidence_panel(result)
     render_c7_verbal_summary(result)
@@ -250,10 +254,13 @@ def _render_single_indicator_view(setup: dict, result: dict) -> None:
     indicator was selected.
     """
     indicator_id = next(iter(setup["indicators"]))
+    # M-P04 polish — selection-aware C9 (banner fires only if the one
+    # indicator the user picked is itself missing).
+    selected = set(setup.get("indicators", []))
 
     st.title("Indicator Inspection")
     _render_c1_header(setup, result)
-    render_c9_partial_banner(result)
+    render_c9_partial_banner(result, selected)
     render_c4a_indicator_map(indicator_id, setup, result)
     render_indicator_detail(indicator_id, result)
     render_c8_action_bar(result)

@@ -1481,3 +1481,17 @@ The Wireframes' original "user-type fork on C4a vs C4b" is superseded: both user
 Bridge: `pages/99_engine_scratch.py` ships a "Run single indicator on P-05" button with a selectbox of the three registered indicator IDs plus one unsupported one (`air.so2.score`) for exercising the fallback.
 
 Tests: `tests/test_c4a_indicator_map.py` (12 tests) covers the registry shape, the zoom heuristic at boundaries + monotonicity, DW palette/class-name alignment, and canonical-ID cross-checks against `engine.air.AIR_POLLUTANT_CONFIG` / `engine.nature.NATURE_INDICATOR_CONFIG`. The renderers themselves are EE-touching and verified visually in the browser, not via pytest.
+
+**M-P04 shipped.** P-04 Inspect Setup page ([pages/04_Inspect_Setup.py](../pages/04_Inspect_Setup.py)) live. The form body composes in [ui/components/p04_form.py](../ui/components/p04_form.py) and the indicator catalogue lives in [ui/components/p04_indicator_registry.py](../ui/components/p04_indicator_registry.py).
+
+v1 scope:
+- **Centre input.** Free Coordinates only. Region and Supplier tabs render explanatory info — both require a `supplyChain` object from P-02 (Scope Setup), which isn't built yet.
+- **Radius.** Six fixed stops (1, 5, 10, 25, 50, 100 km); default 5 km. Caption explains that CAMS PM₁₀/₂.₅ need ≥ 25 km to produce a value.
+- **Indicators.** Three per-pillar collapsible groups, all 19 pre-selected. "Reset to all" link restores the default. Selection persists across reruns via `st.session_state["p04_selected_indicators"]`.
+- **Time range.** Hidden in screening mode per Wireframes §P-04 C7; the screening always uses the latest 90-day window. The selector lands with P-06.
+- **Run Screening.** Primary button. Enabled when centre is set and ≥1 indicator is selected. Writes `screening_setup` in the same shape P-05 already reads, then `st.switch_page`s to P-05. A single-indicator selection routes naturally to P-05's single-indicator variant (M-UI-E.6).
+- **Run Trend.** Disabled with a tooltip until P-06.
+
+The scratch-page bridge in `pages/99_engine_scratch.py` is kept as a developer shortcut — P-04 is the user-facing entry point but the scratch bridge still exercises specific indicator combinations that the form doesn't expose directly.
+
+Tests: [tests/test_p04_indicator_registry.py](../tests/test_p04_indicator_registry.py) (26 tests including 19 parametrised lockstep checks) pin the 19-indicator catalogue, the 9/3/7 pillar split, the no-duplicates invariant, and assert every P-04 indicator ID round-trips through `engine.ids.is_valid_id`. The last check is the one that fails loudly if the engine renames or removes an indicator the UI still offers.

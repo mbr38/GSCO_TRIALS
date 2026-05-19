@@ -100,13 +100,27 @@ _SKIPPED_REASON_TRANSLATIONS: dict[str, str] = {
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def render_c4b_kpi_grid(payload: dict) -> None:
-    """Render the C4b KPI tile grid — 4 columns × 3 rows."""
+def render_c4b_kpi_grid(payload: dict, selected_indicators: set[str]) -> None:
+    """Render the C4b KPI tile grid.
+
+    M-P04 polish: only tiles whose canonical ``score_key`` is in
+    ``selected_indicators`` are rendered. Deselected indicators are
+    omitted entirely — they're not failures, they were never asked
+    for. When the user picked only non-tile indicators (e.g. just
+    ``nature.*``), the whole grid no-ops.
+    """
+    visible_tiles = [
+        tile for tile in _TILES
+        if tile.score_key in selected_indicators
+    ]
+    if not visible_tiles:
+        return
+
     with st.container(border=True):
         st.markdown("### Indicator values")
         cols_per_row = 4
-        for row_start in range(0, len(_TILES), cols_per_row):
-            row_tiles = _TILES[row_start:row_start + cols_per_row]
+        for row_start in range(0, len(visible_tiles), cols_per_row):
+            row_tiles = visible_tiles[row_start:row_start + cols_per_row]
             columns = st.columns(cols_per_row)
             for col, tile in zip(columns, row_tiles):
                 with col:

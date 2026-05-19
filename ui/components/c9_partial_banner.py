@@ -59,17 +59,24 @@ _SKIPPED_REASON_PROSE: dict[str, str] = {
 _PILLAR_ORDER: dict[str, int] = {"air": 0, "ghg": 1, "nature": 2}
 
 
-def render_c9_partial_banner(payload: dict) -> None:
+def render_c9_partial_banner(
+    payload:             dict,
+    selected_indicators: set[str],
+) -> None:
     """Render the partial-coverage banner.
 
     Banner-only — the per-indicator detail lives in the C4b KPI tiles
     (failed tiles carry their own "Why?" expander) and in the C5 drill-
     down panels. The banner's job is just to flag "something is partial"
     with a count, so the user knows to look for missing tiles below.
+
+    M-P04 polish: only counts missing values for indicators the user
+    actually selected — deselecting an indicator on P-04 is not a
+    failure to report on P-05.
     """
     # M-UI-E.5 polish — list dropped; tiles + drill-downs already carry
     # the per-indicator detail, so the banner doesn't need to repeat it.
-    missing = _collect_missing(payload)
+    missing = _collect_missing(payload, selected_indicators)
     if not missing:
         return
 
@@ -82,13 +89,30 @@ def render_c9_partial_banner(payload: dict) -> None:
     )
 
 
-def _collect_missing(payload: dict) -> list[_MissingIndicator]:
+def _collect_missing(
+    payload:             dict,
+    selected_indicators: set[str],
+) -> list[_MissingIndicator]:
     """Walk both failure paths and aggregate missing indicators.
+
+    M-P04 polish: filters against ``selected_indicators`` — entries
+    for indicators the user didn't select are skipped, since the
+    "missing" framing only applies to indicators the user actually
+    asked for. The full canonical selected ID (e.g.
+    ``"air.no2.score"``) is reduced to its ``<pillar>.<slug>`` prefix
+    for comparison with ``_failures`` and provenance keys.
 
     De-duplicates by ``indicator_id`` — when an indicator appears in
     both ``_failures`` and ``_provenance.<x>.skipped_reason``, the
     failure entry wins (it carries the engine's specific message).
     """
+    # Build the set of indicator-prefix slugs the user selected.
+    # selected_indicators carries full IDs like "air.no2.score";
+    # _failures and provenance use "air.no2".
+    selected_prefixes = {
+        ".".join(ind.split(".")[:2]) for ind in selected_indicators
+    }
+
     missing: dict[str, _MissingIndicator] = {}
 
     # Path 1 — explicit failures.
@@ -99,6 +123,8 @@ def _collect_missing(payload: dict) -> list[_MissingIndicator]:
         for entry in entries:
             indicator_id = entry.get("indicator_id")
             if not indicator_id:
+                continue
+            if indicator_id not in selected_prefixes:
                 continue
             reason = entry.get("reason") or "Failed (no reason recorded)."
             missing[indicator_id] = _MissingIndicator(
@@ -111,13 +137,15 @@ def _collect_missing(payload: dict) -> list[_MissingIndicator]:
     # Path 2 — silent coverage-window skips via provenance.
     for pillar, slugs in _PILLAR_INDICATOR_SLUGS.items():
         for slug in slugs:
+            indicator_id = f"{pillar}.{slug}"
+            if indicator_id not in selected_prefixes:
+                continue
             provenance = payload.get(f"_provenance.{pillar}.{slug}")
             if not isinstance(provenance, dict):
                 continue
             skipped = provenance.get("skipped_reason")
             if not skipped:
                 continue
-            indicator_id = f"{pillar}.{slug}"
             if indicator_id in missing:
                 continue  # Already covered by an explicit failure.
             missing[indicator_id] = _MissingIndicator(

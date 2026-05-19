@@ -239,3 +239,31 @@ def test_e2e_sao_paulo_nine_tiles_succeed():
     successes = [t.indicator for t in _TILES if not _is_failed(t, payload)]
     assert len(successes) == 9
     assert "pm10" not in successes and "pm25" not in successes and "co2" not in successes
+
+
+# ---------------------------------------------------------------------------
+# M-P04 polish — render-time selection filter
+# ---------------------------------------------------------------------------
+# The render fn itself writes to Streamlit and can't be asserted on
+# directly, but the filter is a one-liner against ``_TILES``; we test
+# the equivalent list comprehension here to lock the expected
+# behaviour.
+
+def test_visible_tiles_filter_keeps_only_selected():
+    """Only tiles whose score_key is in the selected set survive."""
+    selected = {"air.no2.score", "ghg.ch4.score"}
+    visible = [t for t in _TILES if t.score_key in selected]
+    assert {t.indicator for t in visible} == {"no2", "ch4"}
+
+
+def test_visible_tiles_filter_returns_empty_on_no_selection():
+    """Empty selection → no tiles to render (renderer no-ops)."""
+    visible = [t for t in _TILES if t.score_key in set()]
+    assert visible == []
+
+
+def test_visible_tiles_filter_returns_empty_on_pure_nature_selection():
+    """User picked only nature.* indicators → no C4b tiles to render."""
+    selected = {"nature.kba.proximity_score", "nature.ndvi.score"}
+    visible = [t for t in _TILES if t.score_key in selected]
+    assert visible == []
