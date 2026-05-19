@@ -46,9 +46,14 @@ require_earth_engine()
 
 from engine.orchestrator import ScreeningRun
 from ui.components.c3_summary import render_c3_summary
+from ui.components.c4a_indicator_map import render_c4a_indicator_map
 from ui.components.c4b_kpi_grid import render_c4b_kpi_grid
 from ui.components.c5_drilldown import render_c5_drilldowns
+from ui.components.c6_confidence_panel import render_c6_confidence_panel
 from ui.components.c7_verbal_summary import render_c7_verbal_summary
+from ui.components.c8_action_bar import render_c8_action_bar
+from ui.components.c9_partial_banner import render_c9_partial_banner
+from ui.components.indicator_detail import render_indicator_detail
 from ui.page_state import PageState, classify_result
 
 
@@ -198,24 +203,60 @@ def _render_s1_computing() -> None:
     st.rerun()
 
 
-def _render_s2(state: PageState, partial: bool) -> None:
-    """S2_Results / S2_Partial — same skeleton; the partial banner (C9)
-    is the only S2_Partial-specific element rendered at this milestone.
+def _render_s2(state: PageState) -> None:
+    """S2_Results and S2_Partial render identically — the C9 banner
+    decides for itself whether anything is missing (covers both explicit
+    `_failures` entries and silent `skipped_reason` provenance markers),
+    so the orchestrator's partial/full distinction doesn't need to be
+    re-encoded in the page layout.
+
+    M-UI-E.6: branches on indicator count. A single-indicator selection
+    renders the lean inspection variant (header → map → detail → save)
+    because the multi-indicator aggregates (C3 chips, C4b grid, C5
+    drill-downs, C6, C7) all depend on pillar aggregates that don't
+    exist when only one indicator was selected.
     """
-    setup = st.session_state["screening_setup"]
+    setup  = st.session_state["screening_setup"]
     result = state.result
 
+    if len(setup.get("indicators", [])) == 1:
+        _render_single_indicator_view(setup, result)
+    else:
+        _render_multi_indicator_view(setup, result)
+
+
+def _render_multi_indicator_view(setup: dict, result: dict) -> None:
+    """Multi-indicator screening view (M-UI-E.1 through .5)."""
     st.title("Screening Results")
     _render_c1_header(setup, result)
-
-    if partial:
-        _render_placeholder("C9 partial-coverage banner", "M-UI-E.5")
+    render_c9_partial_banner(result)
     render_c3_summary(result)
     render_c4b_kpi_grid(result)
     render_c5_drilldowns(result)
-    _render_placeholder("C6 confidence panel",            "M-UI-E.5")
+    render_c6_confidence_panel(result)
     render_c7_verbal_summary(result)
-    _render_placeholder("C8 action bar",                  "M-UI-E.5")
+    render_c8_action_bar(result)
+
+    with st.expander("Debug: raw payload"):
+        st.json(result)
+
+
+# M-UI-E.6
+def _render_single_indicator_view(setup: dict, result: dict) -> None:
+    """Lean single-indicator variant — header + map + detail + save.
+
+    C3 / C4b / C5 / C6 / C7 are intentionally omitted because they
+    visualise pillar-level aggregates that don't apply when only one
+    indicator was selected.
+    """
+    indicator_id = next(iter(setup["indicators"]))
+
+    st.title("Indicator Inspection")
+    _render_c1_header(setup, result)
+    render_c9_partial_banner(result)
+    render_c4a_indicator_map(indicator_id, setup, result)
+    render_indicator_detail(indicator_id, result)
+    render_c8_action_bar(result)
 
     with st.expander("Debug: raw payload"):
         st.json(result)
@@ -256,8 +297,8 @@ if state is None:
 elif state.name == "S1_Computing":
     _render_s1_computing()
 elif state.name == "S2_Results":
-    _render_s2(state, partial=False)
+    _render_s2(state)
 elif state.name == "S2_Partial":
-    _render_s2(state, partial=True)
+    _render_s2(state)
 elif state.name == "E1_AllFailed":
     _render_e1_all_failed(state)

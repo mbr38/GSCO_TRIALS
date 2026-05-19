@@ -233,6 +233,39 @@ with right_col:
             st.session_state.pop("page_state", None)
             st.switch_page("pages/05_Screening_Results.py")
 
+    # M-UI-E.6 — single-indicator bridge to P-05. Routes to the lean
+    # inspection variant. Limited to the indicator IDs registered in
+    # ui.components.c4a_indicator_map._RENDERERS; pick any of those to
+    # exercise the single-indicator P-05 view.
+    _SINGLE_INDICATOR_CHOICES = (
+        "air.no2.score",
+        "nature.kba.proximity_score",
+        "nature.dw.trees_pct",
+        "air.so2.score",  # Exercises the "unsupported" fallback path.
+    )
+    single_indicator = st.selectbox(
+        "Single indicator (M-UI-E.6)",
+        _SINGLE_INDICATOR_CHOICES,
+        help=(
+            "Pick a single indicator to route to P-05's single-indicator "
+            "variant. The first three have map renderers shipped; the "
+            "fourth exercises the 'not implemented' fallback."
+        ),
+    )
+    if st.button(
+        "Run single indicator on P-05", use_container_width=True,
+    ):
+        st.session_state.screening_setup = {
+            "centre":          {"lat": lat, "lon": lon},
+            "radius_km":       radius_km,
+            "time_range":      [start_date.isoformat(), end_date.isoformat()],
+            "indicators":      [single_indicator],
+            "mode":            "screening",
+            "centre_metadata": {"source": "engine scratch page"},
+        }
+        st.session_state.pop("page_state", None)
+        st.switch_page("pages/05_Screening_Results.py")
+
     if run:
         aoi = {"centre": centre, "radius_km": radius_km}
         try:

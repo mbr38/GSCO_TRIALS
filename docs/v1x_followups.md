@@ -32,6 +32,62 @@ land-based suppliers.
 
 ---
 
+## Retry failed indicators from C9 (deferred M-UI-E.5)
+
+The wireframes (§P-05 C9) describe a **"Retry failed indicators"**
+action that re-runs only the failed indicator IDs from the partial-
+coverage banner. Implementing it requires
+`engine/orchestrator.py::run_pillar` to accept an `indicators=<subset>`
+parameter and to compose subset results with the existing payload. v1
+ships C9 in display-only form per Wireframes §P-08 precedent (partial
+results accepted as-is).
+
+**Scope when picked up.**
+- Add `indicators` kwarg to each pillar's `run_pillar` so it only
+  computes the listed slugs.
+- Have the orchestrator merge the subset result into the existing
+  `st.session_state.page_state.result` rather than rebuilding from
+  scratch — preserves the values that did succeed on the first run.
+- Add a "Retry" button to C9 wired to the new orchestrator entry
+  point. Targeted at **v1.x**.
+
+---
+
+## Indicator map coverage — extend the C4a registry (deferred M-UI-E.6)
+
+M-UI-E.6 ships three indicator-map renderers as a proof-of-pattern:
+`air.no2.score`, `nature.kba.proximity_score`, `nature.dw.trees_pct`.
+Each demonstrates one of three visualisation grammars: continuous
+z-raster, vector polygons, categorical raster. Remaining indicators
+all fall into one of those three grammars; adding them is a matter of
+registering a new entry in
+`ui/components/c4a_indicator_map.py::_RENDERERS`.
+
+**Outstanding indicators by grammar.**
+
+*Continuous z-raster (follow the NO₂ pattern).*
+- `air.so2.score`, `air.co.score`, `air.hcho.score`, `air.o3.score`,
+  `air.aai.score`, `air.aod.score`, `air.pm25.score`, `air.pm10.score`
+  — all 8 use `AIR_POLLUTANT_CONFIG[slug]` for asset + band.
+- `ghg.ch4.score` (Sentinel-5P CH₄), `ghg.viirs.score` (VIIRS nightlights),
+  `ghg.co2.score` (ODIAC CO₂ — note coverage_window = 2020-2023).
+- `nature.ndvi.score` (MODIS MOD13Q1).
+
+*Vector polygons.* KBA is the only vector indicator in v1; no others
+pending.
+
+*Categorical / specialised.*
+- `nature.habitat.natural_loss_ha` — before/after DW composite,
+  highlighting natural→non-natural transitions.
+- `nature.forest_loss.ha` — Hansen `lossyear` band, single-class binary
+  raster filtered to the screening window.
+- `nature.water.area_now_ha` — DW water class composite, similar to the
+  DW renderer but filtered to a single class.
+
+Each renderer is independent — pick up in **v1.x** as demand warrants.
+
+---
+
 ## M5.5 follow-ups (original — do these when wiring ODIAC / CO₂)
 
 ## High priority

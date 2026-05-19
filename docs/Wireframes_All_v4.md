@@ -1447,3 +1447,37 @@ Air and GHG share a uniform 6-column row schema (indicator / site / anomaly / z 
 Formula weights are pulled from `engine.constants.{AIR,GHG,NATURE}_FOLLOWUP_WEIGHTS` rather than inlined, so the breakdown stays in lockstep with the live engine. `_build_formula` raises `KeyError` at import time if the engine adds or renames a weight key — fail-loud is the intended behaviour, since silent drift between the breakdown UI and the live formula is exactly the bug this design prevents.
 
 Tests: `tests/test_c5_drilldown.py` (22 tests) covers helper functions (`_fmt`), formula-term integrity (4 terms per pillar, weights sum to ≈1.0, weights track `engine.constants`), payload-key namespacing, row specs (9 Air / 3 GHG, canonical NO₂-first ordering, CO₂ reads `.mean`), and spec/dataset alignment.
+
+**M-UI-E.5 shipped.** C6 confidence panel (`ui/components/c6_confidence_panel.py`), C8 action bar (`ui/components/c8_action_bar.py`), and C9 partial-coverage banner (`ui/components/c9_partial_banner.py`) live.
+
+- **C6** renders three pillar rows reusing the limiting-factor lookups from `engine/verbal_summary.py` — no duplication between the chip/prose/panel surfaces. If a pillar's resolver returns `None` (no scores to compare) the row falls back to "No limiting factor identified."
+- **C8** "Save as report" pushes results into `st.session_state["saved_analyses"]` (half-real persistence, session-only). Schema mirrors the planned P-10 row shape: `id` (UUID4) / `name` (auto-generated from centre + UTC timestamp) / `type` ("screening") / `scope` / `date_saved` (ISO 8601) / `payload`. "Switch to Trend" is disabled with a tooltip until P-06 lands. Full localStorage persistence per PLFS_v4 §14 is a separate milestone.
+- **C9** surfaces both explicit failures (`_failures`) and silent coverage-window skips (`_provenance.<x>.skipped_reason`) in one list, de-duplicated by `indicator_id` (failure wins). The renderer short-circuits to a no-op when nothing is missing, so the page can fire it unconditionally. The retry-failed-indicators action is deferred to v1.x — see `docs/v1x_followups.md`.
+
+Layout change: `_render_s2` no longer takes a `partial` argument. S2_Results and S2_Partial render identically — the orchestrator's distinction is preserved in `classify_result` (for telemetry / future logic) but doesn't affect what the page outputs, since C9 decides for itself whether there's anything to surface.
+
+The MNC vertical slice on P-05 is now feature-complete. Only remaining placeholder: **C4a hotspot map** (Policy Maker primary visualisation, M-UI-E.6).
+
+Tests: `tests/test_c6_confidence_panel.py` (6 tests), `tests/test_c8_action_bar.py` (8 tests, `st.session_state` and `st.toast` monkeypatched), `tests/test_c9_partial_banner.py` (12 tests including a São Paulo end-to-end with 3 missing indicators and a de-duplication test for indicators that appear in both failure paths).
+
+**M-UI-E.6 shipped.** Single-indicator P-05 variant + C4a indicator-map scaffolding live. **All C-components on P-05 now have an implementation; M-UI-E is closed.**
+
+P-05 branches on `len(setup["indicators"])`:
+- **Multi-indicator** (≥2) — the existing aggregate view (M-UI-E.1–.5).
+- **Single-indicator** (1) — a lean variant: header (C1) → partial banner (C9, if relevant) → map (C4a) → indicator detail card → save bar (C8). C3, C4b, C5, C6, C7 are intentionally omitted because they visualise pillar-level aggregates that don't apply when only one indicator was selected.
+
+C4a is built around an indicator-renderer registry (`ui/components/c4a_indicator_map.py::_RENDERERS`). v1 ships three renderers covering the three visualisation grammars:
+
+- **Continuous z-raster** — `air.no2.score` (Sentinel-5P TROPOMI). Mean composite expressed as per-pixel z-score relative to the AOI buffer's spatial mean, on a diverging RdBu palette bounded at ±3σ.
+- **Vector polygons** — `nature.kba.proximity_score` (KBAsGlobal). KBAs within a 5× radius envelope rendered in green; AOI centre as a red marker.
+- **Categorical raster** — `nature.dw.trees_pct` (Dynamic World V1). Mode composite over the screening window with DW's official 9-class palette and inline legend.
+
+Unknown indicator IDs fall back to a "not yet implemented in v1" notice — the rest of the page (header, indicator detail, action bar) still renders normally.
+
+The Wireframes' original "user-type fork on C4a vs C4b" is superseded: both user types see C4b in multi-indicator mode and C4a in single-indicator mode. The user-type variation in the spec was always conditional on the indicator-set size; in v1 it makes more sense to drive the layout off cardinality directly.
+
+`indicator_detail.py` reuses `_render_provenance_block` and `_fmt` from `c5_drilldown.py` so provenance display is identical across both variants.
+
+Bridge: `pages/99_engine_scratch.py` ships a "Run single indicator on P-05" button with a selectbox of the three registered indicator IDs plus one unsupported one (`air.so2.score`) for exercising the fallback.
+
+Tests: `tests/test_c4a_indicator_map.py` (12 tests) covers the registry shape, the zoom heuristic at boundaries + monotonicity, DW palette/class-name alignment, and canonical-ID cross-checks against `engine.air.AIR_POLLUTANT_CONFIG` / `engine.nature.NATURE_INDICATOR_CONFIG`. The renderers themselves are EE-touching and verified visually in the browser, not via pytest.
