@@ -463,3 +463,30 @@ Output:
 ---
 
 *Document version 1.0 — May 2026. Anchored to `Indicators_Computation_v3.md`, `Indicator_ID_Schema_v1.md`, `Wireframes_All_v4.md` Appendix C, `PLFS_v4.md`.*
+
+---
+
+## 11. Implementation status (M-UI-E.0)
+
+`engine/verbal_summary.py` implements the full template grid described above:
+
+- **Bucketing (§1)** — `_bucket(score)` uses `TRAFFIC_LIGHT_THRESHOLDS = (0.33, 0.66)` from `engine/constants.py`; the prose buckets and the chip-colour bands stay locked.
+- **Dominant-contributor lookup (§3)** — `_resolve_dominant(payload, candidates)` with the three candidate maps `_AIR_DOMINANT_CANDIDATES`, `_GHG_DOMINANT_CANDIDATES`, `_NATURE_DOMINANT_CANDIDATES`. Tie-break is descending weight, then alphabetical display name.
+- **Per-pillar dominant-slot formatters (§4)** — `_air_dominant_slots`, `_ghg_dominant_slots`, `_nature_dominant_slots`. GHG's CO₂ helper uses `ghg.co2.relative_intensity` (M5.5b/c rename of the doc's `background_median` ratio) — it IS the ratio.
+- **Limiting-factor lookup (§5)** — `_resolve_air_limiting_factor` (lowest `.confidence` among pollutants) and `_resolve_quality_limiting_factor` (shared by GHG and Nature). The Air table is extended to include AOD with a sensible prose string (the doc's §5.1 table omits it).
+- **Pillar templates (§6)** — 45 templates copied verbatim into `_PER_PILLAR_TEMPLATES`.
+- **Overview templates (§7)** — 15 templates in `_OVERVIEW_TEMPLATES`, keyed by `(composite_shape, composite_confidence)` per §7.4. Display order for `{high_pillar_a}` / `{high_pillar_b}` is fixed Air → GHG → Nature regardless of which scored highest.
+- **End-to-end generator (§8)** — `generate_verbal_summary(payload)` returns a `VerbalSummary(overview, air, ghg, nature, template_ids)` dataclass. `template_ids` documents which templates fired (audit support).
+- **Worked example (§9)** — pinned as a regression test in `tests/test_verbal_summary.py::TestWorkedExample::test_overall_output_matches_doc_section_9`. If a template string drifts or a slot-resolution rule changes, that test catches it.
+
+**Engine payload key bridging.** The doc's §8 pseudo-code uses `payload["{p}.followup_priority"]` and a generic `CONFIDENCE_FIELD[p]` lookup. The engine emits:
+
+| Pillar | Priority key | Confidence key |
+|---|---|---|
+| air | `air.audit_followup_priority` | `air.attribution_confidence_score` |
+| ghg | `ghg.audit_followup_priority` | `ghg.data_quality_attribution` |
+| nature | `nature.followup_priority` | `nature.quality_attribution` |
+
+`_PRIORITY_KEY` and `_CONFIDENCE_KEY` in the module encode the bridge.
+
+**No changes to this doc's design.** The implementation matches §1–§9 exactly; the only addition is AOD's limiting-factor prose string (friendly extension, since the v1 engine computes AOD even though §5.1 omits it).
