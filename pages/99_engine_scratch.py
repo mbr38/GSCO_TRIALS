@@ -202,6 +202,37 @@ with right_col:
 
     run = st.button("Run snapshot", type="primary", use_container_width=True)
 
+    # M-UI-E.1 — scratch-page bridge to P-05. Only meaningful in Full
+    # screening mode (P-05 renders all three pillars); hidden otherwise.
+    if mode == "Full screening (all pillars)":
+        if st.button("Run on P-05 (Screening Results page)", use_container_width=True):
+            _NATURE_SEED_IDS: dict[str, str] = {
+                "kba":         "nature.kba.proximity_score",
+                "dw":          "nature.dw.trees_pct",
+                "habitat":     "nature.habitat.natural_loss_ha",
+                "forest_loss": "nature.forest_loss.ha",
+                "ndvi":        "nature.ndvi.score",
+                "water":       "nature.water.area_now_ha",
+                "recovery":    "nature.recovery.score",
+            }
+            selected_indicators = (
+                {f"air.{p}.score" for p in AIR_POLLUTANT_CONFIG.keys()}
+                | {f"ghg.{i}.score" for i in GHG_INDICATOR_CONFIG.keys()}
+                | {_NATURE_SEED_IDS[k] for k in NATURE_INDICATOR_CONFIG.keys()}
+            )
+            st.session_state.screening_setup = {
+                "centre":          {"lat": lat, "lon": lon},
+                "radius_km":       radius_km,
+                "time_range":      [start_date.isoformat(), end_date.isoformat()],
+                "indicators":      sorted(selected_indicators),
+                "mode":            "screening",
+                "centre_metadata": {"source": "engine scratch page"},
+            }
+            # Drop any stale page state so P-05 re-enters S1_Computing
+            # with a fresh run_id.
+            st.session_state.pop("page_state", None)
+            st.switch_page("pages/05_Screening_Results.py")
+
     if run:
         aoi = {"centre": centre, "radius_km": radius_km}
         try:

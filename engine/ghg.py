@@ -27,7 +27,7 @@ diagnostic / display only and no longer feed compute_core_ghg_audit_support.
 The live CO₂ proxy is now CH₄ + Combustion_Proxy + Activity_Score
 (rescaled in CORE_GHG_AUDIT_SUPPORT_WEIGHTS by 1/0.61 to preserve
 relative proportions). Offline validation that this trio correlates
-with ODIAC values is tracked as a v1 deliverable in m5.5_followups.md.
+with ODIAC values is tracked as a v1 deliverable in v1x_followups.md.
 
 M5.5 — CO₂ activated via the ODIAC personal asset
 (projects/supply-chain-observatory/assets/odiac). Three single-value
@@ -40,7 +40,7 @@ are still placeholders pending the IC_v5 §6.3 confidence-formula doc fix
 Layers (mirrors engine/air.py architecture):
 1. Single-value indicators (IC_v4 §2.1 / Schema_v2 §3.1) — ch4, co2, viirs.
    CO₂ uses a custom 7-key measurement set with `.relative_intensity` in
-   place of `.anomaly` (M5.5 rename per m5.5_followups.md: ODIAC is an
+   place of `.anomaly` (M5.5 rename per v1x_followups.md: ODIAC is an
    emissions allocation, not an atmospheric measurement, so the
    six-step "anomaly" framing was misleading).
 2. GHG quality sub-scores (Schema_v2 §3.4) — temporal_coverage,
@@ -340,7 +340,7 @@ def compute_co2_snapshot(
     - `relative_intensity` — site mean ÷ background ring mean. Labelled
                              "relative_intensity" not "anomaly" because
                              ODIAC is an allocation product, not a measured
-                             baseline (see docs/m5.5_followups.md).
+                             baseline (see docs/v1x_followups.md).
     - `score`              — log-scaled 0-1 form of relative_intensity:
                              1× regional → 0, 10× regional → 1.
 
@@ -441,7 +441,7 @@ def compute_co2_snapshot(
 # indicate the buffer overlaps a CARMA-listed point source (single mega-
 # emitter pixel dominating the small buffer). v1 clamps; v1.x will flag
 # explicitly via the deferred CARMA-overlap provenance flag — see
-# docs/m5.5_followups.md.
+# docs/v1x_followups.md.
 _CO2_RELATIVE_INTENSITY_CAP: float = 10.0
 
 
@@ -457,7 +457,7 @@ def _co2_relative_intensity_and_score(
 
     TODO(v1.x): CARMA-overlap flag — when the buffer overlaps a CARMA
     power-plant point, set carma_overlap=True in provenance and surface in
-    the limiting-factor template per docs/m5.5_followups.md.
+    the limiting-factor template per docs/v1x_followups.md.
     """
     if ring_mean <= 0:
         return None, None
@@ -678,7 +678,7 @@ def compute_activity_adjusted_co2(payload: dict) -> dict:
     composite; kept for offline validation. Strict-null-propagates if
     either input is missing.
 
-    TODO(v1.x): per docs/m5.5_followups.md this term arguably triple-counts
+    TODO(v1.x): per docs/v1x_followups.md this term arguably triple-counts
     VIIRS (which already feeds ghg.activity_score directly and ODIAC
     indirectly via the diffuse allocation branch). Now that ODIAC isn't
     in the live composite the urgency is lower, but the triple-counting

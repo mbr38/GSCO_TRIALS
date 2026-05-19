@@ -117,10 +117,10 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
 # preserve their relative proportions over the surviving terms. Sums to 1.00.
 #
 # Methodological upgrade: this also resolves the VIIRS double-counting
-# and the ODIAC "anomaly" framing concerns flagged in m5.5_followups.md —
+# and the ODIAC "anomaly" framing concerns flagged in v1x_followups.md —
 # ODIAC isn't competing with the activity / combustion terms any more.
 #
-# See docs/m5.5_followups.md "M5.5b" section for the full rationale and
+# See docs/v1x_followups.md "M5.5b" section for the full rationale and
 # the deferred validation-harness work that justifies the CH4 + combustion
 # + activity trio as a live CO₂ proxy.
 #

@@ -1417,3 +1417,33 @@ The numeric score is always rendered to **two decimal places**. The pillar name 
 - A 4-band or 5-band scoring (more gradation than red/amber/green). v1.x may revisit once empirical distributions across runs are available.
 - A continuous-gradient bar (no banding). Banding is a deliberate choice because the screening tool is for triage, not measurement.
 - Confidence "intervals" or numeric uncertainty (e.g. ±0.15). Adds interpretation cost beyond what a screening tool needs.
+
+---
+
+## Implementation status (M-UI-E.1)
+
+**Shipped 2026-05-19.** P-05 scaffold lives at `pages/05_Screening_Results.py`, with the pure-Python state machine in `ui/page_state.py`. The four states from §P-05 are live: **S1_Computing → S2_Results / S2_Partial / E1_AllFailed**, transitioning via `ui.page_state.classify_result(payload)` which reads the engine result's `_meta.pillars_run`, the three per-pillar follow-up priorities, and the `_failures` block.
+
+Components shipped: **C1 (analysis header card)**. Components **C2, C3, C4b, C5a/b/c, C6, C7, C8, C9, C10** are rendered as `[Component CX — landing in M-UI-E.Y]` placeholders pinned to their target milestones.
+
+Input hand-off: P-05 reads `st.session_state.screening_setup`. Until P-04 lands (post-M-UI-E.6), the scratch page (`pages/99_engine_scratch.py`) writes that key directly via a **"Run on P-05"** button in Full-screening mode. Setup shape: `{centre, radius_km, time_range, indicators, mode, centre_metadata}` — the same shape P-04 will write.
+
+Tests: 9 new tests in `tests/test_page_state.py` cover the `classify_result` decision tree and `PageState` shape (no Streamlit / no EE).
+
+**M-UI-E.2 shipped.** C3 traffic-light summary (`ui/components/c3_summary.py`) and C7 verbal summary (`ui/components/c7_verbal_summary.py`) are live. C3 reads the composite + three pillar follow-up priorities and renders one chip per score with band colour, score (2 d.p.), band label, and confidence dot per Appendix C. C7 calls `engine.verbal_summary.generate_verbal_summary(payload)` and renders the four-paragraph output. Both modules reuse `TRAFFIC_LIGHT_THRESHOLDS` from `engine/constants.py`, so chip colour and prose bucket never disagree.
+
+Tests: `tests/test_traffic_light.py` (21 tests) pins the band + dot thresholds and parametrises a boundary-by-boundary lock-step against `engine.verbal_summary._bucket`.
+
+**M-UI-E.3 shipped.** C4b KPI tile grid (`ui/components/c4b_kpi_grid.py`) live. 12-tile grid covering 9 air pollutants + 3 GHG indicators. Each tile renders headline value with unit, anomaly-direction arrow (↑/↓/→ in a neutral palette — direction, not severity, so the traffic-light colours are reserved for C3), and a confidence dot. Failed indicators render with a "Failed" badge and an expander showing the failure reason from `_failures[pillar]` (per-indicator path) or `_provenance.<pillar>.<indicator>.skipped_reason` (silent-skip path). CO₂ has no anomaly arrow because ODIAC is inventory-allocated, not an atmospheric observation — matches `engine.verbal_summary._ghg_dominant_slots`'s CO₂ branch.
+
+C4b renders unconditionally for now; the user-type branch (Policy Maker → C4a hotspot map; MNC → C4b grid) lands with M-UI-E.6.
+
+Tests: `tests/test_c4b_kpi_grid.py` (24 tests) covers tile-spec integrity (count, pillar split, key suffixes, CO₂ anomaly exception), failure detection, reason resolution across all three lookup paths, anomaly-direction edge cases (zero, sub-epsilon, None), and an end-to-end pass through a São Paulo-shaped payload exercising the success / per-indicator-failure / silent-skip combination.
+
+**M-UI-E.4 shipped.** C5a/b/c drill-down panels (`ui/components/c5_drilldown.py`) live. Three pillar expanders, collapsed by default. Each panel renders a Follow-Up Priority Score headline with formula breakdown (per `Indicators_Computation_v4.md` §1.3 / §2.3 / §3.3), per-indicator rows, and a "Datasets used" sub-expander listing the canonical M5.6 provenance blocks for that pillar.
+
+Air and GHG share a uniform 6-column row schema (indicator / site / anomaly / z / confidence / score). Nature is sub-sectioned by indicator class — Biodiversity exposure (KBA), Habitat conversion (+ Hansen forest loss as a sub-bullet), Vegetation condition (NDVI), and a Land-cover composition table (9-class Dynamic World breakdown) — because its outputs are too heterogeneous for a uniform row schema.
+
+Formula weights are pulled from `engine.constants.{AIR,GHG,NATURE}_FOLLOWUP_WEIGHTS` rather than inlined, so the breakdown stays in lockstep with the live engine. `_build_formula` raises `KeyError` at import time if the engine adds or renames a weight key — fail-loud is the intended behaviour, since silent drift between the breakdown UI and the live formula is exactly the bug this design prevents.
+
+Tests: `tests/test_c5_drilldown.py` (22 tests) covers helper functions (`_fmt`), formula-term integrity (4 terms per pillar, weights sum to ≈1.0, weights track `engine.constants`), payload-key namespacing, row specs (9 Air / 3 GHG, canonical NO₂-first ordering, CO₂ reads `.mean`), and spec/dataset alignment.

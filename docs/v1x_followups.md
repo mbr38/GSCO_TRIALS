@@ -1,4 +1,38 @@
-# M5.5 follow-ups (do these when wiring ODIAC / CO₂)
+# v1.x follow-ups
+
+> **Scope.** This doc collects v1.x deferrals from across milestones, not
+> just M5.5. The original "M5.5 follow-ups" header was retired when the
+> list outgrew its origin; the M5.5/M5.5b/M5.5c/M5.6 sections below are
+> preserved verbatim for historical context.
+
+## Pillar-wide EE errors surface as raw server-side strings (M-UI-E.1)
+
+Discovered during the P-05 smoke test of the `E1_AllFailed` path. Running
+a screening at an ocean point (lat 0, lon -30) produces the user-facing
+error `Dictionary.get: Dictionary does not contain key: 'label'` — the
+raw EE server-side error from Dynamic World's `frequencyHistogram`
+reducer when the buffer contains zero land pixels.
+
+The bare `except Exception` in
+`pages/05_Screening_Results.py::_run_engine_and_transition` correctly
+routes to `E1_AllFailed` — that part works as designed. What's wrong is
+that the engine's pillar modules don't catch `ee.EEException` and
+re-raise as `PillarComputeError` with sensible context. v1 lets the raw
+EE string bubble all the way to the UI.
+
+**Fix.** Wrap pillar-wide EE-touching code in `try/except ee.EEException`
+inside `engine/air.py`, `engine/ghg.py`, `engine/nature.py` and re-raise
+as `PillarComputeError` with a context-aware message:
+- Nature → *"No land cover detected in buffer — check AOI lies on land."*
+- Air → *"No valid satellite observations in time range."*
+- GHG → similar.
+
+**v1 workaround.** Document in the user guide that the tool is for
+land-based suppliers.
+
+---
+
+## M5.5 follow-ups (original — do these when wiring ODIAC / CO₂)
 
 ## High priority
 - **CARMA-overlap flag.** Add a sub-score / provenance flag that fires when 

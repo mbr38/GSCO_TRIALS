@@ -1,0 +1,263 @@
+"""P-05 — Screening Results (M-UI-E.1 scaffold).
+
+First real result page. Renders the screening outcome after the engine
+has run. State machine (Wireframes_All_v4 §P-05):
+
+    S1_Computing  — engine is running, show spinner
+    S2_Results    — full success, render all components
+    S2_Partial    — some indicators failed, show C9 banner + results
+    E1_AllFailed  — all pillars failed, show C10 banner + retry
+
+Input hand-off (M-UI-E.1 — scratch-page bridge):
+    P-05 reads ``st.session_state.screening_setup``. When P-04 lands
+    (post-M-UI-E.6), this becomes the formal hand-off. Until then,
+    the scratch page (pages/99_engine_scratch.py) sets the key directly
+    via a "Run on P-05" button.
+
+This milestone delivers Component C1 (analysis header card) and the
+state machine. C2 through C10 are placeholders pinned to their target
+milestones — see ``docs/Wireframes_All_v4.md`` §P-05.
+
+Streamlit page numbering. The file is ``pages/05_*`` so the sidebar
+ordering matches the P-number; P-05 in the wireframes == sidebar slot 5.
+
+Streamlit page rules (CLAUDE.md §7): imports -> set_page_config -> guards
+-> EE init -> EE-dependent imports.
+"""
+
+# M-UI-E.1
+from __future__ import annotations
+
+import uuid
+
+import streamlit as st
+
+from utils.state import require_user_type, sign_out
+from utils.ee_init import require_earth_engine
+
+st.set_page_config(
+    page_title="Screening Results — GSCO",
+    page_icon="🧭",
+    layout="wide",
+)
+
+require_user_type()
+require_earth_engine()
+
+from engine.orchestrator import ScreeningRun
+from ui.components.c3_summary import render_c3_summary
+from ui.components.c4b_kpi_grid import render_c4b_kpi_grid
+from ui.components.c5_drilldown import render_c5_drilldowns
+from ui.components.c7_verbal_summary import render_c7_verbal_summary
+from ui.page_state import PageState, classify_result
+
+
+# ---------------------------------------------------------------------------
+# State helpers
+# ---------------------------------------------------------------------------
+
+def _get_or_init_state() -> PageState | None:
+    """Return the current ``PageState`` or ``None`` if no setup is present.
+
+    - No setup at all -> ``None`` (caller renders the empty state).
+    - Setup present, no page_state yet -> fresh ``S1_Computing``.
+    - Setup + existing page_state -> hand back the existing state
+      (idempotent across Streamlit re-runs via ``run_id``).
+    """
+    setup = st.session_state.get("screening_setup")
+    if setup is None:
+        return None
+    state = st.session_state.get("page_state")
+    if state is None:
+        state = PageState(name="S1_Computing", run_id=str(uuid.uuid4()))
+        st.session_state["page_state"] = state
+    return state
+
+
+def _run_engine_and_transition(state: PageState) -> PageState:
+    """Run the engine, classify the result, and return the next state.
+
+    Translates the UI-facing ``screening_setup`` shape into the engine's
+    ``ScreeningRun`` constructor args. Any exception escaping the engine
+    is treated as a hard failure -> ``E1_AllFailed``.
+    """
+    setup = st.session_state["screening_setup"]
+    aoi = {
+        "centre":    setup["centre"],
+        "radius_km": setup["radius_km"],
+    }
+    try:
+        result = ScreeningRun(
+            aoi=aoi,
+            selected_indicators=set(setup["indicators"]),
+            time_range=tuple(setup["time_range"]),
+            ee_client=None,
+            centre_metadata=setup.get("centre_metadata", {}),
+        ).run()
+    except Exception as exc:  # noqa: BLE001 — surface anything as E1.
+        return PageState(
+            name="E1_AllFailed",
+            run_id=state.run_id,
+            error=str(exc),
+        )
+    return PageState(
+        name=classify_result(result),
+        run_id=state.run_id,
+        result=result,
+        failures=result.get("_failures"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Page chrome (shared across all states)
+# ---------------------------------------------------------------------------
+
+def _render_nav() -> None:
+    """Top nav bar — matches the chrome on pages/01_scope_setup and the
+    scratch page (CLAUDE.md §7 sign-out flow).
+    """
+    nav_left, nav_right = st.columns([4, 1])
+    with nav_left:
+        st.caption(
+            f"Signed in as **{st.session_state.user_type_label}**  ·  "
+            f"Session `{st.session_state.session_id}`"
+        )
+    with nav_right:
+        if st.button("Sign out", use_container_width=True):
+            sign_out()
+            st.switch_page("app.py")
+
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+
+def _render_c1_header(setup: dict, result: dict | None) -> None:
+    """C1 — Analysis header card.
+
+    Top-of-page metadata block. Appears in every non-empty state.
+    Wireframes §P-05 C1: location + coordinates, AOI summary, time
+    range, indicator list, computation timestamp.
+    """
+    centre = setup["centre"]
+    coords = f"{centre['lat']:.4f}, {centre['lon']:.4f}"
+    time_range = setup["time_range"]
+    indicators = list(setup["indicators"])
+    computed_at = (
+        result.get("_meta", {}).get("computed_at") if result else "—"
+    )
+    centre_source = setup.get("centre_metadata", {}).get("source", "—")
+
+    with st.container(border=True):
+        st.markdown("### Analysis")
+        col1, col2 = st.columns([2, 3])
+        with col1:
+            st.markdown(f"**Location.** {coords}")
+            st.markdown(f"**Source.** {centre_source}")
+            st.markdown(f"**Buffer.** {setup['radius_km']} km radius")
+        with col2:
+            st.markdown(
+                f"**Time range.** {time_range[0]} → {time_range[1]}"
+            )
+            st.markdown(f"**Indicators.** {len(indicators)} selected")
+            st.markdown(f"**Computed.** {computed_at}")
+        with st.expander("Indicator list"):
+            for ind in sorted(indicators):
+                st.markdown(f"- `{ind}`")
+
+
+def _render_placeholder(component_id: str, milestone: str) -> None:
+    """Placeholder for a component landing in a later milestone."""
+    with st.container(border=True):
+        st.caption(f"[{component_id} — landing in {milestone}]")
+
+
+# ---------------------------------------------------------------------------
+# State renderers
+# ---------------------------------------------------------------------------
+
+def _render_no_setup() -> None:
+    """Empty state — no screening configured yet."""
+    st.title("Screening Results")
+    st.info(
+        "No screening configured. Configure a run on the **Screening "
+        "Setup** page (P-04, landing in a later milestone), or use the "
+        "**engine scratch page** for now."
+    )
+    if st.button("Go to scratch page"):
+        st.switch_page("pages/99_engine_scratch.py")
+
+
+def _render_s1_computing() -> None:
+    """S1 — spinner while the engine runs. Transitions on completion."""
+    st.title("Screening Results")
+    with st.spinner("Running screening — this takes ~30–60 seconds…"):
+        state = st.session_state["page_state"]
+        new_state = _run_engine_and_transition(state)
+        st.session_state["page_state"] = new_state
+    st.rerun()
+
+
+def _render_s2(state: PageState, partial: bool) -> None:
+    """S2_Results / S2_Partial — same skeleton; the partial banner (C9)
+    is the only S2_Partial-specific element rendered at this milestone.
+    """
+    setup = st.session_state["screening_setup"]
+    result = state.result
+
+    st.title("Screening Results")
+    _render_c1_header(setup, result)
+
+    if partial:
+        _render_placeholder("C9 partial-coverage banner", "M-UI-E.5")
+    render_c3_summary(result)
+    render_c4b_kpi_grid(result)
+    render_c5_drilldowns(result)
+    _render_placeholder("C6 confidence panel",            "M-UI-E.5")
+    render_c7_verbal_summary(result)
+    _render_placeholder("C8 action bar",                  "M-UI-E.5")
+
+    with st.expander("Debug: raw payload"):
+        st.json(result)
+
+
+def _render_e1_all_failed(state: PageState) -> None:
+    """E1_AllFailed — error banner (C10 placeholder for now) + retry."""
+    st.title("Screening Results")
+    setup = st.session_state.get("screening_setup")
+    if setup:
+        _render_c1_header(setup, state.result)
+    st.error(
+        "Screening failed. "
+        + (state.error or "All pillars returned no data.")
+    )
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("Retry", use_container_width=True):
+            # Drop the failed page_state; keep screening_setup so the
+            # next render re-enters S1_Computing with the same inputs.
+            st.session_state.pop("page_state", None)
+            st.rerun()
+    with col_b:
+        if st.button("Back to scratch page", use_container_width=True):
+            st.switch_page("pages/99_engine_scratch.py")
+
+
+# ---------------------------------------------------------------------------
+# Main dispatch
+# ---------------------------------------------------------------------------
+
+_render_nav()
+st.divider()
+
+state = _get_or_init_state()
+if state is None:
+    _render_no_setup()
+elif state.name == "S1_Computing":
+    _render_s1_computing()
+elif state.name == "S2_Results":
+    _render_s2(state, partial=False)
+elif state.name == "S2_Partial":
+    _render_s2(state, partial=True)
+elif state.name == "E1_AllFailed":
+    _render_e1_all_failed(state)

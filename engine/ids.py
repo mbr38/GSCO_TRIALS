@@ -37,7 +37,7 @@ MEASUREMENT_SUFFIXES: tuple[str, ...] = (
 # observation; "anomaly" implied a physical baseline measurement it doesn't
 # actually have. `.trend_p` joins the set so CO₂ matches CH₄'s trend
 # reporting shape. Schema_v2 §3.1 doc update is pending — see
-# docs/m5.5_followups.md.
+# docs/v1x_followups.md.
 CO2_MEASUREMENT_SUFFIXES: tuple[str, ...] = (
     "mean", "total", "relative_intensity",
     "trend", "trend_p", "confidence", "score",
