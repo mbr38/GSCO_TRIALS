@@ -32,6 +32,45 @@ land-based suppliers.
 
 ---
 
+## CAMS band rename — fixed M-CAMS-BAND-FIX (May 2026)
+
+CAMS renamed several of its ``ECMWF/CAMS/NRT`` bands between the
+engine's original implementation and May 2026. v1 only consumes two
+of them; both drifted:
+
+| Pollutant | Legacy name                  | Current name                                       |
+|-----------|------------------------------|----------------------------------------------------|
+| PM₂.₅     | `particulate_matter_2.5um`   | `particulate_matter_d_less_than_25_um_surface`     |
+| PM₁₀      | `particulate_matter_10um`    | `particulate_matter_d_less_than_10_um_surface`     |
+
+The other v1 pollutants don't hit CAMS — NO₂ / SO₂ / CO / HCHO / O₃ /
+AAI all come from Sentinel-5P (`COPERNICUS/S5P/...`) and AOD from MODIS
+MAIAC. None of those band names changed. `engine/air.py` was updated
+in lockstep with this milestone.
+
+**Discovery.** Bug surfaced during the M-P0103 smoke test — running a
+Rio de Janeiro region screening crashed with a `reduce.mean: Error in
+map(...) band pattern did not match` message, which is CAMS's cryptic
+way of saying "no band with that name". The error doesn't name the
+missing band; finding the drift required listing the asset's current
+band catalogue and diffing it against the engine config.
+
+**Spec-doc reference drift (not fixed here).** The legacy band names
+still appear in `docs/Indicators_Computation_v4.md` §1.1 (table rows
+for PM₂.₅ and PM₁₀) and `docs/Indicator_ID_Schema_v2.md` §2.1 (same
+rows). Per CLAUDE.md §8, those authoritative spec docs aren't touched
+without explicit confirmation — flagging here so the next IC/Schema
+version bump can refresh those rows.
+
+**Stability note.** Upstream CAMS asset evolution isn't tracked in the
+GEE catalogue's change-log. If band names drift again, screening will
+fail with the same cryptic message until somebody walks the configs.
+**v1.x: add a `verify_bands.py` smoke script** that lists every
+pollutant's band and asserts it's present in the asset's current band
+catalogue. Run as a CI step so drift surfaces before users do.
+
+---
+
 ## Retry failed indicators from C9 (deferred M-UI-E.5)
 
 The wireframes (§P-05 C9) describe a **"Retry failed indicators"**

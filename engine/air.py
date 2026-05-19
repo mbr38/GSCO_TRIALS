@@ -161,7 +161,11 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
     ),
     "pm25": PollutantConfig(
         asset_id="ECMWF/CAMS/NRT",
-        band="particulate_matter_2.5um",
+        # M-CAMS-BAND-FIX (May 2026): CAMS renamed `particulate_matter_2.5um`
+        # to the longer, more descriptive `particulate_matter_d_less_than_25_um_surface`.
+        # The legacy name now returns "band pattern did not match" on
+        # `reduce.mean(...)`. See docs/v1x_followups.md.
+        band="particulate_matter_d_less_than_25_um_surface",
         scale_factor=1e9,                 # kg/m³ → µg/m³
         scale_m=44544.0,                  # CAMS NRT global grid
         display_unit="µg/m³",
@@ -170,7 +174,8 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
     ),
     "pm10": PollutantConfig(
         asset_id="ECMWF/CAMS/NRT",
-        band="particulate_matter_10um",
+        # M-CAMS-BAND-FIX (May 2026): same rename as PM₂.₅ above.
+        band="particulate_matter_d_less_than_10_um_surface",
         scale_factor=1e9,
         scale_m=44544.0,
         display_unit="µg/m³",

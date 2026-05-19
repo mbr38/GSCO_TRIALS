@@ -238,15 +238,12 @@ def _commit_scope_and_navigate(
     kind: Mode,
     data: SupplyChain | Region | None,
 ) -> None:
-    """Write the confirmed scope and route to the next page."""
-    st.session_state["scope"] = {"kind": kind, "data": data}
-    st.session_state.pop("p02_stage",          None)
-    st.session_state.pop("p02_pending_scope",  None)
+    """Write the confirmed scope and route to the Workflow Hub.
 
-    # P-03 Workflow Hub is the canonical next stop; route to P-04 until
-    # it lands. ``st.switch_page`` raises ``StreamlitAPIException`` for
-    # missing pages; catch broadly to be tolerant of API changes.
-    try:
-        st.switch_page("pages/03_Workflow_Hub.py")
-    except Exception:  # noqa: BLE001
-        st.switch_page("pages/04_Inspect_Setup.py")
+    M-P0103: P-03 now exists; routing is unconditional. The earlier
+    try/except fallback to P-04 is no longer needed.
+    """
+    st.session_state["scope"] = {"kind": kind, "data": data}
+    st.session_state.pop("p02_stage",         None)
+    st.session_state.pop("p02_pending_scope", None)
+    st.switch_page("pages/03_Workflow_Hub.py")

@@ -1552,3 +1552,13 @@ Tests: [tests/test_p04_scope_dispatch.py](../tests/test_p04_scope_dispatch.py) (
 The scratch page (`pages/99_engine_scratch.py`) remains accessible via the sidebar for developer use — only the default landing path changed.
 
 No new tests — pure wiring + copy. Existing tests all still pass (558).
+
+**M-P0103 shipped.** Three pieces:
+
+- **P-01 is `app.py`.** The Streamlit entry-point file is the landing in this codebase. The wireframes' "P-01" name is a label, not a file path; there's no separate `pages/01_*.py` for it. (The M5b `pages/01_scope_setup.py` placeholder is unrelated and still slated for retirement once P-02 is the canonical pre-Inspect entry.)
+- **P-03 — Workflow Hub** lives at [pages/03_Workflow_Hub.py](../pages/03_Workflow_Hub.py) with renderers in [ui/components/p03_hub.py](../ui/components/p03_hub.py). Three stacked sections: welcome + scope summary (no-scope, supply-chain, or region card per the loaded `scope`), two workflow cards (**Inspect** active → P-04; **Prioritisation** disabled until P-07/P-08), three persistent-module cards (Indicator Library, Saved Analyses, Reports — all v1.x placeholders). P-02's Confirm now routes here unconditionally; the M-P02 try/except fallback to P-04 was removed since P-03 exists.
+- **Persistent nav** centralised in [ui/components/persistent_nav.py](../ui/components/persistent_nav.py). Pages 02, 03, 04, 05, and the developer scratch all import `render_persistent_nav` and drop their previous inline strips. Three elements left-to-right: user-type chip, scope chip (label + Change / Pick scope button routing to P-02 with stage state cleared), sign-out. The pure scope-chip wording helper `_scope_chip_label` is unit-testable.
+
+The M5b placeholder `pages/01_scope_setup.py` retains its inline strip — it has no user-facing nav role and is slated for retirement.
+
+Tests: [tests/test_persistent_nav.py](../tests/test_persistent_nav.py) (5 tests) pins `_scope_chip_label` for every scope kind including the unknown-kind defensive fallback. `test_p03_hub.py` skipped per the spec — the rendering helpers are pure Streamlit composition with no testable logic beyond what `_scope_chip_label` and `_source_for_scope` already cover.

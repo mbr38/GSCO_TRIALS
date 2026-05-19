@@ -18,7 +18,7 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from utils.state import require_user_type, sign_out
+from utils.state import require_user_type
 from utils.ee_init import require_earth_engine
 
 st.set_page_config(
@@ -40,6 +40,7 @@ from engine.orchestrator import ScreeningRun
 from engine.constants import BACKGROUND_RING_MAX_KM, BACKGROUND_RING_RADIUS_MULTIPLE
 from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
+from ui.components.persistent_nav import render_persistent_nav
 
 
 # ---------------------------------------------------------------------------
@@ -105,17 +106,8 @@ st.warning(
 )
 st.title("Engine scratch (all pillars)")
 
-nav_left, nav_right = st.columns([4, 1])
-with nav_left:
-    st.caption(
-        f"Signed in as **{st.session_state.user_type_label}**  ·  "
-        f"Session `{st.session_state.session_id}`"
-    )
-with nav_right:
-    if st.button("Sign out", use_container_width=True):
-        sign_out()
-        st.switch_page("app.py")
-
+# M-P0103 — shared nav replaces the inlined per-page strip.
+render_persistent_nav()
 st.divider()
 
 

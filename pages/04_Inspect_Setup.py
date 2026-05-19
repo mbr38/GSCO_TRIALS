@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from utils.state import require_user_type, sign_out
+from utils.state import require_user_type
 from utils.ee_init import require_earth_engine
 
 st.set_page_config(
@@ -44,27 +44,11 @@ require_user_type()
 require_earth_engine()
 
 from ui.components.p04_form import render_setup_form
+from ui.components.persistent_nav import render_persistent_nav
 
 
-# ---------------------------------------------------------------------------
-# Page chrome
-# ---------------------------------------------------------------------------
-
-def _render_nav() -> None:
-    """Top nav bar — same chrome as P-05 and pages/01_scope_setup."""
-    nav_left, nav_right = st.columns([4, 1])
-    with nav_left:
-        st.caption(
-            f"Signed in as **{st.session_state.user_type_label}**  ·  "
-            f"Session `{st.session_state.session_id}`"
-        )
-    with nav_right:
-        if st.button("Sign out", use_container_width=True):
-            sign_out()
-            st.switch_page("app.py")
-
-
-_render_nav()
+# M-P0103 — shared nav replaces the per-page helper.
+render_persistent_nav()
 st.divider()
 
 st.title("Inspect — Setup")

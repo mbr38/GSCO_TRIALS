@@ -32,7 +32,7 @@ import uuid
 
 import streamlit as st
 
-from utils.state import require_user_type, sign_out
+from utils.state import require_user_type
 from utils.ee_init import require_earth_engine
 
 st.set_page_config(
@@ -54,6 +54,7 @@ from ui.components.c7_verbal_summary import render_c7_verbal_summary
 from ui.components.c8_action_bar import render_c8_action_bar
 from ui.components.c9_partial_banner import render_c9_partial_banner
 from ui.components.indicator_detail import render_indicator_detail
+from ui.components.persistent_nav import render_persistent_nav
 from ui.page_state import PageState, classify_result
 
 
@@ -111,26 +112,6 @@ def _run_engine_and_transition(state: PageState) -> PageState:
         result=result,
         failures=result.get("_failures"),
     )
-
-
-# ---------------------------------------------------------------------------
-# Page chrome (shared across all states)
-# ---------------------------------------------------------------------------
-
-def _render_nav() -> None:
-    """Top nav bar — matches the chrome on pages/01_scope_setup and the
-    scratch page (CLAUDE.md §7 sign-out flow).
-    """
-    nav_left, nav_right = st.columns([4, 1])
-    with nav_left:
-        st.caption(
-            f"Signed in as **{st.session_state.user_type_label}**  ·  "
-            f"Session `{st.session_state.session_id}`"
-        )
-    with nav_right:
-        if st.button("Sign out", use_container_width=True):
-            sign_out()
-            st.switch_page("app.py")
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +276,8 @@ def _render_e1_all_failed(state: PageState) -> None:
 # Main dispatch
 # ---------------------------------------------------------------------------
 
-_render_nav()
+# M-P0103 — shared nav replaces the per-page helper.
+render_persistent_nav()
 st.divider()
 
 state = _get_or_init_state()
