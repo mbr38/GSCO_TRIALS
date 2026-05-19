@@ -112,6 +112,52 @@ Targeted at the P-06 milestone, not strict v1.x.
 
 ---
 
+## P-02 — remember last scope across sessions (deferred M-P02)
+
+M-P02 always opens P-02 at **ModePick**, regardless of the user's
+prior scope choice. v1.x could persist the last scope in localStorage
+and offer "Resume with last scope" as a fourth card on ModePick.
+
+**Why held out of v1.** The localStorage migration is already pending
+for Saved Analyses (PLFS_v4 §14). Doing both at once gives a coherent
+persistence story; doing one without the other risks divergent
+conventions across `st.session_state` keys.
+
+**Fix when picked up.** Decide on a serialisation format for `scope`
+(SupplyChain object → JSON via `dataclasses.asdict`; Region object →
+similar). On P-02 entry, read from localStorage; surface a "Resume"
+card with the chain/region name + a small preview. Confirm acts as
+today; "Pick a different scope" routes to the existing ModePick flow.
+
+---
+
+## GAUL 2015 deprecation watch (discovered M-DEMO-DATA)
+
+`demo/regions.py` uses `FAO/GAUL/2015/level1` as the source of
+administrative boundaries. FAO has since published GAUL 2024 and
+points users to GADM as the authoritative successor; the GAUL 2015
+EE asset is stable but unmaintained. Administrative boundaries
+haven't shifted meaningfully for v1 demo countries, so this is v1.x
+housekeeping rather than a blocker.
+
+**Fix when picked up.** Migrate the asset reference in
+`demo/regions.py::_GAUL_LEVEL1_ASSET` to whatever GEE catalogue entry
+replaces it. Surface fields may differ (`ADM0_NAME` / `ADM1_NAME` may
+be renamed); update the property reads accordingly. Also revisit the
+filter — GAUL 2024's island handling may differ; verify the
+unnamed-and-tiny filter still produces sensible output.
+
+**Filter rationale (kept for posterity).** GAUL 2015 lists Fernando de
+Noronha, Trindade, Martim Vaz, and Ilhabela as separate Brazilian
+admin1 features with null `ADM1_NAME` and/or sub-5 km natural radii.
+M-DEMO-DATA polish drops both classes — unnamed AND sub-5 km — via
+the combined filter in
+`demo/regions.py::_build_region_or_none`. Brazil's region count goes
+from 31 to the canonical 27. Similar quirks likely exist for other
+coastal nations; the filter handles them uniformly.
+
+---
+
 ## M5.5 follow-ups (original — do these when wiring ODIAC / CO₂)
 
 ## High priority

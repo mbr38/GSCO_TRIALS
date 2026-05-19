@@ -1,0 +1,83 @@
+{
+  "id":       "garments_sao_paulo_rio",
+  "name":     "Garments — São Paulo / Rio",
+  "industry": "Textile and garment manufacturing",
+  "country":  "Brazil",
+  "nodes": [
+    {
+      "id":    "garm_01",
+      "name":  "São Paulo Garment Hub (demo)",
+      "tier":  "Tier 1",
+      "lat":   -23.5505,
+      "lon":   -46.6333,
+      "notes": "Dense urban-industrial; expected high NO₂."
+    },
+    {
+      "id":   "garm_02",
+      "name": "Americana Textile Mill (demo)",
+      "tier": "Tier 2 (upstream)",
+      "lat":  -22.7392,
+      "lon":  -47.3314
+    },
+    {
+      "id":    "garm_03",
+      "name":  "Jundiaí Dye Works (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -23.1864,
+      "lon":   -46.8842,
+      "notes": "Wet processing; expected water-quality signal once that pillar lands."
+    },
+    {
+      "id":   "garm_04",
+      "name": "Campinas Cut & Sew (demo)",
+      "tier": "Tier 1",
+      "lat":  -22.9056,
+      "lon":  -47.0608
+    },
+    {
+      "id":   "garm_05",
+      "name": "Sorocaba Knitwear (demo)",
+      "tier": "Tier 1",
+      "lat":  -23.5015,
+      "lon":  -47.4581
+    },
+    {
+      "id":   "garm_06",
+      "name": "Resende Distribution (demo)",
+      "tier": "Tier 1 (downstream)",
+      "lat":  -22.4694,
+      "lon":  -44.4467
+    },
+    {
+      "id":   "garm_07",
+      "name": "Volta Redonda Service Centre (demo)",
+      "tier": "Tier 1 (downstream)",
+      "lat":  -22.5236,
+      "lon":  -44.1042
+    },
+    {
+      "id":    "garm_08",
+      "name":  "Rio de Janeiro Showroom (demo)",
+      "tier":  "Tier 1 (downstream)",
+      "lat":   -22.9068,
+      "lon":   -43.1729,
+      "notes": "Urban; expected high Air pollution + low Nature signal."
+    },
+    {
+      "id":    "garm_09",
+      "name":  "Petrópolis Mountain Mill (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -22.5050,
+      "lon":   -43.1786,
+      "notes": "Within ~100km of Mata Atlântica KBA; expected biodiversity exposure."
+    },
+    {
+      "id":    "garm_10",
+      "name":  "Santos Port Logistics (demo)",
+      "tier":  "Tier 1 (downstream)",
+      "lat":   -23.9608,
+      "lon":   -46.3331,
+      "notes": "Port; high industrial + maritime signal."
+    }
+  ]
+}

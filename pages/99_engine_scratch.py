@@ -752,3 +752,25 @@ with left_col:
     _outline(site_geom, "blue", "Site buffer")
 
     m.to_streamlit(height=550)
+
+if st.button("GAUL smoke test"):
+    from demo.regions import all_countries, regions_for_country
+
+    countries = all_countries()
+    st.write(f"Total countries: {len(countries)}")
+    st.write(f"'Brazil' present: {'Brazil' in countries}")
+    st.write(f"First 5: {countries[:5]}")
+
+    brazil = regions_for_country("Brazil")
+    st.write(f"Brazil regions: {len(brazil)}")
+
+    rows = []
+    for r in brazil:
+        rows.append({
+            "name": r.name,
+            "centroid_lat": round(r.centroid_lat, 2),
+            "centroid_lon": round(r.centroid_lon, 2),
+            "radius_km": r.radius_km,
+            "capped": "✓" if r.is_capped else "",
+        })
+    st.dataframe(rows)

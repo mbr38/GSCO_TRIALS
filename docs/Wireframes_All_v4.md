@@ -1495,3 +1495,60 @@ v1 scope:
 The scratch-page bridge in `pages/99_engine_scratch.py` is kept as a developer shortcut — P-04 is the user-facing entry point but the scratch bridge still exercises specific indicator combinations that the form doesn't expose directly.
 
 Tests: [tests/test_p04_indicator_registry.py](../tests/test_p04_indicator_registry.py) (26 tests including 19 parametrised lockstep checks) pin the 19-indicator catalogue, the 9/3/7 pillar split, the no-duplicates invariant, and assert every P-04 indicator ID round-trips through `engine.ids.is_valid_id`. The last check is the one that fails loudly if the engine renames or removes an indicator the UI still offers.
+
+**M-P04-Geocode shipped.** P-04's Free Coordinates tab now has a geocoded location search above the lat/lon inputs ([ui/components/geocoder.py](../ui/components/geocoder.py)). Uses Nominatim (OpenStreetMap, free, no API key) per Wireframes_All_v4 §P-02 Open Design Choice 3. The user types a place name (e.g. "São Paulo, Brazil"), clicks Search, picks one of up to 5 top matches; the lat/lon inputs fill automatically and the results list clears. Direct lat/lon entry still works — manual edits sync back into the same session defaults so picks don't get clobbered on rerun.
+
+Network errors, JSON parse failures, and timeouts surface as `GeocodingError` with a UI-friendly message ("Geocoding service unavailable… You can still enter lat/lon directly below"). Rate-limit guard enforces Nominatim's 1 req/sec policy at the module level, and a meaningful User-Agent (`GSCO-Environmental-Tool/v1 (demo)`) is included per their usage policy.
+
+Tests: [tests/test_geocoder.py](../tests/test_geocoder.py) (11 tests) stub `requests.get` and the `time` clock so the network path, the JSON-parse path, the timeout path, the rate-limit sleep, the User-Agent header, and the defensive entry-validation are all asserted without burning real seconds.
+
+**M-DEMO-DATA shipped.** Two new module trees that the upcoming P-02 scope-setup page and the activated P-04 Region/Supplier tabs will consume:
+
+- [demo/scopes/](../demo/scopes/) — three hand-curated MNC supply chains in Brazil (Iron & Steel — Minas Gerais, 8 nodes; Soy & Cattle — Pará/Mato Grosso, 10 nodes; Garments — São Paulo/Rio, 10 nodes). Coordinates placed near real industrial sites where the engine should produce demonstrable signal; company names are fictitious to avoid liability. Loaded once at import via [demo/scopes/\_\_init\_\_.py](../demo/scopes/__init__.py), exposed via `all_scopes()` and `get_scope(id)` as frozen `SupplyChain` / `SupplyChainNode` dataclasses. Pure Python; no EE.
+- [demo/regions.py](../demo/regions.py) — GAUL level1 wrapper. `all_countries()` returns the sorted country list; `regions_for_country(country)` returns each admin1 with `(name, country, centroid_lat, centroid_lon, radius_km, natural_radius_km)`. **Lazy per-country cache** — first call per cold country fires one EE round-trip via a server-side `.map(...)` that annotates every feature with centroid + area in a single `getInfo()`; subsequent calls are instant. **Radius rule** locked at `min(√(area/π), 400 km)`; `Region.is_capped` surfaces whether the cap kicked in so the UI can render a tooltip.
+
+Both modules are passive — they expose data, they don't write to `session_state`. P-02 (next milestone) wires user selections into `st.session_state.supplyChain` / `st.session_state.region`, then P-04 reads those.
+
+Tests: [tests/test_demo_scopes.py](../tests/test_demo_scopes.py) (22 tests, mostly parametrised across the 3 scopes) covers load + parse + unique-ID + valid-coordinate invariants. [tests/test_demo_regions.py](../tests/test_demo_regions.py) splits into 8 pure-Python tests (radius math at small / cap-threshold / huge inputs, `Region.is_capped` branches, cache short-circuit behaviour via direct cache injection) plus 4 real-EE tests gated by `RUN_EE_TESTS=1` (mirrors `tests/test_ghg_integration.py`) that verify Brazil has ≥26 admin1 regions, every centroid + radius sits in sensible ranges, and the São Paulo state centroid lands near (-22, -49).
+
+**M-P02 shipped.** P-02 Scope Setup page ([pages/02_Scope_Setup.py](../pages/02_Scope_Setup.py)) live, with the two-step state machine in [ui/components/p02_form.py](../ui/components/p02_form.py) and the per-mode preview renderers in [ui/components/p02_preview.py](../ui/components/p02_preview.py). Two stages: **ModePick → Preview**. Confirm writes `st.session_state["scope"]` as `{"kind": "supply_chain"|"region"|"none", "data": ...}` and routes onwards (P-03 Workflow Hub when it lands, P-04 Inspect Setup until then).
+
+User-type **hard branch** per the locked design:
+
+| User type    | Available modes              |
+|--------------|------------------------------|
+| MNC          | Supply Chain, None           |
+| Policy Maker | Region, None                 |
+
+No cross-type access. The defensive fallback (no `user_type` set) shows all three modes so the page stays usable if the session is in an unexpected state. Supply Chain mode reads from `demo.scopes`; Region mode reads from `demo.regions`. Preview renders a small geemap map for Supply Chain (one marker per node) and Region (centroid marker + buffer outline); None mode is text-only.
+
+The existing `pages/01_scope_setup.py` (M5b geemap-stack placeholder) is retained for now; retirement of the placeholder is a follow-up cleanup once P-02 is the canonical entry.
+
+P-02 always enters at ModePick — last scope is **not** remembered per the locked design (returning users see a fresh choice every visit). See `docs/v1x_followups.md` for the v1.x note on persisting last scope.
+
+Tests: [tests/test_p02_form.py](../tests/test_p02_form.py) (10 tests including a 4-way parametrisation) covers the hard branch — MNC sees no Region, Policy Maker sees no Supply Chain, all branches always include None as an opt-out.
+
+**M-P04-ACTIVATE shipped.** P-04 now reads `st.session_state["scope"]` and renders one of three forms:
+
+| Scope kind        | P-04 form                                                                                                                          |
+|-------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| `supply_chain`    | Scope header + node dropdown + radius slider + indicators + run. "Use free coordinates instead" escape link below.                 |
+| `region`          | Scope header + locked centroid/radius display + indicators + run. Escape link below.                                               |
+| `none` or unset   | Original three-tab form (Free Coordinates active, Region/Supplier disabled with informational text — unchanged from M-P04).        |
+
+The dispatch lives in [ui/components/p04_form.py::render_setup_form](../ui/components/p04_form.py); the existing centre/radius/indicator/run helpers are reused by the no-scope form unchanged.
+
+`centre_metadata.source` on `screening_setup` now reflects the active scope: `"P-04 supply-chain scope · <chain name>"`, `"P-04 region scope · <region>, <country>"`, or `"P-04 free coordinates"`. P-05's C1 header surfaces this attribution.
+
+The **Change scope** button in the scope-header strip routes back to P-02 with the local P-02 stage state cleared, so the user lands fresh on Mode Pick. The **Use free coordinates instead** link sets `scope.kind = "none"` (rather than clearing the key) and seeds `p04_lat` / `p04_lon` from the scoped centre, so the no-scope form opens pre-filled — useful for "I picked this region but want to nudge the location" cases.
+
+Tests: [tests/test_p04_scope_dispatch.py](../tests/test_p04_scope_dispatch.py) (7 tests) pins `_source_for_scope` for every scope kind including the defensive fallbacks (unknown `kind`, `data` is None despite a recognised `kind`).
+
+**M-P02-POLISH shipped.** Two wiring/copy fixes:
+
+- [app.py](../app.py) — every `st.switch_page` after role selection now routes to `pages/02_Scope_Setup.py` (the real P-02), not `pages/01_scope_setup.py` (the placeholder). Three call sites updated: the "Continue to scope set-up" button on the already-signed-in branch, and the post-role-pick routes for Policy Maker and MNC.
+- [ui/components/p04_form.py](../ui/components/p04_form.py) — `_render_centre_section`'s tab labels drop the "(P-02)" forward-reference suffix; the Region and Supplier disabled-tab placeholders now reflect P-02's existence and carry a "Go to Scope Setup" button that routes to P-02. The Free Coordinates tab is unchanged.
+
+The scratch page (`pages/99_engine_scratch.py`) remains accessible via the sidebar for developer use — only the default landing path changed.
+
+No new tests — pure wiring + copy. Existing tests all still pass (558).

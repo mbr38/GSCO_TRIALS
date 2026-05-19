@@ -31,7 +31,7 @@ if st.session_state.user_type is not None:
     col_continue, col_switch = st.columns(2)
     with col_continue:
         if st.button("Continue to scope set-up", type="primary", use_container_width=True):
-            st.switch_page("pages/01_scope_setup.py")
+            st.switch_page("pages/02_Scope_Setup.py")  # M-P02-POLISH
     with col_switch:
         if st.button("Sign out and start over", use_container_width=True):
             st.session_state.clear()
@@ -96,11 +96,11 @@ with col_mnc:
 # ----------------------------------------------------------------------------
 if policy_selected:
     set_user_type("policy_maker", "Policy Maker")
-    st.switch_page("pages/01_scope_setup.py")
+    st.switch_page("pages/02_Scope_Setup.py")  # M-P02-POLISH
 
 if mnc_selected:
     set_user_type("mnc", "MNC")
-    st.switch_page("pages/01_scope_setup.py")
+    st.switch_page("pages/02_Scope_Setup.py")  # M-P02-POLISH
 
 # ----------------------------------------------------------------------------
 # Footer.

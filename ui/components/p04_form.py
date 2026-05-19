@@ -36,10 +36,32 @@ _SCREENING_WINDOW_DAYS: int = 90
 # ---------------------------------------------------------------------------
 
 def render_setup_form() -> None:
-    """Compose the four form sections and the run buttons.
+    """Top-level orchestrator.
 
-    Each helper renders its own bordered container so the page reads as
-    four discrete blocks.
+    M-P04-ACTIVATE: branches on ``st.session_state["scope"]``:
+
+    - ``scope.kind == "supply_chain"`` — scope header + node dropdown.
+    - ``scope.kind == "region"``       — scope header + locked AOI.
+    - ``scope.kind == "none"`` or unset — the original three-tab form
+      (Free Coordinates active, Region/Supplier disabled).
+    """
+    scope = st.session_state.get("scope")
+    if scope is None or scope.get("kind") == "none":
+        _render_no_scope_form()
+    elif scope["kind"] == "supply_chain":
+        _render_supply_chain_scoped_form(scope["data"])
+    elif scope["kind"] == "region":
+        _render_region_scoped_form(scope["data"])
+    else:
+        # Defensive — unknown scope kind, fall through.
+        _render_no_scope_form()
+
+
+# M-P04-ACTIVATE
+def _render_no_scope_form() -> None:
+    """The original three-tab form. Free Coordinates active; Region
+    and Supplier tabs render informational placeholders. Reached when
+    no scope is set or ``scope.kind == "none"`` (ad-hoc fallback).
     """
     centre     = _render_centre_section()
     radius_km  = _render_radius_section()
@@ -54,59 +76,194 @@ def render_setup_form() -> None:
 def _render_centre_section() -> dict | None:
     """Centre-mode tabs + Free-Coordinates input.
 
-    v1: only Free Coordinates is wired. Region and Supplier tabs render
-    explanatory info because both require a ``supplyChain`` object from
-    P-02 — see v1x_followups.md.
+    Free Coordinates is the active path here. Region and Supplier
+    selection live on P-02 (Scope Setup); when scope is set, the
+    scope-aware forms render instead (see ``render_setup_form``).
+    The tabs in this no-scope fallback exist so direct-entry users
+    can still navigate to P-02 from inside P-04.
     """
     with st.container(border=True):
         st.markdown("### Location")
+        # M-P02-POLISH — drop the "(P-02)" suffix from tab labels; P-02
+        # now exists, the forward-reference label is no longer needed.
         tab_free, tab_region, tab_supplier = st.tabs(
-            ["Free coordinates", "Region (P-02)", "Supplier (P-02)"]
+            ["Free coordinates", "Region", "Supplier"]
         )
 
         centre: dict | None = None
         with tab_free:
             centre = _render_free_coordinates_tab()
         with tab_region:
+            # M-P02-POLISH — placeholder text post-P-02; offers a route
+            # to Scope Setup rather than just an apology.
             st.info(
-                "Region selection requires a loaded scope. Scope setup "
-                "(P-02) lands in a later milestone. Use **Free "
-                "coordinates** for now."
+                "Region selection is set up on the **Scope Setup** page "
+                "(P-02). You currently have no scope loaded — use "
+                "**Free coordinates** here, or go to Scope Setup to "
+                "pick a region."
             )
+            if st.button(
+                "Go to Scope Setup",
+                key="p04_noscope_to_p02_region",
+            ):
+                st.switch_page("pages/02_Scope_Setup.py")
         with tab_supplier:
+            # M-P02-POLISH — same treatment for the Supplier tab.
             st.info(
                 "Supplier selection requires a loaded supply chain. "
-                "Scope setup (P-02) lands in a later milestone."
+                "Pick one on the **Scope Setup** page (P-02), then "
+                "return here — the picker will be live. For now, use "
+                "**Free coordinates** to screen any individual location."
             )
+            if st.button(
+                "Go to Scope Setup",
+                key="p04_noscope_to_p02_supplier",
+            ):
+                st.switch_page("pages/02_Scope_Setup.py")
     return centre
 
 
 def _render_free_coordinates_tab() -> dict:
-    """Lat/lon number inputs. Defaults to São Paulo for demo continuity
-    with the scratch-page bridge.
+    """Search box + lat/lon number inputs.
+
+    M-P04-Geocode: the search box queries Nominatim and shows up to 5
+    top matches as buttons; clicking one fills the lat/lon inputs.
+    Manual lat/lon entry still works — direct edits sync back into the
+    same session-state defaults so they don't get overwritten on rerun.
     """
+    # ── Geocode search row ────────────────────────────────────
+    col_query, col_button = st.columns([4, 1])
+    with col_query:
+        query = st.text_input(
+            "Search for a location",
+            placeholder='e.g. "São Paulo, Brazil"',
+            key="p04_geocode_query",
+            label_visibility="collapsed",
+        )
+    with col_button:
+        if st.button("Search", use_container_width=True):
+            _run_geocode_search(query)
+
+    _render_geocode_results()
+
+    # ── Lat/lon inputs ────────────────────────────────────────
+    # Defaults read from session if a geocode pick set them; otherwise
+    # fall back to São Paulo for demo continuity.
+    default_lat = st.session_state.get("p04_lat", -23.5505)
+    default_lon = st.session_state.get("p04_lon", -46.6333)
+
     col_lat, col_lon = st.columns(2)
     with col_lat:
         lat = st.number_input(
             "Latitude",
             min_value=-90.0,
             max_value=90.0,
-            value=-23.5505,
+            value=default_lat,
             step=0.0001,
             format="%.4f",
             help="Decimal degrees; range −90 to 90.",
+            key="p04_lat_input",
         )
     with col_lon:
         lon = st.number_input(
             "Longitude",
             min_value=-180.0,
             max_value=180.0,
-            value=-46.6333,
+            value=default_lon,
             step=0.0001,
             format="%.4f",
             help="Decimal degrees; range −180 to 180.",
+            key="p04_lon_input",
         )
+    # Sync the latest user-edited values back into the session defaults
+    # so direct edits aren't overwritten on the next rerun.
+    st.session_state["p04_lat"] = lat
+    st.session_state["p04_lon"] = lon
+
     return {"lat": lat, "lon": lon}
+
+
+# ---------------------------------------------------------------------------
+# Geocode helpers (M-P04-Geocode)
+# ---------------------------------------------------------------------------
+
+def _run_geocode_search(query: str) -> None:
+    """Run the geocode; stash results + error in session_state.
+
+    Import the geocoder lazily so the form module doesn't pay the
+    ``requests`` import cost on every P-04 render — only when the user
+    actually hits Search.
+    """
+    from ui.components.geocoder import GeocodingError, geocode
+
+    st.session_state.pop("p04_geocode_results", None)
+    st.session_state.pop("p04_geocode_error",   None)
+
+    if not query.strip():
+        st.session_state["p04_geocode_error"] = "Please enter a place name."
+        return
+
+    with st.spinner("Searching…"):
+        try:
+            results = geocode(query)
+        except GeocodingError as exc:
+            st.session_state["p04_geocode_error"] = (
+                f"Geocoding service unavailable: {exc}. "
+                f"You can still enter lat/lon directly below."
+            )
+            return
+
+    if not results:
+        st.session_state["p04_geocode_error"] = (
+            f"No matches found for '{query}'. Try a different query."
+        )
+        return
+
+    st.session_state["p04_geocode_results"] = results
+
+
+def _render_geocode_results() -> None:
+    """Render the pending error message or the result button list."""
+    error = st.session_state.get("p04_geocode_error")
+    if error:
+        st.info(error)
+        return
+
+    results = st.session_state.get("p04_geocode_results", [])
+    if not results:
+        return
+
+    n = len(results)
+    st.caption(f"Top {n} match{'es' if n != 1 else ''}. Click to use.")
+    for i, result in enumerate(results):
+        col_button, col_coords = st.columns([4, 2])
+        with col_button:
+            if st.button(
+                result.display_name,
+                key=f"p04_geocode_pick_{i}",
+                use_container_width=True,
+            ):
+                _apply_geocode_pick(result)
+        with col_coords:
+            st.caption(f"{result.lat:.4f}, {result.lon:.4f}")
+
+
+def _apply_geocode_pick(result) -> None:
+    """Apply a picked geocode result to the lat/lon defaults.
+
+    Pops the lat/lon widget keys so Streamlit re-reads ``value=`` on the
+    next rerun rather than restoring the user's previous manual entry —
+    same widget-key-refresh pattern the indicator reset uses (M-P04
+    polish-2). Also clears the results list and search query so the
+    picked location is unambiguously the active one.
+    """
+    st.session_state["p04_lat"] = result.lat
+    st.session_state["p04_lon"] = result.lon
+    st.session_state.pop("p04_geocode_results", None)
+    st.session_state.pop("p04_geocode_query",   None)
+    st.session_state.pop("p04_lat_input",       None)
+    st.session_state.pop("p04_lon_input",       None)
+    st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -287,21 +444,204 @@ def _render_run_section(
             )
 
 
+# ---------------------------------------------------------------------------
+# M-P04-ACTIVATE — scope-aware forms
+# ---------------------------------------------------------------------------
+
+def _render_scope_header(label: str, sublabel: str) -> None:
+    """Header strip showing the loaded scope + a "Change scope" link.
+
+    Rendered at the top of the supply-chain and region scoped forms.
+    The link routes back to P-02 and clears its local stage state so
+    the user lands on a fresh Mode Pick.
+    """
+    with st.container(border=True):
+        col_meta, col_change = st.columns([4, 1])
+        with col_meta:
+            st.markdown(f"### {label}")
+            st.caption(sublabel)
+        with col_change:
+            if st.button(
+                "Change scope",
+                use_container_width=True,
+                help="Pick a different scope on the Scope Setup page (P-02).",
+            ):
+                st.session_state.pop("p02_stage",         None)
+                st.session_state.pop("p02_pending_scope", None)
+                st.switch_page("pages/02_Scope_Setup.py")
+
+
+def _render_supply_chain_scoped_form(chain) -> None:
+    """P-04 form for a Supply Chain scope: header → node picker →
+    radius slider → indicators → run. Ad-hoc escape link below.
+    """
+    _render_scope_header(
+        label=chain.name,
+        sublabel=(
+            f"{chain.industry} · {len(chain.nodes)} nodes · {chain.country}"
+        ),
+    )
+
+    centre = _render_node_picker(chain)
+    if centre is None:
+        return
+
+    radius_km  = _render_radius_section()
+    indicators = _render_indicator_section()
+    _render_run_section(centre, radius_km, indicators)
+    _render_ad_hoc_link(centre)
+
+
+def _render_node_picker(chain) -> dict | None:
+    """Dropdown of nodes in the loaded chain. Returns the picked
+    node's ``{lat, lon}``, or ``None`` if the chain is empty
+    (defensive — shouldn't happen with curated demo data).
+    """
+    if not chain.nodes:
+        st.error(
+            "This supply chain has no nodes. Change scope or use free "
+            "coordinates instead."
+        )
+        return None
+
+    with st.container(border=True):
+        st.markdown("### Node")
+        labels = [f"{n.name} ({n.tier})" for n in chain.nodes]
+        pick_idx = st.selectbox(
+            "Pick a node to screen",
+            options=range(len(chain.nodes)),
+            format_func=lambda i: labels[i],
+            key="p04_node_pick",
+        )
+        node = chain.nodes[pick_idx]
+        st.caption(
+            f"Coordinates: ({node.lat:.4f}, {node.lon:.4f})"
+            + (f" · {node.notes}" if node.notes else "")
+        )
+    return {"lat": node.lat, "lon": node.lon}
+
+
+def _render_region_scoped_form(region) -> None:
+    """P-04 form for a Region scope: header → locked centroid/radius
+    display → indicators → run. Ad-hoc escape link below.
+
+    The radius is dictated by the region polygon and not user-adjustable
+    — that's the whole point of the Region mode. The "Use free coords"
+    link is the override path for users who want a tighter buffer.
+    """
+    _render_scope_header(
+        label=f"{region.name}, {region.country}",
+        sublabel=(
+            f"Centroid: ({region.centroid_lat:.4f}, "
+            f"{region.centroid_lon:.4f})"
+        ),
+    )
+
+    _render_locked_region_aoi(region)
+    centre    = {"lat": region.centroid_lat, "lon": region.centroid_lon}
+    radius_km = region.radius_km
+
+    indicators = _render_indicator_section()
+    _render_run_section(centre, radius_km, indicators)
+    _render_ad_hoc_link(centre)
+
+
+def _render_locked_region_aoi(region) -> None:
+    """Read-only display of the region's centroid + buffer."""
+    with st.container(border=True):
+        st.markdown("### Screening area")
+        col_centroid, col_radius = st.columns(2)
+        with col_centroid:
+            st.metric(
+                "Centroid",
+                f"{region.centroid_lat:.4f}, {region.centroid_lon:.4f}",
+            )
+        with col_radius:
+            st.metric(
+                "Buffer",
+                f"{region.radius_km} km",
+                delta=("capped" if region.is_capped else None),
+                delta_color="off",
+            )
+        if region.is_capped:
+            st.caption(
+                f"This region's natural radius is "
+                f"{region.natural_radius_km} km — larger than the "
+                f"{region.radius_km} km representative-buffer cap. "
+                f"The screening covers a representative portion centred "
+                f"on the centroid."
+            )
+        else:
+            st.caption(
+                "The buffer is sized to match the region's area; "
+                "screening covers the whole region."
+            )
+
+
+def _render_ad_hoc_link(centre: dict) -> None:
+    """Below-scope link to fall back to the no-scope (three-tab) form.
+
+    Sets ``scope.kind = "none"`` explicitly (rather than clearing the
+    key) so the user lands consistently in no-scope mode on subsequent
+    P-04 visits within the same session. Seeds ``p04_lat`` / ``p04_lon``
+    so the free-coords form opens pre-filled with the current centre.
+    """
+    st.write("")
+    if st.button(
+        "Use free coordinates instead",
+        help=(
+            "Drop the scope binding and edit lat/lon freely. The current "
+            "centre will be pre-filled."
+        ),
+    ):
+        st.session_state["p04_lat"] = centre["lat"]
+        st.session_state["p04_lon"] = centre["lon"]
+        st.session_state["scope"]   = {"kind": "none", "data": None}
+        st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Run commit
+# ---------------------------------------------------------------------------
+
+def _source_for_scope(scope: dict | None) -> str:
+    """Build the ``centre_metadata.source`` string from the active scope.
+
+    P-05's C1 header surfaces this; making it scope-aware means the
+    result page reads e.g. "Source: P-04 region scope · Pará, Brazil"
+    instead of a generic label.
+    """
+    if scope is None or scope.get("kind") == "none":
+        return "P-04 free coordinates"
+    kind = scope.get("kind")
+    data = scope.get("data")
+    if kind == "supply_chain" and data is not None:
+        return f"P-04 supply-chain scope · {data.name}"
+    if kind == "region" and data is not None:
+        return f"P-04 region scope · {data.name}, {data.country}"
+    return "P-04 setup"
+
+
 def _commit_and_navigate(
     centre:     dict,
     radius_km:  int,
     indicators: set[str],
 ) -> None:
-    """Write ``screening_setup`` in the shape P-05 reads, then navigate."""
+    """Write ``screening_setup`` in the shape P-05 reads, then navigate.
+
+    M-P04-ACTIVATE: ``centre_metadata.source`` reflects the active
+    scope rather than a generic label.
+    """
     today = date.today()
     start = today - timedelta(days=_SCREENING_WINDOW_DAYS)
+    source = _source_for_scope(st.session_state.get("scope"))
     st.session_state["screening_setup"] = {
         "centre":          centre,
         "radius_km":       radius_km,
         "time_range":      [start.isoformat(), today.isoformat()],
         "indicators":      sorted(indicators),
         "mode":            "screening",
-        "centre_metadata": {"source": "P-04 setup"},
+        "centre_metadata": {"source": source},
     }
     # Drop any leftover P-05 page_state so the screening re-enters
     # S1_Computing with a fresh run_id.

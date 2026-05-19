@@ -1,0 +1,69 @@
+{
+  "id":       "steel_minas_gerais",
+  "name":     "Iron & Steel — Minas Gerais",
+  "industry": "Steel and iron processing",
+  "country":  "Brazil",
+  "nodes": [
+    {
+      "id":    "steel_mg_01",
+      "name":  "Ipatinga Integrated Steelworks (demo)",
+      "tier":  "Tier 1",
+      "lat":   -19.4675,
+      "lon":   -42.5364,
+      "notes": "Large integrated steel plant; expected high NO₂/SO₂."
+    },
+    {
+      "id":    "steel_mg_02",
+      "name":  "Belo Horizonte Forge (demo)",
+      "tier":  "Tier 1",
+      "lat":   -19.9167,
+      "lon":   -43.9345,
+      "notes": "Urban-adjacent forge; mixed industrial + urban signal."
+    },
+    {
+      "id":    "steel_mg_03",
+      "name":  "Itabira Iron Ore Mine (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -19.6175,
+      "lon":   -43.2261,
+      "notes": "Open-pit iron ore mine; expected habitat conversion signal."
+    },
+    {
+      "id":    "steel_mg_04",
+      "name":  "Ouro Preto Smelter (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -20.3856,
+      "lon":   -43.5036
+    },
+    {
+      "id":    "steel_mg_05",
+      "name":  "Sete Lagoas Pig Iron (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -19.4669,
+      "lon":   -44.2467,
+      "notes": "Charcoal-based pig iron; expected combustion proxy signal."
+    },
+    {
+      "id":   "steel_mg_06",
+      "name": "Juiz de Fora Rolling Mill (demo)",
+      "tier": "Tier 1",
+      "lat":  -21.7642,
+      "lon":  -43.3500
+    },
+    {
+      "id":    "steel_mg_07",
+      "name":  "Uberlândia Distribution (demo)",
+      "tier":  "Tier 1 (downstream)",
+      "lat":   -18.9186,
+      "lon":   -48.2772,
+      "notes": "Distribution hub; expected low environmental signal."
+    },
+    {
+      "id":   "steel_mg_08",
+      "name": "Montes Claros Service Centre (demo)",
+      "tier": "Tier 1 (downstream)",
+      "lat":  -16.7349,
+      "lon":  -43.8617
+    }
+  ]
+}

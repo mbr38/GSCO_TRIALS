@@ -1,0 +1,83 @@
+{
+  "id":       "soy_para_mato_grosso",
+  "name":     "Soy & Cattle — Pará / Mato Grosso",
+  "industry": "Soy and cattle agriculture",
+  "country":  "Brazil",
+  "nodes": [
+    {
+      "id":    "soy_01",
+      "name":  "Sinop Soy Hub (demo)",
+      "tier":  "Tier 1",
+      "lat":   -11.8606,
+      "lon":   -55.5097,
+      "notes": "Major soy storage / processing hub; expected habitat-conversion signal in surrounding 50km."
+    },
+    {
+      "id":   "soy_02",
+      "name": "Sorriso Cooperative (demo)",
+      "tier": "Tier 2 (upstream)",
+      "lat":  -12.5453,
+      "lon":  -55.7211
+    },
+    {
+      "id":   "soy_03",
+      "name": "Lucas do Rio Verde Mill (demo)",
+      "tier": "Tier 1",
+      "lat":  -13.0561,
+      "lon":  -55.9069
+    },
+    {
+      "id":    "soy_04",
+      "name":  "Sapezal Plantation (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -13.5417,
+      "lon":   -58.7642,
+      "notes": "Deep-frontier plantation; high deforestation risk."
+    },
+    {
+      "id":    "soy_05",
+      "name":  "Novo Progresso Ranch (demo)",
+      "tier":  "Tier 2 (upstream)",
+      "lat":   -7.1469,
+      "lon":   -55.3789,
+      "notes": "Pará-side cattle ranch; near Amazon biome boundary."
+    },
+    {
+      "id":    "soy_06",
+      "name":  "Santarém Export Terminal (demo)",
+      "tier":  "Tier 1 (downstream)",
+      "lat":   -2.4431,
+      "lon":   -54.7083,
+      "notes": "Amazon-river export hub; mixed industrial + ecologically sensitive."
+    },
+    {
+      "id":   "soy_07",
+      "name": "Cuiabá Distribution Centre (demo)",
+      "tier": "Tier 1",
+      "lat":  -15.6014,
+      "lon":  -56.0978
+    },
+    {
+      "id":   "soy_08",
+      "name": "Querência Cattle Feedlot (demo)",
+      "tier": "Tier 2 (upstream)",
+      "lat":  -12.6092,
+      "lon":  -52.1819
+    },
+    {
+      "id":    "soy_09",
+      "name":  "Altamira Frontier Farm (demo)",
+      "tier":  "Tier 3 (deep upstream)",
+      "lat":   -3.2032,
+      "lon":   -52.2069,
+      "notes": "Far-frontier farm; KBA proximity expected."
+    },
+    {
+      "id":   "soy_10",
+      "name": "Vilhena Logistics Hub (demo)",
+      "tier": "Tier 1 (downstream)",
+      "lat":  -12.7406,
+      "lon":  -60.1458
+    }
+  ]
+}
