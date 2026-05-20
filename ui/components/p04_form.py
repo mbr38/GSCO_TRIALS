@@ -493,9 +493,13 @@ def _render_supply_chain_scoped_form(chain) -> None:
 
 
 def _render_node_picker(chain) -> dict | None:
-    """Dropdown of nodes in the loaded chain. Returns the picked
-    node's ``{lat, lon}``, or ``None`` if the chain is empty
+    """Dropdown of nodes in the loaded chain. Returns the picked node's
+    ``{lat, lon, node_id, node_name}``, or ``None`` if the chain is empty
     (defensive — shouldn't happen with curated demo data).
+
+    M-P10-POLISH: also exposes ``node_id`` and ``node_name`` so the run
+    commit can stash them on ``centre_metadata`` for the save-name
+    builder to read.
     """
     if not chain.nodes:
         st.error(
@@ -518,7 +522,12 @@ def _render_node_picker(chain) -> dict | None:
             f"Coordinates: ({node.lat:.4f}, {node.lon:.4f})"
             + (f" · {node.notes}" if node.notes else "")
         )
-    return {"lat": node.lat, "lon": node.lon}
+    return {
+        "lat":       node.lat,
+        "lon":       node.lon,
+        "node_id":   node.id,    # M-P10-POLISH
+        "node_name": node.name,  # M-P10-POLISH
+    }
 
 
 def _render_region_scoped_form(region) -> None:
@@ -629,19 +638,39 @@ def _commit_and_navigate(
 ) -> None:
     """Write ``screening_setup`` in the shape P-05 reads, then navigate.
 
-    M-P04-ACTIVATE: ``centre_metadata.source`` reflects the active
-    scope rather than a generic label.
+    M-P04-ACTIVATE: ``centre_metadata.source`` reflects the active scope.
+    M-P10-POLISH: scope-specific identifiers (node id/name, region
+    name/country) thread into ``centre_metadata`` so the save-name
+    builder can produce human-readable names. The ``centre`` field
+    itself stays clean as ``{lat, lon}``.
     """
     today = date.today()
     start = today - timedelta(days=_SCREENING_WINDOW_DAYS)
-    source = _source_for_scope(st.session_state.get("scope"))
+    scope = st.session_state.get("scope")
+    source = _source_for_scope(scope)
+
+    centre_metadata: dict = {"source": source}
+    # M-P10-POLISH — supply-chain saves carry node_id + node_name.
+    if "node_id" in centre or "node_name" in centre:
+        centre_metadata["node_id"]   = centre.get("node_id")
+        centre_metadata["node_name"] = centre.get("node_name")
+    # M-P10-POLISH — region saves carry region_name + country.
+    if scope is not None and scope.get("kind") == "region":
+        region = scope.get("data")
+        if region is not None:
+            centre_metadata["region_name"] = region.name
+            centre_metadata["country"]     = region.country
+
     st.session_state["screening_setup"] = {
-        "centre":          centre,
+        # Strip auxiliary fields from centre so it stays {lat, lon} —
+        # downstream code (P-05 C1 header, engine ScreeningRun) keys on
+        # the clean shape.
+        "centre":          {"lat": centre["lat"], "lon": centre["lon"]},
         "radius_km":       radius_km,
         "time_range":      [start.isoformat(), today.isoformat()],
         "indicators":      sorted(indicators),
         "mode":            "screening",
-        "centre_metadata": {"source": source},
+        "centre_metadata": centre_metadata,
     }
     # Drop any leftover P-05 page_state so the screening re-enters
     # S1_Computing with a fresh run_id.

@@ -482,17 +482,18 @@ class TestNatureFollowupPriority:
         )
         assert out["nature.followup_priority"] == pytest.approx(expected)
 
-    def test_renormalises_when_quality_attribution_missing(self) -> None:
-        # Drop quality (0.15) → renormalise over surviving 0.85.
+    def test_returns_none_when_quality_attribution_missing(self) -> None:
+        """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
+        None. The prior renormalise-over-survivors behaviour produced
+        Rio's misleading 0.858 priority from quality_attribution alone
+        when biodiversity/habitat/vegetation were all None."""
         payload = {
             "nature.biodiversity_exposure":      0.7,
             "nature.habitat.conversion_score":   0.6,
             "nature.vegetation_condition":       0.5,
         }
         out = compute_nature_followup_priority(payload, mode="screening")
-        denom = 0.30 + 0.30 + 0.25
-        expected = (0.30 * 0.7 + 0.30 * 0.6 + 0.25 * 0.5) / denom
-        assert out["nature.followup_priority"] == pytest.approx(expected)
+        assert out["nature.followup_priority"] is None
 
     def test_returns_none_when_all_terms_missing(self) -> None:
         out = compute_nature_followup_priority({}, mode="screening")
@@ -713,8 +714,12 @@ class TestRunPillarPartialFailure:
         # But biodiversity_exposure still computable from KBA + DW + water exposure.
         assert result["nature.biodiversity_exposure"] is not None
 
-        # Pillar followup still computes from the non-NDVI aggregates.
-        assert result["nature.followup_priority"] is not None
+        # M-FOLLOWUP-FALLBACK: Nature priority is now strict-None — any
+        # missing sub-aggregate (vegetation_condition here) takes the
+        # whole priority to None. Avoids the misleading "high priority"
+        # headlines that the old renormalise-over-survivors path
+        # produced when only one of four sub-aggregates was populated.
+        assert result["nature.followup_priority"] is None
 
         # _failures lists NDVI.
         assert "_failures" in result

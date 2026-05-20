@@ -6,6 +6,7 @@ Run with: streamlit run app.py
 
 import streamlit as st
 
+from demo.saved_analyses import seed_saved_analyses
 from utils.state import init_session, set_user_type
 
 # ----------------------------------------------------------------------------
@@ -20,6 +21,10 @@ st.set_page_config(
 
 # Initialise session state on first run.
 init_session()
+
+# M-P10 — seed demo saves on cold session entry. Idempotent; no-op once
+# the list has any entries (whether seeded or user-added).
+seed_saved_analyses(st.session_state)
 
 # ----------------------------------------------------------------------------
 # If a user type is already set (e.g. user came back), offer to continue.

@@ -63,7 +63,11 @@ from engine.constants import (
     VOC_PHOTOCHEMICAL_WEIGHTS,
 )
 from engine.core import build_provenance, six_step
-from engine.exceptions import IndicatorComputeError, PillarComputeError
+from engine.exceptions import (
+    BackgroundRingNoDataError,
+    IndicatorComputeError,
+    PillarComputeError,
+)
 from engine.ids import AIR_SUB_AGGREGATES, PILLAR_AIR, make_id
 
 
@@ -372,6 +376,45 @@ def _air_extra(pollutant: str) -> dict:
     return {}
 
 
+# M-OCEAN-RING
+def _emit_skipped_air_result(
+    pollutant: str,
+    *,
+    time_range: tuple[str, str],
+    skipped_reason: str,
+    reason_detail: str,
+) -> dict:
+    """Build the canonical 'pollutant skipped' payload.
+
+    Mirrors the M5.5c ODIAC out-of-coverage and M-NATURE-DEFENSIVE
+    no_dw_pixels patterns: every emitted measurement is set to None and
+    the provenance block carries the machine-readable ``skipped_reason``
+    so C9 (partial banner) and C4b (failed tile) can render the cause.
+
+    Pollutant snapshots aren't appended to ``_failures`` — silent-skip is
+    a coverage statement ("no data here"), not a compute failure.
+    """
+    cfg = AIR_POLLUTANT_CONFIG[pollutant]
+    result: dict = {
+        make_id(PILLAR_AIR, pollutant, m): None for m in _MEASUREMENT_KEYS
+    }
+    base_note = _air_method_note(pollutant) or "IC §0.2 six-step pipeline"
+    method_note = f"{base_note}; skipped ({reason_detail})"
+    result[f"_provenance.air.{pollutant}"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band=cfg.band,
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note=method_note,
+        skipped_reason=skipped_reason,
+        observations={"count": 0, "unit": "daily_images"},
+        extra=_air_extra(pollutant),
+    )
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Aggregation helpers
 # ---------------------------------------------------------------------------
@@ -628,27 +671,28 @@ def compute_attribution_confidence_score(
 
 def compute_air_audit_followup_priority(
     payload: dict,
-    mode: str,
+    mode: str,                                          # noqa: ARG001 — parity
 ) -> dict:
-    """IC_v4 §1.3 — weighted sum per AIR_FOLLOWUP_WEIGHTS over the four pillar
-    aggregates. Missing terms are skipped and weights renormalised over the
-    surviving set.
+    """IC_v4 §1.3 — weighted sum per AIR_FOLLOWUP_WEIGHTS over the four
+    pillar aggregates.
 
     `mode` is accepted for signature stability; mode-dependent behaviour
-    lives upstream in `compute_trend_score` (which returns 0.0 in screening
-    and the real trend mean in trend mode).
+    lives upstream in `compute_trend_score` (which returns 0.0 in
+    screening — a known v1 zero, not a missing value).
+
+    M-FOLLOWUP-FALLBACK: strict-None propagation. If any sub-aggregate
+    is None, the priority is None. The prior renormalise-over-survivors
+    pattern produced misleading "high priority" headlines from a single
+    surviving input when the rest had silently failed (e.g. coastal
+    AOIs where every pollutant tripped the background-ring skip).
     """
-    candidates: dict[str, float] = {}
+    values: list[float] = []
     for term in AIR_FOLLOWUP_WEIGHTS:
-        value = payload.get(_FOLLOWUP_TERM_TO_ID[term])
-        if value is None:
-            continue
-        candidates[term] = value
-    if not candidates:
-        return {"air.audit_followup_priority": None}
-    weights = _renormalise_weights(AIR_FOLLOWUP_WEIGHTS, set(candidates.keys()))
-    score = sum(weights[term] * candidates[term] for term in candidates)
-    return {"air.audit_followup_priority": score}
+        v = payload.get(_FOLLOWUP_TERM_TO_ID[term])
+        if v is None:
+            return {"air.audit_followup_priority": None}
+        values.append(AIR_FOLLOWUP_WEIGHTS[term] * v)
+    return {"air.audit_followup_priority": sum(values)}
 
 
 # ---------------------------------------------------------------------------
@@ -697,6 +741,17 @@ def run_pillar(
                 mode=mode,
                 ee_client=ee_client,
             )
+        # M-OCEAN-RING: ring-over-water is a silent-skip path, not a
+        # failure — surfaces in C9 / C4b with an actionable explanation
+        # instead of bubbling up as a pillar-wide compute failure when
+        # every coastal-AOI pollutant trips it simultaneously.
+        except BackgroundRingNoDataError as err:
+            payload.update(_emit_skipped_air_result(
+                pol_key,
+                time_range=time_range,
+                skipped_reason="background_ring_no_data",
+                reason_detail=err.reason,
+            ))
         except IndicatorComputeError as err:
             for measurement in _MEASUREMENT_KEYS:
                 payload[make_id(PILLAR_AIR, pol_key, measurement)] = None

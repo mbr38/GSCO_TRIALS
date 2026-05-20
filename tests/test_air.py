@@ -478,12 +478,15 @@ class TestTrendScoreModeHandling:
 
 
 # ---------------------------------------------------------------------------
-# compute_air_audit_followup_priority — renormalisation on missing terms
+# compute_air_audit_followup_priority — strict-None propagation
+# (M-FOLLOWUP-FALLBACK)
 # ---------------------------------------------------------------------------
 
 class TestAirAuditFollowupPartialMissing:
-    def test_renormalises_when_trend_aggregate_missing(self) -> None:
-        # Trend missing (None) → drop the 0.20 weight, renormalise the rest.
+    def test_returns_none_when_trend_aggregate_missing(self) -> None:
+        """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
+        None. The prior renormalise-over-survivors behaviour produced
+        misleading headlines when most inputs had silently failed."""
         payload = {
             "air.pollution_proxy_score":          0.5,
             "air.spatiotemporal_anomaly_score":   0.4,
@@ -491,9 +494,7 @@ class TestAirAuditFollowupPartialMissing:
             "air.attribution_confidence_score":   0.7,
         }
         out = compute_air_audit_followup_priority(payload, mode="trend")
-        # Surviving weights: proxy=0.35, anomaly=0.30, confidence=0.15, sum=0.80
-        expected = (0.35 * 0.5 + 0.30 * 0.4 + 0.15 * 0.7) / 0.80
-        assert out["air.audit_followup_priority"] == pytest.approx(expected)
+        assert out["air.audit_followup_priority"] is None
 
     def test_returns_none_when_all_inputs_missing(self) -> None:
         out = compute_air_audit_followup_priority(payload={}, mode="screening")

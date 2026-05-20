@@ -481,12 +481,16 @@ class TestCh4ContextAdjusted:
 
 
 # ---------------------------------------------------------------------------
-# 5. compute_ghg_audit_followup_priority — partial-missing renormalisation
+# 5. compute_ghg_audit_followup_priority — strict-None propagation
+# (M-FOLLOWUP-FALLBACK)
 # ---------------------------------------------------------------------------
 
 class TestAuditFollowupPartialMissing:
-    def test_renormalises_when_trend_aggregate_missing(self) -> None:
-        # Trend missing (None) → drop the 0.20 weight, renormalise the rest.
+    def test_returns_none_when_trend_aggregate_missing(self) -> None:
+        """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
+        None. The prior renormalise-over-survivors behaviour silently
+        rebalanced the formula and produced misleading scores when
+        upstream signals had failed."""
         payload = {
             "ghg.core_audit_support":          0.50,
             "ghg.spatiotemporal_anomaly":      0.40,
@@ -494,9 +498,7 @@ class TestAuditFollowupPartialMissing:
             "ghg.data_quality_attribution":    0.70,
         }
         out = compute_ghg_audit_followup_priority(payload, mode="trend")
-        # Surviving weights: core=0.40, anomaly=0.25, quality=0.15, sum=0.80.
-        expected = (0.40 * 0.50 + 0.25 * 0.40 + 0.15 * 0.70) / 0.80
-        assert out["ghg.audit_followup_priority"] == pytest.approx(expected)
+        assert out["ghg.audit_followup_priority"] is None
 
     def test_returns_none_when_all_inputs_missing(self) -> None:
         out = compute_ghg_audit_followup_priority({}, mode="screening")

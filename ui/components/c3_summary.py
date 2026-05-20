@@ -68,14 +68,24 @@ def _render_chip(chip_key: str, payload: dict) -> None:
     The fill bar uses inline HTML because Streamlit's progress widget
     doesn't accept colour overrides. The band label always renders as
     text next to the colour bar per Appendix C.4.
+
+    M-FOLLOWUP-FALLBACK: when the score is None, route to the
+    no-data variant. The band would otherwise read "—" — technically
+    correct but less informative than an explicit "No data" affordance
+    paired with a grey fill bar and the appropriate confidence dot.
     """
     priority_key, confidence_key = _CHIP_KEYS[chip_key]
     score = payload.get(priority_key)
     confidence = payload.get(confidence_key)
-    band = band_for_score(score)
     label = _PILLAR_DISPLAY[chip_key]
-    score_str = f"{score:.2f}" if score is not None else "—"
-    fill_pct = int((score or 0) * 100)
+
+    if score is None:
+        _render_no_data_chip(label, confidence)
+        return
+
+    band = band_for_score(score)
+    score_str = f"{score:.2f}"
+    fill_pct = int(score * 100)
     colour = band_colour(band)
     glyph = confidence_glyph(confidence)
 
@@ -95,6 +105,41 @@ def _render_chip(chip_key: str, payload: dict) -> None:
         st.markdown(
             f"<span style='font-size:0.85em;color:#6b7280;'>"
             f"{band_label(band)}</span>"
+            f"<span style='float:right;font-size:1.1em;'>{glyph}</span>",
+            unsafe_allow_html=True,
+        )
+
+
+# M-FOLLOWUP-FALLBACK
+def _render_no_data_chip(label: str, confidence: float | None) -> None:
+    """Render the "no data" variant of a chip.
+
+    Triggered when the pillar's follow-up priority is None — typically
+    when strict-None propagation in the engine flagged a real upstream
+    failure (skipped indicator, background ring over water, etc.) and
+    refused to fall back to one surviving sub-aggregate. The chip's
+    score slot reads ``—``, the fill bar is fully grey, and the band
+    label is ``"No data"`` so the affordance is unambiguous.
+
+    The confidence dot still renders if a confidence value is present —
+    some pillars produce a confidence aggregate even when the headline
+    priority is None (it's derived from a different sub-aggregate).
+    """
+    glyph = confidence_glyph(confidence)
+    with st.container(border=True):
+        st.markdown(
+            f"**{label}** &nbsp;&nbsp; "
+            f"<span style='float:right;'>—</span>",
+            unsafe_allow_html=True,
+        )
+        # Empty fill bar — grey rail, no coloured slice.
+        st.markdown(
+            "<div style='background:#e5e7eb;height:8px;"
+            "border-radius:4px;overflow:hidden;margin:6px 0;'></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<span style='font-size:0.85em;color:#6b7280;'>No data</span>"
             f"<span style='float:right;font-size:1.1em;'>{glyph}</span>",
             unsafe_allow_html=True,
         )

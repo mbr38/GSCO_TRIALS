@@ -53,6 +53,38 @@ _SKIPPED_REASON_PROSE: dict[str, str] = {
         "Data source's coverage window does not include the "
         "requested time range."
     ),
+    # M-NATURE-DEFENSIVE — empty-result skip codes emitted by
+    # engine.nature reducers when an EE reduction returns no usable
+    # pixels. The Air-side ``no_cams_pixels`` code is registered for
+    # parity even though Air's reducers currently route through
+    # ``six_step`` (which raises ``IndicatorComputeError`` instead); the
+    # entry future-proofs the UI against later defensive guards in
+    # ``engine.air``.
+    "no_dw_pixels": (
+        "Dynamic World had no usable imagery for this AOI in the "
+        "screening window — likely high cloud cover or no Sentinel-2 "
+        "acquisitions."
+    ),
+    "no_hansen_pixels": (
+        "Hansen forest-loss data has no coverage for this AOI."
+    ),
+    "no_modis_pixels": (
+        "MODIS NDVI had no usable imagery for this AOI in the "
+        "screening window."
+    ),
+    "no_cams_pixels": (
+        "CAMS atmospheric data had no usable pixels for this AOI in "
+        "the screening window."
+    ),
+    # M-OCEAN-RING — emitted by engine.core.repeatable_core.background_value
+    # when the §0.2 background ring reduces to no usable pixels. Typical
+    # cause: coastal AOIs whose ring lands over water (e.g. Rio de
+    # Janeiro state at 281 km buffer → 562 km ring, largely Atlantic).
+    "background_ring_no_data": (
+        "Background ring (outside the AOI buffer) had no usable data — "
+        "likely because the ring extends over water or outside the data "
+        "source's coverage."
+    ),
 }
 
 # Stable display order so the banner reads air → ghg → nature.

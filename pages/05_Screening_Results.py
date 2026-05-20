@@ -54,6 +54,7 @@ from ui.components.c7_verbal_summary import render_c7_verbal_summary
 from ui.components.c8_action_bar import render_c8_action_bar
 from ui.components.c9_partial_banner import render_c9_partial_banner
 from ui.components.indicator_detail import render_indicator_detail
+from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS  # M-HIDE-SUMMARY
 from ui.components.persistent_nav import render_persistent_nav
 from ui.page_state import PageState, classify_result
 
@@ -219,7 +220,14 @@ def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     render_c4b_kpi_grid(result, selected)
     render_c5_drilldowns(result)
     render_c6_confidence_panel(result)
-    render_c7_verbal_summary(result)
+    # M-HIDE-SUMMARY: only render C7 when the user ran the full canonical
+    # indicator set. Subsets break the verbal summary templates'
+    # breadth-of-coverage assumptions ("across the monitored pollutants"
+    # is misleading when most weren't actually selected). Set equality —
+    # not just count — guards against the edge case of 19 non-canonical
+    # IDs or the canonical set growing in a later milestone.
+    if selected == set(ALL_INDICATOR_IDS):
+        render_c7_verbal_summary(result)
     render_c8_action_bar(result)
 
     with st.expander("Debug: raw payload"):

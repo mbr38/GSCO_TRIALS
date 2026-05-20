@@ -232,6 +232,49 @@ _SINGLE_VALUE_INDICATORS: tuple[str, ...] = tuple(NATURE_INDICATOR_CONFIG.keys()
 
 
 # ---------------------------------------------------------------------------
+# Defensive empty-result helper  (M-NATURE-DEFENSIVE)
+# ---------------------------------------------------------------------------
+
+def _emit_skipped_nature_result(
+    ind_key: str,
+    *,
+    band: str | None,
+    time_range: tuple[str, str],
+    skipped_reason: str,
+    method_note: str,
+    observation_unit: str,
+    extra: dict | None = None,
+) -> dict:
+    """Build the canonical 'indicator skipped' payload for a Nature reducer.
+
+    Mirrors the M5.5c out-of-coverage pattern used by ODIAC's silent-skip
+    in ``engine.ghg``: every emitted canonical ID is set to ``None`` and
+    the provenance block carries ``skipped_reason`` so C9 (partial banner)
+    and C4b (failed tile) can render the cause without the engine raising.
+
+    The reducer's call site (DW landcover, Hansen forest-loss, etc.) picks
+    the right ``ind_key`` and ``skipped_reason``; ``observation_unit`` is
+    declared per-asset so the provenance's ``observations`` field stays
+    interpretable on the skipped path.
+    """
+    cfg = NATURE_INDICATOR_CONFIG[ind_key]
+    result: dict = {key: None for key in cfg.emitted_keys}
+    result[f"_provenance.nature.{ind_key}"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band=band,
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note=method_note,
+        skipped_reason=skipped_reason,
+        observations={"count": 0, "unit": observation_unit},
+        extra=extra or {},
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -458,9 +501,14 @@ def compute_current_land_cover(
     # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
     scale_m = adaptive_scale_m(geom, cfg.scale_m)
 
-    # `label` is the per-pixel mode class index (0-8). frequencyHistogram
-    # returns {class_index_str: pixel_count} which we map to slugs below.
-    histogram = (
+    # M-NATURE-DEFENSIVE: materialise the full reduction dict client-side
+    # before keying into it. The previous ``.get("label").getInfo()`` chain
+    # threw ``Dictionary.get: Dictionary does not contain key: 'label'``
+    # server-side when the AOI had zero usable DW scenes (e.g. Altamira
+    # Frontier Farm — remote rainforest, high cloud cover in the recent
+    # 90-day window). Materialising first lets Python's ``.get`` return
+    # None safely and route through the canonical skipped-result path.
+    reduction = (
         ic.select("label")
         .mode()
         .reduceRegion(
@@ -470,14 +518,23 @@ def compute_current_land_cover(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        .get("label")
         .getInfo()
     )
+    histogram = (reduction or {}).get("label")
 
     if not histogram:
-        raise IndicatorComputeError(
-            indicator_id="nature.dw",
-            reason="Dynamic World buffer has no valid pixels in time_range",
+        return _emit_skipped_nature_result(
+            "dw",
+            band="label",
+            time_range=time_range,
+            skipped_reason="no_dw_pixels",
+            method_note=(
+                "DW 90-day mode composite; class fractions via frequencyHistogram; "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}; "
+                "skipped (no usable DW pixels in window)"
+            ),
+            observation_unit="daily_images",
+            extra={"composite_window_days": DW_COMPOSITE_WINDOW_DAYS},
         )
 
     counts = _normalise_dw_histogram(histogram)
@@ -614,6 +671,30 @@ def compute_habitat_conversion(
         cfg.asset_id, geom, (baseline_start, baseline_end), scale_m=scale_m,
     )
 
+    # M-NATURE-DEFENSIVE: either composite returning empty makes the
+    # natural→non-natural diff undefined. Emit a skipped block instead of
+    # silently producing zero-valued ha/pct deltas that look like "no
+    # conversion" when the truth is "no data".
+    if not current_hist or not baseline_hist:
+        return _emit_skipped_nature_result(
+            "habitat",
+            band="label",
+            time_range=time_range,
+            skipped_reason="no_dw_pixels",
+            method_note=(
+                f"DW mode composite (current vs baseline {HABITAT_BASELINE_YEARS}y "
+                "earlier); class-fraction deltas → natural→non-natural attribution; "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}; "
+                "skipped (no usable DW pixels in one or both windows)"
+            ),
+            observation_unit="daily_images",
+            extra={
+                "baseline_time_range": (baseline_start, baseline_end),
+                "baseline_years":      HABITAT_BASELINE_YEARS,
+                "conversion_saturation_pct": CONVERSION_SATURATION_PCT,
+            },
+        )
+
     current_pct = _class_pct(current_hist)
     baseline_pct = _class_pct(baseline_hist)
     pixel_area_ha = (scale_m ** 2) / 10000.0  # noqa: F841 — parity with compute_current_land_cover.
@@ -680,7 +761,8 @@ def _dw_mode_histogram(
     """Reduce a DW mode-composite to a {class_label: pixel_count} dict.
 
     Helper for compute_habitat_conversion (which needs two of these — one
-    per window). Falls back to an empty dict when the window has no images.
+    per window). Falls back to an empty dict when the window has no images
+    *or* the reduction returns no "label" key (M-NATURE-DEFENSIVE).
     """
     ic = (
         ee.ImageCollection(asset_id)
@@ -689,7 +771,8 @@ def _dw_mode_histogram(
     )
     if (ic.size().getInfo() or 0) == 0:
         return {}
-    histogram = (
+    # M-NATURE-DEFENSIVE: materialise full dict, then Python-side .get.
+    reduction = (
         ic.select("label")
         .mode()
         .reduceRegion(
@@ -699,9 +782,9 @@ def _dw_mode_histogram(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        .get("label")
         .getInfo()
     )
+    histogram = (reduction or {}).get("label")
     return _normalise_dw_histogram(histogram or {})
 
 
@@ -737,8 +820,12 @@ def compute_forest_loss(
     # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
     scale_m = adaptive_scale_m(geom, cfg.scale_m)
 
+    # M-NATURE-DEFENSIVE: materialise full dict, then Python-side .get.
+    # Hansen is a global static raster so an empty "lossyear" key is rare
+    # but possible at AOI edges (ocean, polar) where the mask drops to
+    # zero usable pixels.
     area_image = loss_mask.multiply(ee.Image.pixelArea())
-    area_m2 = (
+    reduction = (
         area_image.reduceRegion(
             reducer=ee.Reducer.sum(),
             geometry=geom,
@@ -746,10 +833,25 @@ def compute_forest_loss(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        .get("lossyear")
         .getInfo()
     )
-    ha = float(area_m2 or 0.0) / 10000.0
+    area_m2 = (reduction or {}).get("lossyear")
+    if area_m2 is None:
+        return _emit_skipped_nature_result(
+            "forest_loss",
+            band="lossyear",
+            time_range=time_range,
+            skipped_reason="no_hansen_pixels",
+            method_note=(
+                "Hansen lossyear band; pixels with lossyear in time_range "
+                "weighted by ee.Image.pixelArea(); "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}; "
+                "skipped (no usable Hansen pixels in AOI)"
+            ),
+            observation_unit="annual_rasters",
+        )
+
+    ha = float(area_m2) / 10000.0
     pct = (ha / buffer_ha * 100.0) if buffer_ha > 0 else 0.0
     return {
         "nature.forest_loss.ha":  ha,
@@ -898,11 +1000,19 @@ def _ndvi_low_area_pct(
     time_range: tuple[str, str],
     scale_m: float,
 ) -> float:
-    """% of buffer pixels with mean NDVI below 0.3 (IC §3.1)."""
+    """% of buffer pixels with mean NDVI below 0.3 (IC §3.1).
+
+    M-NATURE-DEFENSIVE: materialise full dict, then Python-side .get so
+    the call doesn't throw when the masked-mean reduction returns no
+    "NDVI" key. ``six_step`` upstream already raises ``IndicatorComputeError``
+    if MODIS data is truly absent, so the missing-key path here only
+    fires when the masked sub-reduction collapses — treat that as 0 %
+    low-NDVI rather than failing the whole NDVI indicator.
+    """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
     mean_image = ic.filterDate(time_range[0], time_range[1]).mean()
     low_mask = mean_image.lt(0.3)
-    fractions = (
+    reduction = (
         low_mask.reduceRegion(
             reducer=ee.Reducer.mean(),
             geometry=geom,
@@ -910,9 +1020,9 @@ def _ndvi_low_area_pct(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        .get("NDVI")
         .getInfo()
     )
+    fractions = (reduction or {}).get("NDVI")
     return float(fractions or 0.0) * 100.0
 
 
@@ -944,7 +1054,8 @@ def compute_water_exposure(
         .filterDate(time_range[0], time_range[1])
         .filterBounds(geom)
     )
-    histogram = (
+    # M-NATURE-DEFENSIVE: materialise full dict, then Python-side .get.
+    reduction = (
         ic.select("label")
         .mode()
         .reduceRegion(
@@ -954,10 +1065,25 @@ def compute_water_exposure(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        .get("label")
         .getInfo()
     )
-    counts = _normalise_dw_histogram(histogram or {})
+    histogram = (reduction or {}).get("label")
+    if not histogram:
+        return _emit_skipped_nature_result(
+            "water",
+            band="label",
+            time_range=time_range,
+            skipped_reason="no_dw_pixels",
+            method_note=(
+                "DW water + flooded_vegetation pixel counts via "
+                "frequencyHistogram (JRC GSW deferred per GEE §4.3); "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}; "
+                "skipped (no usable DW pixels in window)"
+            ),
+            observation_unit="daily_images",
+        )
+
+    counts = _normalise_dw_histogram(histogram)
     water_ha = counts.get(DW_WATER_CLASS, 0) * pixel_area_ha
     flooded_ha = counts.get("flooded_vegetation", 0) * pixel_area_ha
     return {
@@ -1115,10 +1241,30 @@ def compute_vegetation_condition(payload: dict) -> dict:
     `0.45·Inverted_NDVI_anomaly + 0.25·Negative_Vegetation_Trend
     + 0.20·Low_Vegetation_Area_pct − 0.10·Recovery_Signal`, clamped to [0, 1].
 
-    Strict null propagation; clamps the final result so that an unusually
-    large recovery signal can't drive the aggregate below 0.
+    M-FOLLOWUP-FALLBACK: ``nature.ndvi.negative_trend`` is always None in
+    v1 because the slope is computed inside ``six_step`` only when
+    ``engine/core/trend.py`` is available — that module is the
+    M-TREND-ENGINE deliverable. Substituting 0.0 lets the aggregate
+    compute from the three components that DO exist; without the
+    substitution, strict-null propagation would leave
+    ``nature.vegetation_condition`` perpetually None (a known v1 gap
+    masquerading as a real upstream failure).
+
+    Strict null propagation on the other three terms still holds —
+    real failures (e.g. NDVI indicator skipped on this AOI) take the
+    aggregate to None, which the strict-None pillar priority handles
+    correctly.
+
+    TODO(M-TREND-ENGINE): drop the substitution once
+    ``engine/core/trend.py`` lands and ``nature.ndvi.negative_trend``
+    starts returning real slope values.
     """
-    raw = _weighted_sum_strict(payload, VEGETATION_CONDITION_WEIGHTS)
+    # Substitute the known v1 zero up front. Other terms keep strict
+    # semantics — if any is None it's a real failure.
+    components = dict(payload)
+    if components.get("nature.ndvi.negative_trend") is None:
+        components["nature.ndvi.negative_trend"] = 0.0
+    raw = _weighted_sum_strict(components, VEGETATION_CONDITION_WEIGHTS)
     if raw is None:
         return {"nature.vegetation_condition": None}
     return {"nature.vegetation_condition": _clamp01(raw)}
@@ -1194,20 +1340,26 @@ def compute_nature_followup_priority(
     """IC §3.3 — Nature_FollowUp_Priority weighted sum.
 
     Per `Engine_Module_Skeleton §3.2` Nature has no separate trend term
-    (PLFS §10 H13), so the `mode` arg is accepted for signature parity but
-    not used. Missing terms renormalised.
+    (PLFS §10 H13), so the `mode` arg is accepted for signature parity
+    but not used.
+
+    M-FOLLOWUP-FALLBACK: strict-None propagation. If any sub-aggregate
+    is None, the priority is None. The prior survivor-renormalise
+    behaviour produced misleading headlines — Rio de Janeiro region
+    screening had three of four Nature sub-aggregates None but
+    quality_attribution alone drove a 0.858 priority. Sub-aggregates
+    that are intentionally 0.0 in v1 (e.g. vegetation_condition
+    substituting for the trend-not-built case) are explicitly handled
+    at their own emit sites; anything still None here is a real
+    upstream failure.
     """
-    candidates: dict[str, float] = {}
+    values: list[float] = []
     for term in NATURE_FOLLOWUP_WEIGHTS:
-        value = payload.get(_FOLLOWUP_TERM_TO_ID[term])
-        if value is None:
-            continue
-        candidates[term] = value
-    if not candidates:
-        return {"nature.followup_priority": None}
-    weights = _renormalise_weights(NATURE_FOLLOWUP_WEIGHTS, set(candidates))
-    score = sum(weights[t] * candidates[t] for t in candidates)
-    return {"nature.followup_priority": score}
+        v = payload.get(_FOLLOWUP_TERM_TO_ID[term])
+        if v is None:
+            return {"nature.followup_priority": None}
+        values.append(NATURE_FOLLOWUP_WEIGHTS[term] * v)
+    return {"nature.followup_priority": sum(values)}
 
 
 def compute_nature_spatiotemporal_anomaly(payload: dict) -> dict:

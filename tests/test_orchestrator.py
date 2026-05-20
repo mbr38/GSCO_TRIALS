@@ -123,14 +123,27 @@ class TestHappyPathSinglePillar:
         for key in _fake_air_payload():
             assert key in result, f"missing key {key!r}"
 
-    def test_composite_overall_equals_single_pillar_priority(self, monkeypatch) -> None:
+    def test_composite_is_none_when_only_one_pillar_ran(self, monkeypatch) -> None:
+        """M-FOLLOWUP-FALLBACK: composite is strict-None — if any pillar's
+        priority is None (here GHG and Nature are stubbed to no-ops),
+        the composite is None. The prior survivor-mean behaviour
+        propagated the lone surviving pillar's priority as the
+        composite, which masked the fact that two of three pillars
+        contributed nothing."""
         result = self._run(monkeypatch)
-        assert result["composite.overall_screening"] == pytest.approx(0.62)
-        assert result["composite.overall_screening"] == result["air.audit_followup_priority"]
+        # Air's priority still computes (Air pillar stub returns it).
+        assert result["air.audit_followup_priority"] == pytest.approx(0.62)
+        # But composite is None because GHG + Nature returned no priority.
+        assert result["composite.overall_screening"] is None
 
-    def test_composite_confidence_equals_air_attribution_confidence(self, monkeypatch) -> None:
+    def test_composite_confidence_is_none_when_only_one_pillar_ran(
+        self, monkeypatch,
+    ) -> None:
+        """M-FOLLOWUP-FALLBACK: composite confidence is strict-None for
+        the same reason — the prior survivor-min behaviour exposed a
+        single pillar's confidence as the headline."""
         result = self._run(monkeypatch)
-        assert result["composite.confidence"] == pytest.approx(0.72)
+        assert result["composite.confidence"] is None
 
     def test_meta_pillars_run_lists_all_wired_pillars(self, monkeypatch) -> None:
         # M5b/M5c wired GHG + Nature, so the orchestrator now attempts all
@@ -184,8 +197,11 @@ class TestIndicatorLevelFailures:
 
         assert "_failures" in result
         assert result["_failures"]["air"] == air_failures_list
-        # Orchestrator did not abort — composite still computed.
-        assert result["composite.overall_screening"] == pytest.approx(0.62)
+        # Orchestrator did not abort. M-FOLLOWUP-FALLBACK: composite is
+        # None because GHG + Nature are stubbed no-ops (no priority);
+        # Air's priority still computes via its stubbed payload.
+        assert result["air.audit_followup_priority"] == pytest.approx(0.62)
+        assert result["composite.overall_screening"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -364,7 +380,15 @@ def _fake_ghg_payload() -> dict:
 
 
 class TestTwoPillarHappyPath:
-    def test_both_pillars_contribute_to_composite(self, monkeypatch) -> None:
+    def test_composite_is_none_when_nature_no_op_under_strict_propagation(
+        self, monkeypatch,
+    ) -> None:
+        """M-FOLLOWUP-FALLBACK: composite is strict-None — Nature is
+        stubbed to a no-op, so it produces no priority and the composite
+        is None even though Air and GHG both compute. Pre-fix the
+        composite would silently average over the two pillars that did
+        produce priorities, masking the missing third pillar.
+        """
         _patch_both(
             monkeypatch,
             air_fn=lambda **_kw: _fake_air_payload(),
@@ -381,21 +405,58 @@ class TestTwoPillarHappyPath:
         # Keys from both pillars present.
         assert "air.no2.score" in result
         assert "ghg.ch4.score" in result
-        assert "air.audit_followup_priority" in result
-        assert "ghg.audit_followup_priority" in result
+        # Air + GHG priorities still compute from their stubbed payloads.
+        assert result["air.audit_followup_priority"] == pytest.approx(0.62)
+        assert result["ghg.audit_followup_priority"] == pytest.approx(0.55)
 
-        # IC_v4 §4 — composite is mean of the two follow-up priorities.
-        assert result["composite.overall_screening"] == pytest.approx(
-            (0.62 + 0.55) / 2,
-        )
-        # IC_v4 §4 — composite confidence is min(air, ghg).
-        assert result["composite.confidence"] == pytest.approx(min(0.72, 0.65))
+        # M-FOLLOWUP-FALLBACK: composite is None (Nature stub returned
+        # no priority).
+        assert result["composite.overall_screening"] is None
+        assert result["composite.confidence"] is None
 
-        # Both pillars listed in _meta.
+        # All three pillars still listed in _meta.
         assert result["_meta"]["pillars_run"] == ["air", "ghg", "nature"]
 
         # No failures.
         assert "_failures" not in result
+
+    def test_composite_is_mean_when_all_three_pillars_contribute(
+        self, monkeypatch,
+    ) -> None:
+        """Regression coverage for the happy three-pillar case. When
+        every pillar produces a priority and confidence, the composite
+        is the equal-weighted mean of priorities and the min of
+        confidences. This is the path the old test would have exercised
+        if Nature had been wired into the M5c-era stubs.
+        """
+        def _fake_nature_payload() -> dict:
+            return {
+                "nature.followup_priority":   0.40,
+                "nature.quality_attribution": 0.55,
+            }
+
+        monkeypatch.setitem(orchestrator._PILLARS, "air",    lambda **_kw: _fake_air_payload())
+        monkeypatch.setitem(orchestrator._PILLARS, "ghg",    lambda **_kw: _fake_ghg_payload())
+        monkeypatch.setitem(orchestrator._PILLARS, "nature", lambda **_kw: _fake_nature_payload())
+
+        result = ScreeningRun(
+            aoi=_AOI,
+            selected_indicators={
+                "air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score",
+            },
+            time_range=_TIME_RANGE,
+            ee_client=None,
+            centre_metadata=_CENTRE_METADATA,
+        ).run()
+
+        # Composite priority is mean of the three.
+        assert result["composite.overall_screening"] == pytest.approx(
+            (0.62 + 0.55 + 0.40) / 3,
+        )
+        # Composite confidence is min of the three.
+        assert result["composite.confidence"] == pytest.approx(
+            min(0.72, 0.65, 0.55),
+        )
 
 
 class TestAccumulatedPayloadThreadedToGhg:
@@ -471,9 +532,15 @@ class TestPerPillarFailuresNamespaced:
 
 
 class TestAirSucceedsGhgPillarWideFails:
-    def test_composite_uses_only_air_when_ghg_pillar_fails(
+    def test_composite_is_none_when_ghg_pillar_fails(
         self, monkeypatch,
     ) -> None:
+        """M-FOLLOWUP-FALLBACK: when any pillar's priority is None
+        (here GHG raised PillarComputeError, so its priority key is
+        absent), the composite is None. The prior survivor-mean
+        behaviour exposed Air's priority as the composite, masking the
+        fact that GHG didn't run at all.
+        """
         def _ghg_fail(**_kw):
             raise PillarComputeError(
                 pillar="ghg",
@@ -495,8 +562,10 @@ class TestAirSucceedsGhgPillarWideFails:
             centre_metadata=_CENTRE_METADATA,
         ).run()
 
-        # Composite is just Air's priority (no averaging with None).
-        assert result["composite.overall_screening"] == pytest.approx(0.62)
+        # Air priority still computes from its stubbed payload, but the
+        # composite is None because GHG's priority is missing.
+        assert result["air.audit_followup_priority"] == pytest.approx(0.62)
+        assert result["composite.overall_screening"] is None
 
         # GHG failure recorded under namespaced shape.
         assert "ghg" in result["_failures"]

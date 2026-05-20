@@ -24,7 +24,7 @@ import ee
 from engine.constants import ANOMALY_Z_THRESHOLD, NORMALISATION_K
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.normalisation import to_score
-from engine.exceptions import IndicatorComputeError
+from engine.exceptions import BackgroundRingNoDataError, IndicatorComputeError
 
 # Optional dependencies. Left as None when the module doesn't exist yet so
 # six_step can degrade gracefully until milestones 5+ land them.
@@ -122,13 +122,21 @@ def background_value(
     median = info.get(f"{band}_median") if info else None
     std = info.get(f"{band}_stdDev") if info else None
     if median is None or std is None:
+        # M-OCEAN-RING: distinguish "ring reduces to nothing" (which is
+        # typical for coastal AOIs whose ring lands over water) from
+        # other failure modes. Pillar dispatchers catch the specific
+        # subclass to emit a skipped_reason payload rather than a hard
+        # _failures entry; everything else still flows through the
+        # generic IndicatorComputeError path.
         n_total = int(image_collection.size().getInfo() or 0)
-        raise IndicatorComputeError(
+        raise BackgroundRingNoDataError(
             indicator_id=band,
             reason=(
                 f"background ring has no valid pixels "
                 f"({n_total} observations in time_range; "
-                f"scale={scale}m; buffer={aoi['radius_km']}km)"
+                f"scale={scale}m; buffer={aoi['radius_km']}km) — "
+                "likely the ring lands over water or outside the "
+                "asset's coverage"
             ),
         )
     return float(median), float(std)

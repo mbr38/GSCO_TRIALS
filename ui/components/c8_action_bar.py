@@ -49,36 +49,83 @@ def render_c8_action_bar(payload: dict) -> None:
 def _save_as_report(payload: dict) -> None:
     """Push the result onto ``st.session_state["saved_analyses"]``.
 
-    Entry schema matches the v1.x P-10 list-view row shape (id, name,
-    type, scope, date_saved, payload). Auto-generated name uses the
-    AOI centre coordinates + a UTC timestamp.
+    Entry schema matches the P-10 list-view row shape (id, name, type,
+    screening_setup, date_saved, payload). The display name is built by
+    ``_build_save_name`` from the active scope + setup metadata so
+    supply-chain and region saves get readable names — see that
+    function's docstring for the precedence rules.
+
+    M-P10: the entry stores the full ``screening_setup`` (not just a
+    scope subset) so P-10's Open action can hydrate session state and
+    re-render P-05 with no information loss.
+
+    M-P10-POLISH: the UUID is generated per-call (verified) and the
+    name builder reads the loaded scope + ``centre_metadata`` to
+    produce human-readable names.
     """
     if "saved_analyses" not in st.session_state:
         st.session_state["saved_analyses"] = []
 
     setup = st.session_state.get("screening_setup", {})
-    centre = setup.get("centre", {})
-    lat = centre.get("lat", 0.0)
-    lon = centre.get("lon", 0.0)
+    scope = st.session_state.get("scope")
     now = datetime.now(timezone.utc)
 
     entry = {
-        "id":   str(uuid.uuid4()),
-        "name": (
-            f"Screening @ ({lat:.4f}, {lon:.4f}) "
-            f"— {now.strftime('%Y-%m-%d %H:%M UTC')}"
-        ),
-        "type":  "screening",
-        "scope": {
-            "centre":    centre,
-            "radius_km": setup.get("radius_km"),
-        },
-        "date_saved": now.isoformat(),
-        "payload":    payload,
+        "id":              str(uuid.uuid4()),  # M-P10-POLISH: per-call.
+        "name":            _build_save_name(setup, scope, now),
+        "type":            "screening",
+        "screening_setup": setup,  # M-P10: full setup, not just scope.
+        "date_saved":      now.isoformat(),
+        "payload":         payload,
     }
     st.session_state["saved_analyses"].append(entry)
 
     st.toast(
         f"Saved as report — '{entry['name']}'.",
         icon="💾",
+    )
+
+
+# M-P10-POLISH
+def _build_save_name(
+    setup: dict,
+    scope: dict | None,
+    now:   datetime,
+) -> str:
+    """Build a human-readable save name from loaded scope + setup.
+
+    Precedence:
+
+    1. **Supply chain** scope with a node name on ``centre_metadata`` →
+       "<node name> — <chain name>".
+    2. **Region** scope with a region name + country on
+       ``centre_metadata`` → "<region>, <country> — Region screening".
+    3. **Fallback** (no scope, ``scope.kind == "none"``, missing
+       metadata, or any unexpected shape) → the original coordinate +
+       timestamp format.
+
+    Pure function — testable without Streamlit. The ``now`` argument is
+    passed in so tests can pin a deterministic timestamp.
+    """
+    metadata = setup.get("centre_metadata") or {}
+
+    if scope and scope.get("kind") == "supply_chain":
+        node_name  = metadata.get("node_name")
+        chain_data = scope.get("data")
+        if node_name and chain_data is not None:
+            return f"{node_name} — {chain_data.name}"
+
+    if scope and scope.get("kind") == "region":
+        region_name = metadata.get("region_name")
+        country     = metadata.get("country")
+        if region_name and country:
+            return f"{region_name}, {country} — Region screening"
+
+    # Fallback: coordinate + UTC timestamp.
+    centre = setup.get("centre") or {}
+    lat = centre.get("lat", 0.0)
+    lon = centre.get("lon", 0.0)
+    return (
+        f"Screening @ ({lat:.4f}, {lon:.4f}) "
+        f"— {now.strftime('%Y-%m-%d %H:%M UTC')}"
     )

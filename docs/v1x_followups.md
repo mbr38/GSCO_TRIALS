@@ -7,18 +7,32 @@
 
 ## Pillar-wide EE errors surface as raw server-side strings (M-UI-E.1)
 
+**Update (M-NATURE-DEFENSIVE, May 2026).** The *expected* empty-result
+case is now handled — every Nature reducer materialises EE dicts
+client-side and falls through to a canonical skipped-result payload
+with `skipped_reason` populated (`no_dw_pixels`, `no_hansen_pixels`,
+etc.). The Altamira-style `Dictionary.get: Dictionary does not contain
+key: 'label'` crash is fixed.
+
+The *unexpected* case — EE call literally fails (network error, asset
+rename, planner timeout) — still bubbles up as a raw `ee.EEException`
+to the UI. That's the v1.x scope below.
+
 Discovered during the P-05 smoke test of the `E1_AllFailed` path. Running
-a screening at an ocean point (lat 0, lon -30) produces the user-facing
+a screening at an ocean point (lat 0, lon -30) produced the user-facing
 error `Dictionary.get: Dictionary does not contain key: 'label'` — the
 raw EE server-side error from Dynamic World's `frequencyHistogram`
-reducer when the buffer contains zero land pixels.
+reducer when the buffer contains zero land pixels. M-NATURE-DEFENSIVE
+made that case a silent skip instead of a crash; the same pattern fired
+again at Altamira (rainforest + recent cloud cover).
 
 The bare `except Exception` in
 `pages/05_Screening_Results.py::_run_engine_and_transition` correctly
-routes to `E1_AllFailed` — that part works as designed. What's wrong is
-that the engine's pillar modules don't catch `ee.EEException` and
-re-raise as `PillarComputeError` with sensible context. v1 lets the raw
-EE string bubble all the way to the UI.
+routes to `E1_AllFailed` — that part works as designed. What's still
+missing is that the engine's pillar modules don't catch
+`ee.EEException` and re-raise as `PillarComputeError` with sensible
+context. v1 lets the raw EE string bubble to the UI for the unexpected
+failure modes.
 
 **Fix.** Wrap pillar-wide EE-touching code in `try/except ee.EEException`
 inside `engine/air.py`, `engine/ghg.py`, `engine/nature.py` and re-raise
@@ -27,8 +41,17 @@ as `PillarComputeError` with a context-aware message:
 - Air → *"No valid satellite observations in time range."*
 - GHG → similar.
 
+**Why this is higher value than it sounds.** Every upstream EE drift
+discovered this year — CAMS band renames (M-CAMS-BAND-FIX), DW empty
+results (M-NATURE-DEFENSIVE), planner stalls at region scale
+(M-ADAPTIVE-SCALE) — has surfaced as a cryptic Python error to the
+user before the engineering caught it. Pillar-level wrapping turns
+those into "X pillar failed: <reason>" toasts so the next regression
+doesn't take a user-bug-report cycle to surface.
+
 **v1 workaround.** Document in the user guide that the tool is for
-land-based suppliers.
+land-based suppliers, and that some indicators may be unavailable for
+specific AOIs (C9 banner now surfaces this cleanly).
 
 ---
 
@@ -167,6 +190,77 @@ conventions across `st.session_state` keys.
 similar). On P-02 entry, read from localStorage; surface a "Resume"
 card with the chain/region name + a small preview. Confirm acts as
 today; "Pick a different scope" routes to the existing ModePick flow.
+
+---
+
+## Background ring over water — minimum data fraction check (discovered M-OCEAN-RING)
+
+M-OCEAN-RING surfaced the failure mode (ring lands over water) to the
+user as a per-indicator silent skip with `skipped_reason="background_ring_no_data"`
+but didn't fix the underlying methodology. For coastal AOIs (Rio de
+Janeiro at 281 km buffer → 562 km ring, largely Atlantic), every
+pollutant whose asset has no over-water values trips this skip; the
+indicator's site value is computed cleanly but no z-score is possible
+because the ring has no baseline. The screening completes (no
+pillar-wide failure) but the affected pollutants render as Failed in
+C4b with no z / anomaly / score.
+
+**v1.x options.**
+
+1. **Land-mask the ring.** Intersect the background ring with a global
+   land mask before reducing — e.g. `ee.Image('users/.../land_mask')`
+   or the static `OCEAN` band on a standard reference asset.
+   Methodologically uncomplicated; just shrinks the effective ring
+   area. Risk: for purely-coastal AOIs the masked ring may be too
+   small to produce a stable stdDev.
+2. **Substitute a regional climatology baseline.** When the ring
+   reduces to no usable pixels, fall back to a pre-computed regional
+   median / stdDev for the same band — e.g. national-mean S5P NO₂ for
+   the AOI's country. More defensible scientifically but requires
+   per-indicator climatology references (S5P, CAMS PM, etc.) and a
+   versioning / vintage story for them.
+
+Option (1) is the v1.x ship; option (2) is the right long-term answer
+once climatology fixtures exist. Either way, the affected indicators
+should emit a real z-score + score; today they emit None and surface
+as Failed.
+
+---
+
+## Compute `nature.vegetation_condition` aggregate (discovered M-NATURE-KEYS)
+
+The Nature follow-up priority formula carries a **Vegetation condition**
+term (weight 0.25, per `Indicators_Computation_v4.md` §3.3 and
+`engine.constants.NATURE_FOLLOWUP_WEIGHTS`). The aggregate is wired in
+`engine.nature.compute_vegetation_condition`, but its `negative_trend`
+component depends on `nature.ndvi.negative_trend`, which is `None`
+until `engine/core/trend.py` lands (M-TREND-ENGINE — the
+`_trend = None` fallthrough in `engine/core/repeatable_core.py`).
+
+**Current v1 behaviour (post-M-FOLLOWUP-FALLBACK).** The aggregate now
+substitutes `0.0` for the known-zero `negative_trend` term and
+computes from the three remaining components
+(`nature.ndvi.inverted_anomaly`, `nature.low_ndvi.pct_norm`,
+`nature.recovery.score`). So the aggregate is no longer perpetually
+None — it produces a real value, but with one of four weighted terms
+effectively zero. The Nature priority is therefore slightly
+*under-weighted on vegetation* in v1: the 0.25 weight on
+`negative_trend` contributes nothing until trend.py lands.
+
+**Fix when picked up.** Land `engine/core/trend.py` per the existing
+M-TREND-ENGINE scope (Theil-Sen slope + Mann-Kendall p-value over a
+time series). Once `nature.ndvi.negative_trend` returns real floats,
+the substitution in `compute_vegetation_condition` becomes a no-op
+(the term is no longer None) and the formula's 0.25 weight pulls real
+signal through. Remove the `M-FOLLOWUP-FALLBACK` known-zero
+substitution at that point — it's tagged with a `TODO(M-TREND-ENGINE)`
+comment in `engine.nature`.
+
+The M-NATURE-KEYS canary
+([tests/test_formula_keys_match_engine.py](../tests/test_formula_keys_match_engine.py))
+ensures the key alignment stays correct as trend.py lands; the existing
+sub-aggregate tests in `tests/test_nature.py` already cover the
+weighted-sum logic once dependencies are populated.
 
 ---
 

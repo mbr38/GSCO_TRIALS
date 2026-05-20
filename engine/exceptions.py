@@ -23,6 +23,27 @@ class IndicatorComputeError(Exception):
         self.reason = reason
 
 
+# M-OCEAN-RING
+class BackgroundRingNoDataError(IndicatorComputeError):
+    """Raised when the §0.2 background ring reduces to no usable pixels.
+
+    Specialises ``IndicatorComputeError`` so existing ``except
+    IndicatorComputeError`` blocks still trip (preserving the per-indicator
+    failure path for callers that don't care about the distinction). Pillar
+    dispatchers (``engine.air.run_pillar`` / ``engine.ghg.run_pillar``)
+    catch this specific subclass *before* the generic handler so they can
+    emit a canonical "skipped" payload — provenance with
+    ``skipped_reason="background_ring_no_data"`` — instead of an entry in
+    ``_failures``. Surfaces in C9 (partial banner) and C4b (failed tile)
+    with a user-actionable explanation.
+
+    Typical trigger: coastal AOIs where the ring's outer extent lands
+    over water (e.g. Rio de Janeiro state at 281 km buffer → 562 km ring,
+    largely Atlantic Ocean → reduceRegion returns NaN).
+    """
+    # No new fields; the subclass is the signal.
+
+
 class PillarComputeError(Exception):
     """Raised when a whole pillar can't be computed.
 

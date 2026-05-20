@@ -88,10 +88,34 @@ _FLAT_ANOMALY_EPS = 1e-12
 
 # Translations for the silent-skip path's machine-readable
 # ``skipped_reason`` codes carried in ``_provenance.<pillar>.<indicator>``.
+# Kept in lock-step with ``c9_partial_banner._SKIPPED_REASON_PROSE``.
 _SKIPPED_REASON_TRANSLATIONS: dict[str, str] = {
     "out_of_coverage": (
         "Data source's coverage window does not include the "
         "requested time range."
+    ),
+    # M-NATURE-DEFENSIVE — see c9_partial_banner for the rationale.
+    "no_dw_pixels": (
+        "Dynamic World had no usable imagery for this AOI in the "
+        "screening window — likely high cloud cover or no Sentinel-2 "
+        "acquisitions."
+    ),
+    "no_hansen_pixels": (
+        "Hansen forest-loss data has no coverage for this AOI."
+    ),
+    "no_modis_pixels": (
+        "MODIS NDVI had no usable imagery for this AOI in the "
+        "screening window."
+    ),
+    "no_cams_pixels": (
+        "CAMS atmospheric data had no usable pixels for this AOI in "
+        "the screening window."
+    ),
+    # M-OCEAN-RING — see c9_partial_banner for the rationale.
+    "background_ring_no_data": (
+        "Background ring (outside the AOI buffer) had no usable data — "
+        "likely because the ring extends over water or outside the data "
+        "source's coverage."
     ),
 }
 

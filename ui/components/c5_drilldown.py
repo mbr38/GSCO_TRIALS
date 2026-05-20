@@ -111,22 +111,39 @@ def _render_headline(
     payload:        dict,
 ) -> None:
     """Headline: priority score (band-coloured chip + dot) + formula
-    breakdown rendered as ``weight × value = contribution`` per term."""
+    breakdown rendered as ``weight × value = contribution`` per term.
+
+    M-FOLLOWUP-FALLBACK: when the priority is None, render a grey
+    "Not available" chip rather than the band-coloured score. Same
+    rationale as the C3 chip's no-data variant — strict-None signals a
+    real upstream gap and the UI should reflect that, not show a
+    misleading "—" in a band-coloured pill.
+    """
     priority   = payload.get(priority_key)
     confidence = payload.get(confidence_key)
-    band       = band_for_score(priority)
-    priority_str = f"{priority:.3f}" if priority is not None else "—"
-    glyph        = confidence_glyph(confidence)
-    colour       = band_colour(band)
+    glyph      = confidence_glyph(confidence)
 
-    st.markdown(
-        f"**Follow-Up Priority Score** &nbsp; "
-        f"<span style='background:{colour};color:white;padding:2px 8px;"
-        f"border-radius:3px;font-weight:600;'>{priority_str}</span>"
-        f"&nbsp; <span style='color:#6b7280;'>{band_label(band)}</span>"
-        f"&nbsp;&nbsp; {glyph} confidence",
-        unsafe_allow_html=True,
-    )
+    if priority is None:
+        st.markdown(
+            "**Follow-Up Priority Score** &nbsp; "
+            "<span style='background:#9ca3af;color:white;padding:2px 8px;"
+            "border-radius:3px;font-weight:600;'>—</span>"
+            "&nbsp; <span style='color:#6b7280;'>Not available</span>"
+            f"&nbsp;&nbsp; {glyph} confidence",
+            unsafe_allow_html=True,
+        )
+    else:
+        band         = band_for_score(priority)
+        priority_str = f"{priority:.3f}"
+        colour       = band_colour(band)
+        st.markdown(
+            f"**Follow-Up Priority Score** &nbsp; "
+            f"<span style='background:{colour};color:white;padding:2px 8px;"
+            f"border-radius:3px;font-weight:600;'>{priority_str}</span>"
+            f"&nbsp; <span style='color:#6b7280;'>{band_label(band)}</span>"
+            f"&nbsp;&nbsp; {glyph} confidence",
+            unsafe_allow_html=True,
+        )
 
     # M-UI-E.4 polish — render the formula as a 4-column table. The
     # Contribution column is bolded because it's the one the user
@@ -137,14 +154,35 @@ def _render_headline(
     col_w.caption("Weight")
     col_v.caption("Value")
     col_c.caption("Contribution")
+    any_missing = False
     for term in formula:
         value = payload.get(term.payload_key)
+        if value is None:
+            any_missing = True
         contribution = term.weight * value if value is not None else None
         col_n, col_w, col_v, col_c = st.columns([3, 1, 1, 1])
         col_n.markdown(term.display_name)
         col_w.markdown(f"{term.weight:.2f}")
         col_v.markdown(_fmt(value, ".3f"))
         col_c.markdown(f"**{_fmt(contribution, '.3f')}**")
+
+    # M-NATURE-KEYS — surface the v1 gap explicitly. Sub-aggregates can
+    # show "—" for two reasons:
+    #   1. a genuine v1 engine gap (e.g. nature.vegetation_condition is
+    #      always None until engine/core/trend.py / M-TREND-ENGINE lands);
+    #   2. dependencies that failed/skipped for this AOI (e.g. DW skipped
+    #      because of cloud cover → biodiversity_exposure goes None via
+    #      strict-null propagation).
+    # The caption fires for either; the C9 partial banner + C4b "Failed"
+    # tiles already disambiguate (1) from (2) for the user.
+    if any_missing:
+        st.caption(
+            "Sub-aggregates showing — are not available for this run. "
+            "Either the v1 engine doesn't yet compute the aggregate (e.g. "
+            "Vegetation condition; lands with the Trend View milestone) "
+            "or an upstream indicator was skipped — see the partial-coverage "
+            "banner and failed tiles for details."
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -147,26 +147,36 @@ class ScreeningRun:
             self.payload.update(result)
 
     def _compute_composite(self) -> None:
-        """IC_v4 §4 — equal-weighted mean of per-pillar follow-up priorities."""
-        values = [
-            self.payload[k] for k in _PILLAR_PRIORITY_IDS
-            if self.payload.get(k) is not None
-        ]
-        if values:
-            self.payload["composite.overall_screening"] = sum(values) / len(values)
-        else:
+        """IC_v4 §4 — equal-weighted mean of per-pillar follow-up priorities.
+
+        M-FOLLOWUP-FALLBACK: strict-None propagation. If any pillar's
+        priority is None, the composite is None. The prior survivor-mean
+        behaviour produced misleading composite scores when a pillar
+        failed entirely (Rio de Janeiro region screening saw composite
+        = nature.followup_priority = nature.quality_attribution = 0.858
+        because Air and GHG priorities were None and the mean was
+        computed over the one survivor).
+        """
+        values = [self.payload.get(k) for k in _PILLAR_PRIORITY_IDS]
+        if any(v is None for v in values):
             self.payload["composite.overall_screening"] = None
+            return
+        self.payload["composite.overall_screening"] = sum(values) / len(values)
 
     def _compute_composite_confidence(self) -> None:
-        """IC_v4 §4 — minimum of the per-pillar confidence aggregates present."""
-        values = [
-            self.payload[k] for k in _PILLAR_CONFIDENCE_IDS
-            if self.payload.get(k) is not None
-        ]
-        if values:
-            self.payload["composite.confidence"] = min(values)
-        else:
+        """IC_v4 §4 — minimum of the per-pillar confidence aggregates.
+
+        M-FOLLOWUP-FALLBACK: strict-None propagation. Same rationale as
+        ``_compute_composite`` — a missing pillar confidence is a real
+        gap, not a value to silently drop from the min. The prior
+        "survivor min" behaviour propagated a single pillar's confidence
+        as the composite, which is misleading when the others failed.
+        """
+        values = [self.payload.get(k) for k in _PILLAR_CONFIDENCE_IDS]
+        if any(v is None for v in values):
             self.payload["composite.confidence"] = None
+            return
+        self.payload["composite.confidence"] = min(values)
 
     def _consolidate_failures(self) -> None:
         """Re-key per-pillar `_failures` lists into one namespaced structure.

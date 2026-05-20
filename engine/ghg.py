@@ -90,7 +90,11 @@ from engine.constants import (
 )
 from engine.core import build_provenance, six_step
 from engine.core.buffers import background_ring, site_buffer
-from engine.exceptions import IndicatorComputeError, PillarComputeError
+from engine.exceptions import (
+    BackgroundRingNoDataError,
+    IndicatorComputeError,
+    PillarComputeError,
+)
 from engine.ids import PILLAR_GHG, make_id
 
 
@@ -786,26 +790,27 @@ def compute_ghg_data_quality_attribution(payload: dict) -> dict:
 
 
 def compute_ghg_audit_followup_priority(
-    payload: dict, mode: str,
+    payload: dict, mode: str,                            # noqa: ARG001 — parity
 ) -> dict:
     """IC_v4 §2.3 — weighted sum per GHG_FOLLOWUP_WEIGHTS over the four
-    pillar aggregates. Missing terms renormalised; same shape as Air's
-    audit_followup_priority.
+    pillar aggregates.
 
-    `mode` is accepted for signature stability — mode-dependent behaviour
-    lives upstream in `compute_ghg_trend`.
+    `mode` is accepted for signature stability — mode-dependent
+    behaviour lives upstream in ``compute_ghg_trend`` (0.0 in screening
+    is a known v1 zero, not a missing value).
+
+    M-FOLLOWUP-FALLBACK: strict-None propagation. Same shape as
+    ``compute_air_audit_followup_priority`` — any None among the
+    sub-aggregates means a real upstream failure and the priority is
+    None.
     """
-    candidates: dict[str, float] = {}
+    values: list[float] = []
     for term in GHG_FOLLOWUP_WEIGHTS:
-        value = payload.get(_FOLLOWUP_TERM_TO_ID[term])
-        if value is None:
-            continue
-        candidates[term] = value
-    if not candidates:
-        return {"ghg.audit_followup_priority": None}
-    weights = _renormalise_weights(GHG_FOLLOWUP_WEIGHTS, set(candidates))
-    score = sum(weights[t] * candidates[t] for t in candidates)
-    return {"ghg.audit_followup_priority": score}
+        v = payload.get(_FOLLOWUP_TERM_TO_ID[term])
+        if v is None:
+            return {"ghg.audit_followup_priority": None}
+        values.append(GHG_FOLLOWUP_WEIGHTS[term] * v)
+    return {"ghg.audit_followup_priority": sum(values)}
 
 
 # ---------------------------------------------------------------------------
@@ -897,6 +902,17 @@ def run_pillar(
                     mode=mode,
                     ee_client=ee_client,
                 )
+        # M-OCEAN-RING: silent-skip when the §0.2 ring lands over water /
+        # outside asset coverage. CH₄ flows through six_step so it can
+        # trip this; CO₂ uses its own ODIAC reduction (gated by
+        # coverage_window) and won't. VIIRS goes through six_step too.
+        except BackgroundRingNoDataError as err:
+            payload.update(_emit_skipped_ghg_result(
+                ind_key,
+                time_range=time_range,
+                skipped_reason="background_ring_no_data",
+                reason_detail=err.reason,
+            ))
         except IndicatorComputeError as err:
             for measurement in cfg.emitted_measurements:
                 payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
@@ -1037,6 +1053,43 @@ def _format_result(
         # TODO(v1.x): track six_step's actual image count and surface as
         # observations={"count": n, "unit": "daily_images"}.
         observations=None,
+        extra={},
+    )
+    return result
+
+
+# M-OCEAN-RING
+def _emit_skipped_ghg_result(
+    indicator: str,
+    *,
+    time_range: tuple[str, str],
+    skipped_reason: str,
+    reason_detail: str,
+) -> dict:
+    """Canonical 'GHG indicator skipped' payload.
+
+    Mirrors ``engine.air._emit_skipped_air_result`` and the M5.5c
+    out-of-coverage pattern (every emitted measurement → None,
+    provenance carries ``skipped_reason``). NOT routed into
+    ``_failures`` — silent-skip is a coverage statement, not a compute
+    failure.
+    """
+    cfg = GHG_INDICATOR_CONFIG[indicator]
+    result: dict = {
+        make_id(PILLAR_GHG, indicator, m): None
+        for m in cfg.emitted_measurements
+    }
+    result[f"_provenance.ghg.{indicator}"] = build_provenance(
+        asset_id=cfg.asset_id,
+        band=cfg.band,
+        data_type=cfg.data_type,
+        data_source=cfg.data_source,
+        native_scale_m=cfg.scale_m,
+        time_range=time_range,
+        method_note=f"IC §0.2 six-step pipeline; skipped ({reason_detail})",
+        coverage_window=cfg.coverage_window,
+        skipped_reason=skipped_reason,
+        observations={"count": 0, "unit": "daily_images"},
         extra={},
     )
     return result
