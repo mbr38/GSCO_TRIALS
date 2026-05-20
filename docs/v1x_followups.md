@@ -14,9 +14,21 @@ with `skipped_reason` populated (`no_dw_pixels`, `no_hansen_pixels`,
 etc.). The Altamira-style `Dictionary.get: Dictionary does not contain
 key: 'label'` crash is fixed.
 
+**Update (M-AIR-GHG-DEFENSIVE, May 2026).** Same pattern applied to
+Air and GHG via a new `SiteBufferNoDataError` subclass: site-buffer
+empties now route through the silent-skip payload with asset-family
+codes (`no_s5p_pixels`, `no_cams_pixels`, `no_maiac_pixels`,
+`no_viirs_pixels`) instead of bubbling as `_failures` entries. The
+Acre-style E1_AllFailed silent crash is fixed. Combined with
+M-NATURE-DEFENSIVE and M-OCEAN-RING, the engine now covers every
+expected empty-data cause across all three pillars — site empty,
+ring empty, asset coverage window — with user-readable per-indicator
+reasons in C4b / C9.
+
 The *unexpected* case — EE call literally fails (network error, asset
 rename, planner timeout) — still bubbles up as a raw `ee.EEException`
-to the UI. That's the v1.x scope below.
+to the UI. That's the v1.x scope below. Lower priority now that all
+three pillars handle the common expected-empty cases.
 
 Discovered during the P-05 smoke test of the `E1_AllFailed` path. Running
 a screening at an ocean point (lat 0, lon -30) produced the user-facing
@@ -193,17 +205,35 @@ today; "Pick a different scope" routes to the existing ModePick flow.
 
 ---
 
-## Background ring over water — minimum data fraction check (discovered M-OCEAN-RING)
+## Background ring empty — global climatology baseline (discovered M-OCEAN-RING; updated M-RING-UX)
 
-M-OCEAN-RING surfaced the failure mode (ring lands over water) to the
-user as a per-indicator silent skip with `skipped_reason="background_ring_no_data"`
-but didn't fix the underlying methodology. For coastal AOIs (Rio de
-Janeiro at 281 km buffer → 562 km ring, largely Atlantic), every
-pollutant whose asset has no over-water values trips this skip; the
-indicator's site value is computed cleanly but no z-score is possible
-because the ring has no baseline. The screening completes (no
-pillar-wide failure) but the affected pollutants render as Failed in
-C4b with no z / anomaly / score.
+M-OCEAN-RING + M-RING-UX surfaced the failure mode to the user as a
+per-indicator silent skip with
+`skipped_reason="background_ring_no_data"`, broadened the prose to
+acknowledge both root causes (ring over water *or* ring over a region
+with persistent cloud cover / sparse satellite overpasses), and added
+a methodology-aware E1_AllFailed page that detects the "every
+indicator skipped via ring-empty" case and renders concrete try-this
+suggestions (smaller buffer, Free Coordinates). What's left for v1.x
+is fixing the underlying methodology, not the user-facing messaging.
+
+Two distinct triggers fall under the same code path:
+
+- **Ring over water.** Coastal AOIs (Rio de Janeiro at 281 km buffer →
+  562 km ring, largely Atlantic): assets with no over-water values
+  trip the skip even though the site buffer itself is over land.
+- **Ring over sparse-coverage region.** Very large inland AOIs in
+  tropical or polar regions (Acre, ~220 km buffer, deep Amazon):
+  persistent cloud cover + sparse Sentinel-5P overpass density means
+  the ring has no usable pixels in the screening window. M-RING-UX is
+  what surfaced this case clearly; previously it bubbled to E1 as
+  "All pillars returned no data".
+
+In both cases the indicator's site value can sometimes be computed
+cleanly but no z-score is possible because the ring has no baseline.
+The screening either completes with Failed tiles in C4b (when some
+indicators get past the ring path) or routes to E1_AllFailed (when
+every selected indicator trips it).
 
 **v1.x options.**
 
@@ -211,19 +241,22 @@ C4b with no z / anomaly / score.
    land mask before reducing — e.g. `ee.Image('users/.../land_mask')`
    or the static `OCEAN` band on a standard reference asset.
    Methodologically uncomplicated; just shrinks the effective ring
-   area. Risk: for purely-coastal AOIs the masked ring may be too
-   small to produce a stable stdDev.
+   area. Fixes the water case but not the sparse-coverage case.
+   Risk: for purely-coastal AOIs the masked ring may be too small to
+   produce a stable stdDev.
 2. **Substitute a regional climatology baseline.** When the ring
    reduces to no usable pixels, fall back to a pre-computed regional
    median / stdDev for the same band — e.g. national-mean S5P NO₂ for
-   the AOI's country. More defensible scientifically but requires
-   per-indicator climatology references (S5P, CAMS PM, etc.) and a
-   versioning / vintage story for them.
+   the AOI's country. Fixes both the water case AND the sparse-coverage
+   case. More defensible scientifically but requires per-indicator
+   climatology references (S5P, CAMS PM, etc.) and a versioning /
+   vintage story for them. Real R&D.
 
-Option (1) is the v1.x ship; option (2) is the right long-term answer
-once climatology fixtures exist. Either way, the affected indicators
-should emit a real z-score + score; today they emit None and surface
-as Failed.
+Option (1) is a quick v1.x ship for the coastal case; option (2) is
+the right long-term answer once climatology fixtures exist and is the
+only path that fixes Acre-style cases. Either way, the affected
+indicators should emit a real z-score + score; today they emit None
+and surface as Failed (or trigger E1).
 
 ---
 

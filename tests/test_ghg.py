@@ -157,18 +157,24 @@ class TestConfigIntegrity:
 # ---------------------------------------------------------------------------
 
 class _FakeReducerResult:
-    """Stand-in for ee.Image.reduceRegion result. Returns a dict whose
-    `.get(band)` yields an object with `.getInfo()` returning `value`.
+    """Stand-in for ee.Image.reduceRegion result.
+
+    M-AIR-GHG-DEFENSIVE: ``compute_co2_snapshot`` now materialises the
+    reduction dict via ``reduceRegion(...).getInfo()`` and then calls
+    ``.get(cfg.band)`` on the Python dict (rather than the previous
+    server-side ``.get(band).getInfo()`` chain). This stub returns a
+    dict shaped like a real EE reduction so the new defensive pattern
+    sees a normal-looking response. ``band`` is set per call so each of
+    the three reductions (site sum, site mean, ring mean) returns its
+    own value.
     """
 
-    def __init__(self, value: float) -> None:
+    def __init__(self, value: float, band: str = "b1") -> None:
         self._value = value
+        self._band = band
 
-    def get(self, _band: str) -> "_FakeReducerResult":
-        return self
-
-    def getInfo(self) -> float:
-        return self._value
+    def getInfo(self) -> dict:
+        return {self._band: self._value}
 
 
 class _FakeSummedImage:

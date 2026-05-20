@@ -59,6 +59,24 @@ def render_scope_setup() -> None:
 def _render_mode_pick(user_type: str | None) -> None:
     """Render the mode-selection screen, branched by user_type."""
     st.markdown("### Pick a scope mode")
+
+    # M-PARTIAL-CAVEAT — uniform card heights for adjacent mode cards.
+    st.markdown(
+        """
+        <style>
+        [data-testid="stHorizontalBlock"] [data-testid="stVerticalBlockBorderWrapper"] {
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        [data-testid="stHorizontalBlock"] [data-testid="stVerticalBlockBorderWrapper"] > div {
+            flex-grow: 1;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     modes_for_user = _available_modes(user_type)
     cols = st.columns(len(modes_for_user))
     for col, mode in zip(cols, modes_for_user):

@@ -12,8 +12,9 @@ from utils.state import init_session, set_user_type
 # ----------------------------------------------------------------------------
 # Page config — must be the first Streamlit call.
 # ----------------------------------------------------------------------------
+# M-PARTIAL-CAVEAT — page_title drives the browser tab + sidebar entry.
 st.set_page_config(
-    page_title="GSCO Environmental Tool",
+    page_title="Landing — GSCO",
     page_icon="🌍",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -60,6 +61,23 @@ st.divider()
 
 st.subheader("Who's using the tool today?")
 st.caption("Pick the role that matches what you're doing in this session.")
+
+# M-PARTIAL-CAVEAT — uniform card heights for adjacent role cards.
+st.markdown(
+    """
+    <style>
+    [data-testid="stHorizontalBlock"] [data-testid="stVerticalBlockBorderWrapper"] {
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+    }
+    [data-testid="stHorizontalBlock"] [data-testid="stVerticalBlockBorderWrapper"] > div {
+        flex-grow: 1;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Two user-type cards rendered as side-by-side columns.
 col_policy, col_mnc = st.columns(2, gap="medium")

@@ -53,10 +53,11 @@ from ui.components.c6_confidence_panel import render_c6_confidence_panel
 from ui.components.c7_verbal_summary import render_c7_verbal_summary
 from ui.components.c8_action_bar import render_c8_action_bar
 from ui.components.c9_partial_banner import render_c9_partial_banner
+from ui.components.c_partial_caveat import render_partial_caveat  # M-PARTIAL-CAVEAT
 from ui.components.indicator_detail import render_indicator_detail
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS  # M-HIDE-SUMMARY
 from ui.components.persistent_nav import render_persistent_nav
-from ui.page_state import PageState, classify_result
+from ui.page_state import PageState, classify_result, detect_e1_reason  # M-RING-UX
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +217,7 @@ def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     st.title("Screening Results")
     _render_c1_header(setup, result)
     render_c9_partial_banner(result, selected)
+    render_partial_caveat(selected)  # M-PARTIAL-CAVEAT
     render_c3_summary(result)
     render_c4b_kpi_grid(result, selected)
     render_c5_drilldowns(result)
@@ -259,15 +261,56 @@ def _render_single_indicator_view(setup: dict, result: dict) -> None:
 
 
 def _render_e1_all_failed(state: PageState) -> None:
-    """E1_AllFailed — error banner (C10 placeholder for now) + retry."""
+    """E1_AllFailed — error banner (C10 placeholder for now) + retry.
+
+    M-RING-UX: inspects the payload via ``detect_e1_reason`` to pick a
+    methodology-aware error message. The orchestrator-exception case
+    (``state.error`` populated, ``state.result is None``) keeps the
+    generic "Screening failed: <error>" message.
+    """
     st.title("Screening Results")
     setup = st.session_state.get("screening_setup")
     if setup:
         _render_c1_header(setup, state.result)
-    st.error(
-        "Screening failed. "
-        + (state.error or "All pillars returned no data.")
-    )
+
+    # M-RING-UX — branch on detected cause when we have a payload.
+    if state.error:
+        # Orchestrator raised — no payload to inspect; keep the existing
+        # generic-failure message.
+        st.error(f"Screening failed. {state.error}", icon="⚠️")
+    else:
+        reason = detect_e1_reason(state.result)
+        if reason == "ring_empty":
+            st.error(
+                "**Screening completed but produced no scores.** Every "
+                "indicator was skipped because the surrounding-area "
+                "data needed to compute scores wasn't available — "
+                "likely because the AOI is too large or the region has "
+                "sparse satellite coverage (common in the Amazon, "
+                "polar areas, or remote oceans).",
+                icon="⚠️",
+            )
+            st.info(
+                "**What you can try:**\n\n"
+                "- Use a smaller buffer (≤ 50 km recommended for Air indicators).\n"
+                "- Try a different region with better satellite coverage.\n"
+                "- Use Free Coordinates mode and screen specific "
+                "suppliers rather than the whole region."
+            )
+        elif reason == "no_data_at_all":
+            st.error(
+                "**Screening failed.** No usable satellite data was "
+                "found for this AOI in the screening window. This may "
+                "be due to persistent cloud cover, an AOI over water, "
+                "or an asset coverage gap.",
+                icon="⚠️",
+            )
+        else:
+            st.error(
+                "Screening failed. All pillars returned no data.",
+                icon="⚠️",
+            )
+
     col_a, col_b = st.columns(2)
     with col_a:
         if st.button("Retry", use_container_width=True):
@@ -278,6 +321,16 @@ def _render_e1_all_failed(state: PageState) -> None:
     with col_b:
         if st.button("Back to scratch page", use_container_width=True):
             st.switch_page("pages/99_engine_scratch.py")
+
+    # M-E1-DEBUG: expose the payload for debugging. Even on E1, the engine
+    # has computed something — per-indicator None values, _failures, and
+    # _provenance.<x>.skipped_reason fields tell us *why* the screening
+    # failed. Hiding the payload makes demo-day "why is this empty?"
+    # moments much harder to diagnose. Mirrors the expander S2 already
+    # has at the bottom of _render_multi_indicator_view.
+    if state.result:
+        with st.expander("Debug: raw payload"):
+            st.json(state.result)
 
 
 # ---------------------------------------------------------------------------

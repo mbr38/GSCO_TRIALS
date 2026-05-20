@@ -76,14 +76,34 @@ _SKIPPED_REASON_PROSE: dict[str, str] = {
         "CAMS atmospheric data had no usable pixels for this AOI in "
         "the screening window."
     ),
+    # M-AIR-GHG-DEFENSIVE — emitted by engine.core.repeatable_core.site_value
+    # when the §0.2 site buffer reduces to no usable pixels. Distinct
+    # from background_ring_no_data (which is about the ring outside
+    # the buffer); these codes are about the buffer itself.
+    "no_s5p_pixels": (
+        "Sentinel-5P had no usable observations for this AOI in the "
+        "screening window — likely high cloud cover or no overpasses."
+    ),
+    "no_maiac_pixels": (
+        "MODIS MAIAC had no usable observations for this AOI — likely "
+        "persistent cloud cover."
+    ),
+    "no_viirs_pixels": (
+        "VIIRS had no usable observations for this AOI in the "
+        "screening window."
+    ),
     # M-OCEAN-RING — emitted by engine.core.repeatable_core.background_value
     # when the §0.2 background ring reduces to no usable pixels. Typical
     # cause: coastal AOIs whose ring lands over water (e.g. Rio de
     # Janeiro state at 281 km buffer → 562 km ring, largely Atlantic).
+    # M-RING-UX — broadened to acknowledge cloud-cover / sparse-overpass
+    # cause (Acre, deep Amazon) in addition to the water case.
     "background_ring_no_data": (
-        "Background ring (outside the AOI buffer) had no usable data — "
-        "likely because the ring extends over water or outside the data "
-        "source's coverage."
+        "Background data unavailable — the area around the AOI either "
+        "extends over water or has persistent cloud cover / sparse "
+        "satellite overpasses (common for very large AOIs in tropical "
+        "or polar regions). Try a smaller buffer or a region with "
+        "better satellite coverage."
     ),
 }
 

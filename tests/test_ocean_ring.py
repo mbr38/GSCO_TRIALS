@@ -286,10 +286,14 @@ class TestGhgRunPillarRoutesSkip:
 # ---------------------------------------------------------------------------
 
 def test_skipped_reason_prose_registered_in_c9():
+    # M-RING-UX broadened the prose: still mentions water but no longer
+    # leads with "Background ring" (now "Background data unavailable").
+    # The water cause and the cloud-cover cause are both surfaced.
     assert "background_ring_no_data" in _SKIPPED_REASON_PROSE
     text = _SKIPPED_REASON_PROSE["background_ring_no_data"]
-    assert "Background ring" in text
+    assert "Background data unavailable" in text
     assert "water" in text
+    assert "cloud cover" in text
 
 
 def test_skipped_reason_prose_registered_in_c4b():

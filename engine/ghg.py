@@ -94,6 +94,7 @@ from engine.exceptions import (
     BackgroundRingNoDataError,
     IndicatorComputeError,
     PillarComputeError,
+    SiteBufferNoDataError,
 )
 from engine.ids import PILLAR_GHG, make_id
 
@@ -149,6 +150,13 @@ class GhgIndicatorConfig:
     # M5.6 — human-readable data-source label that lands in provenance.
     # Default matches S5P TROPOMI; explicit overrides per-indicator.
     data_source: str = "Copernicus / ESA (Sentinel-5P TROPOMI)"
+    # M-AIR-GHG-DEFENSIVE — asset-family code emitted in provenance when
+    # the site buffer reduces to no usable pixels. Defaults to S5P; VIIRS
+    # overrides to no_viirs_pixels. CO₂/ODIAC has its own coverage_window
+    # check and won't reach the SiteBufferNoDataError path in v1, but
+    # carries no_odiac_pixels for future safety if ODIAC is ever dispatched
+    # outside its coverage window.
+    skipped_reason_no_data: str = "no_s5p_pixels"
 
 
 # IC_v4 §2.1 + Indicator_ID_Schema_v2.md §3.1 + GEE_Database_List §3.
@@ -174,6 +182,7 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
             "site", "anomaly", "trend", "confidence", "score",
         ),
         data_source="NASA / NOAA (VIIRS VNP46A2)",
+        skipped_reason_no_data="no_viirs_pixels",  # M-AIR-GHG-DEFENSIVE
     ),
     # M5.5 — ODIAC monthly grids, ingested as ImageCollection on the GSCO
     # GCP project. Band `b1` is the default ODIAC raster band name (not
@@ -206,6 +215,12 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         coverage_window=("2020-01-01", "2023-12-31"),
         data_type="emissions_inventory_allocation",
         data_source="ODIAC / NIES Japan",
+        # M-AIR-GHG-DEFENSIVE — in v1 the coverage_window check in
+        # run_pillar means CO₂ never reaches the SiteBufferNoDataError
+        # path; this code is a safety net for any future caller that
+        # dispatches CO₂ outside its coverage window without going
+        # through run_pillar.
+        skipped_reason_no_data="no_odiac_pixels",
     ),
 }
 
@@ -388,36 +403,39 @@ def compute_co2_snapshot(
     # `ic.sum()` adds the months element-wise: sum_pixel = Σ_months tC.
     summed_image = ic.select(cfg.band).sum()
 
-    site_sum_t_c = float(
-        summed_image.reduceRegion(
-            reducer=ee.Reducer.sum(),
-            geometry=site_geom,
-            scale=cfg.scale_m,
-            bestEffort=True,
-            maxPixels=int(1e9),
-        ).get(cfg.band).getInfo()
-        or 0.0
-    )
-    site_mean_t_c = float(
-        summed_image.reduceRegion(
-            reducer=ee.Reducer.mean(),
-            geometry=site_geom,
-            scale=cfg.scale_m,
-            bestEffort=True,
-            maxPixels=int(1e9),
-        ).get(cfg.band).getInfo()
-        or 0.0
-    )
-    ring_mean_t_c = float(
-        summed_image.reduceRegion(
-            reducer=ee.Reducer.mean(),
-            geometry=ring_geom,
-            scale=cfg.scale_m,
-            bestEffort=True,
-            maxPixels=int(1e9),
-        ).get(cfg.band).getInfo()
-        or 0.0
-    )
+    # M-AIR-GHG-DEFENSIVE: materialise the reduceRegion dict first, then
+    # use .get() with a None-aware fallback. The previous form
+    # `reduceRegion(...).get(band).getInfo() or 0.0` relied on implicit
+    # short-circuit when the band key was absent (empty buffer → None →
+    # getInfo() returns None → falsy → 0.0); the explicit pattern below
+    # is the same shape Nature uses (M-NATURE-DEFENSIVE) and crashes
+    # loudly only on truly unexpected EE responses.
+    site_sum_reduction = summed_image.reduceRegion(
+        reducer=ee.Reducer.sum(),
+        geometry=site_geom,
+        scale=cfg.scale_m,
+        bestEffort=True,
+        maxPixels=int(1e9),
+    ).getInfo() or {}
+    site_sum_t_c = float(site_sum_reduction.get(cfg.band) or 0.0)
+
+    site_mean_reduction = summed_image.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=site_geom,
+        scale=cfg.scale_m,
+        bestEffort=True,
+        maxPixels=int(1e9),
+    ).getInfo() or {}
+    site_mean_t_c = float(site_mean_reduction.get(cfg.band) or 0.0)
+
+    ring_mean_reduction = summed_image.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=ring_geom,
+        scale=cfg.scale_m,
+        bestEffort=True,
+        maxPixels=int(1e9),
+    ).getInfo() or {}
+    ring_mean_t_c = float(ring_mean_reduction.get(cfg.band) or 0.0)
 
     # Annualise: `summed_image` is Σ months over time_range, so the mean
     # per month is (Σ months) / n_months; the annualised value is ×12.
@@ -911,6 +929,17 @@ def run_pillar(
                 ind_key,
                 time_range=time_range,
                 skipped_reason="background_ring_no_data",
+                reason_detail=err.reason,
+            ))
+        # M-AIR-GHG-DEFENSIVE: site buffer empty (e.g. Acre's deep-Amazon
+        # AOI). Routed to the silent-skip payload with an asset-family
+        # code (no_s5p_pixels for CH₄; no_viirs_pixels for VIIRS). Caught
+        # before generic IndicatorComputeError because it's a subclass.
+        except SiteBufferNoDataError as err:
+            payload.update(_emit_skipped_ghg_result(
+                ind_key,
+                time_range=time_range,
+                skipped_reason=cfg.skipped_reason_no_data,
                 reason_detail=err.reason,
             ))
         except IndicatorComputeError as err:

@@ -111,11 +111,36 @@ _SKIPPED_REASON_TRANSLATIONS: dict[str, str] = {
         "CAMS atmospheric data had no usable pixels for this AOI in "
         "the screening window."
     ),
+    # M-AIR-GHG-DEFENSIVE — emitted by engine.core.repeatable_core.site_value
+    # when the §0.2 site buffer reduces to no usable pixels. Asset-family
+    # code is picked from the pillar's per-indicator config
+    # (PollutantConfig.skipped_reason_no_data / GhgIndicatorConfig.
+    # skipped_reason_no_data). Typical trigger: deep-Amazon AOIs where
+    # Sentinel-5P has no usable overpasses in the screening window due
+    # to persistent cloud cover (Acre, Pará interior).
+    "no_s5p_pixels": (
+        "Sentinel-5P had no usable observations for this AOI in the "
+        "screening window — likely high cloud cover or no overpasses."
+    ),
+    "no_maiac_pixels": (
+        "MODIS MAIAC had no usable observations for this AOI — likely "
+        "persistent cloud cover."
+    ),
+    "no_viirs_pixels": (
+        "VIIRS had no usable observations for this AOI in the "
+        "screening window."
+    ),
     # M-OCEAN-RING — see c9_partial_banner for the rationale.
+    # M-RING-UX — broadened to acknowledge cloud-cover / sparse-overpass
+    # cause (Acre, deep Amazon) in addition to water (Rio de Janeiro
+    # coastal ring). Trailing actionable suggestion gives the user
+    # something to do.
     "background_ring_no_data": (
-        "Background ring (outside the AOI buffer) had no usable data — "
-        "likely because the ring extends over water or outside the data "
-        "source's coverage."
+        "Background data unavailable — the area around the AOI either "
+        "extends over water or has persistent cloud cover / sparse "
+        "satellite overpasses (common for very large AOIs in tropical "
+        "or polar regions). Try a smaller buffer or a region with "
+        "better satellite coverage."
     ),
 }
 

@@ -24,7 +24,11 @@ import ee
 from engine.constants import ANOMALY_Z_THRESHOLD, NORMALISATION_K
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.normalisation import to_score
-from engine.exceptions import BackgroundRingNoDataError, IndicatorComputeError
+from engine.exceptions import (
+    BackgroundRingNoDataError,
+    IndicatorComputeError,
+    SiteBufferNoDataError,
+)
 
 # Optional dependencies. Left as None when the module doesn't exist yet so
 # six_step can degrade gracefully until milestones 5+ land them.
@@ -72,10 +76,15 @@ def site_value(
     ).getInfo()
     value = info.get(band) if info else None
     if value is None:
+        # M-AIR-GHG-DEFENSIVE: raise SiteBufferNoDataError so pillar
+        # dispatchers can route this to a skipped payload (with an
+        # asset-family-specific reason code) instead of a hard failure.
+        # Subclass of IndicatorComputeError — existing generic handlers
+        # still trip if a caller doesn't want the distinction.
         # One extra getInfo on the failure path only — saves debugging time
         # when a buffer / time-range combination produces no usable pixels.
         n_total = int(image_collection.size().getInfo() or 0)
-        raise IndicatorComputeError(
+        raise SiteBufferNoDataError(
             indicator_id=band,
             reason=(
                 f"site buffer has no valid pixels "
@@ -129,14 +138,17 @@ def background_value(
         # _failures entry; everything else still flows through the
         # generic IndicatorComputeError path.
         n_total = int(image_collection.size().getInfo() or 0)
+        # M-RING-UX — broadened reason text to acknowledge both causes
+        # (ring over water OR sparse-coverage region) and surface that
+        # to method_note via the pillar's _emit_skipped_*_result helper.
         raise BackgroundRingNoDataError(
             indicator_id=band,
             reason=(
                 f"background ring has no valid pixels "
                 f"({n_total} observations in time_range; "
-                f"scale={scale}m; buffer={aoi['radius_km']}km) — "
-                "likely the ring lands over water or outside the "
-                "asset's coverage"
+                f"scale={scale}m; buffer={aoi['radius_km']}km) "
+                "— ring either lands over water or over a region with "
+                "persistent cloud cover / sparse satellite coverage"
             ),
         )
     return float(median), float(std)

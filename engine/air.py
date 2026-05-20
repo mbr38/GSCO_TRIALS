@@ -67,6 +67,7 @@ from engine.exceptions import (
     BackgroundRingNoDataError,
     IndicatorComputeError,
     PillarComputeError,
+    SiteBufferNoDataError,
 )
 from engine.ids import AIR_SUB_AGGREGATES, PILLAR_AIR, make_id
 
@@ -100,6 +101,11 @@ class PollutantConfig:
     # overrides per-pollutant cover CAMS PM (gridded model) and MODIS AOD.
     data_type: str = "satellite_observation"
     data_source: str = "Copernicus / ESA (Sentinel-5P TROPOMI)"
+    # M-AIR-GHG-DEFENSIVE — asset-family code emitted in provenance when
+    # the site buffer reduces to no usable pixels. Defaults to the S5P
+    # family; CAMS PM and MAIAC AOD override. Surfaces in C9 / C4b via
+    # the prose translation in _SKIPPED_REASON_TRANSLATIONS.
+    skipped_reason_no_data: str = "no_s5p_pixels"
 
 
 def apply_aod_qa_mask(image: ee.Image) -> ee.Image:
@@ -175,6 +181,7 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         display_unit="µg/m³",
         data_type="gridded_model_output",
         data_source="ECMWF CAMS reanalysis",
+        skipped_reason_no_data="no_cams_pixels",  # M-AIR-GHG-DEFENSIVE
     ),
     "pm10": PollutantConfig(
         asset_id="ECMWF/CAMS/NRT",
@@ -185,6 +192,7 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         display_unit="µg/m³",
         data_type="gridded_model_output",
         data_source="ECMWF CAMS reanalysis",
+        skipped_reason_no_data="no_cams_pixels",  # M-AIR-GHG-DEFENSIVE
     ),
     "aod": PollutantConfig(
         asset_id="MODIS/061/MCD19A2_GRANULES",
@@ -195,6 +203,7 @@ AIR_POLLUTANT_CONFIG: dict[str, PollutantConfig] = {
         preprocess=apply_aod_qa_mask,
         data_source="NASA MODIS MAIAC",
         # data_type defaults to satellite_observation — correct for MAIAC.
+        skipped_reason_no_data="no_maiac_pixels",  # M-AIR-GHG-DEFENSIVE
     ),
 }
 
@@ -750,6 +759,23 @@ def run_pillar(
                 pol_key,
                 time_range=time_range,
                 skipped_reason="background_ring_no_data",
+                reason_detail=err.reason,
+            ))
+        # M-AIR-GHG-DEFENSIVE: site buffer empty (e.g. Acre's deep-Amazon
+        # AOI with persistent S5P cloud cover) is also a silent-skip
+        # path, not a pillar failure. Each pollutant's PollutantConfig
+        # carries the appropriate asset-family code
+        # (no_s5p_pixels / no_cams_pixels / no_maiac_pixels) so C4b's
+        # failed-tile expander reads e.g. "Sentinel-5P had no usable
+        # observations…" instead of a raw stack-trace fragment.
+        # Caught before generic IndicatorComputeError because it's a
+        # subclass — order matters.
+        except SiteBufferNoDataError as err:
+            cfg = AIR_POLLUTANT_CONFIG[pol_key]
+            payload.update(_emit_skipped_air_result(
+                pol_key,
+                time_range=time_range,
+                skipped_reason=cfg.skipped_reason_no_data,
                 reason_detail=err.reason,
             ))
         except IndicatorComputeError as err:

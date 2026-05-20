@@ -44,6 +44,29 @@ class BackgroundRingNoDataError(IndicatorComputeError):
     # No new fields; the subclass is the signal.
 
 
+# M-AIR-GHG-DEFENSIVE
+class SiteBufferNoDataError(IndicatorComputeError):
+    """Raised when the §0.2 site buffer reduces to no usable pixels.
+
+    Parallel to ``BackgroundRingNoDataError`` but for the site half of
+    the six-step pipeline. Pillar dispatchers catch this subclass before
+    the generic handler so they can emit a canonical "skipped" payload
+    with an asset-family-specific ``skipped_reason`` (e.g.
+    ``no_s5p_pixels``, ``no_cams_pixels``) instead of routing the
+    indicator into ``_failures`` with a stack-trace-style message.
+
+    Typical trigger: deep-Amazon AOIs (e.g. Acre) where Sentinel-5P has
+    no usable overpasses in the screening window due to persistent
+    cloud cover; or sparse-coverage assets over arbitrary AOIs.
+
+    The pixel-size pre-checks in the pillar modules (buffer smaller
+    than native pixel) still raise plain ``IndicatorComputeError`` —
+    that's a user-input issue, not a coverage statement, so it goes
+    into ``_failures`` rather than the skipped path.
+    """
+    # No new fields; the subclass is the signal.
+
+
 class PillarComputeError(Exception):
     """Raised when a whole pillar can't be computed.
 
