@@ -65,7 +65,12 @@ from engine.constants import (
     VEGETATION_CONDITION_WEIGHTS,
     WATER_FLOODED_VEG_SATURATION_PCT,
 )
-from engine.core import build_provenance, six_step
+from engine.core import (
+    adaptive_scale_m,
+    build_provenance,
+    method_note_fragment,
+    six_step,
+)
 from engine.core.buffers import site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import DW_CLASS_TO_ID_SLUG, PILLAR_NATURE
@@ -450,6 +455,9 @@ def compute_current_land_cover(
         .filterBounds(geom)
     )
 
+    # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
+    scale_m = adaptive_scale_m(geom, cfg.scale_m)
+
     # `label` is the per-pixel mode class index (0-8). frequencyHistogram
     # returns {class_index_str: pixel_count} which we map to slugs below.
     histogram = (
@@ -458,7 +466,7 @@ def compute_current_land_cover(
         .reduceRegion(
             reducer=ee.Reducer.frequencyHistogram(),
             geometry=geom,
-            scale=cfg.scale_m,
+            scale=scale_m,
             bestEffort=True,
             maxPixels=int(1e9),
         )
@@ -474,7 +482,9 @@ def compute_current_land_cover(
 
     counts = _normalise_dw_histogram(histogram)
     total = sum(counts.values()) or 1
-    pixel_area_ha = (cfg.scale_m ** 2) / 10000.0
+    # Pixel-area arithmetic uses the *effective* scale so the per-class
+    # hectare estimates reflect the reduction the engine actually ran.
+    pixel_area_ha = (scale_m ** 2) / 10000.0
 
     result: dict = {}
     pct_per_class: dict[str, float] = {}
@@ -517,7 +527,10 @@ def compute_current_land_cover(
         data_source=cfg.data_source,
         native_scale_m=cfg.scale_m,
         time_range=time_range,
-        method_note="DW 90-day mode composite; class fractions via frequencyHistogram",
+        method_note=(
+            "DW 90-day mode composite; class fractions via frequencyHistogram; "
+            f"{method_note_fragment(scale_m, cfg.scale_m)}"
+        ),
         observations=None,  # TODO(v1.x): track DW image count from filterBounds().
         extra={"composite_window_days": DW_COMPOSITE_WINDOW_DAYS},
     )
@@ -590,16 +603,20 @@ def compute_habitat_conversion(
     baseline_start = f"{start_year - HABITAT_BASELINE_YEARS}-{time_range[0][5:]}"
     baseline_end = f"{end_year - HABITAT_BASELINE_YEARS}-{time_range[1][5:]}"
 
+    # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size. Both window
+    # reductions reduce over the same geometry, so one helper call suffices.
+    scale_m = adaptive_scale_m(geom, cfg.scale_m)
+
     current_hist = _dw_mode_histogram(
-        cfg.asset_id, geom, time_range, scale_m=cfg.scale_m,
+        cfg.asset_id, geom, time_range, scale_m=scale_m,
     )
     baseline_hist = _dw_mode_histogram(
-        cfg.asset_id, geom, (baseline_start, baseline_end), scale_m=cfg.scale_m,
+        cfg.asset_id, geom, (baseline_start, baseline_end), scale_m=scale_m,
     )
 
     current_pct = _class_pct(current_hist)
     baseline_pct = _class_pct(baseline_hist)
-    pixel_area_ha = (cfg.scale_m ** 2) / 10000.0
+    pixel_area_ha = (scale_m ** 2) / 10000.0  # noqa: F841 — parity with compute_current_land_cover.
 
     def _delta(class_label: str) -> float:
         return current_pct.get(class_label, 0.0) - baseline_pct.get(class_label, 0.0)
@@ -641,7 +658,8 @@ def compute_habitat_conversion(
             time_range=time_range,
             method_note=(
                 f"DW mode composite (current vs baseline {HABITAT_BASELINE_YEARS}y "
-                "earlier); class-fraction deltas → natural→non-natural attribution"
+                "earlier); class-fraction deltas → natural→non-natural attribution; "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations=None,  # TODO(v1.x): track DW image count per window.
             extra={
@@ -716,12 +734,15 @@ def compute_forest_loss(
     image = ee.Image(cfg.asset_id).select("lossyear")
     loss_mask = image.gte(start_yr_offset).And(image.lte(end_yr_offset))
 
+    # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
+    scale_m = adaptive_scale_m(geom, cfg.scale_m)
+
     area_image = loss_mask.multiply(ee.Image.pixelArea())
     area_m2 = (
         area_image.reduceRegion(
             reducer=ee.Reducer.sum(),
             geometry=geom,
-            scale=cfg.scale_m,
+            scale=scale_m,
             bestEffort=True,
             maxPixels=int(1e9),
         )
@@ -742,7 +763,8 @@ def compute_forest_loss(
             time_range=time_range,
             method_note=(
                 "Hansen lossyear band; pixels with lossyear in time_range "
-                "weighted by ee.Image.pixelArea()"
+                "weighted by ee.Image.pixelArea(); "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations={"count": 1, "unit": "annual_rasters"},
             extra={},
@@ -791,6 +813,11 @@ def compute_ndvi_condition(
         ))
     )
 
+    # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size. MODIS NDVI
+    # is already coarse (250 m) so adaptive only kicks in at region scale.
+    geom_for_scale = site_buffer(aoi["centre"], radius_km)
+    scale_m = adaptive_scale_m(geom_for_scale, cfg.scale_m)
+
     raw = six_step(
         aoi=aoi,
         image_collection=ic,
@@ -799,12 +826,12 @@ def compute_ndvi_condition(
         ee_client=ee_client,
         direction=cfg.direction,
         indicator_id="nature.ndvi",
-        scale=cfg.scale_m,
+        scale=scale_m,
     )
 
     inverted_anomaly = _ndvi_inverted_anomaly(raw)
     negative_trend = _ndvi_negative_trend(raw.get("trend"))
-    low_ndvi_pct = _ndvi_low_area_pct(aoi, ic, time_range, cfg.scale_m)
+    low_ndvi_pct = _ndvi_low_area_pct(aoi, ic, time_range, scale_m)
     low_ndvi_ha = low_ndvi_pct / 100.0 * _buffer_area_ha(radius_km)
     low_ndvi_pct_norm = _clamp01(low_ndvi_pct / 100.0)
 
@@ -829,7 +856,8 @@ def compute_ndvi_condition(
             time_range=time_range,
             method_note=(
                 "MOD13Q1 NDVI ÷ 10000; IC §0.2 six-step pipeline with "
-                f"direction={cfg.direction!r} (lower NDVI = worse)"
+                f"direction={cfg.direction!r} (lower NDVI = worse); "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations={"count": 1, "unit": "16day_composites"},
             extra={
@@ -904,7 +932,12 @@ def compute_water_exposure(
     centre = aoi["centre"]
     radius_km = aoi["radius_km"]
     geom = site_buffer(centre, radius_km)
-    pixel_area_ha = (cfg.scale_m ** 2) / 10000.0
+
+    # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
+    scale_m = adaptive_scale_m(geom, cfg.scale_m)
+    # Pixel-area arithmetic uses the *effective* scale so hectare estimates
+    # reflect the reduction the engine actually ran.
+    pixel_area_ha = (scale_m ** 2) / 10000.0
 
     ic = (
         ee.ImageCollection(cfg.asset_id)
@@ -917,7 +950,7 @@ def compute_water_exposure(
         .reduceRegion(
             reducer=ee.Reducer.frequencyHistogram(),
             geometry=geom,
-            scale=cfg.scale_m,
+            scale=scale_m,
             bestEffort=True,
             maxPixels=int(1e9),
         )
@@ -939,7 +972,8 @@ def compute_water_exposure(
             time_range=time_range,
             method_note=(
                 "DW water + flooded_vegetation pixel counts via "
-                "frequencyHistogram (JRC GSW deferred per GEE §4.3)"
+                "frequencyHistogram (JRC GSW deferred per GEE §4.3); "
+                f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations=None,  # TODO(v1.x): track DW image count.
             extra={},

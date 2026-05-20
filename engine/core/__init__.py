@@ -5,6 +5,7 @@ Stateless functions only. Trend (`engine/core/trend.py`) and seasonality
 lazily by `repeatable_core` so this package works without them.
 """
 
+from engine.core.adaptive_scale import adaptive_scale_m, method_note_fragment
 from engine.core.buffers import (
     background_ring,
     pixel_size_warning,
@@ -20,10 +21,12 @@ from engine.core.repeatable_core import (
 )
 
 __all__ = [
+    "adaptive_scale_m",
     "anomaly_z_hf",
     "background_ring",
     "background_value",
     "build_provenance",
+    "method_note_fragment",
     "pixel_size_warning",
     "site_buffer",
     "site_value",

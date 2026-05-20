@@ -109,3 +109,31 @@ st.divider()
 st.caption(
     "Demo build — authentication deferred."
 )
+
+import time
+import logging
+import ee
+
+logger = logging.getLogger("ee_timing")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("[ee_timing] %(message)s"))
+    logger.addHandler(h)
+
+_original_getInfo = ee.ComputedObject.getInfo
+
+def _timed_getInfo(self, *args, **kwargs):
+    label = type(self).__name__
+    t0 = time.perf_counter()
+    try:
+        result = _original_getInfo(self, *args, **kwargs)
+        elapsed = time.perf_counter() - t0
+        logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  OK")
+        return result
+    except Exception as exc:
+        elapsed = time.perf_counter() - t0
+        logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  FAILED: {exc}")
+        raise
+
+ee.ComputedObject.getInfo = _timed_getInfo

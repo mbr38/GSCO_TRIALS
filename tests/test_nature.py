@@ -268,11 +268,17 @@ class TestHabitatConversionBaselineWindow:
             return {"trees": 100}
 
         # Also stub ee.* surfaces site_buffer / FeatureCollection touch.
+        # M-ADAPTIVE-SCALE: also stub the adaptive-scale helper since it
+        # would otherwise call geom.area(maxError=100).getInfo() on the
+        # opaque ``object()`` returned by the site_buffer stub.
         monkeypatch.setattr(
             "engine.nature._dw_mode_histogram", fake_dw_mode_histogram,
         )
         monkeypatch.setattr(
             "engine.nature.site_buffer", lambda *_a, **_kw: object(),
+        )
+        monkeypatch.setattr(
+            "engine.nature.adaptive_scale_m", lambda _geom, native, **_kw: native,
         )
 
         compute_habitat_conversion(

@@ -1562,3 +1562,11 @@ No new tests — pure wiring + copy. Existing tests all still pass (558).
 The M5b placeholder `pages/01_scope_setup.py` retains its inline strip — it has no user-facing nav role and is slated for retirement.
 
 Tests: [tests/test_persistent_nav.py](../tests/test_persistent_nav.py) (5 tests) pins `_scope_chip_label` for every scope kind including the unknown-kind defensive fallback. `test_p03_hub.py` skipped per the spec — the rendering helpers are pure Streamlit composition with no testable logic beyond what `_scope_chip_label` and `_source_for_scope` already cover.
+
+**M-ADAPTIVE-SCALE shipped.** Nature pillar reducers now scale to AOI size. New helper [engine/core/adaptive_scale.py](../engine/core/adaptive_scale.py) exposes `adaptive_scale_m(geometry, native_scale_m, target_pixels=1M)` returning a reduction scale that keeps pixel counts bounded. Every Nature reducer (`compute_current_land_cover`, `compute_habitat_conversion`, `compute_forest_loss`, `compute_ndvi_condition`, `compute_water_exposure`) calls the helper and passes the result as `scale=` to its EE reducer.
+
+Provenance's `method_note` records the effective scale via `method_note_fragment`. For small AOIs (e.g. MNC 5 km buffer), the helper returns the asset's native scale, so behaviour is unchanged. For region-scale AOIs (Brazilian states), the helper returns a coarsened scale, bounding pixel count to ~1M.
+
+Discovered when Rio de Janeiro region screening hung after Air completed (Nature reducers running at 10 m native over ~43,000 km² → ~430M pixels, exceeded EE planner capacity). Air and GHG pillars unchanged — their assets are already coarse enough to scale gracefully.
+
+Tests: [tests/test_adaptive_scale.py](../tests/test_adaptive_scale.py) (10 tests, no EE) pins the math at small / region / capped AOIs, the native-scale floor for coarse assets, custom `target_pixels`, and both `method_note_fragment` branches. EE-touching path covered indirectly via [tests/test_nature.py](../tests/test_nature.py).
