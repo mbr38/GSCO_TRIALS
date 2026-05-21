@@ -1664,3 +1664,63 @@ Tests: [tests/test_air_ghg_defensive.py](../tests/test_air_ghg_defensive.py) (31
 Acre (deep-Amazon, ~220 km buffer, all 19 indicators) is the canonical case: every Air pollutant skips via `BackgroundRingNoDataError` → every pillar's follow-up priority is `None` → page routes to E1. Previously the user saw "All pillars returned no data" with no explanation; now they see a methodology-aware message and concrete suggestions.
 
 Tests: [tests/test_e1_reason.py](../tests/test_e1_reason.py) (11 tests, no Streamlit) parametrises the helper across all-ring-empty / single-indicator-ring-empty / mixed no-data codes / ring-empty-plus-asset-empty / empty payload / no-provenance / unknown-code / malformed-dict / non-provenance-key cases. [tests/test_ocean_ring.py](../tests/test_ocean_ring.py)::`test_skipped_reason_prose_registered_in_c9` updated to match the broadened prose (asserts both "water" and "cloud cover" appear). Full suite: 715 passed.
+
+**M-P07 shipped.** P-07 Prioritisation Setup page ([pages/07_Prioritisation_Setup.py](../pages/07_Prioritisation_Setup.py)) live. Three-mode interface per locked design:
+
+| Mode | Behaviour |
+|------|-----------|
+| Supply chain | When a scope is loaded, lists the chain's nodes as checkboxes (all selected by default). Select all / Deselect all utilities. |
+| Ad hoc list | Textarea for `name, lat, lon` per line. `#`-prefixed lines treated as comments. Parser surfaces per-line errors in an expander. |
+| Country supplier database | Disabled placeholder; lands when a supplier-DB integration arrives (v1.x). |
+
+Same radius slider as P-04 (1/5/10/25/50/100 km). Same indicator picker (all 19 by default, three pillar expanders). Run validation: 1 ≤ suppliers ≤ 20, ≥ 1 indicator. Estimated time warning fires for ≥ 10 suppliers.
+
+Writes `st.session_state.prioritisation_setup` (canonical batch shape) and routes to P-08. P-08 lands in M-P08.1.
+
+Tests: [tests/test_p07_form.py](../tests/test_p07_form.py) (13 tests, no Streamlit runtime) covers every branch of the ad hoc parser (happy path, comments / blank lines, lat/lon out of range, non-numeric, wrong field count, empty name, mixed valid+invalid, whitespace), pins the `_MAX_SUPPLIERS = 20` cap and the `Supplier` dataclass shape (5 frozen fields with float lat/lon), and confirms parse-time doesn't enforce the cap (a 21-line list still parses to 21 entries — the warning fires in the run section). Full suite: 728 passed.
+
+**M-P07-POLISH shipped.** Two small fixes after M-P07's first manual verification:
+
+1. P-03 Workflow Hub's Prioritisation card ([ui/components/p03_hub.py](../ui/components/p03_hub.py)::`_render_prioritisation_card`) is no longer disabled; routes to P-07 with the same `type="primary"` treatment as the Inspect card.
+2. P-07's indicator-picker button labels harmonised to **Select all** / **Deselect all** (was "All" / "None"), matching the supply chain picker's labels above. Same behaviour, consistent wording.
+
+No new tests — pure label/routing changes; existing tests don't assert on button text. Full suite: 728 passed.
+
+**M-P08.1 shipped.** P-08 Prioritisation Results page ([pages/08_Prioritisation_Results.py](../pages/08_Prioritisation_Results.py)) live with sequential batch executor.
+
+Page state machine ([ui/prioritisation_state.py](../ui/prioritisation_state.py)) has four kinds: **S1_Configuring** (defensive — user shouldn't arrive here), **S2_Running** (executor active), **S3_Results** (batch complete or cancelled), **E1_Failed** (couldn't start). Lives in `st.session_state.prioritisation_state` as a `PrioritisationState` dataclass; the per-supplier outcome shape is `SupplierResult` (supplier_id / name / lat / lon / source / status / result / error). The `setup` is snapshotted at run start so an in-flight batch is immune to P-07 edits.
+
+Executor ([engine/prioritisation_executor.py](../engine/prioritisation_executor.py)::`run_batch`) walks suppliers sequentially, calls `ScreeningRun` per supplier with that supplier's lat/lon as the AOI centre, catches per-supplier exceptions (Q2: continue on errors), checks `state.cancelled` between suppliers (Q3: graceful cancellation). Each supplier becomes a `SupplierResult` with one of four statuses:
+
+- **success** — at least one pillar has a real score AND `_has_failures(result)` is false (no `_failures[pillar]` entries and no provenance `skipped_reason` flags).
+- **partial** — at least one pillar has a real score but `_has_failures(result)` is true.
+- **failed** — every pillar's follow-up priority is `None` (engine gave up entirely for this supplier).
+- **cancelled** — skipped because the user clicked Cancel before this supplier started.
+
+The classifier deliberately does NOT key on `composite.overall_screening`. With M-P07-PILLAR-CONSTRAINT, a batch only attempts pillars the user selected; composite is `None` whenever any pillar wasn't selected (strict-None propagation in the orchestrator, M-FOLLOWUP-FALLBACK), so composite=None doesn't distinguish "didn't try" from "tried and failed". `_has_failures` is the right signal.
+
+`centre_metadata` on each `ScreeningRun` carries `node_id` + `node_name` + `source="P-08 batch · <supply_chain|ad_hoc>"` so the cached payload could later round-trip into P-05 with attribution intact.
+
+S2_Running renders a live results table that updates as each supplier completes (Q1: live results table, not just a progress bar) via an `on_progress` callback that re-renders the table container on each tick. **Q1 — locked: the table hides pillars the user didn't select in P-07.** A new pure helper `selected_pillars(setup)` in [ui/prioritisation_state.py](../ui/prioritisation_state.py) inspects indicator IDs for `air.` / `ghg.` / `nature.` prefixes; the renderer uses it to drop unselected pillar columns rather than showing them with "—" values. The Composite column shows only when all three pillars are selected (otherwise composite is `None` by definition). The setup-summary header above the table lists the selected pillars in canonical order.
+
+The minimum-viable table shipped here (Supplier / Status / per-pillar score columns / [Composite] / [Error]) gets replaced by the M-P08.2 ranked table component (sort + rank-by selector + Rank column); the column-presence logic carries forward unchanged.
+
+Action bar in S3_Results: **Save as report** (disabled, lands in M-P08.4) and **New prioritisation** (clears `prioritisation_state` + `prioritisation_setup` and routes to P-07).
+
+Tests: [tests/test_prioritisation_state.py](../tests/test_prioritisation_state.py) (12 tests) pins `classify` for every input branch, the dataclass shapes, and parametrises `selected_pillars` across all-three / single-pillar / two-pillar / empty-setup / None-setup / empty-indicator-list cases. [tests/test_prioritisation_executor.py](../tests/test_prioritisation_executor.py) (19 tests) monkeypatches `ScreeningRun` on the executor module and covers the happy path (3-supplier walkthrough with callback log), per-supplier failure continuation, cancellation at the first-supplier boundary, mixed success/partial/failed classification, empty supplier list defence, the per-supplier `ScreeningRun` kwargs (AOI lat/lon + centre_metadata threading), plus parametrised tables for `_classify_per_supplier` (6 payloads — including Air-only-success and the two partial paths via `_failures` and via provenance `skipped_reason`) and `_has_failures` (7 payloads — empty / `_failures` populated / provenance skip / mixed). Full suite: 759 passed.
+
+**M-P08.2 shipped.** Ranked table component ([ui/components/p08_ranked_table.py](../ui/components/p08_ranked_table.py)) replaces M-P08.1's minimum-viable dataframe. Three additions:
+
+1. **Rank-by selector** — horizontal radio above the table. Options are filtered to the pillars selected in P-07; **Composite** is offered only when all three pillars are selected (otherwise composite is `None` by definition). Defaults to the first option (Composite when available, else the first pillar).
+2. **Rank column** (leftmost) — re-numbers 1, 2, 3, … by the active rank-by selector. Failed and cancelled suppliers sort to the end with an empty Rank cell; partial suppliers carrying a real rank-by score rank alongside successes (only `failed` / `cancelled` fall to the bottom).
+3. **Sortable numeric columns** — every score column is click-sortable via Streamlit's `column_config.NumberColumn(format="%.2f")`. The explicit rank-by selector and native click-sort are independent: the Rank column reflects only the selector (set at dataframe-build time), while column-header sort is exploratory.
+
+Column-hiding from M-P08.1 carries forward unchanged — pillar columns absent when not selected; Composite shown only when all 3 pillars are selected. An Error column appears only when at least one supplier in the batch has `status="failed"` with an error string (truncated to 60 chars; full text lands in M-P08.2-POLISH or M-P08.3 drill-down).
+
+The M-P08.1 renderer's `_render_results_table`, `_status_label`, and `_fmt_score` helpers were removed — both `_render_s2_running` and `_render_s3_results` now call `render_ranked_table(state)` into their `st.empty()` placeholder via `with results_container.container():`. The `on_progress` callback re-renders the same placeholder on each tick so the ranked table updates live as suppliers complete.
+
+Out of scope here: traffic-light cell colouring (deferred — Streamlit's `column_config` makes per-cell colouring awkward); 2D risk matrix (M-P08.3); save action (M-P08.4).
+
+Tests: [tests/test_p08_ranked_table.py](../tests/test_p08_ranked_table.py) (19 tests, no Streamlit runtime) parametrises `_rank_by_to_payload_key` across all four labels plus the defensive unknown-label fallback; pins `_extract_score` happy-path / None-result / missing-key / non-numeric defences; covers `_build_ranked_dataframe` for the happy 3-supplier rank-by-Composite ordering, failed-at-end with no Rank, rank-by-Air vs rank-by-Composite ordering divergence, partial-suppliers ranked alongside successes, Air-only column hiding, Composite hidden on two-pillar batches, and Error-column conditional presence; and asserts `_build_column_config`'s column set across all-three vs Air-only plus the `%.2f` format on every numeric column. Full suite: 778 passed.
+
+**M-P08.2-FIX shipped.** The rank-by radio was originally rendered inside `render_ranked_table`, which the S2_Running progress callback re-invokes on every supplier completion. Streamlit's same-key check fired a duplicate-key crash. Fix: split `render_rank_by_selector` (called once outside the redraw container) from `render_ranked_table(state, rank_by)` (safe to call repeatedly inside the live-update loop). The rank-by choice flows from the selector into the table as an argument; the public-API change is reflected at both renderer call sites ([ui/components/p08_renderer.py](../ui/components/p08_renderer.py)::`_render_s2_running` and `_render_s3_results`). Added one regression test ([tests/test_p08_ranked_table.py](../tests/test_p08_ranked_table.py)::`test_render_functions_split_into_selector_and_table`) that pins the two-function signatures via `inspect.signature`, so the split can't silently collapse again. Full suite: 779 passed.

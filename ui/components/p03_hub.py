@@ -102,22 +102,22 @@ def _render_inspect_card() -> None:
             st.switch_page("pages/04_Inspect_Setup.py")
 
 
+# M-P07-POLISH: Prioritisation card now active — routes to P-07.
 def _render_prioritisation_card() -> None:
     with st.container(border=True):
         st.markdown("#### Prioritisation")
         st.caption(
-            "Rank multiple suppliers by audit priority. Useful for "
-            "Policy Maker reviews of a region or MNC reviews of a "
-            "whole supply chain. Lands in a later milestone."
+            "Batch-screen up to 20 suppliers in one run. Results are "
+            "ranked by audit priority across all pillars."
         )
         st.write("")
-        st.button(
+        if st.button(
             "Open Prioritisation →",
             use_container_width=True,
-            disabled=True,
+            type="primary",
             key="p03_open_prioritisation",
-            help="Prioritisation (P-07/P-08) lands in a later milestone.",
-        )
+        ):
+            st.switch_page("pages/07_Prioritisation_Setup.py")
 
 
 # ---------------------------------------------------------------------------

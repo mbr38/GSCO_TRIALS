@@ -630,3 +630,68 @@ explicit decision rather than carrying them forward by inertia.
   provenance shape (it covers indicator IDs only). Either extend it or
   link to `docs/provenance_schema.md` from §6 ("Engine output shape").
   Still pending CLAUDE.md §8 confirmation to edit Schema_v2.
+
+---
+
+## Country supplier database integration (deferred M-P07)
+
+P-07's third tab is disabled in v1. The Setup page exposes three input
+modes — supply chain (from a loaded P-02 scope), ad hoc list, and
+country supplier database. Only the first two are wired in v1; the
+country-DB tab renders an informational placeholder + a disabled
+"Coming in v1.x" button.
+
+**v1.x integration targets.** Open Supply Hub for garments/textiles;
+CARMA for power-plant emissions. Expand from there as datasets allow.
+
+**Why this matters.** Policy Maker users gain a "scan every supplier
+of type X in country Y" workflow ("every cement factory in Brazil",
+"every coal plant in India") that v1 can't express. For MNC users it
+unlocks a path beyond their own loaded chain — proactive screening of
+adjacent supplier pools.
+
+**Fix when picked up.** Add a country + sector selector to the disabled
+tab, wire it to the supplier-DB adapter, and feed the resulting list
+through the same `Supplier` dataclass + run path as the other two
+modes. The 20-supplier cap may need to lift (or split into pages) for
+country-scale lists; revisit alongside the parallel-execution work
+below.
+
+---
+
+## CSV upload for ad hoc locations (deferred M-P07)
+
+M-P07 ships textarea-paste as the only ad hoc input path. For lists of
+~5-20 locations the textarea works well; beyond that, paste fidelity
+gets brittle (Excel exports with quoted strings, BOM-prefixed UTF-8,
+embedded newlines in names).
+
+**Fix when picked up.** Add a drag-and-drop CSV uploader alongside the
+textarea in `_render_ad_hoc_textarea`. Validate header row
+(`name,lat,lon`), reuse the existing `_parse_ad_hoc` line validator
+per row (returning the same `(suppliers, errors)` pair), surface the
+same error expander. Practical list-size ceiling rises from ~20 to
+~200 — at which point the 20-supplier cap becomes the limiting
+factor, not the input path.
+
+---
+
+## Parallel batch execution (deferred M-P08)
+
+P-07's run-section estimate is `~1 min/supplier`, which assumes
+sequential execution (one `ScreeningRun` after the next). At the
+v1 cap of 20 suppliers that's a ~20-minute wall-time for a full
+batch. The setup page surfaces an info banner for batches of ≥ 10
+suppliers warning the user to expect ~10+ minutes.
+
+**Fix when picked up.** Parallelise via threadpool or asyncio in P-08's
+runner, with EE rate-limit handling (TaskScheduler-style exponential
+backoff on `ee.EEException` rate-limit codes). Each `ScreeningRun` is
+already independent — no shared mutable state — so the parallelisation
+is mostly a runner-side change. Expected wall-time drop is ~5-10× for
+typical batches, putting a 20-supplier run under 5 minutes.
+
+**Knock-on.** The "Estimated time" line in P-07's run section should
+be recalibrated to the parallel estimate once P-08 lands the runner;
+the constant `1` minute/supplier in `_render_run_section` is the
+single hook to update.
