@@ -52,19 +52,66 @@ class PageState:
     failures: dict | None = None
 
 
-def classify_result(result: dict) -> StateName:
+# M-E1-INDICATOR-AWARE
+def classify_result(
+    result: dict,
+    selected_indicators: list[str] | set[str] | None = None,
+) -> StateName:
     """Map an engine result payload to the next state name.
 
-    Decision order:
+    Selection-aware (M-E1-INDICATOR-AWARE): ``E1_AllFailed`` fires only
+    when *every requested indicator* returned no data. Previously the
+    classifier keyed on per-pillar follow-up priorities — those go to
+    ``None`` whenever any sub-aggregate is missing (M-FOLLOWUP-FALLBACK
+    strict-None), so a single-indicator run whose one selected indicator
+    succeeded would still route to E1 because its pillar's aggregate was
+    ``None`` over the unselected sub-aggregates. Bug reproduced with
+    KBA-only screening at Bahia (`nature.kba.proximity_score = 0.24`
+    real data, page showed "All pillars returned no data").
 
-    1. **All-failed** — every pillar listed in ``_meta.pillars_run``
-       produced no aggregate score (the per-pillar follow-up priority
-       is ``None``). Returns ``E1_AllFailed``. Requires
-       ``pillars_run`` to be non-empty; an empty ``pillars_run`` never
-       fires this branch (no pillars ran, so none failed).
-    2. **Partial** — at least one pillar appears in ``_failures`` with
-       a non-empty failure list. Returns ``S2_Partial``.
-    3. Otherwise full success. Returns ``S2_Results``.
+    Decision order with selection provided:
+
+    1. **All-failed** — every entry in ``selected_indicators`` is
+       missing from ``result`` or has value ``None``. Returns
+       ``E1_AllFailed``.
+    2. **Partial** — at least one selected indicator delivered a value
+       AND either some other selected indicator returned ``None`` OR
+       the orchestrator recorded indicator-level failures in
+       ``_failures``. Returns ``S2_Partial``.
+    3. Otherwise full success — ``S2_Results``.
+
+    When ``selected_indicators`` is ``None`` or empty, falls back to
+    the original pillar-aggregate logic (preserves backward
+    compatibility for callers that don't thread the selection).
+    """
+    if not selected_indicators:
+        return _classify_by_pillar_aggregates(result)
+
+    any_success = any(
+        result.get(ind) is not None for ind in selected_indicators
+    )
+    if not any_success:
+        return "E1_AllFailed"
+
+    all_success = all(
+        result.get(ind) is not None for ind in selected_indicators
+    )
+    failures: dict = result.get("_failures", {})
+    has_failures = any(
+        isinstance(v, list) and len(v) > 0
+        for v in failures.values()
+    )
+    if not all_success or has_failures:
+        return "S2_Partial"
+    return "S2_Results"
+
+
+def _classify_by_pillar_aggregates(result: dict) -> StateName:
+    """Original M-UI-E.1 classification logic.
+
+    Kept for backwards compatibility — fires when ``classify_result``
+    is called without a ``selected_indicators`` argument. The same
+    decision tree as before M-E1-INDICATOR-AWARE.
     """
     pillars_run: list[str] = result.get("_meta", {}).get("pillars_run", [])
     failures: dict = result.get("_failures", {})

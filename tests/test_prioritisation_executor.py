@@ -46,12 +46,21 @@ def _setup(n: int = 3) -> dict:
 
 
 def _success_payload(score: float = 0.5) -> dict:
-    """Engine payload with all three pillar priorities + composite set."""
+    """Engine payload with all three pillar priorities + composite set.
+
+    M-E1-INDICATOR-AWARE: also carries the per-indicator score keys
+    that match ``_setup()``'s ``indicators`` list, since the classifier
+    now keys on those rather than the pillar aggregates.
+    """
     return {
         "air.audit_followup_priority": score,
         "ghg.audit_followup_priority": score,
         "nature.followup_priority":    score,
         "composite.overall_screening": score,
+        # Per-indicator keys (must match the IDs in _setup()'s
+        # ``indicators`` list — see M-E1-INDICATOR-AWARE).
+        "air.no2.score":               score,
+        "ghg.ch4.score":               score,
     }
 
 
@@ -184,26 +193,35 @@ def test_cancellation_after_first_supplier(patched_screening_run):
 
 def test_mixed_outcomes_status_per_supplier(patched_screening_run):
     """One success, one partial (real pillar scores but ``_failures``
-    populated), one failed (every pillar None)."""
+    populated), one failed (every requested indicator None).
+
+    M-E1-INDICATOR-AWARE: payloads carry the per-indicator keys
+    matching ``_setup()``'s indicators list, since the classifier
+    now keys on those.
+    """
     setup = _setup(3)
     state = PrioritisationState(
         kind=PrioritisationStateKind.S2_RUNNING, setup=setup,
     )
     patched_screening_run.script = [
         _success_payload(),                # success
-        {                                  # partial — pillar scores OK, but
-                                           # one indicator failed inside.
+        {                                  # partial — all requested indicators
+                                           # delivered + _failures populated.
             "air.audit_followup_priority": 0.4,
             "ghg.audit_followup_priority": 0.3,
             "nature.followup_priority":    0.5,
             "composite.overall_screening": 0.4,
-            "_failures": {"air": [{"indicator_id": "air.no2.score"}]},
+            "air.no2.score":               0.4,
+            "ghg.ch4.score":               0.3,
+            "_failures": {"air": [{"indicator_id": "air.so2.score"}]},
         },
-        {                                  # failed — every pillar None
+        {                                  # failed — every requested indicator None
             "air.audit_followup_priority": None,
             "ghg.audit_followup_priority": None,
             "nature.followup_priority":    None,
             "composite.overall_screening": None,
+            "air.no2.score":               None,
+            "ghg.ch4.score":               None,
         },
     ]
     run_batch(state, setup, on_progress=_noop_progress)
@@ -293,6 +311,71 @@ def test_empty_supplier_list_transitions_to_s3_no_calls(patched_screening_run):
 ])
 def test_classify_per_supplier(payload, expected):
     assert _classify_per_supplier(payload) == expected
+
+
+# ---------------------------------------------------------------------------
+# M-E1-INDICATOR-AWARE: selection-aware classifier
+# ---------------------------------------------------------------------------
+
+class TestClassifyPerSupplierSelectionAware:
+    """Pin the post-M-E1-INDICATOR-AWARE behaviour of the executor's
+    per-supplier classifier. Selection-aware: 'failed' means every
+    requested indicator returned None, not 'every pillar aggregate is
+    None'.
+    """
+
+    def test_single_indicator_success_is_success(self):
+        """A subset run where one selected indicator delivered with no
+        failures → success, even when pillar aggregates are None."""
+        payload = {
+            "nature.kba.proximity_score":  0.24,
+            "nature.followup_priority":    None,
+            "air.audit_followup_priority": None,
+            "ghg.audit_followup_priority": None,
+        }
+        assert _classify_per_supplier(
+            payload, ["nature.kba.proximity_score"],
+        ) == "success"
+
+    def test_partial_when_some_selected_indicators_missing(self):
+        """3 requested, 2 succeeded → partial."""
+        payload = {
+            "air.no2.score":              0.4,
+            "ghg.ch4.score":              0.5,
+            "nature.kba.proximity_score": None,
+        }
+        selected = [
+            "air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score",
+        ]
+        assert _classify_per_supplier(payload, selected) == "partial"
+
+    def test_failed_when_every_selected_indicator_none(self):
+        payload = {
+            "air.no2.score":              None,
+            "ghg.ch4.score":              None,
+            "nature.kba.proximity_score": None,
+        }
+        selected = [
+            "air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score",
+        ]
+        assert _classify_per_supplier(payload, selected) == "failed"
+
+    def test_partial_when_all_succeed_but_failures_block_populated(self):
+        """All requested delivered, but ``_failures`` carries an entry
+        for an unselected sibling — still partial."""
+        payload = {
+            "air.no2.score": 0.4,
+            "_failures": {"air": [{"indicator_id": "air.so2.score"}]},
+        }
+        assert _classify_per_supplier(
+            payload, ["air.no2.score"],
+        ) == "partial"
+
+    def test_no_selection_falls_back_to_pillar_aggregate_logic(self):
+        """Defensive: ``None`` selection → pre-M-E1-INDICATOR-AWARE
+        path (the parametrised tests below still cover that)."""
+        payload = {"air.audit_followup_priority": 0.5}
+        assert _classify_per_supplier(payload, None) == "success"
 
 
 # _has_failures coverage.

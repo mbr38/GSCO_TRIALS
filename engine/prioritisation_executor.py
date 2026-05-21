@@ -93,7 +93,10 @@ def run_batch(
                 ee_client=None,
                 centre_metadata=centre_metadata,
             ).run()
-            status = _classify_per_supplier(result)
+            # M-E1-INDICATOR-AWARE: thread the user's selection so a
+            # subset run with real per-indicator data doesn't get
+            # flagged "failed" when pillar aggregates go None.
+            status = _classify_per_supplier(result, indicators)
             outcome = SupplierResult(
                 supplier_id=supplier["id"],
                 name=supplier["name"],
@@ -123,22 +126,43 @@ def run_batch(
     state.kind = PrioritisationStateKind.S3_RESULTS
 
 
-def _classify_per_supplier(result: dict) -> str:
+# M-E1-INDICATOR-AWARE
+def _classify_per_supplier(
+    result: dict,
+    selected_indicators: list[str] | set[str] | None = None,
+) -> str:
     """Map a single supplier's result to a status string.
 
-    With M-P07-PILLAR-CONSTRAINT, a batch only attempts pillars the
-    user selected. So "composite is None" doesn't always mean a
-    supplier failed — it might just mean composite isn't defined
-    because not all 3 pillars were selected. We classify based on
-    the *selected* pillars' actual outcomes.
+    Selection-aware (M-E1-INDICATOR-AWARE): mirrors
+    ``ui.page_state.classify_result``. "failed" means *every requested
+    indicator returned None*, not "every pillar aggregate is None".
 
-    - "failed"  : no pillar has any score at all (engine gave up)
-    - "partial" : at least one pillar has a score, but ``_failures``
-                  is non-empty for some pillar OR some provenance
-                  block carries a ``skipped_reason``
-    - "success" : at least one pillar has a score AND no failures
-                  / skipped reasons surface
+    - "failed"  : no requested indicator delivered a value
+    - "partial" : at least one delivered AND either some other
+                  requested indicator returned None OR ``_failures`` /
+                  provenance ``skipped_reason`` markers are present
+    - "success" : every requested indicator delivered AND nothing
+                  in ``_failures`` / provenance flagged a skip
+
+    When ``selected_indicators`` is ``None`` or empty, falls back to
+    the pre-M-E1-INDICATOR-AWARE pillar-aggregate logic so direct
+    callers that don't have the setup handy still get sensible
+    behaviour.
     """
+    if selected_indicators:
+        any_success = any(
+            result.get(ind) is not None for ind in selected_indicators
+        )
+        if not any_success:
+            return "failed"
+        all_success = all(
+            result.get(ind) is not None for ind in selected_indicators
+        )
+        if not all_success or _has_failures(result):
+            return "partial"
+        return "success"
+
+    # Fallback — original pillar-aggregate logic.
     air    = result.get("air.audit_followup_priority")
     ghg    = result.get("ghg.audit_followup_priority")
     nature = result.get("nature.followup_priority")

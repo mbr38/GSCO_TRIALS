@@ -108,8 +108,12 @@ def _run_engine_and_transition(state: PageState) -> PageState:
             run_id=state.run_id,
             error=str(exc),
         )
+    # M-E1-INDICATOR-AWARE: thread the user's selection into the
+    # classifier so a single-indicator or subset run with real data
+    # doesn't route to E1 just because pillar aggregates went None
+    # under M-FOLLOWUP-FALLBACK strict-None.
     return PageState(
-        name=classify_result(result),
+        name=classify_result(result, setup["indicators"]),
         run_id=state.run_id,
         result=result,
         failures=result.get("_failures"),
