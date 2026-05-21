@@ -17,6 +17,10 @@ from ui.components.p08_ranked_table import (
     render_rank_by_selector,
     render_ranked_table,
 )
+# M-P08.3
+from ui.components.p08_risk_matrix import render_risk_matrix
+# M-P08.4
+from ui.components.p08_save_action import save_prioritisation_as_report
 from ui.prioritisation_state import (
     PrioritisationState,
     PrioritisationStateKind,
@@ -96,8 +100,11 @@ def _render_s2_running(state: PrioritisationState) -> None:
     rank_by = render_rank_by_selector(state)
 
     results_container = st.empty()
+    # M-P08.4-FIX: selection OFF during S2_Running. The progress
+    # callback re-renders the table on every supplier completion;
+    # registering selection_mode's widget key twice would crash.
     with results_container.container():
-        render_ranked_table(state, rank_by)
+        render_ranked_table(state, rank_by, enable_selection=False)
 
     # If executor hasn't run yet for this state, run it now.
     # The executor blocks until done; the callback updates containers.
@@ -113,8 +120,10 @@ def _render_s2_running(state: PrioritisationState) -> None:
             )
             # M-P08.2-FIX: table redraws use the rank_by from the
             # selector above; the selector itself is NOT re-rendered.
+            # M-P08.4-FIX: same enable_selection=False as the initial
+            # render — this is the redraw that would have crashed.
             with results_container.container():
-                render_ranked_table(state, rank_by)
+                render_ranked_table(state, rank_by, enable_selection=False)
 
         try:
             run_batch(state, setup, on_progress)
@@ -164,19 +173,33 @@ def _render_s3_results(state: PrioritisationState) -> None:
         )
 
     st.markdown("### Results")
-    # M-P08.2-FIX: same pattern as S2_Running — selector once, then table.
-    rank_by = render_rank_by_selector(state)
-    render_ranked_table(state, rank_by)
+    # M-P08.3: two-tab structure per Wireframes §P-08. Ranking is the
+    # default view; Risk matrix renders lazily on tab activation.
+    tab_ranking, tab_matrix = st.tabs(["📋 Ranking", "📊 Risk matrix"])
 
-    # Action bar. Save lands in M-P08.4; for now, just stub.
+    with tab_ranking:
+        # M-P08.2-FIX: selector once, then table.
+        # M-P08.4-FIX: selection ON in S3 — the table renders exactly
+        # once per page run here, so the widget key is safe and the
+        # row-click drill-in into P-05 is wired.
+        rank_by = render_rank_by_selector(state)
+        render_ranked_table(state, rank_by, enable_selection=True)
+
+    with tab_matrix:
+        render_risk_matrix(state)
+
+    # Action bar lives BELOW the tabs so it applies to either view.
     col_save, col_rerun = st.columns([1, 1])
     with col_save:
-        st.button(
+        # M-P08.4: working save action — pushes the whole batch into
+        # saved_analyses as a single entry with type="prioritisation".
+        if st.button(
             "💾 Save as report",
-            disabled=True,
+            type="primary",
             use_container_width=True,
-            help="Lands in M-P08.4.",
-        )
+            key="p08_save_button",
+        ):
+            save_prioritisation_as_report(state)
     with col_rerun:
         if st.button(
             "🔄 New prioritisation",

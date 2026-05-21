@@ -261,6 +261,9 @@ def test_render_functions_split_into_selector_and_table():
     """The selector and table renderers are separately importable. The
     S2_Running progress callback re-renders the table without re-rendering
     the radio — same-key crash regression guard.
+
+    M-P08.4-FIX: the table now also takes ``enable_selection`` so the
+    S2_Running redraw can opt out of widget keys.
     """
     import inspect
 
@@ -268,6 +271,88 @@ def test_render_functions_split_into_selector_and_table():
     sig_sel = inspect.signature(render_rank_by_selector)
     assert list(sig_sel.parameters) == ["state"]
 
-    # Table takes `state` + `rank_by` (in that order).
+    # Table takes `state` + `rank_by` + `enable_selection` (with default).
     sig_tbl = inspect.signature(render_ranked_table)
-    assert list(sig_tbl.parameters) == ["state", "rank_by"]
+    assert list(sig_tbl.parameters) == ["state", "rank_by", "enable_selection"]
+
+
+# ---------------------------------------------------------------------------
+# M-P08.4-FIX: enable_selection gates the widget-key path
+# ---------------------------------------------------------------------------
+
+class _StDataframeRecorder:
+    """Recorder that captures kwargs passed to st.dataframe.
+
+    Returns a dummy selection object so the True branch of
+    render_ranked_table doesn't trip on attribute access.
+    """
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def __call__(self, df, **kwargs):
+        self.calls.append(kwargs)
+        # Simulate a no-row-selected return for the selection branch.
+        class _Sel:
+            class selection:
+                rows: list = []
+        return _Sel()
+
+
+def _render_state_with_supplier() -> object:
+    """Build a one-supplier state for the render-side tests."""
+    return type("S", (), {
+        "supplier_results": [SupplierResult(
+            supplier_id="a", name="A", lat=0.0, lon=0.0,
+            source="ad_hoc", status="success",
+            result={
+                "air.audit_followup_priority": 0.5,
+                "ghg.audit_followup_priority": 0.5,
+                "nature.followup_priority":    0.5,
+                "composite.overall_screening": 0.5,
+            },
+        )],
+        "setup": {
+            "indicators": [
+                "air.no2.score", "ghg.ch4.score",
+                "nature.kba.proximity_score",
+            ],
+        },
+    })()
+
+
+def test_render_default_enable_selection_is_false_no_widget_key(monkeypatch):
+    """Defensive: a caller forgetting the flag stays crash-free.
+
+    The plain dataframe branch must not pass selection_mode / on_select / key.
+    """
+    from ui.components import p08_ranked_table as mod
+    recorder = _StDataframeRecorder()
+    monkeypatch.setattr(mod.st, "dataframe", recorder)
+
+    render_ranked_table(_render_state_with_supplier(), rank_by="Composite")
+
+    assert len(recorder.calls) == 1
+    kwargs = recorder.calls[0]
+    assert "selection_mode" not in kwargs
+    assert "on_select"      not in kwargs
+    assert "key"            not in kwargs
+
+
+def test_render_enable_selection_true_registers_widget_key(monkeypatch):
+    """When the caller opts in, the dataframe is rendered with the
+    single-row selection_mode + the stable key."""
+    from ui.components import p08_ranked_table as mod
+    recorder = _StDataframeRecorder()
+    monkeypatch.setattr(mod.st, "dataframe", recorder)
+
+    render_ranked_table(
+        _render_state_with_supplier(),
+        rank_by="Composite",
+        enable_selection=True,
+    )
+
+    assert len(recorder.calls) == 1
+    kwargs = recorder.calls[0]
+    assert kwargs.get("selection_mode") == "single-row"
+    assert kwargs.get("on_select")      == "rerun"
+    assert kwargs.get("key")            == "p08_ranked_table"

@@ -695,3 +695,38 @@ typical batches, putting a 20-supplier run under 5 minutes.
 be recalibrated to the parallel estimate once P-08 lands the runner;
 the constant `1` minute/supplier in `_render_run_section` is the
 single hook to update.
+
+## Controls inside redraw containers — widget-key collision pattern (architectural note)
+
+**Two crashes this session, same root cause.** Streamlit widgets that
+register a `key` argument cannot be safely re-rendered inside an
+`st.empty()` container without changing the key — but changing the
+key loses state between renders.
+
+The pattern surfaced twice in the P-08 work:
+
+1. **M-P08.2-FIX** — `st.radio(key="p08_rank_by")` was rendered
+   inside the results container; the S2_Running progress callback
+   re-rendered the radio per supplier completion → duplicate-key
+   crash. Fix: split the radio out as a separate function called
+   once outside the container; pass its result as an argument to
+   the table renderer.
+
+2. **M-P08.4-FIX** — `st.dataframe(key="p08_ranked_table",
+   selection_mode="single-row")` was also re-rendered inside the
+   results container. Adding `selection_mode` turned the dataframe
+   from stateless display into a keyed widget. Fix: gate selection
+   to S3_Results only (the table-in-S2 has no use for selection
+   anyway).
+
+**Architectural rule for future development:** any Streamlit widget
+that takes a `key` argument MUST be rendered exactly once per page
+render. Controls live ABOVE redraw containers; the container only
+re-renders display elements (text, tables-without-keys, charts-
+without-keys, plain markdown).
+
+When this rule is unavoidable (a long-running batch needs an "edit
+mid-run" control), the workaround is to gate the keyed widget to a
+specific page state — the M-P08.4-FIX `enable_selection` parameter
+pattern. Don't try generation-counter keys; widget state is lost
+between renders, defeating the purpose.

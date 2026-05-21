@@ -198,7 +198,22 @@ def _render_s2(state: PageState) -> None:
     because the multi-indicator aggregates (C3 chips, C4b grid, C5
     drill-downs, C6, C7) all depend on pillar aggregates that don't
     exist when only one indicator was selected.
+
+    M-P08.4: when ``p05_drill_origin == "prioritisation"`` the page is
+    being viewed from a P-08 batch drill-in — render a back link above
+    the title so the user can return to the prioritisation results
+    without losing the batch state. Direct navigation paths (Inspect
+    workflow, P-10 screening saves) don't set the flag and don't see it.
     """
+    # M-P08.4
+    if st.session_state.get("p05_drill_origin") == "prioritisation":
+        if st.button(
+            "← Back to prioritisation results",
+            key="p05_back_to_p08",
+        ):
+            st.session_state.pop("p05_drill_origin", None)
+            st.switch_page("pages/08_Prioritisation_Results.py")
+
     setup  = st.session_state["screening_setup"]
     result = state.result
 

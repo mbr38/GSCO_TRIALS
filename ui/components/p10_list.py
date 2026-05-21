@@ -83,7 +83,13 @@ def _format_row_caption(save: dict) -> str:
 
     Pure function — testable without Streamlit. Falls back to dashes when
     any field is missing (covers stub seed entries cleanly).
+
+    M-P08.4: dispatches on ``type`` so prioritisation entries get a
+    batch-level caption. Default ``"screening"`` preserves the M-P10
+    shape for entries written before the type field existed.
     """
+    if save.get("type") == "prioritisation":
+        return _format_prioritisation_caption(save)
     setup = save.get("screening_setup") or {}
     centre = setup.get("centre") or {}
     lat = centre.get("lat")
@@ -102,16 +108,35 @@ def _format_row_caption(save: dict) -> str:
     )
 
 
+# M-P08.4
+def _format_prioritisation_caption(save: dict) -> str:
+    """Per-row caption for ``type=="prioritisation"`` entries."""
+    summary = save.get("summary") or {}
+    setup   = save.get("prioritisation_setup") or {}
+    n_total = summary.get("n_total", 0)
+    radius  = setup.get("radius_km", "—")
+    date_str = (save.get("date_saved") or "")[:10] or "—"
+    return (
+        f"Prioritisation · {n_total} suppliers · "
+        f"{radius} km buffer · {date_str}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Actions
 # ---------------------------------------------------------------------------
 
 def _open_save(save: dict) -> None:
-    """Hydrate session state from the saved entry and route to P-05.
+    """Hydrate session state from the saved entry and route to its page.
 
-    Stub seeds (missing setup or payload) short-circuit with a UI error
-    — Phase 2 demo prep replaces the stubs with real screening data.
+    M-P08.4: dispatches on ``type`` — prioritisation entries route to
+    P-08, screening entries (the original M-P10 path, also the
+    default) route to P-05. Stub seeds (missing setup or payload)
+    still short-circuit with a UI error.
     """
+    if save.get("type") == "prioritisation":
+        _open_prioritisation(save)
+        return
     setup = save.get("screening_setup")
     payload = save.get("payload")
     if not setup or not payload:
@@ -129,6 +154,45 @@ def _open_save(save: dict) -> None:
         failures=payload.get("_failures"),
     )
     st.switch_page("pages/05_Screening_Results.py")
+
+
+# M-P08.4
+def _open_prioritisation(save: dict) -> None:
+    """Rehydrate ``prioritisation_state`` from a saved entry, route to P-08.
+
+    Defensive: a stub or partly-populated entry without supplier_results
+    still opens; the page renders an empty results table rather than
+    crashing.
+    """
+    from ui.prioritisation_state import (
+        PrioritisationState,
+        PrioritisationStateKind,
+        SupplierResult,
+    )
+
+    setup = save.get("prioritisation_setup")
+    if not setup:
+        st.error(
+            "This save is missing setup data — can't reopen the batch."
+        )
+        return
+
+    supplier_results = [
+        SupplierResult(**r) for r in (save.get("supplier_results") or [])
+    ]
+    summary = save.get("summary") or {}
+
+    state = PrioritisationState(
+        kind=PrioritisationStateKind.S3_RESULTS,
+        setup=setup,
+        supplier_results=supplier_results,
+        completed_count=summary.get("n_total", len(supplier_results)),
+        total_count=summary.get("n_total", len(supplier_results)),
+        cancelled=summary.get("n_cancelled", 0) > 0,
+    )
+    st.session_state["prioritisation_state"] = state
+    st.session_state["prioritisation_setup"] = setup
+    st.switch_page("pages/08_Prioritisation_Results.py")
 
 
 def _apply_delete(saves: list[dict], save_id: str) -> list[dict]:
