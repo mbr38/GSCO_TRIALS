@@ -1832,3 +1832,22 @@ The narrative for `nature.biodiversity_exposure` was corrected — the prior tex
 **Canary test ([tests/test_indicator_library.py](../tests/test_indicator_library.py)::`test_component_score_inputs_resolve_to_known_engine_keys`).** Asserts every ID in every component score's `inputs` list resolves to a known engine key — *known* being the union of `engine.ids.ALL_INDICATOR_IDS` (the canonical 198-key schema) and the keys appearing in the relevant weight dicts in `engine.constants` (which carry the engine-internal intermediates like `nature.habitat.*_pct_norm` that aren't in the canonical schema but are produced by `_augment_habitat_pct_norms`). This is the rigorous "no typo" guarantee for the manifest without coupling to a full emitted-keys harvest.
 
 The existing `test_component_scores_have_no_formula` was extended into `test_component_scores_have_inputs_but_no_formula` — same no-formula assertion plus `inputs` non-emptiness. Full suite: 889 passed.
+
+**M-P11.1 shipped.** P-11 Reports page ([pages/11_Reports.py](../pages/11_Reports.py)) scaffolded with the state machine and the template-and-source picker (S1_TemplateAndSource).
+
+Two templates registered in [ui/components/p11_templates.py](../ui/components/p11_templates.py) per the locked Wireframes §P-11 design:
+
+| Template ID       | Display name             | User type      | Accepts                            |
+|-------------------|--------------------------|----------------|------------------------------------|
+| `policy_audit`    | Policy audit report      | `policy_maker` | `{screening, prioritisation}`      |
+| `supplier_audit`  | Supplier audit report    | `mnc`          | `{screening, prioritisation}`      |
+
+`templates_for(user_type)` does the user-type hard branch — Policy Maker sees only the policy audit template; MNC sees only the supplier audit. Each template declares its section list (title page / executive summary / methodology / pillar findings / indicator detail / provenance appendix for policy; the supplier variant swaps in scope summary + priority findings + per-supplier detail). The section list is the contract for M-P11.2's preview-section renderers and M-P11.3's PDF templates — adding a section means extending both that tuple and the matching renderer.
+
+S1 wired up in [ui/components/p11_renderer.py](../ui/components/p11_renderer.py): selectbox for the template (singleton dropdown per user type), multiselect for sources (filtered from `st.session_state["saved_analyses"]` to entries whose `type` is in the chosen template's `accepted_source_types`), title / notes inputs, and the **Next: Preview report** button. Validation surfaces a `Missing: …` caption when template / source / title are incomplete; the button is disabled until all three are present. When no compatible saved analyses exist (cold session before any save), an info banner directs the user to P-05 / P-08 and the preview button stays disabled.
+
+S2 (preview) and S3 (export) are stubbed with placeholder messages — they land in M-P11.2 (preview rendering), M-P11.3 (PDF export), and M-P11.4 (CSV/JSON + Save-as-report wiring from P-05 / P-08). The dispatch shape is locked now so later milestones can plug in without restructuring the page. The S2 placeholder includes a "← Back to template selection" button that returns to S1 with the selectbox / multiselect / title / notes preserved via their widget keys.
+
+Page chrome follows the P-03 / P-09 router-only pattern: no `require_earth_engine` (reports are derived content with no EE calls).
+
+Tests: [tests/test_p11_templates.py](../tests/test_p11_templates.py) (8 tests) pins `templates_for` for both user types + the defensive empty-list fallback for unknown user types; `get_template` happy-path / nonexistent-id; and registry-wide invariants — every template has ≥ 1 section, accepts only known source types (`{screening, prioritisation}`), no duplicate template IDs. [tests/test_p11_state.py](../tests/test_p11_state.py) (2 tests) pins the `ReportState` dataclass defaults and the `ReportStateKind` enum string values (the latter so a save/load roundtrip — when persistence lands — stays stable). Full suite: 899 passed.

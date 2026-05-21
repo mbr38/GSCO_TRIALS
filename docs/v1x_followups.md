@@ -818,3 +818,54 @@ several compute functions (notably `compute_vegetation_condition` for
 careful regression testing to ensure the substitution semantics are
 preserved end-to-end (engine output → c5_drilldown formula display →
 library card display).
+
+---
+
+## Additional report templates — ESG / Portfolio screening (deferred M-P11)
+
+M-P11.1 ships two templates: Policy audit report (Policy Maker) and
+Supplier audit report (MNC). The wireframes spec describes more —
+namely an **ESG / due-diligence report** (cross-sectoral, multi-pillar
+narrative aimed at ESG officers) and a **Portfolio screening report**
+(prioritisation-batch-focused, multi-supplier comparison framing).
+
+**Fix when picked up.** Add new `ReportTemplate` entries to the
+`_TEMPLATES` tuple in
+[ui/components/p11_templates.py](../ui/components/p11_templates.py).
+The user-type hard branch (`templates_for`) makes adding a template
+visible to a specific role trivial; for cross-role templates, drop
+the `user_type` filter or set it to a wildcard sentinel. Each new
+template's `sections` tuple drives both M-P11.2 preview and M-P11.3
+PDF rendering — define the section keys, then add the matching
+renderers in the preview / PDF templates.
+
+---
+
+## Coverage-gap workflow on P-11 (deferred M-P11)
+
+Wireframes §P-11 S4 describes a coverage-gap modal that fires when an
+audit template is picked with a partial-coverage source (a screening
+that ran fewer than the canonical 19 indicators, or a prioritisation
+batch where indicators were deselected in P-07). v1 ships M-P11.1
+without this — the partial-coverage status is implicit in the source's
+saved payload, and M-P11.2's methodology section will note something
+like *"Screening covered N of 19 indicators"*.
+
+**Fix when picked up.** Detect partial coverage on source pick by
+inspecting each chosen source's `screening_setup["indicators"]` /
+`prioritisation_setup["indicators"]` vs `ALL_INDICATOR_IDS`. When any
+source is partial, surface a modal (or inline warning) before the
+**Preview** step with three options per the wireframes spec:
+
+- **Run comprehensive screening for this target** — route to P-04
+  pre-filled with the source's centre + all 19 indicators selected
+  + radius from the source's setup.
+- **Continue with partial coverage** — accept the gap and proceed to
+  preview.
+- **Cancel** — return to template selection without committing.
+
+The "Run comprehensive" path is the integration point with P-04's
+`scope` and `centre_metadata` plumbing — it should preserve the
+report-build context so the user lands back on P-11 with the same
+template selected after the comprehensive screening completes and is
+saved.
