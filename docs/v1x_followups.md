@@ -730,3 +730,91 @@ mid-run" control), the workaround is to gate the keyed widget to a
 specific page state — the M-P08.4-FIX `enable_selection` parameter
 pattern. Don't try generation-counter keys; widget state is lost
 between renders, defeating the purpose.
+
+---
+
+## Verified ESG/regulatory alignment mappings (deferred M-P09)
+
+M-P09 ships hand-authored ESG / regulatory alignment per indicator in
+[demo/indicator_library.json](../demo/indicator_library.json), with a
+top-of-page "indicative" caveat. The mappings draw on the obvious
+frameworks (WHO AQ Guidelines, EU AAQD, EUDR, CBD GBF, TNFD, CSRD
+ESRS, UN SDGs, GHG Protocol) but haven't been reviewed by a
+domain expert.
+
+**Fix when picked up.** Domain-expert review and verification of each
+indicator's mapping. Possibly expand from the current
+semicolon-separated text-string format to a structured taxonomy
+(`{framework_id, article_reference, applicability_note}` per entry)
+so the P-09 filter can be more precise — e.g. "EUDR Annex II
+commodities" vs generic "EUDR". The P-09 `_collect_esg_terms` helper
+splits on `;` today; a structured taxonomy would replace that with a
+typed lookup.
+
+---
+
+## "Active in current workflow" toggle for P-09 (deferred M-P09)
+
+Per Wireframes §P-09 spec, the Indicator Library should support a
+toggle (C6) that dims indicators not in the current workflow's
+selection. v1 skipped this: it couples the page to the
+`screening_setup` / `prioritisation_setup` session state and adds
+modest value on top of the search/filter pair already shipped.
+
+**Fix when picked up.** Reactivate when the localStorage persistence
+work (deferred for P-10) lands a stable notion of "current workflow"
+across page loads — the toggle is only useful when "active in
+workflow" survives navigation. At that point: add a third filter
+control alongside search + ESG; when toggled on, dim cards whose
+`indicator_id` isn't in the active setup's `indicators` list.
+
+---
+
+## M-COMPONENT-WEIGHTS — surface component-score exact weights in P-09 (deferred M-P09-COMPOSITES v2)
+
+M-P09-COMPOSITES v2 surfaces **pillar follow-up priority** weights
+live (those are owned by `c5_drilldown._AIR_FORMULA` / `_GHG_FORMULA`
+/ `_NATURE_FORMULA`, which import from structured constants in
+[engine/constants.py](../engine/constants.py)). For **component
+scores** (e.g. `nature.vegetation_condition`,
+`ghg.core_audit_support`), the weight dicts are also already in
+`engine.constants` — `VEGETATION_CONDITION_WEIGHTS`,
+`BIODIVERSITY_EXPOSURE_WEIGHTS`, `HABITAT_CONVERSION_WEIGHTS`,
+`NATURE_QUALITY_ATTRIBUTION_WEIGHTS`, `CORE_GHG_AUDIT_SUPPORT_WEIGHTS`,
+`GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS`, `AIR_POLLUTION_PROXY_WEIGHTS`.
+
+So the constants exist; what's missing is the **wiring** that imports
+them into `c5_drilldown`-style structured formula tuples and through
+to `demo.indicator_library._resolve_live_formula`'s dispatch. v1 ships
+component-score cards with a **conceptual inputs list** in the JSON
+manifest plus a caption directing readers to the engine source.
+
+**Fix when picked up.**
+
+1. Extend [ui/components/c5_drilldown.py](../ui/components/c5_drilldown.py)
+   (or a new sibling module) with `_FormulaTerm`-style tuples for each
+   component score, mirroring the existing `_AIR_FORMULA` /
+   `_GHG_FORMULA` / `_NATURE_FORMULA` build pattern. Import the weight
+   dicts and pair them with display-name / payload-key bindings.
+2. Extend
+   [demo/indicator_library.py](../demo/indicator_library.py)::`_resolve_live_formula`'s
+   `formula_for_aggregate` dispatch to include the 12 component-score
+   IDs. Each returns a structured `{"formula", "weights"}` dict.
+3. Drop the manifest's `inputs` field from the component-score entries
+   (no longer needed once weights are live-sourced) — or keep it as a
+   redundant readability aid; either choice is fine.
+4. Drop the v1 *"Precise weights live in the engine source"* caption
+   from the renderer's component-score branch — the formula + weights
+   section now self-documents.
+5. The existing canary test
+   ([tests/test_indicator_library.py](../tests/test_indicator_library.py)::`TestDerivedEntries::test_pillar_aggregate_weights_match_c5_drilldown`)
+   covers the lockstep guarantee for the new wiring automatically —
+   just extend its parametrisation to include the 12 component-score
+   IDs.
+
+**Risk.** M-FOLLOWUP-FALLBACK's known-zero substitution logic touches
+several compute functions (notably `compute_vegetation_condition` for
+`nature.ndvi.negative_trend`); landing the constants exposure requires
+careful regression testing to ensure the substitution semantics are
+preserved end-to-end (engine output → c5_drilldown formula display →
+library card display).
