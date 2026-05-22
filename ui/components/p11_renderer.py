@@ -1,18 +1,25 @@
-"""P-11 renderer (M-P11.1 / M-P11.2).
+"""P-11 renderer (M-P11.1 / M-P11.2 / M-P11.3).
 
 Dispatches to state-specific renderers. M-P11.1 wires
 S1_TemplateAndSource; M-P11.2 wires S2_Preview to render the real
-HTML report (assembled by ``p11_assembler.build_report_html``).
-S3 still placeholders until M-P11.3 / .4.
+HTML report (assembled by ``p11_assembler.build_report_html``);
+M-P11.3 wires S3_Export to generate + download a PDF via
+weasyprint. CSV / JSON exports land in M-P11.4.
 """
 
 # M-P11.1
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
+
 import streamlit as st
 import streamlit.components.v1 as st_components
 
 from ui.components.p11_assembler import build_report_html
+from ui.components.p11_csv       import render_csv
+from ui.components.p11_json      import render_json
+from ui.components.p11_pdf       import PdfDependencyError, render_pdf
 from ui.components.p11_templates import get_template, templates_for
 from ui.p11_state import ReportState, ReportStateKind
 
@@ -24,7 +31,7 @@ def render_p11() -> None:
     elif state.kind == ReportStateKind.S2_PREVIEW:
         _render_s2(state)
     elif state.kind == ReportStateKind.S3_EXPORT:
-        _render_s3_placeholder(state)
+        _render_s3(state)
     else:
         st.error(f"Unknown report state: {state.kind}", icon="⚠️")
 
@@ -176,17 +183,20 @@ def _render_s2(state: ReportState) -> None:
         _render_back_button(state)
         return
 
-    # Top bar: nav + export-placeholder (export ships M-P11.3 / .4).
+    # Top bar: nav + route to S3_Export (M-P11.3).
     col_back, col_export = st.columns([1, 1])
     with col_back:
         _render_back_button(state)
     with col_export:
-        st.button(
-            "Export PDF — lands in M-P11.3",
-            disabled=True,
+        # M-P11.3
+        if st.button(
+            "Continue to Export →",
+            type="primary",
             use_container_width=True,
-            key="p11_export_disabled",
-        )
+            key="p11_s2_to_export",
+        ):
+            state.kind = ReportStateKind.S3_EXPORT
+            st.rerun()
 
     st.divider()
 
@@ -195,12 +205,218 @@ def _render_s2(state: ReportState) -> None:
     st_components.html(report_html, height=800, scrolling=True)
 
 
-def _render_s3_placeholder(state: ReportState) -> None:
-    st.info(
-        "**Export lands in M-P11.3 (PDF) and M-P11.4 (CSV/JSON).**",
-        icon="📥",
+# ──────────────────────────────────────────────────────────────────
+# S3 — Export (M-P11.3 wires PDF; CSV / JSON land in M-P11.4)
+# ──────────────────────────────────────────────────────────────────
+
+# M-P11.3
+def _render_s3(state: ReportState) -> None:
+    template = get_template(state.template_id)
+    if template is None:
+        st.error("Template missing — return to selection.", icon="⚠️")
+        _render_back_button(state)
+        return
+
+    saved = st.session_state.get("saved_analyses", [])
+    sources = [s for s in saved if s["id"] in state.source_ids]
+    if not sources:
+        st.error(
+            "Selected sources are no longer available. Return to "
+            "selection to pick again.",
+            icon="⚠️",
+        )
+        _render_back_button(state)
+        return
+
+    st.markdown("### Export")
+    st.caption(
+        "Generate and download your report. PDF is the primary "
+        "export format; CSV and JSON exports land in M-P11.4."
     )
+
+    # Assemble HTML once — the export branches (PDF now, CSV/JSON
+    # later) all share it.
+    try:
+        report_html = build_report_html(state, sources, template)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Failed to assemble report HTML: {exc}", icon="⚠️")
+        _render_back_button(state)
+        return
+
+    col_pdf, col_csv, col_json = st.columns(3)
+    with col_pdf:
+        _render_pdf_export(state, report_html)
+    with col_csv:
+        _render_csv_export(state, sources)  # M-P11.4
+    with col_json:
+        _render_json_export(state, sources, template)  # M-P11.4
+
+    st.divider()
     _render_back_button(state)
+
+
+# M-P11.3
+def _render_pdf_export(state: ReportState, report_html: str) -> None:
+    """Two-step PDF UX: Generate → Download.
+
+    The render is ~3-5 sec on first call (Pango/Cairo cold-start +
+    layout). Caching the bytes in session state means re-clicking on
+    the same setup is instant; changing template / sources / title /
+    notes invalidates the cache and re-prompts a fresh render.
+    """
+    cache_key = _pdf_cache_key(state)
+    cached = st.session_state.get("p11_pdf_cache")
+
+    if cached and cached.get("key") == cache_key:
+        filename = _build_filename(state, "pdf")
+        st.download_button(
+            "📄 Download PDF",
+            data=cached["bytes"],
+            file_name=filename,
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+            key="p11_pdf_download",
+        )
+        st.caption(
+            f"Generated {cached['size_kb']} KB · {cached['generated_at']}"
+        )
+        return
+
+    if st.button(
+        "Generate PDF",
+        type="primary",
+        use_container_width=True,
+        key="p11_pdf_generate",
+    ):
+        with st.spinner("Rendering PDF…"):
+            try:
+                pdf_bytes = render_pdf(report_html)
+            except PdfDependencyError as exc:  # M-P11-FIX
+                _render_pdf_deps_error(exc)
+                return
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"PDF generation failed: {exc}", icon="⚠️")
+                return
+        st.session_state["p11_pdf_cache"] = {
+            "key":          cache_key,
+            "bytes":        pdf_bytes,
+            "size_kb":      round(len(pdf_bytes) / 1024, 1),
+            "generated_at": datetime.now(timezone.utc).strftime("%H:%M UTC"),
+        }
+        st.rerun()
+
+
+# M-P11.4
+def _render_csv_export(state: ReportState, sources: list[dict]) -> None:
+    """CSV export — one-shot download (no two-step like PDF).
+
+    CSV generation is fast (<100 ms even for multi-source reports),
+    so the spinner / cache pattern isn't worth the UX cost. The
+    button surfaces directly as ``st.download_button``.
+    """
+    try:
+        csv_string = render_csv(state, sources)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"CSV generation failed: {exc}", icon="⚠️")
+        return
+    filename = _build_filename(state, "csv")
+    st.download_button(
+        "📊 Download CSV",
+        data=csv_string.encode("utf-8"),
+        file_name=filename,
+        mime="text/csv",
+        use_container_width=True,
+        key="p11_csv_download",
+    )
+    # Header line + data lines; trailing newline doesn't count.
+    n_rows = max(csv_string.count("\n") - 1, 0)
+    st.caption(f"Flat per-indicator table · {n_rows} rows")
+
+
+# M-P11.4
+def _render_json_export(state: ReportState, sources: list[dict], template) -> None:
+    """JSON export — one-shot download."""
+    try:
+        json_string = render_json(state, sources, template)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"JSON generation failed: {exc}", icon="⚠️")
+        return
+    filename = _build_filename(state, "json")
+    data_bytes = json_string.encode("utf-8")
+    st.download_button(
+        "📦 Download JSON",
+        data=data_bytes,
+        file_name=filename,
+        mime="application/json",
+        use_container_width=True,
+        key="p11_json_download",
+    )
+    st.caption(f"Report-wrapped JSON · {max(len(data_bytes) // 1024, 1)} KB")
+
+
+# M-P11-FIX
+def _render_pdf_deps_error(exc: PdfDependencyError) -> None:
+    """Friendly missing-deps surface with platform-specific install
+    commands, in place of the raw weasyprint dlopen traceback."""
+    st.error(
+        "**PDF generation isn't available** — the host machine is "
+        "missing one of weasyprint's native dependencies (Pango, "
+        "Cairo, or GLib).",
+        icon="⚠️",
+    )
+    with st.expander("How to fix this"):
+        st.markdown(
+            "**macOS** (Homebrew):\n"
+            "```bash\n"
+            "brew install pango cairo glib\n"
+            "```\n"
+            "If the install completed but PDF still fails, the dyld "
+            "search path may need updating. Add to `~/.zshrc`:\n"
+            "```bash\n"
+            "export DYLD_FALLBACK_LIBRARY_PATH="
+            "$(brew --prefix)/lib:$DYLD_FALLBACK_LIBRARY_PATH\n"
+            "```\n"
+            "Then restart the terminal and Streamlit.\n\n"
+            "**Linux** (Debian / Ubuntu):\n"
+            "```bash\n"
+            "apt-get install libpango-1.0-0 libpangoft2-1.0-0 "
+            "libcairo2 libglib2.0-0\n"
+            "```\n\n"
+            "**Windows**: see [weasyprint's installation guide]"
+            "(https://doc.courtbouillon.org/weasyprint/stable/"
+            "first_steps.html#windows).\n\n"
+            "Raw error for diagnosis:"
+        )
+        st.code(str(exc), language="text")
+
+
+# M-P11.3
+def _pdf_cache_key(state: ReportState) -> str:
+    """Cache key — invalidates when template / sources / title / notes change."""
+    return (
+        f"{state.template_id}|"
+        f"{','.join(sorted(state.source_ids))}|"
+        f"{state.title}|"
+        f"{state.notes}"
+    )
+
+
+# M-P11.3 / M-P11.4
+def _build_filename(state: ReportState, ext: str) -> str:
+    """Build a safe download filename: ``<sanitised-title>_<date>.<ext>``.
+
+    Strips path-unsafe characters, collapses whitespace to underscores,
+    and truncates the title to 60 chars to keep filenames reasonable.
+    Empty / whitespace-only titles default to ``"report"``. The
+    ``ext`` argument lets all three exports (PDF / CSV / JSON) share
+    the same naming convention.
+    """
+    raw_title = (state.title or "").strip() or "report"
+    safe_title = re.sub(r"[^\w\s-]", "", raw_title).strip()
+    safe_title = re.sub(r"\s+", "_", safe_title)[:60] or "report"
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return f"{safe_title}_{date_str}.{ext}"
 
 
 def _render_back_button(state: ReportState) -> None:

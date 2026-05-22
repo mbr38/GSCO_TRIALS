@@ -14,15 +14,19 @@ from unittest.mock import patch
 import pytest
 
 from ui.components import p11_sections
+from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
 from ui.components.p11_sections import (
     _band_for_score,
     _composite_score,
     _fmt,
     _render_executive_summary,
+    _render_indicator_detail,
     _render_methodology,
+    _render_per_supplier_detail,
     _render_pillar_findings,
     _render_priority_findings,
     _render_provenance_appendix,
+    _render_source_pillar_block,
     _render_title_page,
     get_section,
 )
@@ -52,7 +56,9 @@ def _screening_source(
     if extra_payload:
         payload.update(extra_payload)
     if indicators is None:
-        indicators = [f"ind_{i}" for i in range(19)]
+        # Default: full-19 coverage so the verbal-summary path fires
+        # (M-P11.2-FIX gates the summary on full coverage).
+        indicators = list(ALL_INDICATOR_IDS)
     return {
         "id":              sid,
         "name":            name,
@@ -324,3 +330,149 @@ def test_fmt_float_returns_two_decimals():
 def test_fmt_non_numeric_returns_dash():
     assert _fmt("foo") == "—"
     assert _fmt(object()) == "—"
+
+
+# ---------------------------------------------------------------------------
+# M-P11.2-FIX — per-supplier detail skips screening sources
+# ---------------------------------------------------------------------------
+
+def test_per_supplier_detail_only_screenings_returns_empty():
+    out = _render_per_supplier_detail(
+        _state(),
+        [_screening_source("a", "Scr A"), _screening_source("b", "Scr B")],
+    )
+    assert out == ""
+
+
+def test_per_supplier_detail_only_prioritisations_renders_breakdown():
+    out = _render_per_supplier_detail(
+        _state(),
+        [_prioritisation_source(name="Prio A")],
+    )
+    assert "Per-Supplier Detail" in out
+    assert "Prio A" in out
+    assert "Supplier 0" in out
+    assert "Supplier 1" in out
+
+
+def test_per_supplier_detail_mixed_keeps_only_prioritisations():
+    screening = _screening_source("s1", "Screening only")
+    prioritisation = _prioritisation_source("p1", "Prio mix")
+    out = _render_per_supplier_detail(_state(), [screening, prioritisation])
+    assert "Per-Supplier Detail" in out
+    # Screening source name should not appear in this section.
+    assert "Screening only" not in out
+    assert "Prio mix" in out
+
+
+# ---------------------------------------------------------------------------
+# M-P11.2-FIX — pillar block gates verbal summary on full coverage
+# ---------------------------------------------------------------------------
+
+def test_pillar_block_full_19_renders_verbal_summary_paragraphs():
+    src = _screening_source(name="Full screening")
+    fake = SimpleNamespace(
+        overview="ov-text",
+        air="air-text",
+        ghg="ghg-text",
+        nature="nat-text",
+    )
+    with patch.object(
+        p11_sections, "generate_verbal_summary", return_value=fake,
+    ) as mock_vs:
+        out = _render_source_pillar_block(src)
+    mock_vs.assert_called_once()
+    for snippet in ("ov-text", "air-text", "ghg-text", "nat-text"):
+        assert snippet in out
+    assert "Partial coverage" not in out
+
+
+def test_pillar_block_subset_screening_renders_caveat_and_table():
+    src = _screening_source(
+        name="Partial screening",
+        indicators=["air.no2.score"],
+    )
+    with patch.object(
+        p11_sections, "generate_verbal_summary",
+    ) as mock_vs:
+        out = _render_source_pillar_block(src)
+    mock_vs.assert_not_called()
+    assert "Partial coverage" in out
+    assert "1 of 19 indicators" in out
+    # Pillar score table appears.
+    assert "Air Pollution" in out
+    assert "Composite" in out
+
+
+def test_pillar_block_prioritisation_source_renders_redirect_caveat():
+    src = _prioritisation_source(name="Prio source")
+    with patch.object(
+        p11_sections, "generate_verbal_summary",
+    ) as mock_vs:
+        out = _render_source_pillar_block(src)
+    mock_vs.assert_not_called()
+    assert "prioritisation source" in out
+    assert "Priority Findings" in out
+
+
+def test_pillar_block_empty_screening_setup_treated_as_partial():
+    # Defensive: missing screening_setup → empty indicator set → caveat.
+    src = {
+        "id":      "x",
+        "name":    "No setup",
+        "type":    "screening",
+        "payload": {"composite.overall_screening": 0.4},
+    }
+    with patch.object(
+        p11_sections, "generate_verbal_summary",
+    ) as mock_vs:
+        out = _render_source_pillar_block(src)
+    mock_vs.assert_not_called()
+    assert "Partial coverage" in out
+    assert "0 of 19" in out
+
+
+# ---------------------------------------------------------------------------
+# M-P11-FIX — indicator_detail skips partial-coverage screening sources
+# ---------------------------------------------------------------------------
+
+def test_indicator_detail_only_partial_screenings_returns_empty():
+    partial = _screening_source("p1", "Partial", indicators=["air.no2.score"])
+    out = _render_indicator_detail(_state(), [partial])
+    assert out == ""
+
+
+def test_indicator_detail_full_screening_renders_normally():
+    full = _screening_source("f1", "Full screening")
+    out = _render_indicator_detail(_state(), [full])
+    assert "Indicator Detail" in out
+    assert "Full screening" in out
+    # Pillar score block rendered.
+    assert "Air Pollution" in out
+    assert "Composite" in out
+
+
+def test_indicator_detail_mixed_partial_and_full_keeps_only_full():
+    partial = _screening_source("p1", "Partial", indicators=["air.no2.score"])
+    full    = _screening_source("f1", "Full")
+    out = _render_indicator_detail(_state(), [partial, full])
+    assert "Indicator Detail" in out
+    assert "Full" in out
+    assert "Partial" not in out
+
+
+def test_indicator_detail_prioritisation_renders_normally():
+    prio = _prioritisation_source(name="Prio detail")
+    out = _render_indicator_detail(_state(), [prio])
+    assert "Indicator Detail" in out
+    assert "Prio detail" in out
+
+
+def test_indicator_detail_partial_plus_prioritisation_keeps_only_prio():
+    partial = _screening_source("p1", "Partial",
+                                indicators=["air.no2.score"])
+    prio    = _prioritisation_source("pr1", "Prio kept")
+    out = _render_indicator_detail(_state(), [partial, prio])
+    assert "Indicator Detail" in out
+    assert "Prio kept" in out
+    assert "Partial" not in out

@@ -1,8 +1,124 @@
 {
   "id": "stub-amazon",
-  "name": "[stub — replace via Phase 2]",
+  "name": "Milan - free coordinates NO2 screening",
   "type": "screening",
-  "screening_setup": {},
+  "screening_setup": {"centre": {
+      "lat": -23.5505,
+      "lon": -46.6333
+    },
+    "centre_metadata": {
+      "source": "P-04 free coordinates"
+    },
+    "indicators": [
+      "air.no2.score"
+    ],
+    "mode": "screening",
+    "radius_km": 5,
+    "time_range": [
+      "2026-02-21",
+      "2026-05-22"
+    ]},
   "date_saved": "2026-05-20T00:00:00Z",
-  "payload": {}
+  "payload": {
+    "_meta": {
+      "aoi": {
+        "centre": {
+          "lat": -23.5505,
+          "lon": -46.6333
+        },
+        "radius_km": 5
+      },
+      "centre_metadata": {
+        "source": "P-04 free coordinates"
+      },
+      "computed_at": "2026-05-22T10:08:11.132713+00:00",
+      "mode": "screening",
+      "pillars_run": [
+        "air",
+        "ghg",
+        "nature"
+      ],
+      "selected_indicators": [
+        "air.no2.score"
+      ],
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.air.no2": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
+      "band": "NO2_column_number_density",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {},
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.air.pm_or_aerosol": {
+      "formula": "fallback_aai_only"
+    },
+    "air.attribution_confidence_score": 0.007846556233653008,
+    "air.audit_followup_priority": 0.3464893481701497,
+    "air.heavy_industry_score": null,
+    "air.industrial_air_pollution_burden": null,
+    "air.industrial_combustion_proxy": null,
+    "air.no2.anomaly": 44.62938713618959,
+    "air.no2.background": 144.6902268323747,
+    "air.no2.confidence": 0.007846556233653008,
+    "air.no2.hf": 0.0,
+    "air.no2.score": 0.5312497919001565,
+    "air.no2.site": 189.31961396856428,
+    "air.no2.trend": null,
+    "air.no2.trend_p": null,
+    "air.no2.z": 1.5937493757004697,
+    "air.pm_or_aerosol": null,
+    "air.pollution_proxy_score": 0.5312497919001565,
+    "air.smoke_dust_regional_transport": null,
+    "air.spatiotemporal_anomaly_score": 0.5312497919001565,
+    "air.trend_score": 0.0,
+    "air.voc_photochemical": null,
+    "composite.confidence": 0.007846556233653008,
+    "composite.overall_screening": null,
+    "ghg.activity_adjusted_co2": null,
+    "ghg.activity_score": null,
+    "ghg.audit_followup_priority": null,
+    "ghg.ch4_context_adjusted": null,
+    "ghg.ch4_hotspot_signal": null,
+    "ghg.co2_context": null,
+    "ghg.combustion_proxy": null,
+    "ghg.core_audit_support": null,
+    "ghg.data_quality_attribution": 0.7639658848614072,
+    "ghg.fire_or_regional_transport_risk": null,
+    "ghg.fossil_combustion_score": null,
+    "ghg.nearby_source_isolation": 1.0,
+    "ghg.retrieval_inventory_quality": 0.7,
+    "ghg.spatial_resolution_suitability": 0.7142857142857143,
+    "ghg.spatiotemporal_anomaly": null,
+    "ghg.temporal_coverage": null,
+    "ghg.trend": 0.0,
+    "nature.biodiversity_exposure": null,
+    "nature.cloud_observation_quality": 0.8,
+    "nature.external_driver_screening": 1.0,
+    "nature.followup_priority": null,
+    "nature.forest_loss.pct_norm": null,
+    "nature.habitat.annualised_rate_score": null,
+    "nature.habitat.conversion_score": null,
+    "nature.habitat.nat_to_bare_pct_norm": null,
+    "nature.habitat.nat_to_built_pct_norm": null,
+    "nature.habitat.natural_loss_pct_norm": null,
+    "nature.quality_attribution": 0.8583333333333334,
+    "nature.seasonal_comparability": 1.0,
+    "nature.spatiotemporal_anomaly_score": null,
+    "nature.supplier_spatial_link": 0.7,
+    "nature.valid_pixel_coverage": null,
+    "nature.vegetation_condition": null
+  }
 }

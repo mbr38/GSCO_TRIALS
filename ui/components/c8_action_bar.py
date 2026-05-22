@@ -1,9 +1,12 @@
-"""C8 — action bar (M-UI-E.5).
+"""C8 — action bar (M-UI-E.5 / M-P11.4).
 
 Two buttons at the bottom of P-05:
   - **Save as report** pushes the screening result into
     ``st.session_state["saved_analyses"]`` (a list, initialised on
     first save). Entry shape mirrors the planned P-10 row schema.
+    M-P11.4: after a successful save, a sticky banner surfaces with
+    an "Open in Reports" button that routes to P-11 with the
+    just-saved source pre-selected.
   - **Switch to Trend** is disabled until P-06 (Trend View) exists.
 
 The save is half-real: it persists for the browser session via
@@ -21,6 +24,12 @@ import uuid
 from datetime import datetime, timezone
 
 import streamlit as st
+
+from ui.p11_state import route_to_p11_with_source
+
+
+# M-P11.4: sentinel key on session_state that survives the rerun.
+_SAVE_BANNER_KEY = "c8_last_saved_for_p11"
 
 
 def render_c8_action_bar(payload: dict) -> None:
@@ -44,6 +53,30 @@ def render_c8_action_bar(payload: dict) -> None:
                     "Until then, screening is the only mode."
                 ),
             )
+
+        # M-P11.4: post-save banner. Rendered whenever the sentinel
+        # is set, so it survives reruns until the user clicks Open
+        # in Reports (which routes away) or runs a fresh screening.
+        _render_post_save_banner()
+
+
+# M-P11.4
+def _render_post_save_banner() -> None:
+    pending = st.session_state.get(_SAVE_BANNER_KEY)
+    if not pending:
+        return
+    st.success(
+        f"Saved as **{pending['name']}**.",
+        icon="💾",
+    )
+    if st.button(
+        "📄 Open in Reports",
+        key=f"c8_open_in_reports_{pending['id']}",
+        use_container_width=True,
+    ):
+        route_to_p11_with_source(st.session_state, pending["id"])
+        st.session_state.pop(_SAVE_BANNER_KEY, None)
+        st.switch_page("pages/11_Reports.py")
 
 
 def _save_as_report(payload: dict) -> None:
@@ -80,6 +113,12 @@ def _save_as_report(payload: dict) -> None:
     }
     st.session_state["saved_analyses"].append(entry)
 
+    # M-P11.4: stash the just-saved entry so the post-save banner
+    # (rendered on the next rerun) can offer "Open in Reports".
+    st.session_state[_SAVE_BANNER_KEY] = {
+        "id":   entry["id"],
+        "name": entry["name"],
+    }
     st.toast(
         f"Saved as report — '{entry['name']}'.",
         icon="💾",

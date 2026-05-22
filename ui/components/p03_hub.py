@@ -6,7 +6,7 @@ Three stacked sections:
   2. Two workflow cards: **Inspect** (active → P-04) and
      **Prioritisation** (placeholder until P-07/P-08 land).
   3. Three persistent-module cards: Indicator Library, Saved Analyses,
-     Reports — all v1.x placeholders.
+     Reports — all active and routed to P-09 / P-10 / P-11 (M-DEMO-POLISH).
 
 Authority: docs/Wireframes_All_v4.md §P-03.
 """
@@ -121,14 +121,16 @@ def _render_prioritisation_card() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Section 3 — Persistent module cards (all placeholders for v1)
+# Section 3 — Persistent module cards
 # ---------------------------------------------------------------------------
 
+# M-DEMO-POLISH: all three persistent-module cards are now active. They
+# route to P-09 / P-10 / P-11 respectively. Previously each rendered a
+# disabled placeholder ("Lands in a future milestone").
 def _render_module_cards() -> None:
     st.markdown("### Persistent modules")
     st.caption(
-        "Reference and history surfaces, accessible from any page once "
-        "they land."
+        "Reference and history surfaces, accessible from any page."
     )
     col_library, col_saved, col_reports = st.columns(3)
     with col_library:
@@ -136,30 +138,43 @@ def _render_module_cards() -> None:
             "Indicator Library",
             "Reference catalogue of every indicator the tool can "
             "compute — formulas, sources, decision relevance.",
+            target_page="pages/09_Indicator_Library.py",
+            key="p03_open_indicator_library",
         )
     with col_saved:
         _render_module_card(
             "Saved Analyses",
-            "List of screenings you've saved. From here you can re-open "
-            "any one back on its results page.",
+            "List of screenings and prioritisation runs you've saved. "
+            "Re-open any one back on its results page without recomputing.",
+            target_page="pages/10_Saved_Analyses.py",
+            key="p03_open_saved_analyses",
         )
     with col_reports:
         _render_module_card(
             "Reports",
-            "Generate PDF / CSV / JSON exports from your saved analyses.",
+            "Build and export reports from saved analyses. Pick a "
+            "template, select sources, preview, and export.",
+            target_page="pages/11_Reports.py",
+            key="p03_open_reports",
         )
 
 
-def _render_module_card(title: str, description: str) -> None:
-    """One disabled card for an upcoming persistent module."""
+# M-DEMO-POLISH
+def _render_module_card(
+    title: str,
+    description: str,
+    *,
+    target_page: str,
+    key: str,
+) -> None:
+    """One active card routing to a persistent module."""
     with st.container(border=True):
         st.markdown(f"#### {title}")
         st.caption(description)
         st.write("")
-        st.button(
+        if st.button(
             "Open →",
-            disabled=True,
             use_container_width=True,
-            key=f"p03_open_{title.lower().replace(' ', '_')}",
-            help="Lands in a future milestone.",
-        )
+            key=key,
+        ):
+            st.switch_page(target_page)

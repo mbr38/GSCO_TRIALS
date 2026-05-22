@@ -35,3 +35,26 @@ class ReportState:
     title:       str             = ""
     notes:       str             = ""
     error:       str | None      = None
+
+
+# M-P11.4
+def route_to_p11_with_source(session_state, source_id: str) -> None:
+    """Pre-populate P-11's state with a source pre-selected.
+
+    Pure state-mutator — does *not* call ``st.switch_page``; callers
+    do that after invoking this helper. Splitting the two keeps the
+    state mutation unit-testable against a plain dict.
+
+    Behaviour:
+      - Initialises ``report_state`` if missing.
+      - Resets ``kind`` to ``S1_TEMPLATE_AND_SOURCE`` so the user
+        always lands in template selection (even if a prior session
+        had progressed to S2 / S3).
+      - Adds the source ID to ``source_ids`` if not already present;
+        never duplicates.
+    """
+    report_state = session_state.get("report_state") or ReportState()
+    report_state.kind = ReportStateKind.S1_TEMPLATE_AND_SOURCE
+    if source_id not in report_state.source_ids:
+        report_state.source_ids = [*report_state.source_ids, source_id]
+    session_state["report_state"] = report_state

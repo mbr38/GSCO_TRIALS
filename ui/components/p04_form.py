@@ -356,6 +356,18 @@ def _reset_indicators(to_all: bool) -> None:
     st.session_state["p04_indicator_generation"] += 1
 
 
+def _pillar_all_selected(
+    pillar_ids: list[str] | tuple[str, ...],
+    selected:   set[str],
+) -> bool:
+    """M-DEMO-POLISH: true iff every indicator in the pillar is selected.
+
+    Pure function — extracted from ``_render_pillar_indicators`` so the
+    pillar-toggle state can be unit-tested without Streamlit.
+    """
+    return all(ind in selected for ind in pillar_ids)
+
+
 def _render_pillar_indicators(pillar: str, label: str) -> None:
     """One pillar's collapsible checkbox grid."""
     pillar_ids = INDICATORS_BY_PILLAR[pillar]
@@ -364,6 +376,7 @@ def _render_pillar_indicators(pillar: str, label: str) -> None:
     generation = st.session_state["p04_indicator_generation"]
     n_total    = len(pillar_ids)
     n_selected = sum(1 for ind in pillar_ids if ind in selected)
+    all_in_pillar_selected = _pillar_all_selected(pillar_ids, selected)
 
     # M-P04 polish — keep expanders open across rerun. Default to True
     # on first render since indicators are pre-selected and the user
@@ -377,6 +390,29 @@ def _render_pillar_indicators(pillar: str, label: str) -> None:
         f"{label} ({n_selected} / {n_total} selected)",
         expanded=st.session_state[expander_key],
     ):
+        # M-DEMO-POLISH: pillar-level select-all toggle. Streamlit
+        # checkboxes don't support an indeterminate state, so the
+        # toggle is unchecked whenever the pillar's selection is a
+        # strict subset — the honest representation. Toggling drives
+        # the same generation-counter pattern as the global reset
+        # buttons so the per-indicator widgets below refresh cleanly.
+        new_all = st.checkbox(
+            f"**Select all {label}**",
+            value=all_in_pillar_selected,
+            key=f"p04_pillar_all_{pillar}_v{generation}",
+        )
+        if new_all and not all_in_pillar_selected:
+            selected.update(pillar_ids)
+            st.session_state["p04_indicator_generation"] += 1
+            st.rerun()
+        elif not new_all and all_in_pillar_selected:
+            for ind in pillar_ids:
+                selected.discard(ind)
+            st.session_state["p04_indicator_generation"] += 1
+            st.rerun()
+
+        st.divider()
+
         cols = st.columns(3)
         for i, indicator_id in enumerate(pillar_ids):
             col = cols[i % 3]

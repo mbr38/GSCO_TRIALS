@@ -20,7 +20,10 @@ from ui.components.p08_ranked_table import (
 # M-P08.3
 from ui.components.p08_risk_matrix import render_risk_matrix
 # M-P08.4
-from ui.components.p08_save_action import save_prioritisation_as_report
+from ui.components.p08_save_action import (
+    render_p08_save_banner,
+    save_prioritisation_as_report,
+)
 from ui.prioritisation_state import (
     PrioritisationState,
     PrioritisationStateKind,
@@ -208,6 +211,10 @@ def _render_s3_results(state: PrioritisationState) -> None:
             st.session_state.pop("prioritisation_state", None)
             st.session_state.pop("prioritisation_setup", None)
             st.switch_page("pages/07_Prioritisation_Setup.py")
+
+    # M-P11.4: post-save banner with "Open in Reports". Renders only
+    # when a save just happened (sentinel set in session_state).
+    render_p08_save_banner()
 
 
 # ──────────────────────────────────────────────────────────────────

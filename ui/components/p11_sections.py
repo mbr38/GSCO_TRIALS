@@ -18,6 +18,7 @@ from typing import Callable
 
 from engine.constants import TRAFFIC_LIGHT_THRESHOLDS
 from engine.verbal_summary import generate_verbal_summary
+from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -173,36 +174,50 @@ def _render_pillar_findings(state, sources) -> str:
     return "\n".join(blocks)
 
 
+# M-P11.2-FIX
 def _render_source_pillar_block(src) -> str:
     name = html.escape(src.get("name", "Untitled source"))
     payload = src.get("payload") or {}
     blocks = [f"<h3>{name}</h3>"]
-    paragraphs = _verbal_paragraphs_for_source(src, payload)
-    for para in paragraphs:
-        if para:
-            blocks.append(f"<p>{html.escape(para)}</p>")
-    return "\n".join(blocks)
 
-
-def _verbal_paragraphs_for_source(src, payload) -> list[str]:
-    """Return the four verbal-summary paragraphs (overview, air, ghg, nature).
-
-    Screening sources have a `payload`. Prioritisation sources don't —
-    they store per-supplier results separately, so the verbal summary
-    isn't applicable at the source level; surface a placeholder.
-    """
+    # M-P11.2-FIX: prioritisation sources don't carry a single
+    # screening payload — point readers to the priority section.
     if src.get("type") == "prioritisation":
-        return [
-            "Per-supplier narrative summaries are reported in the "
-            "supplier-detail section of this report."
-        ]
-    if not payload:
-        return ["Verbal summary unavailable for this source."]
-    try:
-        verbal = generate_verbal_summary(payload)
-    except Exception:  # noqa: BLE001
-        return ["Verbal summary unavailable for this source."]
-    return [verbal.overview, verbal.air, verbal.ghg, verbal.nature]
+        blocks.append(
+            "<div class='caveat'>"
+            "This is a prioritisation source — see the Priority Findings "
+            "section for the per-supplier breakdown."
+            "</div>"
+        )
+        return "\n".join(blocks)
+
+    # M-P11.2-FIX: verbal summary requires breadth-of-coverage. If the
+    # source didn't run all 19 indicators, skip the prose and show a
+    # caveat + pillar-score table instead. Mirrors M-HIDE-SUMMARY on P-05.
+    setup = src.get("screening_setup") or {}
+    selected = set(setup.get("indicators") or [])
+    if selected == set(ALL_INDICATOR_IDS):
+        try:
+            verbal = generate_verbal_summary(payload)
+            paragraphs = [verbal.overview, verbal.air, verbal.ghg, verbal.nature]
+        except Exception:  # noqa: BLE001
+            paragraphs = ["Verbal summary unavailable for this source."]
+        for para in paragraphs:
+            if para:
+                blocks.append(f"<p>{html.escape(para)}</p>")
+    else:
+        n_selected = len(selected)
+        blocks.append(
+            "<div class='caveat'>"
+            f"<strong>Partial coverage.</strong> This source ran "
+            f"{n_selected} of 19 indicators. A narrative summary is "
+            f"shown only for full screenings — the per-pillar score "
+            f"table below reflects what was measured."
+            "</div>"
+        )
+        blocks.append(_render_pillar_score_block(payload))
+
+    return "\n".join(blocks)
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -275,10 +290,34 @@ def _render_pillar_score_block(payload) -> str:
 # Indicator detail (Policy audit) — per-source KPI table
 # ──────────────────────────────────────────────────────────────────
 
+# M-P11-FIX
 def _render_indicator_detail(state, sources) -> str:
+    """Policy-audit per-source indicator detail.
+
+    Partial-coverage screening sources already have their pillar score
+    table rendered in `pillar_findings` (via the M-P11.2-FIX verbal-
+    summary fallback); showing it again here was the visible
+    duplication. Full-coverage screenings and prioritisation sources
+    are unaffected — for them, `pillar_findings` either shows verbal-
+    summary prose (full-19) or a redirect caveat (prioritisation), so
+    the table here is genuinely new content.
+    """
+    full_screening_sources = [
+        s for s in sources
+        if s.get("type") == "screening"
+        and set((s.get("screening_setup") or {}).get("indicators") or [])
+            == set(ALL_INDICATOR_IDS)
+    ]
+    prioritisation_sources = [
+        s for s in sources if s.get("type") == "prioritisation"
+    ]
+    renderable = full_screening_sources + prioritisation_sources
+    if not renderable:
+        return ""
+
     blocks = ["<section class='chapter-break'>",
               "<h2>Indicator Detail</h2>"]
-    for src in sources:
+    for src in renderable:
         name = html.escape(src.get("name", "Untitled"))
         payload = src.get("payload") or {}
         blocks.append(f"<h3>{name}</h3>")
@@ -291,14 +330,22 @@ def _render_indicator_detail(state, sources) -> str:
 # Per-supplier detail (MNC supplier audit)
 # ──────────────────────────────────────────────────────────────────
 
+# M-P11.2-FIX
 def _render_per_supplier_detail(state, sources) -> str:
+    # M-P11.2-FIX: only prioritisation sources contribute to this
+    # section. Screening sources are fully covered by priority_findings
+    # above — rendering them again here was duplicating the same
+    # pillar-score table.
+    prioritisation_sources = [
+        s for s in sources if s.get("type") == "prioritisation"
+    ]
+    if not prioritisation_sources:
+        return ""
+
     blocks = ["<section class='chapter-break'>",
               "<h2>Per-Supplier Detail</h2>"]
-    for src in sources:
-        if src.get("type") == "prioritisation":
-            blocks.append(_render_prioritisation_supplier_breakdown(src))
-        else:
-            blocks.append(_render_screening_priority_block(src))
+    for src in prioritisation_sources:
+        blocks.append(_render_prioritisation_supplier_breakdown(src))
     blocks.append("</section>")
     return "\n".join(blocks)
 

@@ -1,8 +1,302 @@
 {
   "id": "stub-brasilia",
-  "name": "[stub — replace via Phase 2]",
+  "name": "Rio De Janeiro, Brazil \u2014 Region screening",
   "type": "screening",
-  "screening_setup": {},
+  "screening_setup": {"centre": {
+      "lat": -22.1964411180919,
+      "lon": -42.65713042961129
+    },
+    "centre_metadata": {
+      "country": "Brazil",
+      "region_name": "Rio De Janeiro",
+      "source": "P-04 region scope \u00b7 Rio De Janeiro, Brazil"
+    },
+    "indicators": [
+      "nature.dw.trees_pct",
+      "nature.forest_loss.ha",
+      "nature.habitat.natural_loss_ha",
+      "nature.kba.proximity_score",
+      "nature.ndvi.score",
+      "nature.recovery.score",
+      "nature.water.area_now_ha"
+    ],
+    "mode": "screening",
+    "radius_km": 118.2,
+    "time_range": [
+      "2026-02-21",
+      "2026-05-22"
+    ]},
   "date_saved": "2026-05-20T00:00:00Z",
-  "payload": {}
+  "payload": {"_meta": {
+      "aoi": {
+        "centre": {
+          "lat": -22.1964411180919,
+          "lon": -42.65713042961129
+        },
+        "radius_km": 118.2
+      },
+      "centre_metadata": {
+        "country": "Brazil",
+        "region_name": "Rio De Janeiro",
+        "source": "P-04 region scope \u00b7 Rio De Janeiro, Brazil"
+      },
+      "computed_at": "2026-05-22T10:32:47.111312+00:00",
+      "mode": "screening",
+      "pillars_run": [
+        "air",
+        "ghg",
+        "nature"
+      ],
+      "selected_indicators": [
+        "nature.dw.trees_pct",
+        "nature.forest_loss.ha",
+        "nature.habitat.natural_loss_ha",
+        "nature.kba.proximity_score",
+        "nature.ndvi.score",
+        "nature.recovery.score",
+        "nature.water.area_now_ha"
+      ],
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.air.pm_or_aerosol": {
+      "formula": "fallback_aai_only"
+    },
+    "_provenance.nature.dw": {
+      "asset_id": "GOOGLE/DYNAMICWORLD/V1",
+      "band": "label",
+      "coverage_window": null,
+      "data_source": "Google / WRI (Dynamic World V1)",
+      "data_type": "ml_classified_satellite",
+      "extra": {
+        "composite_window_days": 90
+      },
+      "method_note": "DW 90-day mode composite; class fractions via frequencyHistogram; scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "native_scale_m": 10.0,
+      "observations": null,
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.forest_loss": {
+      "asset_id": "UMD/hansen/global_forest_change_2023_v1_11",
+      "band": "lossyear",
+      "coverage_window": null,
+      "data_source": "UMD / Hansen Global Forest Change",
+      "data_type": "ml_classified_satellite",
+      "extra": {},
+      "method_note": "Hansen lossyear band; pixels with lossyear in time_range weighted by ee.Image.pixelArea(); scale=208m (adaptive; native 31m; target ~1.0M px)",
+      "native_scale_m": 30.92,
+      "observations": {
+        "count": 1,
+        "unit": "annual_rasters"
+      },
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.habitat": {
+      "asset_id": "GOOGLE/DYNAMICWORLD/V1",
+      "band": "label",
+      "coverage_window": null,
+      "data_source": "Google / WRI (Dynamic World V1)",
+      "data_type": "ml_classified_satellite",
+      "extra": {
+        "baseline_time_range": [
+          "2021-02-21",
+          "2021-05-22"
+        ],
+        "baseline_years": 5,
+        "conversion_saturation_pct": 0.1
+      },
+      "method_note": "DW mode composite (current vs baseline 5y earlier); class-fraction deltas \u2192 natural\u2192non-natural attribution; scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "native_scale_m": 10.0,
+      "observations": null,
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.kba": {
+      "asset_id": "projects/supply-chain-observatory/assets/KBAsGlobal_2026_March_01_POL",
+      "band": null,
+      "coverage_window": null,
+      "data_source": "BirdLife International (Key Biodiversity Areas)",
+      "data_type": "reference_dataset",
+      "extra": {
+        "distance_decay_km": 10.0
+      },
+      "method_note": "vector distance + buffer intersection; score = max(overlap_pct/100, exp(-dist_km/10.0))",
+      "native_scale_m": 0.0,
+      "observations": {
+        "count": 1,
+        "unit": "static_snapshot"
+      },
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.ndvi": {
+      "asset_id": "MODIS/061/MOD13Q1",
+      "band": "NDVI",
+      "coverage_window": null,
+      "data_source": "NASA MODIS (MOD13Q1)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "ndvi_negative_trend_threshold": -0.01
+      },
+      "method_note": "MOD13Q1 NDVI \u00f7 10000; IC \u00a70.2 six-step pipeline with direction='lower_is_worse' (lower NDVI = worse); scale=250m (native)",
+      "native_scale_m": 250.0,
+      "observations": {
+        "count": 1,
+        "unit": "16day_composites"
+      },
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.recovery": {
+      "asset_id": "MODIS/061/MOD13Q1",
+      "band": "NDVI",
+      "coverage_window": null,
+      "data_source": "NASA MODIS (MOD13Q1)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "placeholder": true
+      },
+      "method_note": "v1 placeholder \u2014 score=0.0 baseline; wires once engine/core/trend.py lands per-pixel NDVI improvement and natural-cover-gain attribution",
+      "native_scale_m": 250.0,
+      "observations": null,
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "_provenance.nature.water": {
+      "asset_id": "GOOGLE/DYNAMICWORLD/V1",
+      "band": "label",
+      "coverage_window": null,
+      "data_source": "Google / WRI (Dynamic World V1)",
+      "data_type": "ml_classified_satellite",
+      "extra": {},
+      "method_note": "DW water + flooded_vegetation pixel counts via frequencyHistogram (JRC GSW deferred per GEE \u00a74.3); scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "native_scale_m": 10.0,
+      "observations": null,
+      "skipped_reason": null,
+      "time_range": [
+        "2026-02-21",
+        "2026-05-22"
+      ]
+    },
+    "air.attribution_confidence_score": null,
+    "air.audit_followup_priority": null,
+    "air.heavy_industry_score": null,
+    "air.industrial_air_pollution_burden": null,
+    "air.industrial_combustion_proxy": null,
+    "air.pm_or_aerosol": null,
+    "air.pollution_proxy_score": null,
+    "air.smoke_dust_regional_transport": null,
+    "air.spatiotemporal_anomaly_score": null,
+    "air.trend_score": 0.0,
+    "air.voc_photochemical": null,
+    "composite.confidence": null,
+    "composite.overall_screening": null,
+    "ghg.activity_adjusted_co2": null,
+    "ghg.activity_score": null,
+    "ghg.audit_followup_priority": null,
+    "ghg.ch4_context_adjusted": null,
+    "ghg.ch4_hotspot_signal": null,
+    "ghg.co2_context": null,
+    "ghg.combustion_proxy": null,
+    "ghg.core_audit_support": null,
+    "ghg.data_quality_attribution": 0.8791044776119402,
+    "ghg.fire_or_regional_transport_risk": null,
+    "ghg.fossil_combustion_score": null,
+    "ghg.nearby_source_isolation": 1.0,
+    "ghg.retrieval_inventory_quality": 0.7,
+    "ghg.spatial_resolution_suitability": 1.0,
+    "ghg.spatiotemporal_anomaly": null,
+    "ghg.temporal_coverage": null,
+    "ghg.trend": 0.0,
+    "nature.biodiversity_exposure": 0.5601308118180075,
+    "nature.cloud_observation_quality": 0.8,
+    "nature.dw.bare_ha": 3326.208864381438,
+    "nature.dw.bare_pct": 0.07104167284151872,
+    "nature.dw.built_ha": 243203.545402054,
+    "nature.dw.built_pct": 5.194378167699102,
+    "nature.dw.class_confidence": 0.6169936868312635,
+    "nature.dw.crops_ha": 10715.856719539157,
+    "nature.dw.crops_pct": 0.22887089125344556,
+    "nature.dw.dominant_class": "trees",
+    "nature.dw.flooded_veg_ha": 2116.2841275334313,
+    "nature.dw.flooded_veg_pct": 0.04519991700998844,
+    "nature.dw.grass_ha": 746219.9972890576,
+    "nature.dw.grass_pct": 15.937879753401107,
+    "nature.dw.shrub_ha": 50764.79917398842,
+    "nature.dw.shrub_pct": 1.0842422715551736,
+    "nature.dw.snow_ha": 1144.8750198131677,
+    "nature.dw.snow_pct": 0.024452414120157685,
+    "nature.dw.trees_ha": 2888797.2204479706,
+    "nature.dw.trees_pct": 61.69936868312635,
+    "nature.dw.water_ha": 735764.3394376579,
+    "nature.dw.water_pct": 15.714566228993155,
+    "nature.external_driver_screening": 1.0,
+    "nature.flooded_veg.area_now_ha": 2116.2841275334345,
+    "nature.followup_priority": 0.282947261103343,
+    "nature.forest_loss.ha": 0.0,
+    "nature.forest_loss.pct": 0.0,
+    "nature.forest_loss.pct_norm": 0.0,
+    "nature.habitat.annualised_rate": 0.0,
+    "nature.habitat.annualised_rate_score": 0.0,
+    "nature.habitat.bare_expansion_ha": 0.0,
+    "nature.habitat.built_expansion_ha": 0.0,
+    "nature.habitat.conversion_score": 0.0,
+    "nature.habitat.nat_to_bare_ha": 0.0,
+    "nature.habitat.nat_to_bare_pct_norm": 0.0,
+    "nature.habitat.nat_to_built_ha": 0.0,
+    "nature.habitat.nat_to_built_pct_norm": 0.0,
+    "nature.habitat.nat_to_crop_ha": 0.0,
+    "nature.habitat.natural_loss_ha": 0.0,
+    "nature.habitat.natural_loss_pct": 0.0,
+    "nature.habitat.natural_loss_pct_norm": 0.0,
+    "nature.kba.dist_km": 12.889862031412115,
+    "nature.kba.overlap_ha": 199838.41169355693,
+    "nature.kba.overlap_pct": 4.552963235999497,
+    "nature.kba.proximity_score": 0.2755499932522439,
+    "nature.low_ndvi.ha": 56040.914725402945,
+    "nature.low_ndvi.pct": 1.276792696129945,
+    "nature.low_ndvi.pct_norm": 0.012767926961299449,
+    "nature.ndvi.anomaly": 0.006252846364618092,
+    "nature.ndvi.inverted_anomaly": 0.0,
+    "nature.ndvi.mean": 0.775813073996619,
+    "nature.ndvi.negative_trend": null,
+    "nature.ndvi.score": 0.0,
+    "nature.ndvi.slope": null,
+    "nature.ndvi.slope_p": null,
+    "nature.ndvi.z": 0.0603973612412126,
+    "nature.quality_attribution": 0.7617974747325053,
+    "nature.recovery.bare_reduction_ha": null,
+    "nature.recovery.natural_cover_gain_ha": null,
+    "nature.recovery.ndvi_improvement_pct": null,
+    "nature.recovery.score": 0.0,
+    "nature.seasonal_comparability": 1.0,
+    "nature.sensitive_land_cover_presence": 0.7876669062509262,
+    "nature.spatiotemporal_anomaly_score": 0.02013245374707087,
+    "nature.supplier_spatial_link": 0.7,
+    "nature.valid_pixel_coverage": 0.6169936868312635,
+    "nature.vegetation_condition": 0.00255358539225989,
+    "nature.water.area_now_ha": 735764.339437659,
+    "nature.water_or_flooded_veg_exposure": 0.7879883073001571}
 }

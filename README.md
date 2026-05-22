@@ -35,6 +35,42 @@ brew install python@3.11
 
 Then use `python3.11` (not `python3`) when creating the venv.
 
+### System dependencies
+
+PDF export on Reports (P-11) uses [weasyprint](https://weasyprint.org/),
+which loads Pango, Cairo, and GLib at render time. Skipping this step
+still lets the rest of the app run — the PDF export surfaces a friendly
+install-instruction banner on first use (M-P11-FIX).
+
+#### macOS
+
+```bash
+brew install pango cairo glib
+```
+
+If Generate PDF then fails with `cannot load library
+'libgobject-2.0-0'`, the dyld search path doesn't include Homebrew's
+lib directory. Add to `~/.zshrc`:
+
+```bash
+export DYLD_FALLBACK_LIBRARY_PATH=$(brew --prefix)/lib:$DYLD_FALLBACK_LIBRARY_PATH
+```
+
+Apply with `source ~/.zshrc`, then restart Streamlit.
+
+#### Linux (Debian / Ubuntu)
+
+```bash
+apt-get install libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libglib2.0-0
+```
+
+Streamlit Cloud / Docker deployments: add the `apt-get` line to the
+image's system-dependency layer.
+
+#### Windows
+
+See weasyprint's [Windows installation guide](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows).
+
 ## Quick start — fresh install from zero
 
 If you've previously installed in a different venv, delete that venv first:
@@ -110,10 +146,14 @@ Then close and reopen the terminal, or run `source ~/.zprofile`.
 ### 6. Run the app
 
 ```bash
-streamlit run app.py
+streamlit run gsco_app.py
 ```
 
-Browser opens at `http://localhost:8501`.
+Browser opens at `http://localhost:8501`. (`gsco_app.py` is the Streamlit
+entry point — it registers every page via `st.Page` / `st.navigation`
+so the sidebar shows explicit titles like "Landing" instead of
+filename-derived ones like "app". `app.py` itself is still the
+landing page; it's just no longer run directly.)
 
 ## What to expect
 
@@ -125,9 +165,10 @@ Browser opens at `http://localhost:8501`.
 
 ```
 gsco-demo/
-├── app.py                          # P-01 Landing
+├── gsco_app.py                     # Streamlit entry point — registers pages via st.Page/st.navigation
+├── app.py                          # P-01 Landing (rendered as the default page)
 ├── pages/
-│   ├── 01_scope_setup.py           # P-02 + geemap test
+│   ├── 02_Scope_Setup.py           # P-02 + geemap test
 │   └── 99_engine_scratch.py        # Dev scratch — engine debug UI (delete when P-05 lands)
 ├── utils/
 │   ├── __init__.py
@@ -153,4 +194,4 @@ gsco-demo/
 | `xyz_to_folium` not found | leafmap/geemap version drift — reinstall from `requirements.txt` |
 | SSL `CERTIFICATE_VERIFY_FAILED` | `/Applications/Python\ 3.11/Install\ Certificates.command` |
 | EE test page says "project ID not set" | Export `EE_PROJECT_ID` in the same terminal Streamlit runs from, then restart Streamlit |
-| Port 8501 already in use | `streamlit run app.py --server.port 8502` |
+| Port 8501 already in use | `streamlit run gsco_app.py --server.port 8502` |

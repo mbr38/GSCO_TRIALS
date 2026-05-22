@@ -48,3 +48,9 @@ pytest>=8.0
 # Already installed transitively via Streamlit, but pinned explicitly
 # so the M-P11.2 assembler has an authoritative source.
 Jinja2>=3.0
+
+# PDF export — M-P11.3. Used by ui/components/p11_pdf.py to convert
+# the assembled HTML report into a downloadable PDF byte stream.
+# Requires system libraries (Pango + Cairo); see README for install
+# instructions per OS.
+weasyprint>=62.0
