@@ -43,3 +43,8 @@ requests>=2.31
 
 # Testing — synthetic-payload tests for the engine
 pytest>=8.0
+
+# Templating — used by P-11 report rendering (shell + sections).
+# Already installed transitively via Streamlit, but pinned explicitly
+# so the M-P11.2 assembler has an authoritative source.
+Jinja2>=3.0

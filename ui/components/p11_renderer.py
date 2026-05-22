@@ -1,15 +1,18 @@
-"""P-11 renderer (M-P11.1).
+"""P-11 renderer (M-P11.1 / M-P11.2).
 
-Dispatches to state-specific renderers. M-P11.1 implements
-S1_TemplateAndSource fully; later states render placeholder
-messages until their milestones land (M-P11.2 / .3 / .4).
+Dispatches to state-specific renderers. M-P11.1 wires
+S1_TemplateAndSource; M-P11.2 wires S2_Preview to render the real
+HTML report (assembled by ``p11_assembler.build_report_html``).
+S3 still placeholders until M-P11.3 / .4.
 """
 
 # M-P11.1
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as st_components
 
+from ui.components.p11_assembler import build_report_html
 from ui.components.p11_templates import get_template, templates_for
 from ui.p11_state import ReportState, ReportStateKind
 
@@ -19,7 +22,7 @@ def render_p11() -> None:
     if state.kind == ReportStateKind.S1_TEMPLATE_AND_SOURCE:
         _render_s1(state)
     elif state.kind == ReportStateKind.S2_PREVIEW:
-        _render_s2_placeholder(state)
+        _render_s2(state)
     elif state.kind == ReportStateKind.S3_EXPORT:
         _render_s3_placeholder(state)
     else:
@@ -146,14 +149,50 @@ def _disabled_preview_button() -> None:
 # S2 / S3 placeholders
 # ──────────────────────────────────────────────────────────────────
 
-def _render_s2_placeholder(state: ReportState) -> None:
-    st.info(
-        "**Preview lands in M-P11.2.** Template + source(s) selected. "
-        "Once the preview milestone ships, this view will render the "
-        "full report in HTML with section toggles.",
-        icon="📄",
-    )
-    _render_back_button(state)
+# M-P11.2
+def _render_s2(state: ReportState) -> None:
+    template = get_template(state.template_id)
+    if template is None:
+        st.error("Template missing — return to selection.", icon="⚠️")
+        _render_back_button(state)
+        return
+
+    saved = st.session_state.get("saved_analyses", [])
+    sources = [s for s in saved if s["id"] in state.source_ids]
+
+    if not sources:
+        st.error(
+            "Selected sources are no longer available. They may "
+            "have been deleted. Return to selection.",
+            icon="⚠️",
+        )
+        _render_back_button(state)
+        return
+
+    try:
+        report_html = build_report_html(state, sources, template)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Failed to render preview: {exc}", icon="⚠️")
+        _render_back_button(state)
+        return
+
+    # Top bar: nav + export-placeholder (export ships M-P11.3 / .4).
+    col_back, col_export = st.columns([1, 1])
+    with col_back:
+        _render_back_button(state)
+    with col_export:
+        st.button(
+            "Export PDF — lands in M-P11.3",
+            disabled=True,
+            use_container_width=True,
+            key="p11_export_disabled",
+        )
+
+    st.divider()
+
+    # Render the HTML inside Streamlit using components.html.
+    # Iframe-isolated; the report's CSS doesn't leak into the app.
+    st_components.html(report_html, height=800, scrolling=True)
 
 
 def _render_s3_placeholder(state: ReportState) -> None:
