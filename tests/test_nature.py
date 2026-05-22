@@ -218,15 +218,16 @@ class TestHabitatPctNorms:
 
     def test_none_propagates_when_input_missing(self) -> None:
         # Nothing supplied in payload → every pct_norm is None.
+        # M-V1x-RECONCILE: forest_loss.pct_norm dropped per audit §9.3 v1.4.
         out = _augment_habitat_pct_norms(payload={}, buffer_ha=100.0)
         for key in (
             "nature.habitat.natural_loss_pct_norm",
             "nature.habitat.nat_to_built_pct_norm",
             "nature.habitat.nat_to_bare_pct_norm",
-            "nature.forest_loss.pct_norm",
             "nature.habitat.annualised_rate_score",
         ):
             assert out[key] is None
+        assert "nature.forest_loss.pct_norm" not in out
 
     def test_annualised_rate_score_uses_same_saturation(self) -> None:
         # 2 ha/yr out of 100 ha buffer = 0.02 fraction/yr → 0.02 / 0.10 = 0.20
@@ -351,12 +352,12 @@ class TestBiodiversityExposure:
 
 
 class TestHabitatConversionScore:
-    def test_weighted_sum_when_all_five_terms_present(self) -> None:
+    def test_weighted_sum_when_all_four_terms_present(self) -> None:
+        # M-V1x-RECONCILE: forest_loss demoted from composite per audit §9.3 v1.4.
         payload = {
             "nature.habitat.natural_loss_pct_norm": 0.5,
             "nature.habitat.nat_to_built_pct_norm": 0.4,
             "nature.habitat.nat_to_bare_pct_norm":  0.3,
-            "nature.forest_loss.pct_norm":          0.2,
             "nature.habitat.annualised_rate_score": 0.1,
         }
         out = compute_habitat_conversion_score(payload)
@@ -365,7 +366,6 @@ class TestHabitatConversionScore:
             w["nature.habitat.natural_loss_pct_norm"] * 0.5
             + w["nature.habitat.nat_to_built_pct_norm"] * 0.4
             + w["nature.habitat.nat_to_bare_pct_norm"] * 0.3
-            + w["nature.forest_loss.pct_norm"] * 0.2
             + w["nature.habitat.annualised_rate_score"] * 0.1
         )
         assert out["nature.habitat.conversion_score"] == pytest.approx(expected)
@@ -376,7 +376,6 @@ class TestHabitatConversionScore:
             "nature.habitat.natural_loss_pct_norm": 0.5,
             "nature.habitat.nat_to_built_pct_norm": 0.4,
             "nature.habitat.nat_to_bare_pct_norm":  0.3,
-            "nature.forest_loss.pct_norm":          0.2,
         }
         out = compute_habitat_conversion_score(payload)
         assert out["nature.habitat.conversion_score"] is None
@@ -620,6 +619,13 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.recovery.score":                 0.0,
         }
 
+    def fake_regional_loss_evidence(aoi, time_range, ee_client):
+        # M-V1x-RECONCILE: run_pillar now calls this unconditionally when the
+        # Nature pillar runs. Tests stub it out so they don't need EE.
+        return {
+            "nature.external_driver_screening": 0.0,
+        }
+
     monkeypatch.setattr("engine.nature.compute_kba_proximity", fake_kba)
     monkeypatch.setattr("engine.nature.compute_current_land_cover", fake_dw)
     monkeypatch.setattr("engine.nature.compute_habitat_conversion", fake_habitat)
@@ -627,6 +633,10 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
     monkeypatch.setattr("engine.nature.compute_ndvi_condition", fake_ndvi)
     monkeypatch.setattr("engine.nature.compute_water_exposure", fake_water)
     monkeypatch.setattr("engine.nature.compute_recovery_signal", fake_recovery)
+    monkeypatch.setattr(
+        "engine.nature.compute_regional_loss_evidence",
+        fake_regional_loss_evidence,
+    )
 
 
 _ALL_NATURE_SELECTED = {
@@ -776,18 +786,21 @@ class TestBufferAreaHa:
 
 
 # ---------------------------------------------------------------------------
-# M5.6 — canonical provenance shape
+# M-V1x-RECONCILE — canonical 15-field provenance shape
 # ---------------------------------------------------------------------------
 
 _CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "indicator_id",
     "asset_id", "band", "data_type", "data_source",
     "native_scale_m", "method_note", "time_range",
-    "coverage_window", "skipped_reason", "observations", "extra",
+    "coverage_window", "skipped_reason", "observations",
+    "column_to_surface_uncertainty", "temporal_mode",
+    "sector_signal_anomaly", "extra",
 )
 
 
 class TestProvenanceShape:
-    """Every Nature indicator must emit the canonical 11-field provenance
+    """Every Nature indicator must emit the canonical 15-field provenance
     block. Tests exercise the construction paths that don't require EE.
     """
 
@@ -819,7 +832,10 @@ class TestProvenanceShape:
         ("kba",         "reference_dataset",       "BirdLife"),
         ("dw",          "ml_classified_satellite", "Dynamic World"),
         ("habitat",     "ml_classified_satellite", "Dynamic World"),
-        ("forest_loss", "ml_classified_satellite", "Hansen"),
+        # M-V1x-RECONCILE per audit §9.3 v1.4: Hansen reclassified from
+        # ml_classified_satellite to reference_dataset (standing-exposure
+        # demotion). Tests must reflect engine-actual state.
+        ("forest_loss", "reference_dataset",       "Hansen"),
         ("ndvi",        "satellite_observation",   "MODIS"),
         ("water",       "ml_classified_satellite", "Dynamic World"),
         ("recovery",    "satellite_observation",   "MODIS"),

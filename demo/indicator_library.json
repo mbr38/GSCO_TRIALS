@@ -145,15 +145,14 @@
   "nature.habitat.conversion_score": {
     "sub_section": "component_score",
     "display_name": "Habitat conversion",
-    "definition": "Composite of habitat-conversion signals: Dynamic World before/after natural-loss area combined with Hansen forest-loss area and class-transition fractions. Detects active land-use change around the AOI.",
-    "decision_relevance": "Primary deforestation-and-conversion signal for any supplier. Critical for commodities supply chains under EUDR — captures both Hansen tree-cover loss and DW's broader natural-class conversion.",
-    "limitations": "Strict-None propagation: if either DW or Hansen skips (M-NATURE-DEFENSIVE silent-skip on no_dw_pixels / no_hansen_pixels), the aggregate is None. Doesn't distinguish natural disturbance (fire) from human clearance.",
+    "definition": "Composite of Dynamic-World-based habitat-conversion signals: before/after natural-loss area combined with natural→built and natural→bare class-transition fractions plus an annualised-rate term. Detects active land-use change around the AOI within live-window semantics.",
+    "decision_relevance": "Primary deforestation-and-conversion signal for any supplier. Critical for commodities supply chains under EUDR. Hansen forest-loss is shown as a separate standing-exposure reference layer (see nature.forest_loss.score) and feeds the regional_loss_evidence confidence term, but is not in this live composite.",
+    "limitations": "Strict-None propagation: if DW skips (M-NATURE-DEFENSIVE silent-skip on no_dw_pixels), the aggregate is None. Doesn't distinguish natural disturbance (fire) from human clearance — that's what regional_loss_evidence and the (Tier C1a) fire_evidence terms in Nature_Quality_Attribution handle.",
     "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2",
     "inputs": [
       "nature.habitat.natural_loss_pct_norm",
       "nature.habitat.nat_to_built_pct_norm",
       "nature.habitat.nat_to_bare_pct_norm",
-      "nature.forest_loss.pct_norm",
       "nature.habitat.annualised_rate_score"
     ]
   },
@@ -245,9 +244,9 @@
   "air.co.score": {
     "display_name": "Carbon Monoxide (CO)",
     "sub_section":  "single_value",
-    "definition":   "Sentinel-5P TROPOMI total-column CO — a marker of incomplete combustion (biomass burning, vehicle exhaust, residential heating). Long atmospheric lifetime means CO signals can be transported hundreds of km from source.",
-    "decision_relevance": "Useful for biomass-burning regions and supply chains exposed to seasonal fire risk. Elevated CO without local industrial source often indicates transported smoke.",
-    "limitations": "Total-column rather than tropospheric — includes stratospheric background. Long atmospheric lifetime means attribution to a specific source within the AOI buffer is weak.",
+    "definition":   "Sentinel-5P TROPOMI total-column CO — a marker of incomplete combustion (biomass burning, vehicle exhaust, residential heating). Long atmospheric lifetime (weeks) means CO signals can be transported hundreds of km from source, so the column is dominated by regional / global background and supplier-level attribution at fenceline is loose (audit §1.5 / IC_v4 §1.5). Best read as a regional combustion-context proxy, not as a supplier-specific emission measurement.",
+    "decision_relevance": "Useful for biomass-burning regions and supply chains exposed to seasonal fire risk. Elevated CO without local industrial source often indicates transported smoke or wildfire impact rather than the supplier itself.",
+    "limitations": "Total-column rather than tropospheric — includes stratospheric background. Long atmospheric lifetime makes source attribution within the AOI buffer weak. Provenance carries column_to_surface_uncertainty = 'weak'.",
     "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 3.9.1"
   },
 
@@ -308,19 +307,26 @@
   "ghg.ch4.score": {
     "display_name": "Methane (CH₄)",
     "sub_section":  "single_value",
-    "definition":   "Sentinel-5P TROPOMI methane column. High-priority short-lived climate pollutant — methane has ~28× the global warming potential of CO₂ over 100 years.",
-    "decision_relevance": "Critical for fossil-fuel supply chains, livestock-heavy sectors, and waste-handling facilities. Elevated CH₄ indicates fugitive emissions or biogenic sources — the most actionable GHG signal in the engine.",
-    "limitations": "Sentinel-5P CH₄ retrieval requires cloud-free, sunlit conditions — fails over persistent cloud (tropics during monsoon). Retrieval less reliable over water and snow.",
+    "definition":   "Sentinel-5P TROPOMI methane column. High-priority short-lived climate pollutant — methane has ~28× the global warming potential of CO₂ over 100 years. The value is a total atmospheric column, NOT a surface concentration; the column-to-surface mapping for CH₄ is weak (audit §1.5 / IC_v4 §1.5) because the gas is well-mixed with a ~decade lifetime. The score's anomaly form (Z over Site_Buffer vs Background_Ring) is what carries the supplier signal.",
+    "decision_relevance": "Critical for fossil-fuel supply chains, livestock-heavy sectors, and waste-handling facilities. Elevated CH₄ indicates fugitive emissions or biogenic sources — the most actionable GHG signal in the engine. Read as supplier-vs-background context, not as a quantitative emission claim.",
+    "limitations": "Sentinel-5P CH₄ retrieval requires cloud-free, sunlit conditions — fails over persistent cloud (tropics during monsoon). Retrieval less reliable over water and snow. Provenance carries column_to_surface_uncertainty = 'weak'.",
     "esg_alignment": "Global Methane Pledge (2021); IPCC AR6 short-lived climate pollutants; UNFCCC GHG inventory; GHG Protocol Scope 1/3"
   },
 
   "ghg.co2.score": {
-    "display_name": "Carbon Dioxide (CO₂, ODIAC)",
+    "display_name": "CO₂ — ODIAC relative-intensity score",
     "sub_section":  "single_value",
-    "definition":   "ODIAC fossil-fuel CO₂ emissions inventory — annual gridded estimates derived from national emissions, CARMA point sources, and VIIRS nightlights as a spatial proxy. Inventory allocation, NOT satellite-observed.",
-    "decision_relevance": "Standing exposure context — describes long-term emission intensity of the area around a supplier, not present-day flux. Useful for site selection and tier-2 supplier risk classification.",
+    "definition":   "ODIAC fossil-fuel CO₂ emissions inventory — annual gridded estimates derived from national totals, CARMA point sources, and VIIRS nightlights as a spatial proxy. Inventory allocation, NOT satellite-observed. The headline measurement is `relative_intensity` (the ratio of site-buffer flux to background-ring flux), not an `anomaly` difference — the ratio framing matches ODIAC's standing-exposure semantics post-M5.5b. Provenance carries temporal_mode = 'standing_exposure'.",
+    "decision_relevance": "Standing exposure context — describes long-term emission intensity of the area around a supplier, not present-day flux. Useful for site selection and tier-2 supplier risk classification. Not in the live Core_GHG_Audit_Support composite (M5.5b: the 1-2-year vintage lag makes it unable to drive a live screening signal); shown alongside as reference.",
     "limitations": "Vintage: 2020-2023. Allocation from CARMA + VIIRS introduces uncertainty for unlisted point sources. Not a present-day measurement — doesn't reflect recent mitigation actions.",
-    "esg_alignment": "Paris Agreement; UNFCCC Annex I inventory; GHG Protocol Corporate Standard Scope 1/3"
+    "esg_alignment": "Paris Agreement; UNFCCC Annex I inventory; GHG Protocol Corporate Standard Scope 1/3",
+    "inputs": [
+      "ghg.co2.mean",
+      "ghg.co2.total",
+      "ghg.co2.relative_intensity",
+      "ghg.co2.trend",
+      "ghg.co2.confidence"
+    ]
   },
 
   "ghg.viirs.score": {
@@ -363,8 +369,8 @@
     "display_name": "Hansen Forest Loss",
     "sub_section":  "single_value",
     "definition":   "Hansen Global Forest Change v1.11 annual forest cover loss inside the AOI buffer. Detects tree-cover loss ≥ 50% canopy density. Authoritative for year-by-year deforestation tracking.",
-    "decision_relevance": "Direct evidence of deforestation around a supplier — critical for commodities supply chains (soy, beef, palm oil, cocoa) under EUDR. The most-cited deforestation dataset for ESG reporting.",
-    "limitations": "Hansen detects loss not regrowth; doesn't distinguish natural disturbance (fire, storm) from human clearance. Updated annually with ~1-year lag; recent loss not surfaced until the next annual release.",
+    "decision_relevance": "Direct evidence of deforestation around a supplier — critical for commodities supply chains (soy, beef, palm oil, cocoa) under EUDR. The most-cited deforestation dataset for ESG reporting. Shown as a standing-exposure reference layer and also feeds the regional_loss_evidence confidence term inside Nature_Quality_Attribution.",
+    "limitations": "Hansen detects loss not regrowth; doesn't distinguish natural disturbance (fire, storm) from human clearance. Updated annually with ~1-year lag; recent loss not surfaced until the next annual release. As of M-V1x-RECONCILE (audit §9.3 v1.4), Hansen has been removed from the live Habitat_Conversion composite — its cumulative-since-2000 framing is incompatible with the Dynamic-World-based live-window terms. Habitat_Conversion now uses DW signals only; Hansen survives as this reference layer and as input to regional_loss_evidence.",
     "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2"
   },
 

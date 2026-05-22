@@ -484,7 +484,7 @@ def _render_datasets_used_subexpander(
     indicator_keys:  tuple[str, ...],
     payload:         dict,
 ) -> None:
-    """One block per indicator showing the canonical 11-field provenance.
+    """One block per indicator showing the canonical 15-field provenance.
 
     Missing provenance (``None``) renders as 'Not available' rather
     than blowing up — a pillar-wide failure still produces a payload
@@ -503,7 +503,7 @@ def _render_datasets_used_subexpander(
 
 
 def _render_provenance_block(provenance: dict) -> None:
-    """Render one canonical 11-field M5.6 provenance block.
+    """Render one canonical 15-field provenance block.
 
     Skipped-coverage path: when ``skipped_reason`` is set, render the
     skip note prominently and keep the rest as muted detail.

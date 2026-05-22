@@ -640,18 +640,21 @@ class TestRunPillar:
 
 
 # ---------------------------------------------------------------------------
-# M5.6 — canonical provenance shape
+# M-V1x-RECONCILE — canonical 15-field provenance shape
 # ---------------------------------------------------------------------------
 
 _CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "indicator_id",
     "asset_id", "band", "data_type", "data_source",
     "native_scale_m", "method_note", "time_range",
-    "coverage_window", "skipped_reason", "observations", "extra",
+    "coverage_window", "skipped_reason", "observations",
+    "column_to_surface_uncertainty", "temporal_mode",
+    "sector_signal_anomaly", "extra",
 )
 
 
 class TestProvenanceShape:
-    """Every Air pollutant must emit the canonical 11-field provenance
+    """Every Air pollutant must emit the canonical 15-field provenance
     block constructed via engine.core.build_provenance. Per-pollutant
     fields (CAMS modelled note, AOD bit mask, etc.) land in `extra`.
     """

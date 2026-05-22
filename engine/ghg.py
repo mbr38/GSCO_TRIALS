@@ -88,7 +88,15 @@ from engine.constants import (
     GHG_FOLLOWUP_WEIGHTS,
     NORMALISATION_K,
 )
-from engine.core import build_provenance, six_step
+from engine.core import (
+    build_provenance,
+    compute_anomaly_strength_term,
+    compute_indicator_confidence,
+    compute_n_valid_term,
+    compute_qa_term,
+    compute_spatial_context_term,
+    six_step,
+)
 from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import (
     BackgroundRingNoDataError,
@@ -150,6 +158,13 @@ class GhgIndicatorConfig:
     # M5.6 — human-readable data-source label that lands in provenance.
     # Default matches S5P TROPOMI; explicit overrides per-indicator.
     data_source: str = "Copernicus / ESA (Sentinel-5P TROPOMI)"
+    # M-V1x-RECONCILE — temporal framing per audit §9.3. Default
+    # `live_window` reflects the user's analysis window. Override to
+    # `standing_exposure` for cumulative / fixed-vintage indicators (ODIAC
+    # CO₂). The provenance lookup table in `engine.core.provenance` also
+    # encodes this default — overriding here keeps the per-indicator
+    # config self-describing.
+    temporal_mode: str = "live_window"
     # M-AIR-GHG-DEFENSIVE — asset-family code emitted in provenance when
     # the site buffer reduces to no usable pixels. Defaults to S5P; VIIRS
     # overrides to no_viirs_pixels. CO₂/ODIAC has its own coverage_window
@@ -215,6 +230,10 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         coverage_window=("2020-01-01", "2023-12-31"),
         data_type="emissions_inventory_allocation",
         data_source="ODIAC / NIES Japan",
+        # M-V1x-RECONCILE per audit §9.3 — ODIAC is a 1-2 year-lagged
+        # cumulative emissions allocation; treat as standing exposure
+        # rather than live-window.
+        temporal_mode="standing_exposure",
         # M-AIR-GHG-DEFENSIVE — in v1 the coverage_window check in
         # run_pillar means CO₂ never reaches the SiteBufferNoDataError
         # path; this code is a safety net for any future caller that
@@ -450,6 +469,7 @@ def compute_co2_snapshot(
 
     return _format_co2_result(
         cfg=cfg,
+        aoi=aoi,
         total=site_total_t_co2,
         mean=site_mean_t_co2,
         relative_intensity=relative_intensity,
@@ -492,6 +512,7 @@ def _co2_relative_intensity_and_score(
 def _format_co2_result(
     cfg: GhgIndicatorConfig,
     *,
+    aoi: dict,
     total: float,
     mean: float,
     relative_intensity: float | None,
@@ -502,25 +523,36 @@ def _format_co2_result(
     """Map computed values onto the canonical CO₂ measurement IDs.
 
     `trend` / `trend_p` are None pending the same M5+ trend.py wiring used
-    by Air and CH₄. `confidence` is the same placeholder pattern as
-    elsewhere (1.0 when we have data — IC_v5 §6.3 doc gap).
+    by Air and CH₄. `confidence` is computed via the M-TIER-A1 universal
+    formula treating ODIAC as a single-snapshot indicator (the helper
+    bypasses the daily-revisit ratio because `ghg.co2` is in
+    SINGLE_SNAPSHOT_INDICATORS — see engine.core.confidence).
     """
+    confidence_terms = _co2_confidence_terms(aoi, n_months, score)
+    confidence = compute_indicator_confidence(
+        indicator_id="ghg.co2",
+        column_to_surface_uncertainty="n_a",
+        **confidence_terms,
+    )
+
     return {
         make_id(PILLAR_GHG, "co2", "mean"):               mean,
         make_id(PILLAR_GHG, "co2", "total"):              total,
         make_id(PILLAR_GHG, "co2", "relative_intensity"): relative_intensity,
         make_id(PILLAR_GHG, "co2", "trend"):              None,
         make_id(PILLAR_GHG, "co2", "trend_p"):            None,
-        # Placeholder confidence: 1.0 when the snapshot computed at all;
-        # see _placeholder_confidence's docstring re IC_v5 §6.3 doc gap.
-        make_id(PILLAR_GHG, "co2", "confidence"):         1.0 if score is not None else None,
+        make_id(PILLAR_GHG, "co2", "confidence"):         confidence,
         make_id(PILLAR_GHG, "co2", "score"):              score,
         # M5.6 — canonical provenance via build_provenance. ODIAC-specific
         # fields (c_to_co2_factor) go into `extra`; the M5.5b
         # `role_in_pillar` field is dropped — `data_type` carries the same
         # information more honestly, and "not in live composite" is
         # encoded in CORE_GHG_AUDIT_SUPPORT_WEIGHTS itself.
+        # M-TIER-A1 — confidence_terms also lands in `extra` for
+        # downstream consumers (the GHG_DQA sub-scores in particular
+        # walk these terms back to compute pillar-level rollups).
         "_provenance.ghg.co2": build_provenance(
+            indicator_id="ghg.co2",
             asset_id=cfg.asset_id,
             band=cfg.band,
             data_type=cfg.data_type,
@@ -534,54 +566,124 @@ def _format_co2_result(
             ),
             coverage_window=cfg.coverage_window,
             observations={"count": n_months, "unit": "monthly_grids"},
-            extra={"c_to_co2_factor": CO2_TO_C_RATIO},
+            extra={
+                "c_to_co2_factor": CO2_TO_C_RATIO,
+                "confidence_terms": {
+                    **confidence_terms,
+                    "column_to_surface_uncertainty": "n_a",
+                },
+            },
+        ),
+    }
+
+
+def _co2_confidence_terms(aoi: dict, n_months: int, score: float | None) -> dict:
+    """Compute the four A1 confidence inputs for ODIAC.
+
+    ODIAC is a single-snapshot indicator (annual inventory), so:
+      * `qa` = QA_PER_INDICATOR["ghg.co2"] (1.00 — no per-pixel QA concept)
+      * `n_valid` = 1.0 when the snapshot computed (n_months >= 1); 0.0 when skipped
+      * `anomaly_strength` = 1.0 (no HF concept; reference-style data)
+      * `spatial_context` = clamp(sqrt(buffer / 1km²) / 3, 0, 1)
+    All four are None only when the snapshot failed entirely
+    (score is None), in which case strict-None propagates.
+    """
+    buffer_area = math.pi * (aoi["radius_km"] * 1000.0) ** 2
+    return {
+        "qa": compute_qa_term("ghg.co2"),
+        "n_valid": compute_n_valid_term(
+            "ghg.co2", n_observations=n_months, window_days=None,
+        ),
+        "anomaly_strength": compute_anomaly_strength_term("ghg.co2", hf=None),
+        "spatial_context": compute_spatial_context_term(
+            "ghg.co2", buffer_area_m2=buffer_area,
         ),
     }
 
 
 # ---------------------------------------------------------------------------
-# GHG quality sub-scores  (Schema_v2 §3.4 — placeholders)
+# GHG quality sub-scores  (IC_v4 §6.3.2; spec §4.2)
 # ---------------------------------------------------------------------------
 
+# Three of the four GHG_Data_Quality_Attribution sub-scores are derived
+# directly from per-indicator A1 confidence inputs (stored in each GHG
+# indicator's `_provenance.ghg.<ind>.extra.confidence_terms`). The fourth,
+# `nearby_source_isolation`, is a spatial-context check (IC_v4 §7.2) that
+# stays independent of per-indicator QA/N_valid/HF/spatial_context inputs.
+
+_GHG_PER_INDICATOR_QA_KEYS: tuple[str, ...] = ("ch4", "co2", "viirs")
+
+
+def _ghg_confidence_term_for(payload: dict, indicator: str, term: str) -> float | None:
+    """Read one A1 confidence input for a GHG indicator from provenance.extra.
+
+    Returns None when the indicator's snapshot didn't run (skipped path or
+    failure), so survivor-renormalise in the mean below skips it.
+    """
+    prov = payload.get(f"_provenance.ghg.{indicator}")
+    if not prov:
+        return None
+    extra = prov.get("extra") or {}
+    terms = extra.get("confidence_terms")
+    if not terms:
+        return None
+    value = terms.get(term)
+    return value if isinstance(value, (int, float)) else None
+
+
+def _mean_over_ghg_indicators(payload: dict, term: str) -> float | None:
+    survivors = [
+        v for ind in _GHG_PER_INDICATOR_QA_KEYS
+        if (v := _ghg_confidence_term_for(payload, ind, term)) is not None
+    ]
+    if not survivors:
+        return None
+    return sum(survivors) / len(survivors)
+
+
 def compute_temporal_coverage(payload: dict) -> dict:
-    """Schema_v2 §3.4 — placeholder using ch4.confidence as a proxy.
+    """IC_v4 §6.3.2 / spec §4.2 — mean of per-indicator N_valid across GHG.
 
-    Real formula is `N_valid / N_total` of analysis-window observations;
-    M2's confidence placeholder already encodes this for CH₄, so we
-    re-use it here.
-
-    TODO(IC_v5): replace placeholder with the real formula once §6.3 lands.
+    Replaces the pre-A1 placeholder that echoed `ghg.ch4.confidence`. After
+    A1 every GHG indicator emits its own N_valid term (TROPOMI CH₄ daily
+    revisit fraction, VIIRS daily revisit fraction, ODIAC single-snapshot
+    pass-through to 1.0), so this is now the audit-doc-aligned form.
     """
-    return {"ghg.temporal_coverage": payload.get("ghg.ch4.confidence")}
+    return {"ghg.temporal_coverage": _mean_over_ghg_indicators(payload, "n_valid")}
 
 
-def compute_spatial_resolution_suitability(aoi: dict) -> dict:
-    """Schema_v2 §3.4 — buffer-radius vs CH₄ native pixel scale.
+def compute_spatial_resolution_suitability(payload: dict, aoi: dict | None = None) -> dict:
+    """IC_v4 §6.3.2 / spec §4.2 — mean of per-indicator spatial_context across GHG.
 
-    Larger buffer → better suitability. Saturates at 1.0 when the buffer
-    radius covers at least one CH₄ on-ground pixel (~7 km, see
-    `CH4_NATIVE_SCALE_M`).
+    Replaces the pre-A1 placeholder which used a single CH₄-only ratio
+    (`radius_m / CH4_NATIVE_SCALE_M`). The new form averages all GHG
+    indicators' spatial_context terms — CH₄'s 7 km pixel, ODIAC's 1 km
+    grid, VIIRS's 463 m DNB cell — so the sub-score reflects all three
+    indicators' suitability for the chosen buffer.
 
-    TODO(IC_v5): generalise per-indicator (CH₄ + CO₂ + VIIRS) once §6.3 lands.
+    `aoi` is accepted for signature parity with the pre-A1 call shape but
+    no longer used; the per-indicator spatial_context terms already
+    incorporate aoi.radius_km via `compute_spatial_context_term`.
     """
-    radius_m = aoi["radius_km"] * 1000
+    del aoi
     return {
-        "ghg.spatial_resolution_suitability": min(1.0, radius_m / CH4_NATIVE_SCALE_M),
+        "ghg.spatial_resolution_suitability": _mean_over_ghg_indicators(
+            payload, "spatial_context",
+        ),
     }
 
 
 def compute_retrieval_inventory_quality(payload: dict) -> dict:
-    """Schema_v2 §3.4 — fixed 0.7 placeholder.
+    """IC_v4 §6.3.2 / spec §4.2 — mean of per-indicator QA across GHG.
 
-    Google's S5P L3 CH₄ product passes its own quality filters upstream,
-    so the aggregate retrieval quality is decent but not best-in-class.
-    Treating as constant for v1.
-
-    TODO(v1.x): plumb real qa_value from TROPOMI CH₄ + ODIAC vintage flag —
-    ODIAC ingestion landed in M5.5 but the per-asset vintage property isn't
-    yet wired into this score.
+    Replaces the pre-A1 fixed 0.7 placeholder. After A1 each GHG indicator
+    carries its own static QA value from `QA_PER_INDICATOR`
+    (ghg.ch4 = 0.85, ghg.co2 = 1.00, ghg.viirs = 0.85), so the mean is a
+    real per-pillar QA aggregate.
     """
-    return {"ghg.retrieval_inventory_quality": 0.7}
+    return {
+        "ghg.retrieval_inventory_quality": _mean_over_ghg_indicators(payload, "qa"),
+    }
 
 
 def compute_nearby_source_isolation(payload: dict) -> dict:
@@ -590,7 +692,7 @@ def compute_nearby_source_isolation(payload: dict) -> dict:
     The real formula (IC_v4 §7.2) is the satellite-only proxy
     `0.5·isolation_from_no2 + 0.5·isolation_from_viirs`. Returning 1.0 in
     v1 over-states isolation in industrial corridors — acceptable v1 trade
-    given Wind_Consistency is also deferred.
+    given Wind_Consistency is also deferred. Independent of A1 per spec §4.2.
 
     TODO(IC_v5): implement per §7.2 satellite-only proxy.
     """
@@ -886,6 +988,7 @@ def run_pillar(
             # coverage_window in v1); generalise when CH₄/VIIRS or other
             # indicators acquire windows.
             payload[f"_provenance.ghg.{ind_key}"] = build_provenance(
+                indicator_id=f"ghg.{ind_key}",
                 asset_id=cfg.asset_id,
                 band=cfg.band,
                 data_type=cfg.data_type,
@@ -980,9 +1083,11 @@ def run_pillar(
                 payload[key] = value
                 injected_keys.add(key)
 
-    # Quality sub-scores — placeholders pending IC_v5.
+    # Quality sub-scores — three derived from per-indicator A1 confidence
+    # terms (in provenance.extra.confidence_terms); nearby_source_isolation
+    # stays an independent §7.2 spatial proxy (placeholder pending wiring).
     payload.update(compute_temporal_coverage(payload))
-    payload.update(compute_spatial_resolution_suitability(aoi))
+    payload.update(compute_spatial_resolution_suitability(payload, aoi))
     payload.update(compute_retrieval_inventory_quality(payload))
     payload.update(compute_nearby_source_isolation(payload))
 
@@ -1070,7 +1175,15 @@ def _format_result(
         value = score if measurement == "score" else raw.get(measurement)
         result[make_id(PILLAR_GHG, indicator, measurement)] = value
 
+    # M-TIER-A1 — same shape as engine.air._format_result: surface the
+    # four confidence-formula inputs in provenance.extra.
+    extra: dict = {}
+    confidence_terms = raw.get("confidence_terms")
+    if confidence_terms is not None:
+        extra["confidence_terms"] = confidence_terms
+
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
+        indicator_id=f"ghg.{indicator}",
         asset_id=cfg.asset_id,
         band=cfg.band,
         data_type=cfg.data_type,
@@ -1082,7 +1195,7 @@ def _format_result(
         # TODO(v1.x): track six_step's actual image count and surface as
         # observations={"count": n, "unit": "daily_images"}.
         observations=None,
-        extra={},
+        extra=extra,
     )
     return result
 
@@ -1109,6 +1222,7 @@ def _emit_skipped_ghg_result(
         for m in cfg.emitted_measurements
     }
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
+        indicator_id=f"ghg.{indicator}",
         asset_id=cfg.asset_id,
         band=cfg.band,
         data_type=cfg.data_type,

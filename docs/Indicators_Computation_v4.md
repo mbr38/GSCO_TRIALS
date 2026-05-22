@@ -1,8 +1,24 @@
-# GSCO Environmental Tool — Indicators Computation Reference (v4)
+# GSCO Environmental Tool — Indicators Computation Reference (v4.2)
+
+**Changes from v4.1 (M-TIER-A1, 22 May 2026).**
+- **New §8 — Confidence formula.** Pre-A1, `§0.2 step 6` promised a confidence formula in §6.3 but §6.3 was occupied by buffer-warning logic and the formula had no home in the doc (the engine docstring called this out as a known doc gap). §8 now carries the canonical 4-term + column-to-surface multiplier formula, the pillar-level rollup logic (Air uniform mean; GHG and Nature via existing weight dicts with re-derived sub-scores), and the composite `min(...)` rule. The §0.2 step 6 pointer should be read as `see §8` until the next renumbering.
+- **GHG_Data_Quality_Attribution sub-scores rewired.** Three of the four — `temporal_coverage`, `spatial_resolution_suitability`, `retrieval_inventory_quality` — now derive from per-indicator A1 confidence terms (mean of `N_valid`, `spatial_context`, `QA` respectively across the three GHG indicators) instead of placeholders. Sums-to-1.00 weight dict (0.33 / 0.27 / 0.27 / 0.13) is unchanged. `nearby_source_isolation` stays an independent §7.2 spatial proxy.
+- **Nature `valid_pixel_coverage` rewired.** Pre-A1 it echoed `dw.class_confidence`; post-A1 it's the mean of per-indicator A1 `QA` terms across Nature indicators. The other five Nature QA sub-scores keep their existing semantics. `NATURE_QUALITY_ATTRIBUTION_WEIGHTS` unchanged.
+
+
 
 **Purpose.** Single reference for computing every indicator in the v1 tool: what is measured, the formula(s) required, the ESG-aligned unit of measurement, the assumptions behind each formula and which of those assumptions are scientifically weak, and the rules for buffer definition.
 
-**Sources.** `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`.
+**Sources.** `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`, `Indicators_Audit_and_v1x_Roadmap.md` v1.5.
+
+**Changes from v4.0 (M-V1x-RECONCILE, 22 May 2026).**
+- **§1.1 CAMS band names corrected.** `particulate_matter_2.5um` → `particulate_matter_d_less_than_25_um_surface`; same form for PM₁₀. Existing engine code already uses the correct names; the doc was drifted. (M-CAMS-BAND-FIX.)
+- **New §1.5 — Column-to-surface uncertainty framing.** Condensed from `Indicators_Audit_and_v1x_Roadmap.md` §1.5: the science behind why column densities don't equal surface concentrations, how the Z-score mitigates this, the "context not measurement" framing, the O₃ cap rationale, and the per-gas uncertainty table. Surfaced as the `column_to_surface_uncertainty` provenance field — see `Indicator_ID_Schema_v2.md` §6.1.
+- **§2.3 Core_GHG_Audit_Support_v1 — updated to engine-actual M5.5b form.** Three-key composite `0.46·CH₄_Context_Adjusted + 0.44·Combustion_Proxy + 0.10·Activity_Score` (sums 1.00). ODIAC demoted to standing exposure per M5.5b; live signals rescaled by 1/0.61. Pre-M5.5b values retained in the method-note for lineage.
+- **§2.3 GHG_Data_Quality_Attribution_v1 method note refined.** `Sector_Match` reclassified from "deferred" to "scrapped" per audit §9.2 — metadata-completeness bias makes any sector-tag-conditioned confidence term invalid. `Wind_Consistency` remains deferred to v1.x Tier C1a.
+- **§3.2 Habitat_Conversion — Hansen demoted per audit §9.3 v1.4.** Four-term post-demotion composite `0.40 / 0.27 / 0.22 / 0.11` (sums 1.00). Hansen's `Forest_Loss_pct` survives only as a standing-exposure reference layer and as input to `regional_loss_evidence`. Calibration note (10 % saturation) unchanged.
+- **§7.1 Rule 1 example updated** from the pre-M5.5b CO₂-rescale to the M5.5b case (ODIAC demoted, three remaining terms rescaled by 1/0.61). Matches engine state.
+- **§7.5 `regional_loss_evidence` promoted to a proper spec block.** Fixed 5-year Hansen lookback, ring-vs-buffer rate comparison with 2× threshold; cross-references `engine.nature.compute_regional_loss_evidence` and audit §9.3.
 
 **Changes from v3.**
 - **§2.3 GHG_Data_Quality_Attribution_v1 weights corrected.** The v3 version had weights 0.30 / 0.24 / 0.24 / 0.12 (sum 0.90) with an incorrect "rescaled by 1/0.85" comment. The actual deferred terms (Wind_Consistency 0.15 + Sector_Match 0.10) sum to 0.25, so the correct rescale factor is **1/(1−0.25) = 1.333…** giving weights **0.33 / 0.27 / 0.27 / 0.13** which sum to 1.00. Updated accordingly. The v1 quality sub-scores (Temporal_Coverage, Spatial_Resolution_Suitability, Retrieval_or_Inventory_Quality, Nearby_Source_Isolation) are all live in v1 — see `Indicator_ID_Schema_v2.md` §3.4.
@@ -108,8 +124,10 @@ A full phenological baseline (per-day-of-year expected curve) is deferred to v1.
 | **O₃** | `O₃_site`, anomaly, Z, HF, Conf | Repeatable core method on `O3_column_number_density` | mol m⁻² → DU (Dobson Units), conversion factor 1 DU = 4.4615 × 10⁻⁴ mol m⁻² |
 | **AAI** | `AAI_site`, anomaly, Z, HF, Conf | Repeatable core method on `absorbing_aerosol_index` | Dimensionless |
 | **CH₄** | `CH₄_site`, anomaly, Z, HF, Conf | Repeatable core method on `CH4_column_volume_mixing_ratio_dry_air` | ppb (parts per billion) |
-| **PM₂.₅ (modelled)** | `PM2.5_site`, `PM2.5_bg`, anomaly, trend slope, Conf | Repeatable core method on CAMS `particulate_matter_2.5um` band, ×10⁹ to convert kg m⁻³ → µg m⁻³ | **µg m⁻³** (ESRS E2 / WHO AQG / GRI 305-7 standard unit) |
-| **PM₁₀ (modelled)** | as above | CAMS `particulate_matter_10um` band, ×10⁹ | µg m⁻³ |
+| **PM₂.₅ (modelled)** | `PM2.5_site`, `PM2.5_bg`, anomaly, trend slope, Conf | Repeatable core method on CAMS `particulate_matter_d_less_than_25_um_surface` band, ×10⁹ to convert kg m⁻³ → µg m⁻³ [^cams-band] | **µg m⁻³** (ESRS E2 / WHO AQG / GRI 305-7 standard unit) |
+| **PM₁₀ (modelled)** | as above | CAMS `particulate_matter_d_less_than_10_um_surface` band, ×10⁹ [^cams-band] | µg m⁻³ |
+
+[^cams-band]: M-CAMS-BAND-FIX. The legacy band aliases `particulate_matter_2.5um` and `particulate_matter_10um` referenced in earlier doc revisions never matched the CAMS asset; the asset always exposed the long-form surface-mass-mixing-ratio band names used above. Engine code already uses the correct names — this is a doc-drift correction only.
 | **AOD (optional)** | `AOD_site`, anomaly, trend | MODIS MAIAC `Optical_Depth_055`, masked by `AOD_QA` bits 8–11 | Dimensionless |
 
 ### 1.2 Sub-aggregate indicators
@@ -145,6 +163,30 @@ Air_Pollution_Audit_FollowUp_Priority =
 
 `O₃_context_score` is treated as context, not as a primary pollution score — it is the same Z-based score but capped at 0.5, because O₃ is a secondary pollutant and not directly emitted (Indicators Full Research, "Best interpretation" table).
 
+### 1.5 Column-to-surface uncertainty (audit §1.5)
+
+**The science.** Sentinel-5P TROPOMI measures the *total column density* of a gas — atoms per unit area integrated through the whole atmosphere. The number a permit officer or ESG auditor actually cares about is the *surface concentration* (µg m⁻³, ppb) at the supplier's fenceline. The mapping from column to surface depends on the gas's vertical distribution, which is set by boundary-layer height, photochemistry, lifetime, and transport — none of which TROPOMI directly resolves.
+
+**Why the tool stays usable anyway.** The repeatable core method (§0.2) compares the supplier site to its own background ring using the *same* retrieval, on the *same* day, through the *same* atmospheric column. Whatever vertical structure inflates or deflates the absolute column value also affects the background, so the Z-score is largely insensitive to this bias. The honesty layer is in the *unit* and the *framing*: the raw values are reported in mol m⁻² (or display units derived from them) and labelled "column density", never as "surface concentration".
+
+**The O₃ cap.** O₃ is the extreme case: nearly all the column is in the stratosphere, and surface O₃ is a *photochemical* product driven by NOₓ + VOCs + sunlight, not a primary emission. Surface O₃ also moves with regional weather over hundreds of kilometres. For these reasons §1.3 caps `O₃_context_score` at 0.5: the score can flag elevated tropospheric O₃ as context, but cannot drive a follow-up priority on its own.
+
+**Per-gas uncertainty table** — populates the `column_to_surface_uncertainty` provenance field for each indicator (see `Indicator_ID_Schema_v2.md` §6.1):
+
+| Indicator | Uncertainty tag | Reason |
+|---|---|---|
+| `air.no2` | `moderate` | Short lifetime (~hours in boundary layer); most of the column lives near the surface; column ↔ surface mapping is one of the better-understood retrievals. |
+| `air.so2` | `moderate_weak` | Surface mapping is good for fresh, near-source plumes but degrades quickly for aged / transported air masses. |
+| `air.co` | `weak` | Long lifetime (~weeks); column is dominated by regional / global background; supplier-attribution at fenceline is loose. |
+| `air.hcho` | `moderate` | Short lifetime (~hours); useful as a VOC proxy but vertical distribution sensitive to photochemistry. |
+| `air.o3` | `n_a` | O₃ is a secondary pollutant, not directly emitted. Capped via §1.3 instead. |
+| `air.aai` | `n_a` | Absorbing aerosol *index*, not a column density — already a dimensionless aerosol indicator. |
+| `ghg.ch4` | `weak` | Long lifetime (~decade); column is overwhelmingly background; sub-km supplier signal needs days-of-clear-sky aggregation to be visible. |
+
+PM (CAMS), AOD (MAIAC), ODIAC CO₂, VIIRS NTL, Dynamic World, Hansen, NDVI, KBA all default to `n_a` — either they're already surface-level / vector / classification data, or they're modelled allocations rather than column retrievals.
+
+**Operational implication.** The score arithmetic is unchanged. The provenance field puts the right epistemic weight on each indicator for the P-11 report and any future audit log. Reviewers reading a `weak` tag should treat the headline number as context, not as a quantitative emission claim.
+
 ---
 
 ## 2. GHG pillar
@@ -175,20 +217,38 @@ Air_Pollution_Audit_FollowUp_Priority =
 **v1 (no sector context):**
 
 ```
-Core_GHG_Audit_Support_v1 =
-    0.39·CO₂_Context  + 0.28·CH₄_Hotspot_Signal
-  + 0.22·Combustion_Proxy + 0.11·Activity_Score
-   (High_GWP_Sector_Risk set to 0 and weights of the other four
-    rescaled by 1/0.90; see §7.1)
+Core_GHG_Audit_Support_v1 =                      (M5.5b: ODIAC demoted)
+    0.46·CH₄_Context_Adjusted
+  + 0.44·Combustion_Proxy
+  + 0.10·Activity_Score                          (sums to 1.00)
+
+  Method: ODIAC's CO₂_Context is no longer in the live composite. The
+  1–2-year ODIAC vintage lag means it cannot drive a live screening
+  signal (present-day runs against time ranges outside 2020–2023 fail
+  entirely with CO₂ in the formula). ODIAC still computes and displays
+  as standing-exposure context — see Schema_v2 §6.1 `temporal_mode`.
+  High_GWP_Sector_Risk also stays at 0 in v1 pending sector input
+  (Tier C1a). The three live signals are rescaled by 1/0.61 from the
+  pre-M5.5b values: CO₂ 0.39, CH₄ 0.28, Combustion 0.22, Activity 0.11
+  → drop CO₂, divide each remaining by 0.61, round to two decimals.
+  See audit §3.4 for full trace.
 
 GHG_Data_Quality_Attribution_v1 =
     0.33·Temporal_Coverage + 0.27·Spatial_Resolution_Suitability
   + 0.27·Retrieval_or_Inventory_Quality
-  + 0.13·Nearby_Source_Isolation
-   (Wind_Consistency 0.15 and Sector_Match 0.10 deferred — total 0.25;
-    remaining four weights rescaled by 1/0.75 = 1.333…; sums to 1.00.
-    Nearby_Source_Isolation in v1 uses the satellite-only proxy in §7.2.
-    See §7.1 and §7.2.)
+  + 0.13·Nearby_Source_Isolation                 (sums to 1.00)
+
+  Method: Wind_Consistency (0.15) deferred to v1.x Tier C1a (ERA5 wind).
+  Sector_Match (0.10) is **scrapped** per audit §9.2 on
+  metadata-completeness-bias grounds — any confidence term that requires
+  user-supplied sector metadata of variable completeness produces a
+  biased score (suppliers without sector tags get an undefined or
+  defaulted term that systematically differs from tagged suppliers).
+  It is not deferred, not coming back as a confidence-formula term; it
+  survives only as the informational `sector_signal_anomaly`
+  provenance flag (Schema_v2 §6.1). Remaining four weights rescaled by
+  1/0.75 = 1.333…. Nearby_Source_Isolation in v1 uses the satellite-only
+  proxy in §7.2.
 
 GHG_Audit_FollowUp_Priority =
     0.40·Core_GHG_Audit_Support
@@ -232,12 +292,22 @@ Biodiversity_Exposure =
   + 0.20·Water_or_FloodedVegetation_Exposure
   + 0.10·Buffer_Sensitivity_v1   (= 0 in v1 without sector context; see §7.1)
 
-Habitat_Conversion =
-    0.35·Natural_Habitat_Loss_pct
-  + 0.25·Natural_to_Built_pct
-  + 0.20·Natural_to_Bare_pct
-  + 0.10·Forest_Loss_pct
-  + 0.10·Annualised_Conversion_Rate_score
+Habitat_Conversion =                              (audit §9.3 v1.4: Hansen demoted)
+    0.40·Natural_Habitat_Loss_pct
+  + 0.27·Natural_to_Built_pct
+  + 0.22·Natural_to_Bare_pct
+  + 0.11·Annualised_Conversion_Rate_score         (sums to 1.00)
+
+  Method: Hansen `Forest_Loss_pct` was removed from the live composite per
+  audit §9.3 v1.4. Hansen's standing-exposure framing (cumulative loss
+  since 2000) breaks the live-window semantics of the four Dynamic-World-
+  based terms; the standing-exposure asset cannot meaningfully share a
+  weighted sum with live-window observations. Hansen survives outside
+  this composite as (a) a standing-exposure reference layer in the
+  Indicator Library and (b) the only input to `regional_loss_evidence`
+  (§7.5). Its pre-demotion 0.10 weight is redistributed proportionally
+  over the four remaining terms (rescale factor 1/0.90). Pre-demotion
+  values (for lineage): 0.35 / 0.25 / 0.20 / 0.10 / 0.10.
 
   Calibration note: each `_pct` term is a fraction in [0, 1] divided by a
   10 % saturation point, i.e. `Natural_Habitat_Loss_pct = clamp(loss_fraction / 0.10, 0, 1)`.
@@ -479,10 +549,12 @@ When these are not available, the v1 follows two rules:
 **Rule 1 — set the term to zero and rescale the remaining weights so they sum to 1.0.**
 This preserves the [0, 1] range of every score and keeps comparisons across suppliers fair.
 
-Example for `Core_GHG_Audit_Support`:
+Example for `Core_GHG_Audit_Support` (engine-actual M5.5b form):
 - Original: 0.35·CO₂ + 0.25·CH₄ + 0.20·Combustion + 0.10·Activity + 0.10·Sector = 1.00
-- v1 (no Sector): rescale by 1 / (1 − 0.10) = 1.111
-- → 0.39·CO₂ + 0.28·CH₄ + 0.22·Combustion + 0.11·Activity ≈ 1.00
+- Step 1 — drop Sector (deferred): rescale by 1/(1 − 0.10) = 1.111 → 0.39·CO₂ + 0.28·CH₄ + 0.22·Combustion + 0.11·Activity ≈ 1.00
+- Step 2 — M5.5b demotes ODIAC CO₂ to standing exposure (not in live composite): drop CO₂'s 0.39, rescale the remaining three by 1/(1 − 0.39) = 1/0.61 ≈ 1.639 → 0.46·CH₄ + 0.44·Combustion + 0.10·Activity = 1.00.
+
+The engine ships the post-Step-2 weights. CO₂ still computes and displays as standing-exposure context — see Schema_v2 §6.1 `temporal_mode`.
 
 **Rule 2 — for `Fire_or_Regional_Transport_Risk`, use a satellite-only proxy.**
 See §7.3.
@@ -593,19 +665,26 @@ If there are no change pixels, the score is set to 1.0 (no claim to qualify).
 
 This sub-score downweights confidence when the observed habitat/vegetation change can be explained by drivers the supplier has no control over: drought, fire scars, regional deforestation, large infrastructure projects.
 
-```
-external_driver_evidence = max(
-    fire_evidence,           # 1.0 if Smoke/Dust/RT score > 0.5 in the buffer over the change window
-    drought_evidence,        # 1.0 if NDVI declined across the entire surrounding region
-                             #   (compare buffer NDVI trend to 10× buffer NDVI trend; if both are
-                             #    similarly negative, the driver is regional, not the supplier)
-    regional_loss_evidence   # 1.0 if Hansen forest loss in the background ring is >2× the
-                             #   loss rate in the site buffer (i.e. the region is losing faster
-                             #   than the supplier area)
-)
+In v1 only one of the three evidence terms is wired (`regional_loss_evidence`); `fire_evidence` and `drought_evidence` remain placeholders pending Tier C1a / Tier A2. The audit §9.3 v1.4 form is therefore:
 
-External_Driver_Screening = 1 − external_driver_evidence
 ```
+external_driver_evidence  = regional_loss_evidence    (v1)
+External_Driver_Screening = 1 − external_driver_evidence
+
+# Tier C1a / A2 will restore the original max-of-three form:
+# external_driver_evidence = max(fire_evidence, drought_evidence, regional_loss_evidence)
+```
+
+**`regional_loss_evidence` formula (audit §9.3 / engine).** Always uses the most recent `HANSEN_LOOKBACK_YEARS = 5` Hansen loss years, independent of the user's `time_range` (Hansen's annual cadence and standing-exposure framing make user-window-driven slices noisy and misleading):
+
+```
+buffer_loss_rate        = sum(hansen[y] in Site_Buffer for y in lookback) / area_buffer
+ring_loss_rate          = sum(hansen[y] in Background_Ring for y in lookback) / area_ring
+regional_loss_evidence  = 1.0 if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD · buffer_loss_rate
+                          else 0.0          (HANSEN_LOSS_RATIO_THRESHOLD = 2.0)
+```
+
+Implementation lives in `engine.nature.compute_regional_loss_evidence` and emits canonical provenance under `_provenance.nature.regional_loss_evidence` (`data_type="reference_dataset"`, `temporal_mode="standing_exposure"`). The function runs unconditionally whenever the Nature pillar runs — it's a single Hansen reduceRegion pair, so the cost is negligible compared with the rest of the pipeline.
 
 A score near 1.0 means no obvious external driver (high confidence the supplier is implicated). A score near 0 means the change is regional / explained by fires / drought (low confidence in supplier attribution).
 
@@ -613,4 +692,110 @@ Why these two terms are kept in `Nature_Quality_Attribution`, not in the exposur
 
 ---
 
-*Document version 4.0 — May 2026. Built from `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`.*
+## 8. Confidence (M-TIER-A1)
+
+> **Doc-structure note.** Pre-A1 §0.2 step 6 promised a confidence formula in §6.3, but §6.3 was occupied by buffer-warning logic and the confidence formula had no home. This section is where it lives. The §0.2 step 6 row's `see §6.3 for the v1 implementation` should be read as `see §8 for the v1 implementation`.
+
+### 8.1 Per-indicator confidence formula
+
+Universal across all indicators (no per-indicator weight overrides in v1.x):
+
+```
+c_raw_i  = 0.30·QA_i + 0.30·N_valid_i + 0.25·anomaly_strength_i + 0.15·spatial_context_i
+c_final_i = c_raw_i · COLUMN_TO_SURFACE_MULTIPLIER[column_to_surface_uncertainty_i]
+```
+
+The weights are in `engine.constants.CONFIDENCE_FORMULA_WEIGHTS`; the multiplier table is in `engine.constants.COLUMN_TO_SURFACE_MULTIPLIER`. Both live in code so v1.x recalibration is a one-line change.
+
+**Term definitions.**
+
+| Term | What it measures | v1 source |
+|---|---|---|
+| `QA` | Data-quality flags pass rate over the site buffer. | Per-indicator static default from `engine.constants.QA_PER_INDICATOR` (e.g. `air.no2 = 0.90`, `air.so2 = 0.75`, `ghg.co2 = 1.00`). Plumbing real per-pixel TROPOMI `qa_value` filter pass-rates into the EE pipeline is logged as a Layer B follow-up — sensitivity-analysis target in Tier B1. |
+| `N_valid` | Temporal coverage. `clamp(n_observations / expected_n, 0, 1)`. | Live-revisit indicators (TROPOMI gases, CAMS PM, MAIAC AOD, VIIRS, MODIS NDVI): `expected_n = EXPECTED_N_PER_WINDOW_DAY[indicator_id] · window_days`. Single-snapshot indicators (`ghg.co2`, all Nature composites + Hansen + KBA + `regional_loss_evidence`): bypass the ratio; emit 1.0 when the snapshot produced, 0.0 when skipped. |
+| `anomaly_strength` | "Is the signal we observed strong enough to trust?". | Hotspot frequency `HF` from §0.2 step 5 (already in `[0, 1]`). Indicators with no HF concept (KBA, DW, habitat, Hansen, ODIAC, regional_loss_evidence) emit `1.0` unconditionally — "the formula doesn't apply, so don't drag confidence". This makes a low-priority supplier read as "low priority, low confidence in there being a signal" — honest about what HF actually measures. |
+| `spatial_context` | Pixel-buffer ratio. `clamp(sqrt(buffer_area / native_pixel_area) / SPATIAL_CONTEXT_THRESHOLD, 0, 1)`. | Saturates at 1.0 when the buffer covers ≥3 native pixels in each linear dimension. `SPATIAL_CONTEXT_THRESHOLD = 3.0`. Returns 1.0 for vector / non-raster indicators (KBA). |
+
+**Column-to-surface multiplier (audit §1.5 fold-in).** The static per-gas tag from `engine.core.provenance._COLUMN_TO_SURFACE_UNCERTAINTY` is read at the same time and applied as the final step:
+
+| Tag | Multiplier | Notes |
+|---|---|---|
+| `strong` | 1.00 | Reserved for future use; no v1 indicator carries it. |
+| `moderate` | 0.95 | Small penalty; the audit-§1.5 Z-score mitigation absorbs most of the bias. |
+| `moderate_weak` | 0.88 | Midpoint. |
+| `weak` | 0.80 | Meaningful penalty: CH₄ and CO confidence visibly trail NO₂ on equal observational data. |
+| `n_a` | 1.00 | No penalty when the concept doesn't apply (PM/AOD, ODIAC, VIIRS, all Nature, O₃/AAI). |
+
+**Numerical example.** A perfect-data NO₂ measurement (QA = 1, N_valid = 1, HF = 1, spatial_context = 1, multiplier = 0.95) lands at `c_final = 0.95`. A perfect-data CO measurement under the same conditions lands at `c_final = 0.80`. NO₂ is more trustworthy than CO at identical observational quality — encoded in the value, not buried in a footnote.
+
+**Strict-None at the indicator level.** If any of `QA, N_valid, anomaly_strength, spatial_context` is None for indicator `i`, then `<indicator>.confidence` is None. The pillar rollup (§8.2) handles the dropout via survivor-renormalise; the composite (§8.3) propagates None through `min(...)`.
+
+### 8.2 Pillar-level rollup
+
+Each pillar continues to drive its own `*_attribution`/`*_quality_attribution` score via the existing weight dictionaries in `engine.constants`; the term *derivations* are what shift after A1.
+
+**Air pillar — `air.attribution_confidence_score`.** Uniform mean of per-pollutant `air.<gas>.confidence` over the survivors. No weight dict (Air already used a uniform mean pre-A1).
+
+**GHG pillar — `ghg.data_quality_attribution`.** Existing `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS` (0.33 / 0.27 / 0.27 / 0.13) drives the rollup. Three of the four sub-scores now derive from per-indicator A1 inputs read from `_provenance.ghg.<ind>.extra.confidence_terms`; the fourth is unchanged:
+
+| Sub-score | Post-A1 derivation |
+|---|---|
+| `ghg.temporal_coverage` | Mean of per-indicator `N_valid` across GHG indicators that emitted terms |
+| `ghg.spatial_resolution_suitability` | Mean of per-indicator `spatial_context` across GHG indicators |
+| `ghg.retrieval_inventory_quality` | Mean of per-indicator `QA` across GHG indicators |
+| `ghg.nearby_source_isolation` | Unchanged — §7.2 satellite-only spatial proxy; methodologically independent of per-indicator data quality |
+
+Survivor-renormalise applies: missing per-indicator terms drop out of the mean; missing sub-scores get renormalised against `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS`.
+
+**Nature pillar — `nature.quality_attribution`.** Existing `NATURE_QUALITY_ATTRIBUTION_WEIGHTS` (0.20 / 0.20 / 0.20 / 0.15 / 0.15 / 0.10) drives the rollup. Only one sub-score's derivation changes; the other five were already real (not placeholders):
+
+| Sub-score | Post-A1 derivation |
+|---|---|
+| `nature.valid_pixel_coverage` | Mean of per-indicator `QA` across the Nature indicators that emitted terms |
+| `nature.cloud_observation_quality` | Unchanged (Sentinel-2 cloud quality) |
+| `nature.dw.class_confidence` | Unchanged (DW probability, already real) |
+| `nature.seasonal_comparability` | Unchanged (months-offset placeholder pending Tier C) |
+| `nature.supplier_spatial_link` | Unchanged (§7.5 placeholder) |
+| `nature.external_driver_screening` | Unchanged — `compute_regional_loss_evidence` per audit §9.3 v1.4 |
+
+### 8.3 Composite confidence
+
+Unchanged formula:
+
+```
+composite.confidence = min(
+    air.attribution_confidence_score,
+    ghg.data_quality_attribution,
+    nature.quality_attribution,
+)
+```
+
+After A1, this `min` is genuinely informative — it surfaces the weakest-pillar confidence as the headline number. Strict-None propagates: if any pillar confidence is None, the composite is None.
+
+### 8.4 Audit transparency — `provenance.extra.confidence_terms`
+
+Every indicator emits its four input terms plus the column-to-surface tag inside its provenance block:
+
+```
+_provenance.<pillar>.<indicator>.extra.confidence_terms = {
+    "qa":                            <0..1>,
+    "n_valid":                       <0..1>,
+    "anomaly_strength":              <0..1>,
+    "spatial_context":               <0..1>,
+    "column_to_surface_uncertainty": <enum>,
+}
+```
+
+A reviewer reading a result payload can reproduce the per-indicator confidence value without re-running the engine; the pillar QA sub-scores (`ghg.temporal_coverage`, etc.) walk these dicts when assembling the pillar rollup.
+
+### 8.5 What this unblocks
+
+- **Verbal-summary tiering becomes meaningful** — `composite_confidence_bucket` actually corresponds to data quality.
+- **P-05 / P-11 confidence dots tell a real story** — UI doesn't need to add a footnote.
+- **Tier C1b (BLH-aware confidence)** extension point — replace the static `COLUMN_TO_SURFACE_MULTIPLIER` lookup with a BLH-modulated function.
+- **Tier B1 (sensitivity analysis)** target — vary the four formula weights and the multiplier values on a 50-site sample.
+- **Layer B QA plumbing** — replace `QA_PER_INDICATOR` static defaults with real per-image `qa_value` pass-rates from EE.
+
+---
+
+*Document version 4.2 — 22 May 2026 (M-TIER-A1). Built from `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`, `Indicators_Audit_and_v1x_Roadmap.md` v1.5.*

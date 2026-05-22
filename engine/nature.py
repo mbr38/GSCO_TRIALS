@@ -57,6 +57,8 @@ from engine.constants import (
     DW_WATER_CLASS,
     HABITAT_BASELINE_YEARS,
     HABITAT_CONVERSION_WEIGHTS,
+    HANSEN_LOOKBACK_YEARS,
+    HANSEN_LOSS_RATIO_THRESHOLD,
     KBA_DISTANCE_DECAY_KM,
     NATURE_FOLLOWUP_WEIGHTS,
     NATURE_QUALITY_ATTRIBUTION_WEIGHTS,
@@ -68,10 +70,15 @@ from engine.constants import (
 from engine.core import (
     adaptive_scale_m,
     build_provenance,
+    compute_anomaly_strength_term,
+    compute_indicator_confidence,
+    compute_n_valid_term,
+    compute_qa_term,
+    compute_spatial_context_term,
     method_note_fragment,
     six_step,
 )
-from engine.core.buffers import site_buffer
+from engine.core.buffers import background_ring, site_buffer
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import DW_CLASS_TO_ID_SLUG, PILLAR_NATURE
 
@@ -125,6 +132,14 @@ class NatureIndicatorConfig:
     # TestProvenanceShape assertions in tests/test_nature.py.
     data_type: str = "satellite_observation"
     data_source: str = ""
+    # M-V1x-RECONCILE — temporal framing per audit §9.3. Default
+    # `live_window` reflects the user's analysis window. Override to
+    # `standing_exposure` for cumulative / fixed-vintage indicators (Hansen
+    # forest_loss). The provenance lookup table in
+    # `engine.core.provenance` also encodes this default — overriding here
+    # keeps the per-indicator config self-describing for the run_pillar
+    # dispatch and for future per-indicator UI badges.
+    temporal_mode: str = "live_window"
 
 
 # IC_v4 §3.1 + Indicator_ID_Schema_v2.md §4 + GEE_Database_List §4.
@@ -183,8 +198,13 @@ NATURE_INDICATOR_CONFIG: dict[str, NatureIndicatorConfig] = {
             "nature.forest_loss.ha",
             "nature.forest_loss.pct",
         ),
-        data_type="ml_classified_satellite",
+        # M-V1x-RECONCILE per audit §9.3 v1.4 — Hansen demoted from the
+        # live Habitat_Conversion composite; it survives as a standing-
+        # exposure reference layer + input to `compute_regional_loss_evidence`.
+        # `reference_dataset` mirrors the post-M5.5b ODIAC treatment.
+        data_type="reference_dataset",
         data_source="UMD / Hansen Global Forest Change",
+        temporal_mode="standing_exposure",
     ),
     "ndvi": NatureIndicatorConfig(
         asset_id="MODIS/061/MOD13Q1",
@@ -260,6 +280,7 @@ def _emit_skipped_nature_result(
     cfg = NATURE_INDICATOR_CONFIG[ind_key]
     result: dict = {key: None for key in cfg.emitted_keys}
     result[f"_provenance.nature.{ind_key}"] = build_provenance(
+        indicator_id=f"nature.{ind_key}",
         asset_id=cfg.asset_id,
         band=band,
         data_type=cfg.data_type,
@@ -284,8 +305,34 @@ def _buffer_area_ha(radius_km: float) -> float:
     return math.pi * radius_m * radius_m / 10000.0
 
 
+def _buffer_area_m2(radius_km: float) -> float:
+    radius_m = radius_km * 1000.0
+    return math.pi * radius_m * radius_m
+
+
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
+
+
+# M-TIER-A1 — confidence terms for Nature indicators that DON'T flow
+# through six_step. The four-term inputs collapse to "no anomaly concept
+# applies" + "single-snapshot" + "static QA" for KBA / Hansen / ODIAC /
+# DW composites / regional_loss_evidence. The helper returns the dict
+# downstream callers pass into compute_indicator_confidence, and the same
+# dict lands in provenance.extra.confidence_terms.
+def _single_snapshot_confidence_terms(
+    indicator_id: str, *, aoi: dict, n_observations: int = 1,
+) -> dict:
+    return {
+        "qa": compute_qa_term(indicator_id),
+        "n_valid": compute_n_valid_term(
+            indicator_id, n_observations=n_observations, window_days=None,
+        ),
+        "anomaly_strength": compute_anomaly_strength_term(indicator_id, hf=None),
+        "spatial_context": compute_spatial_context_term(
+            indicator_id, buffer_area_m2=_buffer_area_m2(aoi["radius_km"]),
+        ),
+    }
 
 
 def _renormalise_weights(
@@ -401,7 +448,7 @@ def compute_kba_proximity(
         # No KBAs within 50 km of the buffer → score collapses to 0.0.
         return _format_kba_result(
             dist_km=50.0, overlap_ha=0.0, overlap_pct=0.0,
-            time_range=time_range,
+            time_range=time_range, aoi=aoi,
         )
 
     # Distance from the AOI centre point to the union of nearby KBA polygons.
@@ -418,7 +465,7 @@ def compute_kba_proximity(
 
     return _format_kba_result(
         dist_km=dist_km, overlap_ha=overlap_ha, overlap_pct=overlap_pct,
-        time_range=time_range,
+        time_range=time_range, aoi=aoi,
     )
 
 
@@ -435,11 +482,16 @@ def _format_kba_result(
     overlap_ha: float,
     overlap_pct: float,
     time_range: tuple[str, str] | None = None,
+    aoi: dict | None = None,
 ) -> dict:
     """IC §3.2 sub-formula: `max(overlap_pct/100, exp(-dist_km/decay))`.
 
     Centralised so `compute_kba_proximity` and tests share one mapping.
     `time_range` is documented in provenance only; KBA is reference data.
+    `aoi` is optional — when present, an A1 confidence value is emitted
+    and the four-term breakdown lands in provenance.extra; when absent
+    (test paths that hand-craft KBA results), the confidence field stays
+    at None and the term breakdown is omitted.
     """
     score = max(
         overlap_pct / 100.0,
@@ -447,12 +499,32 @@ def _format_kba_result(
     )
     cfg = NATURE_INDICATOR_CONFIG["kba"]
     effective_time_range = time_range if time_range is not None else _STATIC_SNAPSHOT_TIME_RANGE
+
+    confidence: float | None = None
+    confidence_terms: dict | None = None
+    if aoi is not None:
+        confidence_terms = _single_snapshot_confidence_terms("nature.kba", aoi=aoi)
+        confidence = compute_indicator_confidence(
+            indicator_id="nature.kba",
+            column_to_surface_uncertainty="n_a",
+            **confidence_terms,
+        )
+
+    extra = {"distance_decay_km": KBA_DISTANCE_DECAY_KM}
+    if confidence_terms is not None:
+        extra["confidence_terms"] = {
+            **confidence_terms,
+            "column_to_surface_uncertainty": "n_a",
+        }
+
     return {
         "nature.kba.dist_km":         dist_km,
         "nature.kba.overlap_ha":      overlap_ha,
         "nature.kba.overlap_pct":     overlap_pct,
         "nature.kba.proximity_score": _clamp01(score),
+        "nature.kba.confidence":      confidence,
         "_provenance.nature.kba": build_provenance(
+            indicator_id="nature.kba",
             asset_id=cfg.asset_id,
             band=None,
             data_type=cfg.data_type,
@@ -464,7 +536,7 @@ def _format_kba_result(
                 f"score = max(overlap_pct/100, exp(-dist_km/{KBA_DISTANCE_DECAY_KM}))"
             ),
             observations={"count": 1, "unit": "static_snapshot"},
-            extra={"distance_decay_km": KBA_DISTANCE_DECAY_KM},
+            extra=extra,
         ),
     }
 
@@ -577,7 +649,18 @@ def compute_current_land_cover(
         water_like_pct / WATER_FLOODED_VEG_SATURATION_PCT,
     )
 
+    # M-TIER-A1 — single-snapshot DW composite; confidence emitted via the
+    # universal formula with anomaly_strength = 1.0 and n_valid = 1.0
+    # pass-through (DW composite produced).
+    dw_terms = _single_snapshot_confidence_terms("nature.dw", aoi=aoi)
+    result["nature.dw.confidence"] = compute_indicator_confidence(
+        indicator_id="nature.dw",
+        column_to_surface_uncertainty="n_a",
+        **dw_terms,
+    )
+
     result["_provenance.nature.dw"] = build_provenance(
+        indicator_id="nature.dw",
         asset_id=cfg.asset_id,
         band="label",
         data_type=cfg.data_type,
@@ -589,7 +672,10 @@ def compute_current_land_cover(
             f"{method_note_fragment(scale_m, cfg.scale_m)}"
         ),
         observations=None,  # TODO(v1.x): track DW image count from filterBounds().
-        extra={"composite_window_days": DW_COMPOSITE_WINDOW_DAYS},
+        extra={
+            "composite_window_days": DW_COMPOSITE_WINDOW_DAYS,
+            "confidence_terms": {**dw_terms, "column_to_surface_uncertainty": "n_a"},
+        },
     )
     return result
 
@@ -721,6 +807,13 @@ def compute_habitat_conversion(
 
     annualised_rate_ha_per_yr = natural_loss_ha / HABITAT_BASELINE_YEARS
 
+    habitat_terms = _single_snapshot_confidence_terms("nature.habitat", aoi=aoi)
+    habitat_confidence = compute_indicator_confidence(
+        indicator_id="nature.habitat",
+        column_to_surface_uncertainty="n_a",
+        **habitat_terms,
+    )
+
     return {
         "nature.habitat.natural_loss_ha":     natural_loss_ha,
         "nature.habitat.natural_loss_pct":    natural_loss_pct,
@@ -730,7 +823,9 @@ def compute_habitat_conversion(
         "nature.habitat.built_expansion_ha":  built_expansion_ha,
         "nature.habitat.bare_expansion_ha":   bare_expansion_ha,
         "nature.habitat.annualised_rate":     annualised_rate_ha_per_yr,
+        "nature.habitat.confidence":          habitat_confidence,
         "_provenance.nature.habitat": build_provenance(
+            indicator_id="nature.habitat",
             asset_id=cfg.asset_id,
             band="label",
             data_type=cfg.data_type,
@@ -747,6 +842,7 @@ def compute_habitat_conversion(
                 "baseline_time_range": (baseline_start, baseline_end),
                 "baseline_years":      HABITAT_BASELINE_YEARS,
                 "conversion_saturation_pct": CONVERSION_SATURATION_PCT,
+                "confidence_terms": {**habitat_terms, "column_to_surface_uncertainty": "n_a"},
             },
         ),
     }
@@ -853,10 +949,18 @@ def compute_forest_loss(
 
     ha = float(area_m2) / 10000.0
     pct = (ha / buffer_ha * 100.0) if buffer_ha > 0 else 0.0
+    fl_terms = _single_snapshot_confidence_terms("nature.forest_loss", aoi=aoi)
+    fl_confidence = compute_indicator_confidence(
+        indicator_id="nature.forest_loss",
+        column_to_surface_uncertainty="n_a",
+        **fl_terms,
+    )
     return {
         "nature.forest_loss.ha":  ha,
         "nature.forest_loss.pct": pct,
+        "nature.forest_loss.confidence": fl_confidence,
         "_provenance.nature.forest_loss": build_provenance(
+            indicator_id="nature.forest_loss",
             asset_id=cfg.asset_id,
             band="lossyear",
             data_type=cfg.data_type,
@@ -869,7 +973,128 @@ def compute_forest_loss(
                 f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations={"count": 1, "unit": "annual_rasters"},
-            extra={},
+            extra={"confidence_terms": {**fl_terms, "column_to_surface_uncertainty": "n_a"}},
+        ),
+    }
+
+
+# Hansen 2023_v1_11: lossyear band encodes years since 2000, so a 23
+# means a pixel lost forest in 2023. Bump when the asset vintage advances.
+_HANSEN_MAX_LOSS_YEAR: int = 23
+
+
+def compute_regional_loss_evidence(
+    aoi: dict,
+    time_range: tuple[str, str],
+    ee_client,                                          # noqa: ARG001 — parity
+) -> dict:
+    """Audit §9.3 / IC_v4 §7.5 — Hansen ring-vs-buffer loss-rate comparison.
+
+    Emits `nature.external_driver_screening` (replacing the v1 placeholder
+    that returned a constant 1.0). The flag is 1.0 when forest loss in the
+    Background_Ring outpaces the Site_Buffer by more than
+    `HANSEN_LOSS_RATIO_THRESHOLD`, signalling a regional driver (drought,
+    fire, regional deforestation) rather than supplier-attributable change;
+    0.0 otherwise.
+
+    Hansen's annual cadence makes the user's `time_range` too narrow for
+    this comparison — we always read the most recent
+    `HANSEN_LOOKBACK_YEARS` years from the asset itself, independent of
+    the user's window. That's why the provenance carries
+    `temporal_mode="standing_exposure"` and `time_range` reflects the
+    fixed Hansen window rather than the request window.
+
+    The function returns the canonical 11-field provenance block under
+    `_provenance.nature.regional_loss_evidence`. Its data_type is
+    `reference_dataset` to match Hansen's post-demotion treatment
+    (audit §9.3 v1.4).
+    """
+    cfg = NATURE_INDICATOR_CONFIG["forest_loss"]
+    centre = aoi["centre"]
+    radius_km = aoi["radius_km"]
+    site = site_buffer(centre, radius_km)
+    ring = background_ring(centre, radius_km)
+
+    image = ee.Image(cfg.asset_id).select("lossyear")
+    lookback_start_offset = _HANSEN_MAX_LOSS_YEAR - HANSEN_LOOKBACK_YEARS + 1
+    loss_mask = image.gte(lookback_start_offset).And(image.lte(_HANSEN_MAX_LOSS_YEAR))
+    area_image = loss_mask.multiply(ee.Image.pixelArea())
+
+    scale_m = adaptive_scale_m(site, cfg.scale_m)
+
+    buffer_loss_m2 = float(
+        (area_image.reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=site,
+            scale=scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).getInfo() or {}).get("lossyear") or 0
+    )
+    ring_loss_m2 = float(
+        (area_image.reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=ring,
+            scale=scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).getInfo() or {}).get("lossyear") or 0
+    )
+
+    site_area_m2 = _buffer_area_ha(radius_km) * 10000.0
+    ring_area_m2 = float(ring.area(maxError=10.0).getInfo())
+
+    buffer_loss_rate = buffer_loss_m2 / site_area_m2 if site_area_m2 > 0 else 0.0
+    ring_loss_rate = ring_loss_m2 / ring_area_m2 if ring_area_m2 > 0 else 0.0
+
+    flag = (
+        1.0
+        if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD * buffer_loss_rate
+        else 0.0
+    )
+
+    lookback_start_year = 2000 + lookback_start_offset
+    lookback_end_year = 2000 + _HANSEN_MAX_LOSS_YEAR
+    hansen_window = (f"{lookback_start_year}-01-01", f"{lookback_end_year}-12-31")
+
+    rle_terms = _single_snapshot_confidence_terms(
+        "nature.regional_loss_evidence",
+        aoi=aoi,
+        n_observations=HANSEN_LOOKBACK_YEARS,
+    )
+    rle_confidence = compute_indicator_confidence(
+        indicator_id="nature.regional_loss_evidence",
+        column_to_surface_uncertainty="n_a",
+        **rle_terms,
+    )
+
+    return {
+        "nature.external_driver_screening": flag,
+        "nature.regional_loss_evidence.confidence": rle_confidence,
+        "_provenance.nature.regional_loss_evidence": build_provenance(
+            indicator_id="nature.regional_loss_evidence",
+            asset_id=cfg.asset_id,
+            band="lossyear",
+            data_type="reference_dataset",
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=hansen_window,
+            method_note=(
+                f"Hansen lossyear sum over Site_Buffer and Background_Ring "
+                f"across the most recent {HANSEN_LOOKBACK_YEARS} loss years "
+                f"(years {lookback_start_year}-{lookback_end_year}); "
+                f"flag = 1.0 if ring_rate > {HANSEN_LOSS_RATIO_THRESHOLD} × "
+                "buffer_rate (audit §9.3 v1.4)"
+            ),
+            observations={"count": HANSEN_LOOKBACK_YEARS, "unit": "annual_rasters"},
+            extra={
+                "buffer_loss_rate_m2_per_m2": buffer_loss_rate,
+                "ring_loss_rate_m2_per_m2":   ring_loss_rate,
+                "lookback_years":             HANSEN_LOOKBACK_YEARS,
+                "ratio_threshold":            HANSEN_LOSS_RATIO_THRESHOLD,
+                "hansen_max_loss_year":       _HANSEN_MAX_LOSS_YEAR,
+                "confidence_terms": {**rle_terms, "column_to_surface_uncertainty": "n_a"},
+            },
         ),
     }
 
@@ -937,6 +1162,13 @@ def compute_ndvi_condition(
     low_ndvi_ha = low_ndvi_pct / 100.0 * _buffer_area_ha(radius_km)
     low_ndvi_pct_norm = _clamp01(low_ndvi_pct / 100.0)
 
+    ndvi_extra = {
+        "ndvi_negative_trend_threshold": NDVI_NEGATIVE_TREND_THRESHOLD,
+    }
+    ndvi_confidence_terms = raw.get("confidence_terms")
+    if ndvi_confidence_terms is not None:
+        ndvi_extra["confidence_terms"] = ndvi_confidence_terms
+
     return {
         "nature.ndvi.mean":             raw.get("site"),
         "nature.ndvi.anomaly":          raw.get("anomaly"),
@@ -944,12 +1176,14 @@ def compute_ndvi_condition(
         "nature.ndvi.slope":            raw.get("trend"),
         "nature.ndvi.slope_p":          raw.get("trend_p"),
         "nature.ndvi.score":            raw.get("score"),
+        "nature.ndvi.confidence":       raw.get("confidence"),
         "nature.ndvi.inverted_anomaly": inverted_anomaly,
         "nature.ndvi.negative_trend":   negative_trend,
         "nature.low_ndvi.ha":           low_ndvi_ha,
         "nature.low_ndvi.pct":          low_ndvi_pct,
         "nature.low_ndvi.pct_norm":     low_ndvi_pct_norm,
         "_provenance.nature.ndvi": build_provenance(
+            indicator_id="nature.ndvi",
             asset_id=cfg.asset_id,
             band="NDVI",
             data_type=cfg.data_type,
@@ -962,9 +1196,7 @@ def compute_ndvi_condition(
                 f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations={"count": 1, "unit": "16day_composites"},
-            extra={
-                "ndvi_negative_trend_threshold": NDVI_NEGATIVE_TREND_THRESHOLD,
-            },
+            extra=ndvi_extra,
         ),
     }
 
@@ -1086,10 +1318,18 @@ def compute_water_exposure(
     counts = _normalise_dw_histogram(histogram)
     water_ha = counts.get(DW_WATER_CLASS, 0) * pixel_area_ha
     flooded_ha = counts.get("flooded_vegetation", 0) * pixel_area_ha
+    water_terms = _single_snapshot_confidence_terms("nature.water", aoi=aoi)
+    water_confidence = compute_indicator_confidence(
+        indicator_id="nature.water",
+        column_to_surface_uncertainty="n_a",
+        **water_terms,
+    )
     return {
         "nature.water.area_now_ha":        water_ha,
         "nature.flooded_veg.area_now_ha":  flooded_ha,
+        "nature.water.confidence":         water_confidence,
         "_provenance.nature.water": build_provenance(
+            indicator_id="nature.water",
             asset_id=cfg.asset_id,
             band="label",
             data_type=cfg.data_type,
@@ -1102,13 +1342,13 @@ def compute_water_exposure(
                 f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations=None,  # TODO(v1.x): track DW image count.
-            extra={},
+            extra={"confidence_terms": {**water_terms, "column_to_surface_uncertainty": "n_a"}},
         ),
     }
 
 
 def compute_recovery_signal(
-    aoi: dict,                                          # noqa: ARG001 — radius unused
+    aoi: dict,
     time_range: tuple[str, str],
     ee_client,                                          # noqa: ARG001 — parity
 ) -> dict:
@@ -1128,12 +1368,20 @@ def compute_recovery_signal(
     `_ha` fields are None until per-pixel trend mapping lands.
     """
     cfg = NATURE_INDICATOR_CONFIG["recovery"]
+    rec_terms = _single_snapshot_confidence_terms("nature.recovery", aoi=aoi)
+    rec_confidence = compute_indicator_confidence(
+        indicator_id="nature.recovery",
+        column_to_surface_uncertainty="n_a",
+        **rec_terms,
+    )
     return {
         "nature.recovery.ndvi_improvement_pct": None,
         "nature.recovery.natural_cover_gain_ha": None,
         "nature.recovery.bare_reduction_ha":     None,
         "nature.recovery.score":                 0.0,
+        "nature.recovery.confidence":            rec_confidence,
         "_provenance.nature.recovery": build_provenance(
+            indicator_id="nature.recovery",
             asset_id=cfg.asset_id,
             band="NDVI",
             data_type=cfg.data_type,
@@ -1146,7 +1394,10 @@ def compute_recovery_signal(
                 "natural-cover-gain attribution"
             ),
             observations=None,
-            extra={"placeholder": True},
+            extra={
+                "placeholder": True,
+                "confidence_terms": {**rec_terms, "column_to_surface_uncertainty": "n_a"},
+            },
         ),
     }
 
@@ -1175,6 +1426,12 @@ def _augment_habitat_pct_norms(payload: dict, buffer_ha: float) -> dict:
     The pct_norm form is documented in IC §3.2's calibration note: pass each
     `_ha` term through `clamp(ha / buffer_ha / saturation, 0, 1)` before
     multiplying by its weight in `compute_habitat_conversion_score`.
+
+    M-V1x-RECONCILE: the Hansen `nature.forest_loss.pct_norm` term has been
+    dropped from the live composite per audit §9.3 v1.4 — Hansen's
+    standing-exposure framing (cumulative loss since 2000) breaks the
+    live-window semantics of the Dynamic-World-based terms. Hansen now
+    feeds `compute_regional_loss_evidence` instead.
     """
     return {
         "nature.habitat.natural_loss_pct_norm": _conversion_pct_norm(
@@ -1185,9 +1442,6 @@ def _augment_habitat_pct_norms(payload: dict, buffer_ha: float) -> dict:
         ),
         "nature.habitat.nat_to_bare_pct_norm": _conversion_pct_norm(
             payload, ha_key="nature.habitat.nat_to_bare_ha", buffer_ha=buffer_ha,
-        ),
-        "nature.forest_loss.pct_norm": _conversion_pct_norm(
-            payload, ha_key="nature.forest_loss.ha", buffer_ha=buffer_ha,
         ),
         # IC §3.2 — annualised_rate_score normalises the per-year loss to the
         # same saturation point: ha/yr → fraction/yr → /SATURATION.
@@ -1274,21 +1528,50 @@ def compute_vegetation_condition(payload: dict) -> dict:
 # Quality-attribution sub-scores  (IC §3.3 / Schema_v2 §4.8 — placeholders)
 # ---------------------------------------------------------------------------
 
-def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
-    """The six IC §3.3 confidence-side sub-scores. v1 uses placeholders for
-    five of the six (the sixth, `dw.class_confidence`, is already produced
-    by `compute_current_land_cover`).
+_NATURE_QA_INDICATOR_KEYS: tuple[str, ...] = (
+    "kba", "dw", "habitat", "forest_loss", "ndvi", "water", "recovery",
+    "regional_loss_evidence",
+)
 
-    TODO(IC_v5): replace placeholders with real formulas — Valid_Pixel_Coverage
-    from masked count over total, Cloud_or_Observation_Quality from SCL,
-    Seasonal_Comparability from month-offset, and §7.5 for the supplier link
-    and external driver checks.
+
+def _nature_confidence_term_for(
+    payload: dict, indicator: str, term: str,
+) -> float | None:
+    prov = payload.get(f"_provenance.nature.{indicator}")
+    if not prov:
+        return None
+    extra = prov.get("extra") or {}
+    terms = extra.get("confidence_terms")
+    if not terms:
+        return None
+    value = terms.get(term)
+    return value if isinstance(value, (int, float)) else None
+
+
+def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
+    """Five of the six IC §3.3 confidence-side sub-scores.
+
+    The sixth, `dw.class_confidence`, is already produced by
+    `compute_current_land_cover`. `nature.external_driver_screening` is
+    produced by `compute_regional_loss_evidence` (audit §9.3 / IC §7.5).
+
+    M-TIER-A1 (spec §4.3): `nature.valid_pixel_coverage` is now the mean
+    of per-indicator A1 QA terms across the Nature indicators that
+    emitted them — replaces the pre-A1 echo of `dw.class_confidence`.
+    The other three sub-scores stay as placeholders pending Tier C
+    work (Seasonal_Comparability month-offset, real Cloud_or_Observation_Quality
+    from SCL, Supplier_Spatial_Link per §7.5).
     """
+    qa_values = [
+        v for ind in _NATURE_QA_INDICATOR_KEYS
+        if (v := _nature_confidence_term_for(payload, ind, "qa")) is not None
+    ]
+    valid_pixel_coverage = (
+        sum(qa_values) / len(qa_values) if qa_values else None
+    )
     return {
-        # Placeholder: fraction-of-expected-observations proxy. For now we
-        # echo dw.class_confidence (it's our highest-fidelity confidence
-        # signal until the real per-indicator coverage formula lands).
-        "nature.valid_pixel_coverage":      payload.get("nature.dw.class_confidence"),
+        # M-TIER-A1: mean of per-indicator QA across Nature indicators.
+        "nature.valid_pixel_coverage":      valid_pixel_coverage,
         # Cloud / SCL not wired in v1; fix to 0.8 as a defensible placeholder.
         "nature.cloud_observation_quality": 0.8,
         # `nature.dw.class_confidence` is already set by compute_current_land_cover.
@@ -1296,9 +1579,8 @@ def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
         # Seasonal_Comparability: 1.0 if user-selected window matches a 90-day
         # bracket cleanly; placeholder 1.0 until the month-offset calc lands.
         "nature.seasonal_comparability":    1.0,
-        # §7.5 placeholders.
+        # §7.5 placeholder.
         "nature.supplier_spatial_link":     0.7,
-        "nature.external_driver_screening": 1.0,
     }
 
 
@@ -1457,6 +1739,21 @@ def run_pillar(
     payload.update(compute_biodiversity_exposure(payload))
     payload.update(compute_habitat_conversion_score(payload))
     payload.update(compute_vegetation_condition(payload))
+
+    # External driver screening — single Hansen reduceRegion pair, cheap.
+    # Always runs when Nature runs; replaces the v1 constant-1.0 placeholder
+    # that compute_nature_quality_sub_scores used to emit. Audit §9.3 /
+    # IC_v4 §7.5.
+    if indicator_keys:
+        try:
+            payload.update(compute_regional_loss_evidence(aoi, time_range, ee_client))
+        except IndicatorComputeError as err:
+            payload["nature.external_driver_screening"] = None
+            failures.append({
+                "indicator":    "regional_loss_evidence",
+                "indicator_id": err.indicator_id,
+                "reason":       err.reason,
+            })
 
     # Quality sub-scores + pillar aggregates.
     payload.update(compute_nature_quality_sub_scores(payload, aoi))

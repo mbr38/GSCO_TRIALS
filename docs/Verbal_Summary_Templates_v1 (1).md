@@ -186,14 +186,14 @@ Air's quality side is the mean of per-indicator `.confidence` values across sele
 
 ### 5.2 GHG
 
-From `GHG_Data_Quality_Attribution` v1-rescaled (Indicators_Computation §2.3):
+From `GHG_Data_Quality_Attribution` v1-rescaled (Indicators_Computation §2.3) — weights rescaled by 1/0.75 per IC_v4 §2.3 after deferring Wind_Consistency (Tier C1a) and scrapping Sector_Match (audit §9.2):
 
 | Sub-score | Weight | Display name |
 |---|---|---|
-| `Temporal_Coverage` | 0.30 | sparse temporal coverage over the analysis window |
-| `Spatial_Resolution_Suitability` | 0.24 | the coarse spatial resolution of methane retrievals relative to the buffer |
-| `Retrieval_or_Inventory_Quality` | 0.24 | weak retrieval quality flags |
-| `Nearby_Source_Isolation` | 0.12 | background contamination from nearby industrial activity |
+| `Temporal_Coverage` | 0.33 | sparse temporal coverage over the analysis window |
+| `Spatial_Resolution_Suitability` | 0.27 | the coarse spatial resolution of methane retrievals relative to the buffer |
+| `Retrieval_or_Inventory_Quality` | 0.27 | weak retrieval quality flags |
+| `Nearby_Source_Isolation` | 0.13 | background contamination from nearby industrial activity |
 
 ### 5.3 Nature/Land
 

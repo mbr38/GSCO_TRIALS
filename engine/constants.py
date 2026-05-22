@@ -208,13 +208,28 @@ BIODIVERSITY_EXPOSURE_WEIGHTS: dict[str, float] = {
 # IC_v4 §3.2 — Habitat_Conversion. Each `_pct` term is clamped to [0, 1]
 # via `clamp(loss_fraction / CONVERSION_SATURATION_PCT, 0, 1)` before
 # weighting; the `_norm` suffix marks the post-clamp ID in the payload.
+#
+# Hansen forest_loss demoted from the live composite per audit §9.3 v1.4:
+# its standing-exposure framing (cumulative loss since 2000) breaks the
+# live-window semantics of the other four Dynamic-World-based terms.
+# Hansen survives outside this composite as (a) a reference layer in the
+# Indicator Library and (b) an input to `compute_regional_loss_evidence`
+# (audit §9.3 / IC_v4 §7.5). Its previous 0.10 weight was redistributed
+# proportionally over the four surviving terms (rescale factor 1/0.90).
+# Pre-demotion values (kept for reference): 0.35 / 0.25 / 0.20 / 0.10 / 0.10.
 HABITAT_CONVERSION_WEIGHTS: dict[str, float] = {
-    "nature.habitat.natural_loss_pct_norm": 0.35,
-    "nature.habitat.nat_to_built_pct_norm": 0.25,
-    "nature.habitat.nat_to_bare_pct_norm":  0.20,
-    "nature.forest_loss.pct_norm":          0.10,
-    "nature.habitat.annualised_rate_score": 0.10,
+    "nature.habitat.natural_loss_pct_norm": 0.40,
+    "nature.habitat.nat_to_built_pct_norm": 0.27,
+    "nature.habitat.nat_to_bare_pct_norm":  0.22,
+    "nature.habitat.annualised_rate_score": 0.11,
 }
+
+# IC_v4 §7.5 / audit §9.3 — `regional_loss_evidence` parameters.
+# Fixed 5-year Hansen lookback (independent of time_range) and the
+# ring-vs-buffer loss-rate threshold above which an external driver is
+# flagged. See `engine.nature.compute_regional_loss_evidence`.
+HANSEN_LOOKBACK_YEARS: int = 5
+HANSEN_LOSS_RATIO_THRESHOLD: float = 2.0
 
 # IC_v4 §3.2 + §7.4 — Vegetation_Condition_v1 (EVI removed). The negative
 # weight on recovery is intentional: positive recovery signal subtracts
@@ -243,6 +258,147 @@ NATURE_FOLLOWUP_WEIGHTS: dict[str, float] = {
     "habitat_conversion":    0.30,
     "vegetation_condition":  0.25,
     "quality_attribution":   0.15,
+}
+
+# ---------------------------------------------------------------------------
+# A1 confidence formula  (IC_v4 §6.3; audit §1.1)
+# ---------------------------------------------------------------------------
+
+# Universal per-indicator confidence formula weights. Sums to 1.00.
+# QA + N_valid carry the data-quality bulk (clean inputs, enough of them);
+# anomaly_strength weighs whether the observed signal is strong enough to
+# trust; spatial_context is the lowest weight because the pixel-buffer
+# warning chip in the UI already flags sub-pixel buffers — this term is
+# the formula's belt-and-braces capture of the same idea.
+CONFIDENCE_FORMULA_WEIGHTS: dict[str, float] = {
+    "qa":               0.30,
+    "n_valid":          0.30,
+    "anomaly_strength": 0.25,
+    "spatial_context":  0.15,
+}
+
+# spatial_context saturates when the buffer covers ≥3 native pixels in
+# each linear dimension. See engine.core.confidence.compute_spatial_context_term.
+SPATIAL_CONTEXT_THRESHOLD: float = 3.0
+
+# Column-to-surface uncertainty multiplier applied as the final step to
+# c_raw. Encodes the per-gas tag from audit §1.5 as a defensibility
+# weight: `n_a` and `strong` carry no penalty, `weak` drops the
+# confidence by 20 % so CH₄/CO visibly trail NO₂ at identical
+# observational quality. The lookup IDs match the enum in
+# engine.core.provenance._ALLOWED_COLUMN_TO_SURFACE_UNCERTAINTY.
+COLUMN_TO_SURFACE_MULTIPLIER: dict[str, float] = {
+    "strong":         1.00,
+    "moderate":       0.95,
+    "moderate_weak":  0.88,
+    "weak":           0.80,
+    "n_a":            1.00,
+}
+
+# Per-indicator QA defaults — v1.x A1 ships per-indicator static QA values
+# reflecting retrieval-quality consensus for each asset family. Plumbing
+# real per-image qa_value pass-rates into the EE pipeline is logged as
+# Layer B follow-up (sensitivity analysis target in Tier B1).
+#
+# The values are calibrated so that:
+#   * Asset families with mature, well-validated retrievals (NO₂, NDVI,
+#     MAIAC AOD, ODIAC, KBA, Hansen) → 0.90+.
+#   * Noisier retrievals (SO₂ over low-emission regions, CAMS PM at
+#     ~44 km native pixel relative to fenceline buffers) → 0.70–0.80.
+#   * O₃ and AAI sit in the middle (~0.85) — both have well-understood
+#     retrievals but are framed as context indicators in IC_v4 §1.3.
+# These are intentionally conservative-on-the-noisier-end; the
+# recalibration check (M-TIER-A1 Step 8) ratifies them against demo
+# locations.
+QA_PER_INDICATOR: dict[str, float] = {
+    # Air pillar
+    "air.no2":   0.90,
+    "air.so2":   0.75,
+    "air.co":    0.85,
+    "air.hcho":  0.85,
+    "air.o3":    0.85,
+    "air.aai":   0.85,
+    "air.pm25":  0.80,
+    "air.pm10":  0.80,
+    "air.aod":   0.90,
+    # GHG pillar
+    "ghg.ch4":   0.85,
+    "ghg.co2":   1.00,    # ODIAC inventory; no per-pixel QA concept
+    "ghg.viirs": 0.85,
+    # Nature pillar
+    "nature.kba":         1.00,                       # Vector reference data
+    "nature.dw":          0.90,
+    "nature.habitat":     0.85,
+    "nature.forest_loss": 1.00,                       # Annual Hansen rasters
+    "nature.ndvi":        0.90,
+    "nature.water":       0.90,
+    "nature.recovery":    0.85,
+    "nature.regional_loss_evidence": 1.00,            # Hansen-derived
+}
+
+# Expected observations per analysis-window day. N_valid normalises against
+# `expected_n = expected_per_day · window_days` so cloud-affected windows
+# surface low N_valid even at full QA.
+#
+# Asset notes:
+#   * S5P TROPOMI gases + CAMS PM + MAIAC AOD + VIIRS NTL: ~daily revisit.
+#   * MODIS NDVI (MOD13Q1): 16-day composites → ~1 every 16 days ≈ 0.0625;
+#     conservatively raised to 0.0625 (no fractional revisit credit).
+#   * Indicators in SINGLE_SNAPSHOT_INDICATORS use a 1.0 pass-through.
+EXPECTED_N_PER_WINDOW_DAY: dict[str, float] = {
+    "air.no2":   1.0,
+    "air.so2":   1.0,
+    "air.co":    1.0,
+    "air.hcho":  1.0,
+    "air.o3":    1.0,
+    "air.aai":   1.0,
+    "air.pm25":  1.0,
+    "air.pm10":  1.0,
+    "air.aod":   1.0,
+    "ghg.ch4":   1.0,
+    "ghg.viirs": 1.0,
+    "nature.ndvi": 1.0 / 16.0,
+}
+
+# Single-snapshot indicators: N_valid pass-through to 1.0 when the
+# composite / annual raster was produced, 0.0 when skipped. These don't
+# have a per-day observation count.
+SINGLE_SNAPSHOT_INDICATORS: frozenset[str] = frozenset({
+    "ghg.co2",
+    "nature.dw",
+    "nature.habitat",
+    "nature.forest_loss",
+    "nature.kba",
+    "nature.water",
+    "nature.recovery",
+    "nature.regional_loss_evidence",
+})
+
+# Native pixel area (m²) per indicator, used by the spatial_context term.
+# `0.0` flags vector / non-raster data → spatial_context = 1.0 (no penalty).
+NATIVE_PIXEL_AREA_M2: dict[str, float] = {
+    # S5P TROPOMI L3 grid is ~1113 m; on-ground footprint per audit is
+    # different but we score the L3-grid since that's what we reduce over.
+    "air.no2":   1113.2 ** 2,
+    "air.so2":   1113.2 ** 2,
+    "air.co":    1113.2 ** 2,
+    "air.hcho":  1113.2 ** 2,
+    "air.o3":    1113.2 ** 2,
+    "air.aai":   1113.2 ** 2,
+    "air.pm25":  44500.0 ** 2,                        # CAMS ~44.5 km
+    "air.pm10":  44500.0 ** 2,
+    "air.aod":   1000.0 ** 2,                         # MAIAC 1 km
+    "ghg.ch4":   CH4_NATIVE_SCALE_M ** 2,             # ~7 km on-ground footprint
+    "ghg.co2":   1000.0 ** 2,                         # ODIAC 1 km
+    "ghg.viirs": 463.83 ** 2,
+    "nature.kba":         0.0,                        # Vector data
+    "nature.dw":          10.0 ** 2,
+    "nature.habitat":     10.0 ** 2,
+    "nature.forest_loss": 30.92 ** 2,                 # Hansen native pixel
+    "nature.ndvi":        250.0 ** 2,
+    "nature.water":       10.0 ** 2,
+    "nature.recovery":    250.0 ** 2,
+    "nature.regional_loss_evidence": 30.92 ** 2,
 }
 
 # IC_v4 §3.2 sub-formula tunables.

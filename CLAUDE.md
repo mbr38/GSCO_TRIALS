@@ -2,6 +2,8 @@
 
 > **Read this file at the start of every session.** It is the source of truth for what this project is, what's been built, and how to make changes safely.
 
+> **Authority pointer (M-V1x-RECONCILE, 22 May 2026).** `docs/Indicators_Audit_and_v1x_Roadmap.md` v1.5 is the master document for **v1.x indicator decisions** — Hansen demotion, ODIAC standing exposure, sector-tag deprecation, column-to-surface framing, the Tier A–F roadmap. When that doc disagrees with anything else in `docs/`, the audit doc wins; flag the disagreement and propose a doc-sync update. Engine code is the second source of truth: if the engine and a non-audit doc disagree, update the doc (per the M-V1x-RECONCILE verification protocol). Do NOT modify the audit doc without explicit confirmation.
+
 ## 1. What this project is
 
 A v1 demo of the **GSCO Environmental Monitoring & Decision-Support Platform**: a Python web tool that runs satellite-based environmental screening on a supplier site or region, scoring the result across three pillars (Air Pollution, GHG, Nature/Land), and presenting a traffic-light summary plus drill-down detail. Built for two user types — Policy Makers and MNCs.

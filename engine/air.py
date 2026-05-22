@@ -24,12 +24,13 @@ Quality notes (v1 baseline):
 - OFFL Sentinel-5P assets only; NRTI fallback for very recent dates is deferred to M4.
 - AOD applies an AOD_QA bits-8-11 mask via `apply_aod_qa_mask` — the only pollutant
   needing a per-image preprocess in v1.
-- The confidence value returned by `six_step` is still the
-  (N_valid/N_total)·1.0 placeholder from M2 (engine/core/repeatable_core.
-  _placeholder_confidence). Real QA-band integration into `mean_qa` is deferred
-  until the IC §6.3 doc gap is fixed.
-- TODO(M4+): apply per-pollutant `qa_value > 0.75` filter on Sentinel-5P bands
-  where available (NO2, SO2, CO, HCHO, O3, AAI).
+- The confidence value returned by `six_step` is the M-TIER-A1 universal
+  4-term formula (QA + N_valid + anomaly_strength + spatial_context)
+  × column-to-surface multiplier — see IC_v4.2 §8 and
+  engine/core/confidence.py. QA is currently a per-indicator static
+  default from `engine.constants.QA_PER_INDICATOR`; Layer B work
+  (plumbing real `qa_value > 0.75` filter pass-rates into the EE
+  pipeline) is logged for Tier B1 sensitivity-analysis follow-up.
 - TODO(M5+): trend values are still None from M2 (engine/core/trend.py not
   implemented), so in trend mode `compute_trend_score` returns None.
 
@@ -341,7 +342,19 @@ def _format_result(
         value = score if measurement == "score" else raw.get(measurement)
         result[make_id(PILLAR_AIR, pollutant, measurement)] = value
 
+    # M-TIER-A1 — surface the four confidence formula inputs in
+    # provenance.extra so the GHG/Nature pillar quality sub-scores and
+    # auditors can read the per-indicator contributions back without
+    # recomputing them. six_step attaches the dict to its output; if a
+    # caller bypasses six_step the field is absent and downstream readers
+    # treat the indicator as a non-contributor to pillar QA sub-scores.
+    extra = dict(_air_extra(pollutant))
+    confidence_terms = raw.get("confidence_terms")
+    if confidence_terms is not None:
+        extra["confidence_terms"] = confidence_terms
+
     result[f"_provenance.air.{pollutant}"] = build_provenance(
+        indicator_id=f"air.{pollutant}",
         asset_id=cfg.asset_id,
         band=cfg.band,
         data_type=cfg.data_type,
@@ -353,7 +366,7 @@ def _format_result(
         # here as observations={"count": n, "unit": "daily_images"}. For
         # now compute_pollutant_snapshot doesn't track the count.
         observations=None,
-        extra=_air_extra(pollutant),
+        extra=extra,
     )
     return result
 
@@ -410,6 +423,7 @@ def _emit_skipped_air_result(
     base_note = _air_method_note(pollutant) or "IC §0.2 six-step pipeline"
     method_note = f"{base_note}; skipped ({reason_detail})"
     result[f"_provenance.air.{pollutant}"] = build_provenance(
+        indicator_id=f"air.{pollutant}",
         asset_id=cfg.asset_id,
         band=cfg.band,
         data_type=cfg.data_type,

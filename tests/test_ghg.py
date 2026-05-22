@@ -860,35 +860,79 @@ class TestPresentDayScreeningSkipsOdiac:
 # ---------------------------------------------------------------------------
 
 class TestQualitySubScores:
-    def test_temporal_coverage_proxies_ch4_confidence(self) -> None:
-        out = compute_temporal_coverage({"ghg.ch4.confidence": 0.82})
-        assert out == {"ghg.temporal_coverage": 0.82}
+    """M-TIER-A1: three of four GHG quality sub-scores are now derived
+    from per-indicator A1 confidence terms (in provenance.extra). The
+    payload these tests synthesise mirrors what `run_pillar` assembles
+    after the per-indicator snapshots populate their provenance blocks.
+    """
 
-    def test_temporal_coverage_none_when_ch4_missing(self) -> None:
-        out = compute_temporal_coverage({})
-        assert out == {"ghg.temporal_coverage": None}
+    @staticmethod
+    def _payload_with_terms(**per_indicator) -> dict:
+        """Build a payload where each GHG indicator's confidence_terms
+        live under `_provenance.ghg.<ind>.extra.confidence_terms`."""
+        payload: dict = {}
+        for ind, terms in per_indicator.items():
+            payload[f"_provenance.ghg.{ind}"] = {"extra": {"confidence_terms": terms}}
+        return payload
 
-    def test_spatial_resolution_suitability_saturates_for_big_buffer(self) -> None:
-        # CH4_NATIVE_SCALE_M = 7000 m. A 50 km buffer → ratio 50000/7000 ≈ 7.14
-        # → clamps to 1.0.
-        out = compute_spatial_resolution_suitability(
-            {"centre": {"lat": 0, "lon": 0}, "radius_km": 50},
+    def test_temporal_coverage_is_mean_of_per_indicator_n_valid(self) -> None:
+        # Spec §4.2: ghg.temporal_coverage = mean(N_valid across GHG indicators).
+        payload = self._payload_with_terms(
+            ch4={"n_valid": 0.8},
+            co2={"n_valid": 1.0},
+            viirs={"n_valid": 0.6},
         )
-        assert out["ghg.spatial_resolution_suitability"] == 1.0
+        assert compute_temporal_coverage(payload) == {
+            "ghg.temporal_coverage": pytest.approx((0.8 + 1.0 + 0.6) / 3),
+        }
 
-    def test_spatial_resolution_suitability_scales_for_small_buffer(self) -> None:
-        # Radius 1 km → ratio 1000/7000 ≈ 0.143.
-        out = compute_spatial_resolution_suitability(
-            {"centre": {"lat": 0, "lon": 0}, "radius_km": 1},
+    def test_temporal_coverage_skips_missing_indicators(self) -> None:
+        # Only ch4 emitted → use what's there; ignore the rest.
+        payload = self._payload_with_terms(ch4={"n_valid": 0.9})
+        assert compute_temporal_coverage(payload) == {
+            "ghg.temporal_coverage": pytest.approx(0.9),
+        }
+
+    def test_temporal_coverage_none_when_no_indicators_present(self) -> None:
+        # Empty payload → strict-None at the pillar sub-score level.
+        assert compute_temporal_coverage({}) == {"ghg.temporal_coverage": None}
+
+    def test_spatial_resolution_suitability_is_mean_of_per_indicator_terms(self) -> None:
+        # Spec §4.2: mean of spatial_context terms across GHG indicators.
+        # Pre-A1 the helper was CH4-only; now it averages all three.
+        payload = self._payload_with_terms(
+            ch4={"spatial_context": 0.5},
+            co2={"spatial_context": 1.0},
+            viirs={"spatial_context": 1.0},
         )
-        assert out["ghg.spatial_resolution_suitability"] == pytest.approx(1000 / 7000)
+        assert compute_spatial_resolution_suitability(payload) == {
+            "ghg.spatial_resolution_suitability": pytest.approx((0.5 + 1.0 + 1.0) / 3),
+        }
 
-    def test_retrieval_inventory_quality_is_fixed_placeholder(self) -> None:
-        assert compute_retrieval_inventory_quality({}) == {
-            "ghg.retrieval_inventory_quality": 0.7,
+    def test_spatial_resolution_suitability_aoi_kwarg_accepted_but_unused(self) -> None:
+        # Signature parity with pre-A1 call sites; aoi argument is ignored.
+        payload = self._payload_with_terms(ch4={"spatial_context": 0.5})
+        out = compute_spatial_resolution_suitability(
+            payload, {"centre": {"lat": 0, "lon": 0}, "radius_km": 50},
+        )
+        assert out["ghg.spatial_resolution_suitability"] == pytest.approx(0.5)
+
+    def test_retrieval_inventory_quality_is_mean_of_per_indicator_qa(self) -> None:
+        # Spec §4.2: mean of QA terms across GHG indicators.
+        # Each per-indicator QA comes from QA_PER_INDICATOR (e.g. CH4 = 0.85,
+        # ODIAC = 1.00, VIIRS = 0.85) — those exact values get tested
+        # end-to-end in the canary test_pillar_confidence_rollup tests.
+        payload = self._payload_with_terms(
+            ch4={"qa": 0.85},
+            co2={"qa": 1.00},
+            viirs={"qa": 0.85},
+        )
+        assert compute_retrieval_inventory_quality(payload) == {
+            "ghg.retrieval_inventory_quality": pytest.approx((0.85 + 1.00 + 0.85) / 3),
         }
 
     def test_nearby_source_isolation_is_fixed_placeholder(self) -> None:
+        # IC_v4 §7.2: independent of per-indicator inputs (placeholder pending).
         assert compute_nearby_source_isolation({}) == {
             "ghg.nearby_source_isolation": 1.0,
         }
@@ -1029,18 +1073,21 @@ class TestGhgTrendModeHandling:
 
 
 # ---------------------------------------------------------------------------
-# M5.6 — canonical provenance shape
+# M-V1x-RECONCILE — canonical 15-field provenance shape
 # ---------------------------------------------------------------------------
 
 _CANONICAL_PROV_KEYS: tuple[str, ...] = (
+    "indicator_id",
     "asset_id", "band", "data_type", "data_source",
     "native_scale_m", "method_note", "time_range",
-    "coverage_window", "skipped_reason", "observations", "extra",
+    "coverage_window", "skipped_reason", "observations",
+    "column_to_surface_uncertainty", "temporal_mode",
+    "sector_signal_anomaly", "extra",
 )
 
 
 class TestProvenanceShape:
-    """Every GHG indicator must emit the canonical 11-field provenance
+    """Every GHG indicator must emit the canonical 15-field provenance
     block via engine.core.build_provenance — including CO₂ on both the
     happy and out-of-coverage paths.
     """

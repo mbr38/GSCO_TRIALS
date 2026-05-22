@@ -1,6 +1,23 @@
 # v1.x follow-ups
 
-> **Scope.** This doc collects v1.x deferrals from across milestones, not
+> **SUPERSEDED (22 May 2026, M-V1x-RECONCILE).** As of M-V1x-RECONCILE,
+> `docs/Indicators_Audit_and_v1x_Roadmap.md` v1.5 is the master source
+> for v1.x indicator decisions. This document is preserved as the
+> historical record of individual follow-up entries up to that date.
+> Items listed here are now consolidated under the audit doc's Tier A–F
+> roadmap. Future entries should be added to the audit doc, not here.
+>
+> **One open follow-up logged after the rename (not in the audit doc):**
+> `Indicator_ID_Schema_v2.md` §4.6 declares engine-orphan IDs that the
+> engine doesn't emit — `nature.bare.area_now_ha` / `.area_now_pct` /
+> `.expansion_ha`, `nature.built.area_now_ha` / `.area_now_pct`,
+> `nature.water.area_now_pct`, `nature.water.dist_km`. Pick one of:
+> (a) implement the missing reducers in `engine/nature.compute_water_exposure`
+> and a new bare/built reducer (~1–2 hr work); (b) remove the orphan
+> IDs from Schema_v2 §4.6 (5 min). Decision deferred to a separate
+> small milestone.
+
+> **Scope (historical).** This doc collects v1.x deferrals from across milestones, not
 > just M5.5. The original "M5.5 follow-ups" header was retired when the
 > list outgrew its origin; the M5.5/M5.5b/M5.5c/M5.6 sections below are
 > preserved verbatim for historical context.

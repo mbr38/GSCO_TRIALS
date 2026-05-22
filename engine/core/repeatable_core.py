@@ -23,7 +23,15 @@ import ee
 
 from engine.constants import ANOMALY_Z_THRESHOLD, NORMALISATION_K
 from engine.core.buffers import background_ring, site_buffer
+from engine.core.confidence import (
+    compute_anomaly_strength_term,
+    compute_indicator_confidence,
+    compute_n_valid_term,
+    compute_qa_term,
+    compute_spatial_context_term,
+)
 from engine.core.normalisation import to_score
+from engine.core.provenance import _COLUMN_TO_SURFACE_UNCERTAINTY
 from engine.exceptions import (
     BackgroundRingNoDataError,
     IndicatorComputeError,
@@ -194,24 +202,23 @@ def anomaly_z_hf(
 
 
 # ---------------------------------------------------------------------------
-# Step 6 — confidence  (placeholder; see chat: IC_v4 §6.3 doc gap)
+# Step 6 — confidence  (M-TIER-A1: real per-indicator formula per IC_v4 §6.3)
 # ---------------------------------------------------------------------------
 
-def _placeholder_confidence(
-    n_valid: int,
-    n_total: int | None,
-    mean_qa: float,
-) -> float | None:
-    """v1 placeholder: confidence = (N_valid / N_total) · mean_qa.
-
-    IC_v4 §0.2 step 6 promises a formula in §6.3, but §6.3 in IC_v4 actually
-    covers buffer *circumstances*, not the confidence formula. Known doc gap.
-    TODO: replace with the real formula once IC_v4 §6.3 is corrected.
-    """
-    if n_total is None or n_total <= 0:
+def _window_days(time_range: tuple[str, str]) -> int | None:
+    """Inclusive day count between two ISO dates. None on parse failure."""
+    from datetime import date as _date
+    try:
+        start = _date.fromisoformat(time_range[0])
+        end   = _date.fromisoformat(time_range[1])
+    except (TypeError, ValueError):
         return None
-    raw = (n_valid / n_total) * mean_qa
-    return max(0.0, min(1.0, raw))
+    return max(1, (end - start).days)
+
+
+def _buffer_area_m2(radius_km: float) -> float:
+    import math as _math
+    return _math.pi * (radius_km * 1000.0) ** 2
 
 
 # ---------------------------------------------------------------------------
@@ -255,10 +262,23 @@ def six_step(
         # TODO(M5+): wire Theil-Sen / Mann-Kendall once engine/core/trend.py lands.
         trend, trend_p = None, None
 
-    # Placeholder confidence — see _placeholder_confidence docstring for the gap.
-    n_expected = int(ic_window.size().getInfo() or 0)
-    confidence = _placeholder_confidence(
-        n_valid=len(series), n_total=n_expected, mean_qa=1.0,
+    # M-TIER-A1 — per-indicator confidence via the universal 4-term formula
+    # × column-to-surface multiplier (IC_v4 §6.3 / audit §1.1).
+    # Strict-None at the indicator level: any missing term collapses the
+    # confidence to None; pillar rollups handle that via survivor-renormalise.
+    confidence_terms = _confidence_terms_from_six_step_state(
+        indicator_id=indicator_id,
+        aoi=aoi,
+        time_range=time_range,
+        n_observations=len(series),
+        hf=azhf["hf"],
+    )
+    confidence = compute_indicator_confidence(
+        indicator_id=indicator_id or "<unknown>",
+        column_to_surface_uncertainty=_COLUMN_TO_SURFACE_UNCERTAINTY.get(
+            indicator_id or "", "n_a",
+        ),
+        **confidence_terms,
     )
 
     return {
@@ -271,6 +291,52 @@ def six_step(
         "trend_p":    trend_p,
         "confidence": confidence,
         "score":      score,
+        # M-TIER-A1: surface the four input terms so callers can pass them
+        # into provenance.extra for audit transparency without recomputing.
+        "confidence_terms": {
+            **confidence_terms,
+            "column_to_surface_uncertainty": _COLUMN_TO_SURFACE_UNCERTAINTY.get(
+                indicator_id or "", "n_a",
+            ),
+        },
+    }
+
+
+def _confidence_terms_from_six_step_state(
+    *,
+    indicator_id: str | None,
+    aoi: dict,
+    time_range: tuple[str, str],
+    n_observations: int,
+    hf: float | None,
+) -> dict:
+    """Resolve the four A1 confidence-formula terms from six_step's local state.
+
+    Centralised here so the six_step orchestrator stays small and the
+    Nature indicators that DON'T go through six_step (KBA, DW composite,
+    Hansen, ODIAC, etc.) can reuse the same shape via the engine.core
+    public helpers when they construct their own confidence values.
+    """
+    if not indicator_id:
+        # Without an indicator_id we can't look up the static QA, pixel area,
+        # or expected revisit cadence — strict-None propagates.
+        return {
+            "qa": None, "n_valid": None,
+            "anomaly_strength": None, "spatial_context": None,
+        }
+    return {
+        "qa": compute_qa_term(indicator_id),
+        "n_valid": compute_n_valid_term(
+            indicator_id,
+            n_observations=n_observations,
+            window_days=_window_days(time_range),
+        ),
+        "anomaly_strength": compute_anomaly_strength_term(
+            indicator_id, hf=hf,
+        ),
+        "spatial_context": compute_spatial_context_term(
+            indicator_id, buffer_area_m2=_buffer_area_m2(aoi["radius_km"]),
+        ),
     }
 
 

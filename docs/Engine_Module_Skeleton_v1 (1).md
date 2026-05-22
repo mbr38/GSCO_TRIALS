@@ -145,7 +145,11 @@ def compute_combustion_proxy(payload: dict) -> dict:
     surfaced under the ghg.* namespace for clarity."""
 
 def compute_core_ghg_audit_support(payload: dict) -> dict:
-    """v1-rescaled form: 0.39·co2 + 0.28·ch4_adj + 0.22·combustion + 0.11·activity."""
+    """Post-M5.5b 3-key form: 0.46·ch4_adj + 0.44·combustion + 0.10·activity.
+
+    ODIAC's CO₂_Context demoted to standing exposure (not in live composite);
+    pre-M5.5b 4-key weights (0.39·co2 + 0.28·ch4_adj + 0.22·combustion +
+    0.11·activity) preserved for lineage. See IC_v4 §2.3 and audit §3.4."""
 
 def compute_ghg_data_quality_attribution(payload: dict) -> dict:
     """v1-rescaled form per §2.3 IC_v3."""
@@ -478,11 +482,14 @@ AIR_FOLLOWUP_WEIGHTS = {
     "confidence": 0.15,
 }
 
+# Post-M5.5b 3-key form (engine-actual). ODIAC's CO₂_Context demoted from
+# the live composite per audit §3.4; remaining three signals rescaled by
+# 1/0.61. See IC_v4 §2.3 for the full rationale and the pre-M5.5b 4-key
+# form (0.39 / 0.28 / 0.22 / 0.11) kept for lineage only.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS = {
-    "ghg.co2_context": 0.39,
-    "ghg.ch4_context_adjusted": 0.28,
-    "ghg.combustion_proxy": 0.22,
-    "ghg.activity_score": 0.11,
+    "ghg.ch4_context_adjusted": 0.46,
+    "ghg.combustion_proxy":     0.44,
+    "ghg.activity_score":       0.10,
 }
 
 # ...and so on for the remaining pillar formulas
