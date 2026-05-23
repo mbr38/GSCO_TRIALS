@@ -515,6 +515,29 @@ class TestAuditFollowupPartialMissing:
 # 6. run_pillar integration — synthetic, no EE
 # ---------------------------------------------------------------------------
 
+# M-TIER-A1 Step E — pillar fakes now provide confidence_terms in
+# provenance.extra so the GHG_DQA re-derivation paths (temporal_coverage,
+# spatial_resolution_suitability, retrieval_inventory_quality) compute
+# real values in integration tests instead of None.
+#
+# Terms match the D1 _DEFAULT_SIX_STEP template:
+#   c_raw = 0.30·0.85 + 0.30·0.60 + 0.25·0.40 + 0.15·1.00 = 0.685
+# Multiplier per indicator (from engine/core/provenance._COLUMN_TO_SURFACE_UNCERTAINTY):
+#   ghg.ch4   → "weak"  → 0.80 multiplier → c_final = 0.685 × 0.80 = 0.548
+#   ghg.viirs → "n_a"   → 1.00 multiplier → c_final = 0.685
+#   ghg.co2   → "n_a"   → 1.00 multiplier → c_final = 0.685
+# Each fake's `confidence` field is updated to match formula(terms) so
+# integration tests can't drift into the "fake says 0.7 but real engine
+# produces 0.685" footgun the D1 report described.
+
+_DEFAULT_CONFIDENCE_TERMS_INPUT: dict = {
+    "qa":               0.85,
+    "n_valid":          0.60,
+    "anomaly_strength": 0.40,
+    "spatial_context":  1.00,
+}
+
+
 def _fake_ch4_snapshot(include_air_keys: bool = False) -> dict:
     """Synthetic CH₄ snapshot. When `include_air_keys` is True, the returned
     dict carries the two Air-borrowed values too — this is how the test
@@ -529,11 +552,17 @@ def _fake_ch4_snapshot(include_air_keys: bool = False) -> dict:
         "ghg.ch4.hf":         0.40,
         "ghg.ch4.trend":      None,
         "ghg.ch4.trend_p":    None,
-        "ghg.ch4.confidence": 0.80,
+        "ghg.ch4.confidence": 0.548,                # M-TIER-A1 Step E: weak × 0.685
         "ghg.ch4.score":      0.60,
         "_provenance.ghg.ch4": {
             "asset_id":   "COPERNICUS/S5P/OFFL/L3_CH4",
             "time_range": _TIME_RANGE,
+            "extra": {
+                "confidence_terms": {
+                    **_DEFAULT_CONFIDENCE_TERMS_INPUT,
+                    "column_to_surface_uncertainty": "weak",
+                },
+            },
         },
     }
     if include_air_keys:
@@ -547,11 +576,17 @@ def _fake_viirs_snapshot() -> dict:
         "ghg.viirs.site":       25.0,
         "ghg.viirs.anomaly":    10.0,
         "ghg.viirs.trend":      None,
-        "ghg.viirs.confidence": 0.70,
+        "ghg.viirs.confidence": 0.685,              # M-TIER-A1 Step E: n_a × 0.685
         "ghg.viirs.score":      0.50,
         "_provenance.ghg.viirs": {
             "asset_id":   "NASA/VIIRS/002/VNP46A2",
             "time_range": _TIME_RANGE,
+            "extra": {
+                "confidence_terms": {
+                    **_DEFAULT_CONFIDENCE_TERMS_INPUT,
+                    "column_to_surface_uncertainty": "n_a",
+                },
+            },
         },
     }
 
@@ -715,9 +750,18 @@ class TestRunPillar:
                 "ghg.co2.relative_intensity": 5.0,
                 "ghg.co2.trend":              None,
                 "ghg.co2.trend_p":            None,
-                "ghg.co2.confidence":         1.0,
+                # M-TIER-A1 Step E: n_a × 0.685
+                "ghg.co2.confidence":         0.685,
                 "ghg.co2.score":              0.7,
-                "_provenance.ghg.co2":        {"asset_id": "FAKE/ODIAC"},
+                "_provenance.ghg.co2": {
+                    "asset_id": "FAKE/ODIAC",
+                    "extra": {
+                        "confidence_terms": {
+                            **_DEFAULT_CONFIDENCE_TERMS_INPUT,
+                            "column_to_surface_uncertainty": "n_a",
+                        },
+                    },
+                },
             }
 
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):

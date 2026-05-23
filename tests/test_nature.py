@@ -520,6 +520,17 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
     `fail` is the set of indicator keys (e.g. {"kba"}) that should raise
     IndicatorComputeError instead of returning a payload. Defaults to no
     failures.
+
+    M-TIER-A1 Step E — every fake now emits a `_provenance.nature.<ind>`
+    block with `extra.confidence_terms` matching the canonical shape
+    real engine output uses. Without this, `nature.valid_pixel_coverage`
+    silently re-derived to None in integration tests, hiding the M-TIER-A1
+    pillar QA rollup paths from CI coverage.
+
+    Terms use the D1 _DEFAULT_SIX_STEP template (qa=0.85, n_valid=0.60,
+    anomaly_strength=0.40, spatial_context=1.00). Every Nature indicator's
+    column_to_surface_uncertainty defaults to "n_a" (no column retrievals
+    in this pillar), so the multiplier is 1.00 and c_final = 0.685.
     """
     fail = fail or set()
 
@@ -530,14 +541,29 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
                 reason=f"synthetic failure for {name}",
             )
 
+    # Shared confidence_terms payload — single source of truth across the
+    # eight Nature fakes. The values mirror tests/test_air.py::_DEFAULT_SIX_STEP.
+    confidence_terms = {
+        "qa":                            0.85,
+        "n_valid":                       0.60,
+        "anomaly_strength":              0.40,
+        "spatial_context":               1.00,
+        "column_to_surface_uncertainty": "n_a",
+    }
+    expected_confidence = 0.685   # = 0.30·0.85 + 0.30·0.60 + 0.25·0.40 + 0.15·1.00
+
     def fake_kba(aoi, time_range=None, ee_client=None):
-        # M5.6 — compute_kba_proximity now takes time_range for provenance
+        # M5.6 — compute_kba_proximity takes time_range for provenance
         # consistency (KBA is reference data, but the user's request window
         # is documented in provenance).
+        # M-TIER-A1 Step E — also pass aoi so _format_kba_result emits a
+        # real `nature.kba.confidence` value and threads confidence_terms
+        # into provenance.extra. The helper already does this work.
         _maybe_fail("kba")
         return _format_kba_result(
             dist_km=2.0, overlap_ha=5.0, overlap_pct=10.0,
             time_range=time_range,
+            aoi=aoi,
         )
 
     def fake_dw(aoi, time_range, ee_client):
@@ -563,8 +589,18 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.dw.snow_ha":                 0.0,
             "nature.dw.dominant_class":          "trees",
             "nature.dw.class_confidence":        0.85,
+            "nature.dw.confidence":              expected_confidence,
             "nature.sensitive_land_cover_presence": 0.62,
             "nature.water_or_flooded_veg_exposure": 0.25,
+            "_provenance.nature.dw": {
+                "asset_id":       "GOOGLE/DYNAMICWORLD/V1",
+                "band":           "label",
+                "data_type":      "ml_classified_satellite",
+                "data_source":    "Google / WRI (Dynamic World V1)",
+                "native_scale_m": 10.0,
+                "time_range":     time_range,
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     def fake_habitat(aoi, time_range, ee_client):
@@ -578,13 +614,34 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.habitat.built_expansion_ha": 10.0,
             "nature.habitat.bare_expansion_ha":  5.0,
             "nature.habitat.annualised_rate":    5.0,
+            "nature.habitat.confidence":         expected_confidence,
+            "_provenance.nature.habitat": {
+                "asset_id":       "GOOGLE/DYNAMICWORLD/V1",
+                "band":           "label",
+                "data_type":      "ml_classified_satellite",
+                "data_source":    "Google / WRI (Dynamic World V1)",
+                "native_scale_m": 10.0,
+                "time_range":     time_range,
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     def fake_forest_loss(aoi, time_range, ee_client):
         _maybe_fail("forest_loss")
         return {
-            "nature.forest_loss.ha":  15.0,
-            "nature.forest_loss.pct": 0.6,
+            "nature.forest_loss.ha":         15.0,
+            "nature.forest_loss.pct":        0.6,
+            "nature.forest_loss.confidence": expected_confidence,
+            "_provenance.nature.forest_loss": {
+                "asset_id":       "UMD/hansen/global_forest_change_2023_v1_11",
+                "band":           "lossyear",
+                "data_type":      "reference_dataset",
+                "data_source":    "UMD / Hansen Global Forest Change",
+                "native_scale_m": 30.92,
+                "time_range":     time_range,
+                "observations":   {"count": 1, "unit": "annual_rasters"},
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     def fake_ndvi(aoi, time_range, mode, ee_client):
@@ -596,11 +653,22 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.ndvi.slope":            -0.005,
             "nature.ndvi.slope_p":          0.10,
             "nature.ndvi.score":            0.35,
+            "nature.ndvi.confidence":       expected_confidence,
             "nature.ndvi.inverted_anomaly": 0.35,
             "nature.ndvi.negative_trend":   0.50,
             "nature.low_ndvi.ha":           5.0,
             "nature.low_ndvi.pct":          2.0,
             "nature.low_ndvi.pct_norm":     0.02,
+            "_provenance.nature.ndvi": {
+                "asset_id":       "MODIS/061/MOD13Q1",
+                "band":           "NDVI",
+                "data_type":      "satellite_observation",
+                "data_source":    "NASA MODIS (MOD13Q1)",
+                "native_scale_m": 250.0,
+                "time_range":     time_range,
+                "observations":   {"count": 1, "unit": "16day_composites"},
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     def fake_water(aoi, time_range, ee_client):
@@ -608,6 +676,16 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
         return {
             "nature.water.area_now_ha":       7.5,
             "nature.flooded_veg.area_now_ha": 5.0,
+            "nature.water.confidence":        expected_confidence,
+            "_provenance.nature.water": {
+                "asset_id":       "GOOGLE/DYNAMICWORLD/V1",
+                "band":           "label",
+                "data_type":      "ml_classified_satellite",
+                "data_source":    "Google / WRI (Dynamic World V1)",
+                "native_scale_m": 10.0,
+                "time_range":     time_range,
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     def fake_recovery(aoi, time_range, ee_client):
@@ -617,13 +695,37 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.recovery.natural_cover_gain_ha": None,
             "nature.recovery.bare_reduction_ha":     None,
             "nature.recovery.score":                 0.0,
+            "nature.recovery.confidence":            expected_confidence,
+            "_provenance.nature.recovery": {
+                "asset_id":       "MODIS/061/MOD13Q1",
+                "band":           "NDVI",
+                "data_type":      "satellite_observation",
+                "data_source":    "NASA MODIS (MOD13Q1)",
+                "native_scale_m": 250.0,
+                "time_range":     time_range,
+                "extra":          {
+                    "placeholder":      True,
+                    "confidence_terms": confidence_terms,
+                },
+            },
         }
 
     def fake_regional_loss_evidence(aoi, time_range, ee_client):
         # M-V1x-RECONCILE: run_pillar now calls this unconditionally when the
         # Nature pillar runs. Tests stub it out so they don't need EE.
         return {
-            "nature.external_driver_screening": 0.0,
+            "nature.external_driver_screening":         0.0,
+            "nature.regional_loss_evidence.confidence": expected_confidence,
+            "_provenance.nature.regional_loss_evidence": {
+                "asset_id":       "UMD/hansen/global_forest_change_2023_v1_11",
+                "band":           "lossyear",
+                "data_type":      "reference_dataset",
+                "data_source":    "UMD / Hansen Global Forest Change",
+                "native_scale_m": 30.92,
+                "time_range":     ("2019-01-01", "2023-12-31"),
+                "observations":   {"count": 5, "unit": "annual_rasters"},
+                "extra":          {"confidence_terms": confidence_terms},
+            },
         }
 
     monkeypatch.setattr("engine.nature.compute_kba_proximity", fake_kba)

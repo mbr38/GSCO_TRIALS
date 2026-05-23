@@ -39,6 +39,22 @@
 > Air pillar's snapshot path). The GHG and Nature pillar test fakes
 > are still open — see the dedicated entry below.
 >
+> **[CLOSED — M-TIER-A1 Step E, 23 May 2026] Thread confidence_terms through GHG/Nature pillar fakes (_fake_ch4_snapshot et al.) to enable integration-test coverage of pillar QA sub-score re-derivation paths.**
+> Resolved by M-TIER-A1 Step E. `_fake_ch4_snapshot`,
+> `_fake_viirs_snapshot`, and the inline `_fake_co2_snapshot` in
+> `tests/test_ghg.py` now emit `extra.confidence_terms` in their
+> provenance blocks; the eight Nature fakes in
+> `tests/test_nature.py::_patch_all_indicators` now each return a
+> complete 15-field-shaped `_provenance.nature.<ind>` block with
+> `extra.confidence_terms`. Each fake's `confidence` field is
+> mathematically consistent with `formula(confidence_terms)` to
+> match the D1 consistency lesson. CI now exercises the GHG_DQA and
+> Nature `valid_pixel_coverage` re-derivation end-to-end:
+> `ghg.data_quality_attribution` is now ~0.83 in integration tests
+> (was an artificial 1.0 from single-survivor renormalisation);
+> `nature.valid_pixel_coverage` is now ~0.85 (was None). Original
+> entry preserved below for reference.
+>
 > **Thread confidence_terms through GHG/Nature pillar fakes (_fake_ch4_snapshot et al.) to enable integration-test coverage of pillar QA sub-score re-derivation paths.**
 > M-TIER-A1 Step D D1 added `confidence_terms` to
 > `tests/test_air.py::_DEFAULT_SIX_STEP`, closing the integration-test

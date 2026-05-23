@@ -226,6 +226,46 @@ def _buffer_area_m2(radius_km: float) -> float:
 # ---------------------------------------------------------------------------
 
 
+_MS_PER_UTC_DAY: int = 86_400_000
+
+# Chunk the time-range into windows of this many days when running
+# `_server_side_hf` so no single `getInfo()` exceeds EE's 5-minute hard
+# timeout for high-cadence multi-swath products at large buffers. See
+# `_server_side_hf` docstring for the design rationale.
+_SERVER_SIDE_HF_CHUNK_DAYS: int = 10
+
+
+def _date_chunks_iso(
+    time_range: tuple[str, str], chunk_days: int = _SERVER_SIDE_HF_CHUNK_DAYS,
+) -> list[tuple[str, str]]:
+    """Split an ISO-date window into half-open chunks of `chunk_days` each.
+
+    The final chunk may be shorter. Returns a list of `(start_iso, end_iso)`
+    pairs where `end_iso` is exclusive (the next chunk's start). Used by
+    `_server_side_hf` to keep each per-chunk `getInfo()` bounded.
+    """
+    from datetime import date as _date, timedelta as _td
+    try:
+        start = _date.fromisoformat(time_range[0])
+        end   = _date.fromisoformat(time_range[1])
+    except (TypeError, ValueError):
+        # Caller passed a non-ISO range (e.g. ("static", "static") for
+        # reference data). Caller-side, _server_side_hf only runs on
+        # ImageCollections where time_range is a real ISO pair, but be
+        # defensive — single-chunk fallback.
+        return [time_range]
+    if end <= start:
+        return [time_range]
+
+    chunks: list[tuple[str, str]] = []
+    cursor = start
+    while cursor < end:
+        next_cursor = min(cursor + _td(days=chunk_days), end)
+        chunks.append((cursor.isoformat(), next_cursor.isoformat()))
+        cursor = next_cursor
+    return chunks
+
+
 def _server_side_hf(
     aoi: dict,
     image_collection: ee.ImageCollection,
@@ -234,11 +274,43 @@ def _server_side_hf(
     bg_std: float,
     z_threshold: float,
     scale: float | None,
+    *,
+    time_range: tuple[str, str] | None = None,
 ) -> tuple[int, float | None]:
-    """Compute (n_valid, HF) over the *entire* filtered collection server-side.
+    """Compute (n_valid, HF) over the filtered collection server-side.
 
-    Maps over every image (no `.limit()` cap — that cap was the bug the
-    Brasilia + Rotterdam AOD/CH4 diagnostic surfaced). Per-image:
+    Counts **distinct UTC days** (not granules) where the buffer was
+    observable / crossed threshold. Two design properties matter:
+
+      1. **Per-date semantics per IC_v4 §0.2 step 5.** HF is documented
+         as the fraction of *dates* whose per-date z ≥ threshold, not
+         the fraction of images. The legacy `_per_date_site_series`
+         docstring already used the per-date framing implicitly. The
+         pre-Step-8 code conflated granules with dates by `.limit(100)`-
+         capping the granule collection; the post-Step-B uncapped code
+         counted granules as independent observations (inflating
+         `n_valid` for multi-swath products like MAIAC AOD at ~58
+         granules/day). This version tags every per-granule Feature
+         with a `day_bucket` integer and counts distinct day_buckets
+         at the FeatureCollection level — correct per-date semantics.
+
+      2. **Chunked client-side loop to stay under EE's 5-min wall.**
+         At Distrito Federal scale (43 km buffer × 5 200 AOD granules
+         over 90 days), a single `getInfo()` over the unchunked
+         collection hits `HttpError 400 Computation timed out` at 300s.
+         An earlier attempt to fix this by daily-mosaicing inside
+         server-side `ee.List.map(Filter.eq(...))` hit a *different*
+         EE limit ("User memory limit exceeded") because Filter.eq
+         per day forces EE to materialise the full property index for
+         each filter pass. This version splits `time_range` into
+         `_SERVER_SIDE_HF_CHUNK_DAYS`-day chunks client-side; each
+         chunk's compute graph is bounded by ~chunk_days × per-day
+         granules ≈ 580 reduceRegions for AOD, well under timeout.
+         Day-bucket sets accumulate client-side across chunks. Trades
+         1 big `getInfo` for ~9 small `getInfo`s at 90-day windows;
+         total wall-clock is comparable or better, no timeout risk.
+
+    Per granule (inside each chunk):
 
       1. reduceRegion with a *combined* Mean + Count reducer over
          Site_Buffer at `scale`. Mean may be null when the band is
@@ -249,46 +321,53 @@ def _server_side_hf(
          uses the steady-state (bg_median, bg_std) baseline from steps 1+2.
          The mean is guarded with `If(is_valid, mean, 0)` so invalid rows
          don't crash arithmetic.
+      3. The granule's `system:time_start` is floor-divided by one UTC
+         day (86 400 000 ms) and stored as `day_bucket`. For non-UTC
+         AOIs, swaths near local midnight may fall into the "previous"
+         or "next" local day — fine for HF semantics (day-distinctness
+         only), worth being explicit so future maintainers don't
+         misread. A local-solar-day extension is a future Tier-C item.
 
-    Aggregates the per-image `is_valid` and `is_hot` sums via
-    `reduceColumns(ee.Reducer.sum().repeat(2), ...)` — one `.getInfo()`
-    at the end, no client-side loop.
+    Per chunk (client-side accumulator):
+
+      The chunk's FeatureCollection is filtered to `is_valid==1` /
+      `is_hot==1`, then `aggregate_array("day_bucket").distinct()` runs
+      server-side — feature-level operations on ~580 small features per
+      chunk, never image-level. The two distinct-day arrays are returned
+      as a single dict (one `getInfo()` per chunk), and the day-buckets
+      are union'd into client-side Python sets across chunks.
 
     Returns:
-        n_valid: count of images whose site-buffer mean was non-null at
-                 the requested scale. This is what feeds the A1
-                 confidence formula's N_valid term via
-                 `compute_n_valid_term(n_observations=n_valid, ...)`.
-        hf:      `n_hot / n_valid` as a float in [0, 1], or `None` when
-                 `bg_std <= 0` (degenerate background — z undefined) or
-                 `n_valid == 0` (no data — strict-None propagates upward).
+        n_valid: count of distinct UTC days (across the full
+                 `time_range`) with at least one granule whose buffer
+                 was usable. Feeds the A1 confidence formula's N_valid
+                 term via `compute_n_valid_term(n_observations=n_valid)`.
+        hf:      `n_hot_days / n_valid_days` as a float in [0, 1], or
+                 `None` when `bg_std <= 0` (degenerate background) or
+                 `n_valid == 0` (no data — strict-None propagates).
 
-    Design note on null handling. An earlier draft used a
-    `_MISSING_SITE_VALUE_SENTINEL` passed as the `ee.Dictionary.get`
-    default, but EE's `get(key, default)` returns `default` only when
+    Args:
+        time_range: required for chunking. When None, falls back to a
+                    single unchunked call — only safe for tests with
+                    small collections.
+
+    Design note on null handling. An earlier draft used a sentinel
+    passed to `ee.Dictionary.get(key, default)` to detect masked-band
+    cases, but EE's `get(key, default)` returns `default` only when
     the key is *absent* — not when the key is present and maps to
-    `null`. `reduceRegion` produces `{band: null}` (not a missing key)
-    when the band is fully masked, so the sentinel never fired and
-    downstream `ee.Number(null).neq(...)` raised `Number.neq:
-    Parameter 'left' is required and may not be null.`. The Count
-    reducer sidesteps this: it's a counting reducer, so the absence
-    of valid pixels is encoded as the value `0`, never as `null`.
+    `null`. `reduceRegion` produces `{band: null}` when the band is
+    fully masked, so the sentinel never fired and downstream
+    `ee.Number(null)` raised. The Count reducer in the combined
+    Mean+Count is the fix: Count returns 0 (not null) for fully-
+    masked images, so `is_valid` derives safely.
     """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
     bg_std_degenerate = bg_std <= 0
 
-    # Combined reducer: one reduceRegion per image, both Mean and Count
-    # returned in one dict.  Mean may be null when the band is fully
-    # masked; Count is always a Number (0 when no pixels, ≥1 otherwise),
-    # so we drive is_valid from Count.
     mean_count_reducer = ee.Reducer.mean().combine(
         reducer2=ee.Reducer.count(),
         sharedInputs=True,
     )
-
-    # EE's combine() naming convention with sharedInputs:
-    #   - first reducer's output keeps the band name             → `<band>`
-    #   - subsequent reducers get a suffix from the reducer name → `<band>_count`
     mean_key  = band
     count_key = f"{band}_count"
 
@@ -300,17 +379,8 @@ def _server_side_hf(
             bestEffort=True,
             maxPixels=int(1e9),
         )
-        # `default=0` covers the rare case where the band is missing
-        # from the image entirely (vs the common case of being present
-        # but fully masked, which Count already encodes as 0).
         count = ee.Number(reduction.get(count_key, 0))
         is_valid = count.gt(0)
-        # Mean reducer over zero valid pixels OMITS the output key
-        # entirely (not even null), so we MUST pass a default to
-        # reduction.get(mean_key) — both branches of If evaluate
-        # server-side, so an undefaulted .get() crashes the map even
-        # when is_valid=0 short-circuits it logically. The default 0.0
-        # is never read on the valid path (count > 0 → key present).
         site_mean = ee.Number(
             ee.Algorithms.If(is_valid, reduction.get(mean_key, 0.0), 0.0)
         )
@@ -319,16 +389,51 @@ def _server_side_hf(
         else:
             z = site_mean.subtract(bg_median).divide(bg_std)
             is_hot = z.gte(z_threshold).And(is_valid)
-        return ee.Feature(None, {"is_valid": is_valid, "is_hot": is_hot})
+        # Day-bucket tag — see docstring §3.
+        day_bucket = ee.Number(image.get("system:time_start")).divide(
+            _MS_PER_UTC_DAY,
+        ).floor()
+        return ee.Feature(None, {
+            "is_valid":   is_valid,
+            "is_hot":     is_hot,
+            "day_bucket": day_bucket,
+        })
 
-    fc = image_collection.select(band).map(per_image)
-    summed = fc.reduceColumns(
-        reducer=ee.Reducer.sum().repeat(2),
-        selectors=["is_valid", "is_hot"],
-    ).getInfo() or {}
-    sums = summed.get("sum") or [0, 0]
-    n_valid = int(sums[0] or 0)
-    n_hot   = int(sums[1] or 0)
+    # Decide chunking. When time_range is missing, fall back to a single
+    # call over the whole collection (tests + unusual callers).
+    if time_range is None:
+        chunks: list[tuple[str, str]] = [("__unused__", "__unused__")]
+    else:
+        chunks = _date_chunks_iso(time_range)
+
+    valid_days_seen: set[int] = set()
+    hot_days_seen:   set[int] = set()
+
+    selected = image_collection.select(band)
+
+    for chunk_start, chunk_end in chunks:
+        if time_range is None:
+            chunk_ic = selected
+        else:
+            chunk_ic = selected.filterDate(chunk_start, chunk_end)
+
+        fc = chunk_ic.map(per_image)
+        valid_fc = fc.filter(ee.Filter.eq("is_valid", 1))
+        hot_fc   = fc.filter(ee.Filter.eq("is_hot",   1))
+
+        # One getInfo per chunk for both distinct-day arrays.
+        chunk_result = ee.Dictionary({
+            "valid_days": valid_fc.aggregate_array("day_bucket").distinct(),
+            "hot_days":   hot_fc.aggregate_array("day_bucket").distinct(),
+        }).getInfo() or {}
+
+        for day in chunk_result.get("valid_days") or []:
+            valid_days_seen.add(int(day))
+        for day in chunk_result.get("hot_days") or []:
+            hot_days_seen.add(int(day))
+
+    n_valid = len(valid_days_seen)
+    n_hot   = len(hot_days_seen)
 
     if n_valid == 0:
         return 0, None
@@ -377,6 +482,7 @@ def six_step(
     azhf = anomaly_z_hf(site, bg_median, bg_std, [], z_threshold=z_threshold)
     n_valid, hf = _server_side_hf(
         aoi, ic_window, band, bg_median, bg_std, z_threshold, scale,
+        time_range=time_range,
     )
     azhf["hf"] = hf
 

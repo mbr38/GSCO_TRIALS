@@ -224,6 +224,10 @@ class _FakeNumber:
             1 if (self.value != 0 and self._unwrap(other) != 0) else 0
         )
 
+    def floor(self):
+        import math as _math
+        return _FakeNumber(_math.floor(self.value))
+
 
 def _fake_algorithms_if(cond, then_, else_):
     """Mock ee.Algorithms.If. Python's function-call semantics already
@@ -302,16 +306,41 @@ class _FakeDict:
 class _FakeImage:
     """One mock image. `.select(band)` no-ops; `.reduceRegion(...)` returns
     the caller-supplied reduction dict wrapped in a _FakeDict so its
-    `.get` semantics match EE's."""
+    `.get` semantics match EE's. `.get("system:time_start")` returns the
+    image's time_start property — every fake image carries one so the
+    per_image map's day_bucket computation has something to operate on.
+    """
 
-    def __init__(self, reduction: dict):
+    # Default time-start; tests that need per-image variation pass their
+    # own values via the explicit `time_start` constructor kwarg. The
+    # default lands all images on UTC day-bucket 0 (deterministic).
+    def __init__(self, reduction: dict, time_start: int = 0):
         self._reduction = _FakeDict(reduction)
+        self._props = {"system:time_start": time_start}
 
     def select(self, _band):
         return self
 
     def reduceRegion(self, **_kw):                              # noqa: N802
         return self._reduction
+
+    def get(self, key):
+        return self._props.get(key, 0)
+
+
+class _FakeFilterEq:
+    """Mock ee.Filter.eq — captures (prop, value) for FeatureCollection.filter()."""
+
+    def __init__(self, prop: str, value):
+        self.prop = prop
+        # Unwrap _FakeNumber so equality compares to a plain int.
+        self.value = value.value if isinstance(value, _FakeNumber) else value
+
+
+class _FakeFilter:
+    @staticmethod
+    def eq(prop, value):
+        return _FakeFilterEq(prop, value)
 
 
 class _FakeFeature:
@@ -329,12 +358,52 @@ class _FakeComputed:
         return self._value
 
 
+class _FakeList:
+    """Mock of EE's server-side list. Supports `.distinct()`."""
+
+    def __init__(self, values):
+        self.values = list(values)
+
+    def distinct(self):
+        seen: list = []
+        for v in self.values:
+            if v not in seen:
+                seen.append(v)
+        return _FakeList(seen)
+
+
+class _FakeDictionaryConstructor:
+    """Mock ee.Dictionary({...}). `.getInfo()` resolves nested _FakeList /
+    _FakeNumber values to plain Python equivalents — same shape real EE
+    returns from a server-side dict."""
+
+    def __init__(self, mapping: dict):
+        self._mapping = mapping
+
+    def getInfo(self):                                          # noqa: N802
+        out: dict = {}
+        for k, v in self._mapping.items():
+            if isinstance(v, _FakeList):
+                out[k] = [
+                    e.value if isinstance(e, _FakeNumber) else e
+                    for e in v.values
+                ]
+            elif isinstance(v, _FakeNumber):
+                out[k] = v.value
+            else:
+                out[k] = v
+        return out
+
+
 class _FakeImageCollection:
-    """Eager Python iteration over fake images. `_server_side_hf` calls
-    `.select(band).map(per_image).reduceColumns(...).getInfo()` — we
-    execute that chain in Python, calling per_image on each image
-    (which triggers the per_image code path in _server_side_hf, which
-    is what we want to exercise)."""
+    """Eager Python iteration over fake images.
+
+    `_server_side_hf` calls `.select(band).map(per_image).filter(...).
+    aggregate_array(prop).distinct()` plus `ee.Dictionary({...}).getInfo()`.
+    We execute that chain in Python, calling per_image on each image
+    (which triggers the per_image code path in _server_side_hf, the
+    Step C bug-catching surface).
+    """
 
     def __init__(self, images: list[_FakeImage]):
         self.images = images
@@ -343,23 +412,45 @@ class _FakeImageCollection:
     def select(self, _band):
         return self
 
+    def filterDate(self, _start, _end):                         # noqa: N802
+        # Mocks ignore date filtering — tests pass time_range=None which
+        # already skips chunking, but keep the method for defensive parity.
+        return self
+
     def map(self, fn):
         new = _FakeImageCollection(self.images)
         new._mapped = [fn(img) for img in self.images]
         return new
 
-    def reduceColumns(self, reducer, selectors):                # noqa: N802, ARG002
+    def filter(self, filter_obj: _FakeFilterEq):
+        # Filter the mapped FeatureCollection by property == value.
         features = self._mapped or []
-        sums = []
-        for sel in selectors:
-            total = 0.0
-            for feat in features:
-                val = feat.properties.get(sel)
-                if val is None:
-                    continue
-                total += val.value if isinstance(val, _FakeNumber) else val
-            sums.append(total)
-        return _FakeComputed({"sum": sums})
+        new = _FakeImageCollection(self.images)
+        new._mapped = [
+            feat for feat in features
+            if _fake_property_equals(feat.properties.get(filter_obj.prop), filter_obj.value)
+        ]
+        return new
+
+    def aggregate_array(self, prop: str):                       # noqa: N802
+        features = self._mapped or []
+        values = []
+        for feat in features:
+            val = feat.properties.get(prop)
+            if isinstance(val, _FakeNumber):
+                val = val.value
+            values.append(val)
+        return _FakeList(values)
+
+
+def _fake_property_equals(prop_value, expected) -> bool:
+    """Compare a Feature property to a Filter.eq expected value, handling
+    _FakeNumber wrapping on either side."""
+    if isinstance(prop_value, _FakeNumber):
+        prop_value = prop_value.value
+    if isinstance(expected, _FakeNumber):
+        expected = expected.value
+    return prop_value == expected
 
 
 @pytest.fixture
@@ -374,12 +465,17 @@ def patched_ee(monkeypatch):
     fake_reducer    = _FakeReducerFactory()
 
     # Reconstruct ee.* surface as a single object with the attributes
-    # _server_side_hf reads: Number, Algorithms, Reducer, Feature.
+    # _server_side_hf reads: Number, Algorithms, Reducer, Feature, Filter,
+    # Dictionary. (Filter and Dictionary added by M-TIER-A1 Step 8 Option A
+    # — the new aggregation path uses fc.filter(ee.Filter.eq(...)) and
+    # ee.Dictionary({...}).getInfo() to count distinct day-buckets.)
     class FakeEE:
         Number     = _FakeNumber
         Algorithms = fake_algorithms
         Reducer    = fake_reducer
         Feature    = _FakeFeature
+        Filter     = _FakeFilter
+        Dictionary = _FakeDictionaryConstructor
 
     monkeypatch.setattr("engine.core.repeatable_core.ee", FakeEE)
     monkeypatch.setattr(
@@ -447,13 +543,16 @@ class TestServerSideHfEEBugCoverage:
         `default=0.0` would call `reduction.get(mean_key)` → None →
         `_FakeNumber(None)` → raise, surfacing the regression.
 
-        Mixed payload: 3 images have valid pixels (Count=4, Mean=6e-5,
+        Mixed payload: 3 images have valid pixels (Count=4, Mean=7.5e-5,
         above threshold), 7 have zero valid pixels (key entirely
         absent — bug 2 trigger). Post-fix:
           - n_valid = 3
-          - n_hot   = 3  (all valid images cross z = (6e-5 − 5e-5)/1e-5 = 1
-                          ... wait that's 1, not ≥ 2. Pick mean so z ≥ 2.)
-        With mean=7.5e-5, z = (7.5e-5 − 5e-5)/1e-5 = 2.5 ≥ 2 → hot.
+          - n_hot   = 3  (all valid images cross z = (7.5e-5 − 5e-5)/1e-5 = 2.5)
+        Each image gets a distinct UTC time_start so the new date-counting
+        path (Option A) attributes each to its own day-bucket — without
+        spread, all images would collapse to one day and n_valid would
+        be 1 even on the happy path. The original 100-cap concern is
+        unaffected by the spread (we're well under 100 here).
         """
         from engine.core.repeatable_core import _server_side_hf
 
@@ -464,9 +563,15 @@ class TestServerSideHfEEBugCoverage:
         # when its Mean reducer omits the band on zero pixels.
         missing_key_reduction = {f"{self._BAND}_count": 0}
 
+        # Distinct UTC days for each image — one image per day-bucket so
+        # the day-counting layer doesn't collapse the test.
+        ms_day = 86_400_000
         images = (
-            [_FakeImage(valid_reduction) for _ in range(3)]
-            + [_FakeImage(missing_key_reduction) for _ in range(7)]
+            [_FakeImage(valid_reduction, time_start=i * ms_day) for i in range(3)]
+            + [
+                _FakeImage(missing_key_reduction, time_start=(i + 3) * ms_day)
+                for i in range(7)
+            ]
         )
         ic = _FakeImageCollection(images)
 
@@ -492,23 +597,25 @@ class TestServerSideHfEEBugCoverage:
         """Step C Finding 1 (the under-counting that motivated the
         whole refactor): the legacy _per_date_site_series capped at
         100 images via `.limit(100)`. _server_side_hf maps over the
-        WHOLE collection — verify by feeding 500 images and asserting
-        all 500 are reduced.
+        WHOLE collection — verify by feeding 500 images spread across
+        500 distinct UTC days (post-Option-A date-counting semantics).
 
-        Mixed valid/invalid 50/50 so n_valid lands at 250, well past
-        the legacy 100-cap that would have artificially clamped it.
+        Mixed valid/invalid 50/50, interleaved 1-day apart, so 250
+        distinct valid days are seen — well past the legacy 100-cap
+        that would have artificially clamped it.
         """
         from engine.core.repeatable_core import _server_side_hf
 
         valid_reduction   = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
         invalid_reduction = {self._BAND: None, f"{self._BAND}_count": 0}
 
-        # Interleave to keep the first-100 slice mixed too — verifies
-        # no accidental .limit(100) anywhere in the chain.
+        # Interleave 250 valid + 250 invalid across 500 distinct UTC days.
+        # Day 0 is valid, day 1 is invalid, day 2 is valid, ...
+        ms_day = 86_400_000
         images: list[_FakeImage] = []
-        for _ in range(250):
-            images.append(_FakeImage(valid_reduction))
-            images.append(_FakeImage(invalid_reduction))
+        for day in range(500):
+            reduction = valid_reduction if day % 2 == 0 else invalid_reduction
+            images.append(_FakeImage(reduction, time_start=day * ms_day))
         ic = _FakeImageCollection(images)
         assert len(images) == 500
 
@@ -522,8 +629,8 @@ class TestServerSideHfEEBugCoverage:
             scale=1113.2,
         )
         assert n_valid == 250, (
-            f"Expected all 250 valid images to be counted (no cap); got "
-            f"{n_valid}. If this is ~100, the .limit(100) cap has been "
+            f"Expected all 250 valid DAYS to be counted (no cap, no .limit); "
+            f"got {n_valid}. If this is ~100, the .limit(100) cap has been "
             f"reintroduced somewhere in _server_side_hf's chain."
         )
         # z = (6e-5 − 5e-5)/1e-5 = 1.0 < 2.0 → none hot.
@@ -535,11 +642,15 @@ class TestServerSideHfEEBugCoverage:
         """Sanity check the degenerate-background branch: n_valid still
         counted, HF returns None (no z computable). Not a bug-fix test
         but the degenerate-branch was added as part of the Step B
-        refactor and would otherwise be uncovered."""
+        refactor and would otherwise be uncovered. Ten images on ten
+        distinct UTC days → n_valid = 10 (date count, not granule count)."""
         from engine.core.repeatable_core import _server_side_hf
 
+        ms_day = 86_400_000
         valid_reduction = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
-        ic = _FakeImageCollection([_FakeImage(valid_reduction) for _ in range(10)])
+        ic = _FakeImageCollection([
+            _FakeImage(valid_reduction, time_start=i * ms_day) for i in range(10)
+        ])
 
         n_valid, hf = _server_side_hf(
             aoi=self._AOI,
