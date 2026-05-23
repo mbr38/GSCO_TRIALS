@@ -175,7 +175,9 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
 2. **Performance: consider parallel chunks within an indicator.** Independent chunks of the same indicator could run concurrently via `ThreadPoolExecutor`. Would further reduce single-slow-indicator dominance. Estimated 3-4 hours. Defer pending whether (1) above is sufficient.
 
-3. **UX: drop AOD and CH4 from default indicator selection at small buffers.** Both are methodologically weak at sub-10 km scales and contribute most of the per-screening compute cost. Letting users opt in rather than opt out would dramatically improve default UX.
+3. **[REJECTED — 24 May 2026] UX: drop AOD and CH4 from default indicator selection at small buffers.** Both are methodologically weak at sub-10 km scales and contribute most of the per-screening compute cost. Letting users opt in rather than opt out would dramatically improve default UX.
+
+    User decision (24 May 2026): keep AOD and CH4 in the default selection. The strict-None semantics + survivor-renormalise at the pillar level already handle low-coverage cases gracefully (the indicators emit None and drop out of the pillar rollup without dragging the pillar score down). Removing them from the default would hide their availability from users who DO want them, particularly at large buffers where coverage is good (e.g. Distrito Federal had AOD n_valid=64 dates and CH4 n_valid=4 dates). The information cost of keeping them outweighs the speed cost (~10-15s per indicator at small buffers post-followup-#1).
 
 4. **PM₂.₅ / PM₁₀ persistently None at both demo sites.** Pre-existing engine issue, separate from A1. CAMS coverage at Brazilian latitudes or a band/QA filter issue. Worth a brief investigation.
 
@@ -210,6 +212,19 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 - The pre-fix "Brasilia AOD has 107 valid observations" finding from the Step C diagnostic was a granule count, not a date count. All comparisons of pre-fix to post-fix observation counts must account for this — granule counts and date counts are not the same unit.
 
 *Closed by claude.ai planning session, 23 May 2026. Anchored to `Indicators_Audit_and_v1x_Roadmap.md` v1.5 §1.1 + §6 Tier A1. Authoritative for M-TIER-A1 milestone state.*
+
+---
+
+## Roadmap as of 24 May 2026
+
+Next milestones in order, locked in claude.ai session 24 May 2026:
+
+1. UI surface for M-TIER-A1 — make P-05 confidence dots / P-09 Indicator Library cards / P-11 reports actually consume the new confidence_terms, n_valid_dates, granule_count fields emitted by the engine. Engine emits them; UI ignores them; demo audiences still see pre-A1 placeholders. Full scope (a + b + c). Estimated ~4-6 hours.
+2. Followup #2 — parallel chunks within an indicator. AOD's 9 sequential chunks (~150-225s at large buffers) → concurrent (~25s). Sapezal screening ~4 min → ~60-90s. Estimated ~3-4 hours.
+3. Followup #4 — investigate PM₂.₅/PM₁₀ persistently None at both demo sites. Pre-existing engine issue; investigation cost unknown.
+4. Followup #6 — investigate `nature.dw.class_confidence` landing at 0.47-0.49 at both demo sites (lowest Nature sub-score by margin). Sanity check that DW probability outputs are wired correctly.
+
+Followup #3 is REJECTED (see above). Tier A2 (trend engine) and Tier B1 (sensitivity analysis) remain on the audit-doc roadmap but are deferred until the above four are complete.
 
 ---
 
