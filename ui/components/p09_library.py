@@ -14,6 +14,7 @@ from demo.indicator_library import (
     get_esg_caveat,
     load_library,
 )
+from engine.constants import INDICATOR_CONFIDENCE_FAMILY
 
 
 # M-P09-COMPOSITES: fourth tab for cross-pillar / composite entries.
@@ -173,6 +174,15 @@ def _render_card(card: IndicatorCardContent) -> None:
         else:
             _render_raw_metadata(card)
 
+    # M-UI-A1-SURFACE Sub-milestone 4 (24 May 2026): per-family
+    # confidence explainer. Static text — live values stay on P-05
+    # (D5 lock). Placed BELOW the methodology block, not interleaved.
+    with st.expander(
+        "What confidence means for this indicator",
+        expanded=False,
+    ):
+        st.markdown(_confidence_explanation_for(card.indicator_id))
+
 
 # M-P09-COMPOSITES
 def _render_raw_metadata(card: IndicatorCardContent) -> None:
@@ -189,6 +199,95 @@ def _render_raw_metadata(card: IndicatorCardContent) -> None:
     st.markdown(f"**Scale.** {scale_str}")
     st.markdown(f"**Frequency.** {card.temporal_frequency}")
     st.markdown(f"**Type.** {card.data_type}")
+
+
+# ──────────────────────────────────────────────────────────────────
+# M-UI-A1-SURFACE Sub-milestone 4 — per-indicator confidence explainer
+# ──────────────────────────────────────────────────────────────────
+
+# Family copy lifted verbatim from the spec. Wording ties to
+# docs/M-TIER-A1_plain_language_explainer.md and Sub-milestone 2's
+# "What's behind this confidence?" expander on P-05.
+_LIVE_REVISIT_EXPLANATION: str = (
+    "Confidence for this indicator is computed from four factors: "
+    "(1) the quality of the raw sensor data after QA filtering, "
+    "(2) the number of valid observation days within the analysis "
+    "window vs how many were expected for this sensor's revisit "
+    "cadence, (3) the strength of any anomaly observed (fraction of "
+    "days that crossed the threshold), (4) how well the satellite's "
+    "pixel size matches the analysis buffer. Sensors that measure the "
+    "whole air column rather than ground-level (NO₂, SO₂, CO, HCHO, "
+    "CH₄) carry an additional discount per audit §1.5. See the "
+    "'What's behind this confidence?' expander on P-05 for the live "
+    "breakdown."
+)
+
+_SINGLE_SNAPSHOT_EXPLANATION: str = (
+    "Confidence for this reference dataset is 1.0 by construction "
+    "when the dataset is in coverage — these are static or annual "
+    "sources without per-observation noise. The relevant audit "
+    "context is the dataset's vintage and coverage window (visible "
+    "in the 'Datasets used' expander on P-05). If the analysis "
+    "window falls outside the dataset's coverage (e.g. ODIAC CO₂ "
+    "at 2020-2023 vintage queried for a 2026 window), the indicator "
+    "is skipped entirely with skipped_reason='out_of_coverage' and "
+    "does not contribute to its pillar — vintage drift makes "
+    "'confidence = 1.0' inapplicable until the dataset is updated."
+)
+
+_DERIVED_EXPLANATION: str = (
+    "This is a derived sub-score computed from multiple primary "
+    "indicators. Its confidence flows from the survivor-renormalised "
+    "aggregate of contributing indicators (strict-None propagates "
+    "from any indicator that failed). The pillar-level confidence "
+    "(composite.confidence) is the min of all three pillar "
+    "confidences per the conservative-aggregation rule. Note: this "
+    "explanation describes the *confidence* attached to a derived "
+    "score — not the score itself, which is computed via the formula "
+    "and weights shown above. Score aggregation uses the rule "
+    "appropriate to each pillar (mean for composite.overall_screening; "
+    "weighted sums or formulas for pillar-level scores)."
+)
+
+_FOOTER: str = (
+    "Live confidence values for this indicator appear on P-05 when "
+    "a screening is run."
+)
+
+_UNKNOWN_FALLBACK: str = (
+    "Confidence for this indicator is not yet documented. See P-05 "
+    "for live values when a screening is run."
+)
+
+_FAMILY_EXPLANATIONS: dict[str, str] = {
+    "live_revisit":    _LIVE_REVISIT_EXPLANATION,
+    "single_snapshot": _SINGLE_SNAPSHOT_EXPLANATION,
+    "derived":         _DERIVED_EXPLANATION,
+}
+
+
+def _confidence_explanation_for(indicator_id: str) -> str:
+    """Return a 2-3 sentence plain-language explanation of confidence
+    for the given indicator's family.
+
+    Lookup is two-tiered: the full ``indicator_id`` is tried first
+    (which is what disambiguates ``nature.habitat.conversion_score``
+    as ``derived`` from the raw ``nature.habitat`` single_snapshot
+    base), then the first two dot-segments as a fallback for raw IDs
+    like ``air.no2.score`` → ``air.no2``.
+
+    Unknown IDs return a short fallback without the footer (so the
+    footer's promise of "live values on P-05" doesn't make a claim we
+    can't keep).
+    """
+    family = INDICATOR_CONFIDENCE_FAMILY.get(indicator_id)
+    if family is None:
+        base = ".".join(indicator_id.split(".")[:2])
+        family = INDICATOR_CONFIDENCE_FAMILY.get(base)
+    if family is None:
+        return _UNKNOWN_FALLBACK
+    explanation = _FAMILY_EXPLANATIONS[family]
+    return f"{explanation}\n\n{_FOOTER}"
 
 
 # M-P09-COMPOSITES (v2 — three-branch dispatch)

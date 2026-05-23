@@ -414,6 +414,73 @@ SINGLE_SNAPSHOT_INDICATORS: frozenset[str] = frozenset({
     "nature.regional_loss_evidence",
 })
 
+# M-UI-A1-SURFACE Sub-milestone 4 (24 May 2026): per-indicator family
+# classifier driving the P-09 Indicator Library's "What confidence
+# means for this indicator" expander. Three families:
+#
+#   - live_revisit:   sensors with per-observation noise; the A1
+#                     confidence_terms (qa/n_valid/anomaly_strength/
+#                     spatial_context × column_to_surface multiplier)
+#                     genuinely move with the data per screening.
+#   - single_snapshot: static or annual reference datasets without
+#                     per-observation noise; confidence saturates at
+#                     1.0 by construction.
+#   - derived:        sub-aggregates / pillar priorities / composite
+#                     score. Their confidence flows from the
+#                     survivor-renormalised aggregate of contributing
+#                     indicators (strict-None propagation; composite
+#                     uses the conservative-aggregation min rule).
+#
+# Keys are mixed full-id and base-id. The lookup helper in
+# `ui.components.p09_library._confidence_explanation_for` tries the
+# full ID first, then falls back to the first two dot-segments — the
+# raw-vs-derived collision at "nature.habitat" (raw natural_loss_ha vs
+# derived conversion_score) is disambiguated by registering the
+# derived ID's FULL form explicitly.
+INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
+    # Raw — live-revisit (base form, matches all .score / .* suffixes).
+    "air.no2":     "live_revisit",
+    "air.so2":     "live_revisit",
+    "air.co":      "live_revisit",
+    "air.hcho":    "live_revisit",
+    "air.o3":      "live_revisit",
+    "air.aai":     "live_revisit",
+    "air.aod":     "live_revisit",
+    "air.pm25":    "live_revisit",
+    "air.pm10":    "live_revisit",
+    "ghg.ch4":     "live_revisit",
+    "ghg.viirs":   "live_revisit",
+    "nature.ndvi": "live_revisit",
+    # Raw — single-snapshot (base form).
+    "ghg.co2":                       "single_snapshot",  # ODIAC annual
+    "nature.kba":                    "single_snapshot",
+    "nature.habitat":                "single_snapshot",
+    "nature.forest_loss":            "single_snapshot",  # Hansen annual
+    "nature.regional_loss_evidence": "single_snapshot",
+    "nature.recovery":               "single_snapshot",
+    "nature.water":                  "single_snapshot",
+    "nature.dw":                     "single_snapshot",
+    # Derived — full id, NOT base, so "nature.habitat.conversion_score"
+    # is correctly tagged derived and doesn't fall through to the raw
+    # "nature.habitat" single_snapshot entry via the base-form fallback.
+    "air.pollution_proxy_score":        "derived",
+    "air.spatiotemporal_anomaly_score": "derived",
+    "air.trend_score":                  "derived",
+    "air.attribution_confidence_score": "derived",
+    "ghg.core_audit_support":           "derived",
+    "ghg.spatiotemporal_anomaly":       "derived",
+    "ghg.trend":                        "derived",
+    "ghg.data_quality_attribution":     "derived",
+    "nature.biodiversity_exposure":     "derived",
+    "nature.habitat.conversion_score":  "derived",
+    "nature.vegetation_condition":      "derived",
+    "nature.quality_attribution":       "derived",
+    "air.audit_followup_priority":      "derived",
+    "ghg.audit_followup_priority":      "derived",
+    "nature.followup_priority":         "derived",
+    "composite.overall_screening":      "derived",
+}
+
 # Native pixel area (m²) per indicator, used by the spatial_context term.
 # `0.0` flags vector / non-raster data → spatial_context = 1.0 (no penalty).
 NATIVE_PIXEL_AREA_M2: dict[str, float] = {

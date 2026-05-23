@@ -264,11 +264,12 @@ def test_render_provenance_appendix_renders_entries_when_present():
     assert "OK" in out
 
 
-def test_provenance_appendix_renders_extra_fields_excluding_confidence_terms():
-    """M-UI-A1-SURFACE Sub-milestone 3 — the audit-transparency extras
-    (n_valid_dates / granule_count + indicator-specific fields) must
-    appear in the appendix, while confidence_terms is deliberately
-    excluded (its surface is the P-05 C5 expander, not the report).
+def test_pdf_appendix_renders_only_audit_transparency_keys():
+    """M-UI-A1-SURFACE Sub-milestone 3 polish (24 May 2026) — the PDF
+    extras section is gated to ``_PDF_AUDIT_TRANSPARENCY_KEYS``
+    (n_valid_dates + granule_count). Engineering calibration
+    parameters like aod_qa_bit_mask / lookback_years / placeholder /
+    distance_decay_km belong in the CSV, NOT the PDF appendix.
     """
     extra = {
         "_provenance.air.aod": {
@@ -276,9 +277,14 @@ def test_provenance_appendix_renders_extra_fields_excluding_confidence_terms():
             "native_scale_m": 1000.0,
             "time_range":     ("2026-02-22", "2026-05-23"),
             "extra": {
-                "aod_qa_bit_mask": "0xF00",
+                # In allowlist — these surface.
                 "n_valid_dates":   64,
                 "granule_count":   3712,
+                # NOT in allowlist — engineering noise, must be hidden.
+                "aod_qa_bit_mask": "0xF00",
+                "lookback_years":   5,
+                "placeholder":      "ignored",
+                # confidence_terms also still hidden (P-05 owns that surface).
                 "confidence_terms": {
                     "qa": 0.90, "n_valid": 1.0,
                     "anomaly_strength": 0.0, "spatial_context": 1.0,
@@ -286,50 +292,72 @@ def test_provenance_appendix_renders_extra_fields_excluding_confidence_terms():
                 },
             },
         },
-        "_provenance.ghg.ch4": {
-            "asset_id":       "COPERNICUS/S5P/OFFL/L3_CH4",
-            "native_scale_m": 7000.0,
-            "time_range":     ("2026-02-22", "2026-05-23"),
-            "extra": {
-                "n_valid_dates": 4,
-                "granule_count": 56,
-                "confidence_terms": {
-                    "qa": 0.85, "n_valid": 0.27,
-                    "anomaly_strength": 0.0, "spatial_context": 1.0,
-                    "column_to_surface_uncertainty": "weak",
-                },
-            },
+    }
+    src = _screening_source(extra_payload=extra)
+    out = _render_provenance_appendix(_state(), [src])
+    # The audit-transparency story is rendered as English prose.
+    assert "distinct dates observed"        in out
+    assert "raw images"                     in out
+    # Both numbers surface (with thousands separators for readability).
+    assert "64"    in out
+    assert "3,712" in out
+    # Engineering calibration parameters MUST NOT leak into the PDF.
+    assert "aod_qa_bit_mask" not in out
+    assert "0xF00"           not in out
+    assert "lookback_years"  not in out
+    assert "placeholder"     not in out
+    # confidence_terms and inner term keys still excluded — P-05 owns that.
+    assert "confidence_terms" not in out
+    assert "anomaly_strength" not in out
+
+
+def test_pdf_appendix_omits_single_swath_indicators():
+    """Indicators where ``granule_count == n_valid_dates`` (single-
+    image-per-day: NO2, SO2, CO, HCHO, O3, AAI, PM2.5, PM10, NDVI,
+    VIIRS) have no multi-swath story and are omitted from the bullet
+    list. Only multi-swath divergence (AOD, CH4) surfaces."""
+    extra = {
+        # Single-swath: granule_count == n_valid_dates — must be omitted.
+        "_provenance.air.no2": {
+            "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
+            "extra": {"n_valid_dates": 72, "granule_count": 72},
+        },
+        # Multi-swath: granule_count >> n_valid_dates — must surface.
+        "_provenance.air.aod": {
+            "asset_id": "MODIS/061/MCD19A2_GRANULES",
+            "extra": {"n_valid_dates": 64, "granule_count": 3712},
         },
     }
     src = _screening_source(extra_payload=extra)
     out = _render_provenance_appendix(_state(), [src])
-    assert "Audit-transparency extras" in out
-    # Pretty-named labels surface for both indicators.
-    assert "Valid dates observed"        in out
-    assert "Raw image (granule) count"   in out
-    assert "64"                          in out
-    assert "3712"                        in out
-    # AOD-specific defensive raw-key passthrough still works.
-    assert "aod_qa_bit_mask" in out
-    assert "0xF00"           in out
-    # confidence_terms must NOT appear in the appendix — its UI home is
-    # the P-05 C5 "What's behind this confidence?" expander.
-    assert "confidence_terms" not in out
-    # And none of confidence_terms' inner term keys leak through either.
-    assert "anomaly_strength" not in out
+    assert "air.aod" in out
+    # NO2 is intentionally omitted from the audit-transparency bullet
+    # list (it still appears in the main provenance table above — the
+    # assertion below scopes to the audit-transparency block).
+    extras_block_start = out.find("Audit-transparency extras")
+    assert extras_block_start != -1
+    extras_block = out[extras_block_start:]
+    assert "air.no2" not in extras_block
 
 
-def test_provenance_appendix_omits_extras_section_when_no_non_confidence_extras():
-    """Pre-M-TIER-A1 payloads (no `extra` populated, or only
-    confidence_terms) must not produce a dangling 'Audit-transparency
-    extras' heading with an empty list. Graceful degradation."""
-    payload_only_conf_terms = {
+def test_pdf_appendix_omits_section_entirely_when_no_multi_swath():
+    """Graceful degradation: when every indicator has
+    ``granule_count == n_valid_dates`` (or no extras at all, like
+    pre-engine-fix payloads), the entire 'Audit-transparency extras'
+    heading is omitted. No dangling empty section."""
+    extra = {
+        # Single-swath indicator (no multi-swath story).
         "_provenance.air.no2": {
-            "asset_id":   "X",
-            "extra":      {"confidence_terms": {"qa": 0.9}},
+            "asset_id": "X",
+            "extra":    {"n_valid_dates": 72, "granule_count": 72},
+        },
+        # Pre-engine-fix shape — no n_valid_dates / granule_count at all.
+        "_provenance.nature.kba": {
+            "asset_id": "Y",
+            "extra":    {"confidence_terms": {"qa": 1.0}},
         },
     }
-    src = _screening_source(extra_payload=payload_only_conf_terms)
+    src = _screening_source(extra_payload=extra)
     out = _render_provenance_appendix(_state(), [src])
     assert "Audit-transparency extras" not in out
 

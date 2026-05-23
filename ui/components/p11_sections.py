@@ -421,72 +421,71 @@ def _render_provenance_for_payload(payload) -> str:
     return "\n".join(blocks)
 
 
-# Pretty-name lookup mirroring ui.components.c5_drilldown._EXTRA_FIELD_LABELS.
-# Kept in lockstep so the in-app expander and the PDF appendix label the
-# same fields identically.
-_EXTRA_FIELD_LABELS: dict[str, str] = {
-    "n_valid_dates":                "Valid dates observed",
-    "granule_count":                "Raw image (granule) count",
-    "column_to_surface_multiplier": "Column-to-surface multiplier",
-}
-
-
-def _format_extra_value_html(value) -> str:
-    """HTML-escaped extra-field value formatter. Mirrors the markdown
-    helper in c5_drilldown but returns text safe for HTML embedding."""
-    if value is None:
-        return "—"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int):
-        return str(value)
-    if isinstance(value, float):
-        return f"{value:.3f}"
-    if isinstance(value, (list, tuple, dict)):
-        try:
-            import json
-            return html.escape(json.dumps(value, default=str))
-        except (TypeError, ValueError):
-            return html.escape(repr(value))
-    return html.escape(str(value))
+# M-UI-A1-SURFACE Sub-milestone 3 polish (24 May 2026): the PDF
+# audience is business / audit-reviewer-facing and benefits from a
+# narrow, narrative surface. Engineering calibration parameters
+# (aod_qa_bit_mask, distance_decay_km, conversion_saturation_pct,
+# ndvi_negative_trend_threshold, baseline_*, ring/buffer_loss_rate_*,
+# hansen_max_loss_year, lookback_years, ratio_threshold, etc.) belong
+# in the CSV export (which already carries them as dedicated columns);
+# the PDF appendix surfaces only the multi-swath dates-vs-granules
+# story the M-TIER-A1 close-entry promised. confidence_terms is
+# still excluded — that surface lives in the P-05 C5 "What's behind
+# this confidence?" expander.
+_PDF_AUDIT_TRANSPARENCY_KEYS: frozenset[str] = frozenset({
+    "n_valid_dates",
+    "granule_count",
+})
 
 
 def _render_provenance_extras(prov_blocks: list[tuple[str, dict]]) -> str:
     """Build the per-indicator audit-transparency sub-block.
 
-    Iterates over each indicator's provenance.extra dict; emits one row
-    per non-empty indicator with key:value pairs joined by " · ". The
-    block is omitted entirely if no indicator carries non-confidence_terms
-    extras — so payloads pre-dating the M-TIER-A1 engine-gap fix render
-    just like before (no orphan empty section).
+    Renders as English prose, one bullet per indicator where
+    ``granule_count > n_valid_dates`` (multi-swath products like
+    MAIAC AOD at ~58 granules/day, S5P L3 CH4 at ~14×). Single-image-
+    per-day products (NO2, SO2, CO, HCHO, O3, AAI, PM2.5, PM10, NDVI,
+    VIIRS) have ``granule_count == n_valid_dates`` and would tell no
+    story — they're omitted.
+
+    The entire section is omitted when no indicator has multi-swath
+    divergence (e.g. pre-engine-fix payloads with no extras, or
+    payloads with only single-image-per-day products) so the PDF
+    doesn't carry a dangling empty heading.
+
+    Allowlist enforcement: only ``_PDF_AUDIT_TRANSPARENCY_KEYS`` are
+    read from ``provenance.extra``. See that constant's comment for
+    the boundary rationale.
     """
     rows: list[str] = []
     for ind_id, prov in sorted(prov_blocks):
         extra = prov.get("extra")
-        if not isinstance(extra, dict) or not extra:
+        if not isinstance(extra, dict):
             continue
-        cells: list[str] = []
-        for key, value in extra.items():
-            if key == "confidence_terms":
-                continue
-            label = _EXTRA_FIELD_LABELS.get(key, key)
-            cells.append(
-                f"<strong>{html.escape(label)}:</strong> "
-                f"{_format_extra_value_html(value)}"
-            )
-        if not cells:
+        # Read only the allowlisted keys; everything else is engineering
+        # calibration that belongs in the CSV, not the PDF appendix.
+        n_valid_dates = extra.get("n_valid_dates")
+        granule_count = extra.get("granule_count")
+        if not isinstance(n_valid_dates, int) or not isinstance(granule_count, int):
             continue
+        if granule_count <= n_valid_dates:
+            continue  # single-image-per-day — no audit story to tell.
         rows.append(
             f"<li><strong>{html.escape(ind_id)}</strong> — "
-            f"{' &middot; '.join(cells)}</li>"
+            f"{n_valid_dates:,} distinct dates observed across "
+            f"{granule_count:,} raw images</li>"
         )
     if not rows:
         return ""
     return (
         "<h4>Audit-transparency extras</h4>\n"
+        "<p><em>Multi-swath satellite indicators, showing distinct "
+        "observation dates vs raw image counts processed.</em></p>\n"
         "<ul class='provenance-extras'>\n"
         + "\n".join(rows)
-        + "\n</ul>"
+        + "\n</ul>\n"
+        "<p><em>Per-indicator engineering parameters are available "
+        "in the CSV export.</em></p>"
     )
 
 

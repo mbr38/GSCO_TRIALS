@@ -8,7 +8,12 @@ is in ``_filter_cards`` and ``_collect_esg_terms``.
 from __future__ import annotations
 
 from demo.indicator_library import IndicatorCardContent, load_library
-from ui.components.p09_library import _collect_esg_terms, _filter_cards
+from engine.constants import INDICATOR_CONFIDENCE_FAMILY
+from ui.components.p09_library import (
+    _collect_esg_terms,
+    _confidence_explanation_for,
+    _filter_cards,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -187,3 +192,90 @@ class TestCompositeTab:
         )
         names = {c.indicator_id for c in cards}
         assert "nature.biodiversity_exposure" in names
+
+
+# ---------------------------------------------------------------------------
+# M-UI-A1-SURFACE Sub-milestone 4 — confidence explainer
+# ---------------------------------------------------------------------------
+
+class TestConfidenceExplanationFor:
+    """Static per-family explanation text + the footer pointer to P-05."""
+
+    def test_confidence_explanation_for_live_revisit_indicator(self):
+        """`air.no2` → the four-factors explanation + footer."""
+        text = _confidence_explanation_for("air.no2")
+        assert "four factors"                                       in text
+        assert "Live confidence values for this indicator appear on P-05" in text
+
+    def test_confidence_explanation_for_single_snapshot_indicator(self):
+        """`nature.kba` → the static-reference explanation + footer.
+        R4 copy-tightening (24 May 2026): the explanation now also
+        covers the out-of-coverage vintage-drift case so an audit
+        reviewer doesn't read 'confidence = 1.0' as a universal
+        property of single-snapshot indicators.
+        """
+        text = _confidence_explanation_for("nature.kba")
+        assert "1.0 by construction"                                in text
+        assert "If the analysis window falls outside"               in text
+        assert "out_of_coverage"                                    in text
+        assert "Live confidence values for this indicator appear on P-05" in text
+
+    def test_confidence_explanation_for_derived_indicator(self):
+        """A representative derived ID returns the survivor-renormalise
+        explanation + footer. R4 copy-tightening (24 May 2026): the
+        explanation now disambiguates *confidence* aggregation from
+        *score* aggregation, since the composite-score uses mean()
+        while composite.confidence uses min() and conflating them is
+        an easy reading error.
+        """
+        text = _confidence_explanation_for("nature.biodiversity_exposure")
+        assert "derived sub-score"                                  in text
+        assert "describes the *confidence* attached to a derived score" in text
+        assert "Score aggregation uses the rule appropriate to each pillar" in text
+        assert "Live confidence values for this indicator appear on P-05" in text
+
+    def test_confidence_explanation_for_unknown_indicator(self):
+        """Unknown IDs return the fallback, which deliberately omits
+        the footer (so we don't promise P-05 live values for an ID
+        the engine doesn't emit)."""
+        text = _confidence_explanation_for("air.nonexistent")
+        assert "not yet documented" in text
+        assert "Live confidence values for this indicator appear on P-05" not in text
+
+    def test_confidence_explanation_resolves_full_indicator_id_via_base(self):
+        """Production code passes the card's full indicator_id (e.g.
+        `air.no2.score`). The two-tier lookup (full → base) must
+        resolve it to the live_revisit family."""
+        text = _confidence_explanation_for("air.no2.score")
+        assert "four factors" in text
+
+    def test_confidence_explanation_for_nature_habitat_disambiguates_raw_vs_derived(self):
+        """The collision case: `nature.habitat.natural_loss_ha` (raw,
+        single_snapshot) and `nature.habitat.conversion_score` (derived)
+        share the `nature.habitat` base. The full-id-first lookup must
+        route each to its correct family.
+        """
+        raw_text     = _confidence_explanation_for("nature.habitat.natural_loss_ha")
+        derived_text = _confidence_explanation_for("nature.habitat.conversion_score")
+        assert "1.0 by construction"  in raw_text
+        assert "derived sub-score"    in derived_text
+
+    def test_indicator_confidence_family_covers_all_p09_cards(self):
+        """Every card the library produces must have a family — full
+        indicator_id or its 2-segment base — registered in
+        ``INDICATOR_CONFIDENCE_FAMILY``. Catches future drift if a new
+        indicator is added to the library without a classifier entry.
+        """
+        library = load_library()
+        unclassified: list[str] = []
+        for indicator_id in library:
+            family = INDICATOR_CONFIDENCE_FAMILY.get(indicator_id)
+            if family is None:
+                base = ".".join(indicator_id.split(".")[:2])
+                family = INDICATOR_CONFIDENCE_FAMILY.get(base)
+            if family is None:
+                unclassified.append(indicator_id)
+        assert unclassified == [], (
+            f"P-09 cards without an INDICATOR_CONFIDENCE_FAMILY entry: "
+            f"{unclassified}. Add each to engine.constants."
+        )
