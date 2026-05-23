@@ -264,6 +264,76 @@ def test_render_provenance_appendix_renders_entries_when_present():
     assert "OK" in out
 
 
+def test_provenance_appendix_renders_extra_fields_excluding_confidence_terms():
+    """M-UI-A1-SURFACE Sub-milestone 3 — the audit-transparency extras
+    (n_valid_dates / granule_count + indicator-specific fields) must
+    appear in the appendix, while confidence_terms is deliberately
+    excluded (its surface is the P-05 C5 expander, not the report).
+    """
+    extra = {
+        "_provenance.air.aod": {
+            "asset_id":       "MODIS/061/MCD19A2_GRANULES",
+            "native_scale_m": 1000.0,
+            "time_range":     ("2026-02-22", "2026-05-23"),
+            "extra": {
+                "aod_qa_bit_mask": "0xF00",
+                "n_valid_dates":   64,
+                "granule_count":   3712,
+                "confidence_terms": {
+                    "qa": 0.90, "n_valid": 1.0,
+                    "anomaly_strength": 0.0, "spatial_context": 1.0,
+                    "column_to_surface_uncertainty": "n_a",
+                },
+            },
+        },
+        "_provenance.ghg.ch4": {
+            "asset_id":       "COPERNICUS/S5P/OFFL/L3_CH4",
+            "native_scale_m": 7000.0,
+            "time_range":     ("2026-02-22", "2026-05-23"),
+            "extra": {
+                "n_valid_dates": 4,
+                "granule_count": 56,
+                "confidence_terms": {
+                    "qa": 0.85, "n_valid": 0.27,
+                    "anomaly_strength": 0.0, "spatial_context": 1.0,
+                    "column_to_surface_uncertainty": "weak",
+                },
+            },
+        },
+    }
+    src = _screening_source(extra_payload=extra)
+    out = _render_provenance_appendix(_state(), [src])
+    assert "Audit-transparency extras" in out
+    # Pretty-named labels surface for both indicators.
+    assert "Valid dates observed"        in out
+    assert "Raw image (granule) count"   in out
+    assert "64"                          in out
+    assert "3712"                        in out
+    # AOD-specific defensive raw-key passthrough still works.
+    assert "aod_qa_bit_mask" in out
+    assert "0xF00"           in out
+    # confidence_terms must NOT appear in the appendix — its UI home is
+    # the P-05 C5 "What's behind this confidence?" expander.
+    assert "confidence_terms" not in out
+    # And none of confidence_terms' inner term keys leak through either.
+    assert "anomaly_strength" not in out
+
+
+def test_provenance_appendix_omits_extras_section_when_no_non_confidence_extras():
+    """Pre-M-TIER-A1 payloads (no `extra` populated, or only
+    confidence_terms) must not produce a dangling 'Audit-transparency
+    extras' heading with an empty list. Graceful degradation."""
+    payload_only_conf_terms = {
+        "_provenance.air.no2": {
+            "asset_id":   "X",
+            "extra":      {"confidence_terms": {"qa": 0.9}},
+        },
+    }
+    src = _screening_source(extra_payload=payload_only_conf_terms)
+    out = _render_provenance_appendix(_state(), [src])
+    assert "Audit-transparency extras" not in out
+
+
 # ---------------------------------------------------------------------------
 # 5k. _band_for_score
 # ---------------------------------------------------------------------------

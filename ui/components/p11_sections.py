@@ -408,7 +408,86 @@ def _render_provenance_for_payload(payload) -> str:
             f"<td>{status}</td></tr>"
         )
     blocks.append("</table>")
+
+    # M-UI-A1-SURFACE Sub-milestone 3 (24 May 2026): per-indicator
+    # audit-transparency extras (n_valid_dates, granule_count, …).
+    # confidence_terms is deliberately excluded — it has its own
+    # dedicated surface in the P-05 C5 "What's behind this confidence?"
+    # expander, not in the report appendix. Do NOT "fix" this exclusion
+    # without re-reading the M-UI-A1-SURFACE spec §3 sub-milestone 3.
+    extras_html = _render_provenance_extras(prov_blocks)
+    if extras_html:
+        blocks.append(extras_html)
     return "\n".join(blocks)
+
+
+# Pretty-name lookup mirroring ui.components.c5_drilldown._EXTRA_FIELD_LABELS.
+# Kept in lockstep so the in-app expander and the PDF appendix label the
+# same fields identically.
+_EXTRA_FIELD_LABELS: dict[str, str] = {
+    "n_valid_dates":                "Valid dates observed",
+    "granule_count":                "Raw image (granule) count",
+    "column_to_surface_multiplier": "Column-to-surface multiplier",
+}
+
+
+def _format_extra_value_html(value) -> str:
+    """HTML-escaped extra-field value formatter. Mirrors the markdown
+    helper in c5_drilldown but returns text safe for HTML embedding."""
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    if isinstance(value, (list, tuple, dict)):
+        try:
+            import json
+            return html.escape(json.dumps(value, default=str))
+        except (TypeError, ValueError):
+            return html.escape(repr(value))
+    return html.escape(str(value))
+
+
+def _render_provenance_extras(prov_blocks: list[tuple[str, dict]]) -> str:
+    """Build the per-indicator audit-transparency sub-block.
+
+    Iterates over each indicator's provenance.extra dict; emits one row
+    per non-empty indicator with key:value pairs joined by " · ". The
+    block is omitted entirely if no indicator carries non-confidence_terms
+    extras — so payloads pre-dating the M-TIER-A1 engine-gap fix render
+    just like before (no orphan empty section).
+    """
+    rows: list[str] = []
+    for ind_id, prov in sorted(prov_blocks):
+        extra = prov.get("extra")
+        if not isinstance(extra, dict) or not extra:
+            continue
+        cells: list[str] = []
+        for key, value in extra.items():
+            if key == "confidence_terms":
+                continue
+            label = _EXTRA_FIELD_LABELS.get(key, key)
+            cells.append(
+                f"<strong>{html.escape(label)}:</strong> "
+                f"{_format_extra_value_html(value)}"
+            )
+        if not cells:
+            continue
+        rows.append(
+            f"<li><strong>{html.escape(ind_id)}</strong> — "
+            f"{' &middot; '.join(cells)}</li>"
+        )
+    if not rows:
+        return ""
+    return (
+        "<h4>Audit-transparency extras</h4>\n"
+        "<ul class='provenance-extras'>\n"
+        + "\n".join(rows)
+        + "\n</ul>"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────

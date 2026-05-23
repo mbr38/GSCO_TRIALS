@@ -16,6 +16,7 @@ from __future__ import annotations
 import csv
 from io import StringIO
 
+from engine.constants import COLUMN_TO_SURFACE_MULTIPLIER
 from ui.components.p04_indicator_registry import INDICATORS_BY_PILLAR
 
 
@@ -37,6 +38,15 @@ _COLUMNS = (
     "time_range_start",
     "time_range_end",
     "skipped_reason",
+    # M-UI-A1-SURFACE Sub-milestone 5 (24 May 2026) — A1 audit-transparency
+    # columns. Empty strings for indicators that don't carry the field.
+    "confidence_term_qa",
+    "confidence_term_n_valid",
+    "confidence_term_anomaly_strength",
+    "confidence_term_spatial_context",
+    "column_to_surface_multiplier",
+    "n_valid_dates",
+    "granule_count",
 )
 
 
@@ -137,6 +147,21 @@ def _build_row(
     score = payload.get(indicator_id)
     confidence = payload.get(f"{base}.confidence")
     time_range = provenance.get("time_range") or (None, None)
+    extra = provenance.get("extra") if isinstance(provenance.get("extra"), dict) else {}
+    confidence_terms = extra.get("confidence_terms") if isinstance(extra.get("confidence_terms"), dict) else {}
+
+    # M-UI-A1-SURFACE Sub-milestone 5 (24 May 2026): derive the
+    # column-to-surface multiplier from the enum tag in confidence_terms.
+    # The engine doesn't emit the multiplier as a separate extra field
+    # today; this CSV column gives reviewers the numeric value they
+    # actually want, derived from the canonical enum lookup so the CSV
+    # stays in lockstep with the engine constants.
+    uncertainty_tag = confidence_terms.get("column_to_surface_uncertainty")
+    column_multiplier = (
+        COLUMN_TO_SURFACE_MULTIPLIER.get(uncertainty_tag)
+        if uncertainty_tag else None
+    )
+
     return {
         "source_name":      source_name,
         "source_type":      source_type,
@@ -149,6 +174,15 @@ def _build_row(
         "time_range_start": (time_range[0] or "") if time_range else "",
         "time_range_end":   (time_range[1] or "") if time_range else "",
         "skipped_reason":   provenance.get("skipped_reason") or "",
+        # A1 audit-transparency columns. Empty strings (not "None") for
+        # absent fields; _fmt_value / _fmt_int already handle None.
+        "confidence_term_qa":               _fmt_value(confidence_terms.get("qa")),
+        "confidence_term_n_valid":          _fmt_value(confidence_terms.get("n_valid")),
+        "confidence_term_anomaly_strength": _fmt_value(confidence_terms.get("anomaly_strength")),
+        "confidence_term_spatial_context":  _fmt_value(confidence_terms.get("spatial_context")),
+        "column_to_surface_multiplier":     _fmt_value(column_multiplier),
+        "n_valid_dates":                    _fmt_int(extra.get("n_valid_dates")),
+        "granule_count":                    _fmt_int(extra.get("granule_count")),
     }
 
 
@@ -181,5 +215,17 @@ def _fmt_scale(value) -> str:
         return ""
     try:
         return f"{float(value):g}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def _fmt_int(value) -> str:
+    """Format an integer-typed extra field. Empty string for None /
+    non-numeric. Used by M-UI-A1-SURFACE Sub-milestone 5 for the
+    n_valid_dates and granule_count columns (which are int-valued)."""
+    if value is None:
+        return ""
+    try:
+        return str(int(value))
     except (TypeError, ValueError):
         return ""

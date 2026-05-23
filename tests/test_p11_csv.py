@@ -194,6 +194,87 @@ def test_csv_skipped_reason_propagates_from_provenance():
 
 
 # ---------------------------------------------------------------------------
+# M-UI-A1-SURFACE Sub-milestone 5 — A1 audit-transparency columns
+# ---------------------------------------------------------------------------
+
+def test_csv_row_includes_all_a1_extra_columns():
+    """Spec — for an indicator with the full M-TIER-A1 + engine-gap
+    extras dict, all 7 new columns appear in the header AND carry the
+    expected values for a sample row.
+    """
+    payload = {
+        "air.no2.score": 0.45,
+        "air.no2.confidence": 0.684,
+        "_provenance.air.no2": {
+            "asset_id":       "COPERNICUS/S5P/OFFL/L3_NO2",
+            "native_scale_m": 1113.0,
+            "time_range":     ("2026-02-22", "2026-05-23"),
+            "extra": {
+                "confidence_terms": {
+                    "qa":               0.90,
+                    "n_valid":          1.00,
+                    "anomaly_strength": 0.00,
+                    "spatial_context":  1.00,
+                    "column_to_surface_uncertainty": "moderate",
+                },
+                "n_valid_dates": 64,
+                "granule_count": 64,
+            },
+        },
+    }
+    out = render_csv(_state(), [_screening_source(payload=payload)])
+    header, rows = _parse(out)
+
+    # Header carries every new column in the locked order.
+    for col in (
+        "confidence_term_qa",
+        "confidence_term_n_valid",
+        "confidence_term_anomaly_strength",
+        "confidence_term_spatial_context",
+        "column_to_surface_multiplier",
+        "n_valid_dates",
+        "granule_count",
+    ):
+        assert col in header
+
+    no2_row = next(r for r in rows if r["indicator_id"] == "air.no2.score")
+    assert no2_row["confidence_term_qa"]               == "0.9000"
+    assert no2_row["confidence_term_n_valid"]          == "1.0000"
+    assert no2_row["confidence_term_anomaly_strength"] == "0.0000"
+    assert no2_row["confidence_term_spatial_context"]  == "1.0000"
+    # multiplier derived from `moderate` → 0.95 via the engine constant.
+    assert no2_row["column_to_surface_multiplier"]     == "0.9500"
+    # Integer-typed fields render as bare ints, not 4-decimal floats.
+    assert no2_row["n_valid_dates"] == "64"
+    assert no2_row["granule_count"] == "64"
+
+
+def test_csv_row_a1_columns_empty_for_indicator_without_extras():
+    """An indicator with no provenance.extra (or empty extra) must
+    leave the 7 new columns blank — never crash, never literal 'None'."""
+    payload = {
+        "air.no2.score":      0.45,
+        "_provenance.air.no2": {
+            "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
+            # No `extra` key at all.
+        },
+    }
+    out = render_csv(_state(), [_screening_source(payload=payload)])
+    _, rows = _parse(out)
+    no2_row = next(r for r in rows if r["indicator_id"] == "air.no2.score")
+    for col in (
+        "confidence_term_qa",
+        "confidence_term_n_valid",
+        "confidence_term_anomaly_strength",
+        "confidence_term_spatial_context",
+        "column_to_surface_multiplier",
+        "n_valid_dates",
+        "granule_count",
+    ):
+        assert no2_row[col] == ""
+
+
+# ---------------------------------------------------------------------------
 # 5g. empty source list → header-only CSV (no crash)
 # ---------------------------------------------------------------------------
 

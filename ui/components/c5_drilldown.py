@@ -619,6 +619,21 @@ def _compute_final_confidence(
     return c_raw, c_final, tag
 
 
+def _should_render_column_to_surface_row(tag: str | None) -> bool:
+    """True iff the column-to-surface multiplier is < 1.0.
+
+    M-UI-A1-SURFACE Sub-milestone 2 fix (24 May 2026). When the
+    multiplier is 1.00 (tags ``n_a`` and ``strong``), the row adds no
+    information — the formula's contribution is the same as if the
+    multiplier weren't applied — so the expander suppresses it. The
+    row only renders for tags that actually penalise: ``moderate``
+    (0.95), ``moderate_weak`` (0.88), ``weak`` (0.80).
+    """
+    if not tag or tag not in COLUMN_TO_SURFACE_MULTIPLIER:
+        return False
+    return COLUMN_TO_SURFACE_MULTIPLIER[tag] < 1.0
+
+
 def _render_confidence_terms(terms: dict | None) -> None:
     """Render the 4-term confidence breakdown inside an expandable section.
 
@@ -661,18 +676,20 @@ def _render_confidence_terms(terms: dict | None) -> None:
 
     c_raw, c_final, tag = _compute_final_confidence(terms)
     st.divider()
-    col_tag, col_mult = st.columns([3, 3])
-    with col_tag:
-        st.markdown("**Column-to-surface adjustment**")
-        st.caption(_COLUMN_TO_SURFACE_CAPTION)
-    with col_mult:
-        if tag and tag in COLUMN_TO_SURFACE_MULTIPLIER:
-            multiplier = COLUMN_TO_SURFACE_MULTIPLIER[tag]
+    # M-UI-A1-SURFACE Sub-milestone 2 fix (24 May 2026): suppress the
+    # column-to-surface adjustment row entirely when the multiplier is
+    # 1.00 (i.e. tag in {`n_a`, `strong`}). The row only adds visual
+    # noise when the multiplier doesn't actually penalise the score.
+    if _should_render_column_to_surface_row(tag):
+        multiplier = COLUMN_TO_SURFACE_MULTIPLIER[tag]
+        col_tag, col_mult = st.columns([3, 3])
+        with col_tag:
+            st.markdown("**Column-to-surface adjustment**")
+            st.caption(_COLUMN_TO_SURFACE_CAPTION)
+        with col_mult:
             st.markdown(
                 f"Tag: `{tag}` &nbsp; × **{multiplier:.2f}**"
             )
-        else:
-            st.caption("Not applicable")
 
     if c_final is not None:
         colour = band_colour(band_for_score(c_final))
@@ -805,6 +822,73 @@ def _render_provenance_block(provenance: dict) -> None:
     if method_note:
         details.append(f"- Method: {method_note}")
     st.markdown("\n".join(d for d in details if d))
+
+    # M-UI-A1-SURFACE Sub-milestone 3 (24 May 2026): iterate over the
+    # provenance.extra dict and surface audit-transparency fields.
+    # confidence_terms is deliberately excluded — it has its own
+    # dedicated surface in the "What's behind this confidence?"
+    # expander (Sub-milestone 2). Do NOT "fix" this exclusion without
+    # re-reading the M-UI-A1-SURFACE spec §3 sub-milestone 3 design
+    # decision: surfacing confidence_terms here would duplicate content.
+    extra_lines = _format_provenance_extra_lines(provenance.get("extra"))
+    if extra_lines:
+        st.markdown("**Extra (audit transparency)**")
+        st.markdown("\n".join(f"- {line}" for line in extra_lines))
+
+
+# Pretty-name lookup for the known A1 audit-transparency keys in
+# `provenance.extra`. Unknown keys fall through to a defensive raw-key
+# render so the iteration doesn't silently drop fields the engine adds
+# later without a UI update.
+_EXTRA_FIELD_LABELS: dict[str, str] = {
+    "n_valid_dates":               "Valid dates observed",
+    "granule_count":                "Raw image (granule) count",
+    "column_to_surface_multiplier": "Column-to-surface multiplier",
+}
+
+
+def _format_extra_value(value) -> str:
+    """Format an `extra` field value for a single-line label:value cell.
+
+    Ints render as ints; floats with 3 decimals; nested dicts/lists are
+    pretty-printed inline (compact JSON). Anything else falls through to
+    ``str(value)`` — defensive, never crashes.
+    """
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        # bool is a subclass of int — handle before the int branch.
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    if isinstance(value, (list, tuple, dict)):
+        try:
+            import json
+            return f"`{json.dumps(value, default=str)}`"
+        except (TypeError, ValueError):
+            return f"`{value!r}`"
+    return str(value)
+
+
+def _format_provenance_extra_lines(extra) -> list[str]:
+    """Pure helper — return a list of markdown lines for the extras section.
+
+    Returns an empty list when extra is None / empty / not a dict, or
+    when it contains only the ``confidence_terms`` key (which is rendered
+    separately in the C5 confidence-terms expander).
+    """
+    if not isinstance(extra, dict) or not extra:
+        return []
+    lines: list[str] = []
+    for key, value in extra.items():
+        if key == "confidence_terms":
+            # See _render_provenance_block — deliberate exclusion.
+            continue
+        label = _EXTRA_FIELD_LABELS.get(key, key)
+        lines.append(f"{label}: {_format_extra_value(value)}")
+    return lines
 
 
 # ---------------------------------------------------------------------------

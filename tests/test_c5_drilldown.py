@@ -27,7 +27,10 @@ from ui.components.c5_drilldown import (
     _build_confidence_terms_rows,
     _compute_final_confidence,
     _fmt,
+    _format_extra_value,
     _format_nature_confidence_line,
+    _format_provenance_extra_lines,
+    _should_render_column_to_surface_row,
 )
 
 
@@ -280,3 +283,79 @@ def test_compute_final_confidence_strict_none_propagates():
     c_raw, c_final, _ = _compute_final_confidence(partial)
     assert c_raw   is None
     assert c_final is None
+
+
+# ---------------------------------------------------------------------------
+# Column-to-surface row suppression (Sub-milestone 2 fix)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("tag", ["n_a", "strong"])
+def test_should_render_column_to_surface_row_hidden_when_multiplier_is_one(tag):
+    """The row only adds visual noise when the multiplier is 1.00 —
+    both tags map to 1.00 and must be suppressed."""
+    assert _should_render_column_to_surface_row(tag) is False
+
+
+@pytest.mark.parametrize("tag", ["moderate", "moderate_weak", "weak"])
+def test_should_render_column_to_surface_row_shown_when_multiplier_penalises(tag):
+    """The row renders for tags that actually penalise the confidence."""
+    assert _should_render_column_to_surface_row(tag) is True
+
+
+def test_should_render_column_to_surface_row_handles_none_and_unknown_tags():
+    """Defensive: None and unknown tags must not crash and must not render."""
+    assert _should_render_column_to_surface_row(None)         is False
+    assert _should_render_column_to_surface_row("unknown_tag") is False
+
+
+# ---------------------------------------------------------------------------
+# Provenance extra iteration (Sub-milestone 3)
+# ---------------------------------------------------------------------------
+
+def test_provenance_block_renders_extra_fields_excluding_confidence_terms():
+    """Spec — extra iteration must surface n_valid_dates / granule_count
+    and exclude confidence_terms (which has its own dedicated surface)."""
+    extra = {
+        "n_valid_dates": 47,
+        "granule_count": 2761,
+        "confidence_terms": {"qa": 0.85, "n_valid": 1.0},
+        "aod_qa_bit_mask": "0xF00",
+    }
+    lines = _format_provenance_extra_lines(extra)
+    rendered = "\n".join(lines)
+    assert "Valid dates observed: 47"        in rendered
+    assert "Raw image (granule) count: 2761" in rendered
+    # The pre-A1 indicator-specific key falls through to the raw label.
+    assert "aod_qa_bit_mask: 0xF00"          in rendered
+    # confidence_terms must NEVER appear here — it has its own home.
+    assert "confidence_terms" not in rendered
+    assert "qa: 0.85"         not in rendered
+
+
+def test_provenance_block_handles_missing_or_empty_extra():
+    """Defensive: a missing or empty extra dict must produce no lines
+    (the renderer skips the entire 'Extra' subsection cleanly)."""
+    assert _format_provenance_extra_lines(None) == []
+    assert _format_provenance_extra_lines({})   == []
+    # An extra dict containing only confidence_terms also produces no
+    # lines — the section header would otherwise dangle empty.
+    only_conf_terms = {"confidence_terms": {"qa": 0.85}}
+    assert _format_provenance_extra_lines(only_conf_terms) == []
+
+
+@pytest.mark.parametrize("value, expected", [
+    (None,           "—"),
+    (47,             "47"),
+    (0.123456,       "0.123"),
+    (True,           "true"),
+    ("0xF00",        "0xF00"),
+])
+def test_format_extra_value_per_type(value, expected):
+    """Type-dispatch sanity for the extra-field value formatter."""
+    assert _format_extra_value(value) == expected
+
+
+def test_format_extra_value_dict_and_list_use_inline_json():
+    """Dict / list values pretty-print inline rather than crashing."""
+    assert "[1, 2, 3]" in _format_extra_value([1, 2, 3])
+    assert "\"a\": 1"  in _format_extra_value({"a": 1})
