@@ -83,6 +83,16 @@
 > list outgrew its origin; the M5.5/M5.5b/M5.5c/M5.6 sections below are
 > preserved verbatim for historical context.
 
+> **Process improvement (24 May 2026).** Closed-milestone entries should
+> include a verification step where each "X is in state Y" factual claim
+> is spot-checked against the actual code/files before the entry is
+> committed. The M-TIER-A1 closed-entry initially described state
+> aspirationally in places (e.g. `n_valid_dates` / `granule_count`
+> surfacing) rather than verified — these drifts were caught by audit
+> during M-UI-A1-SURFACE Sub-milestone 3 investigation. Future
+> closed-entries should include a verification checklist as the final
+> pre-commit step.
+
 ---
 
 ## M-TIER-A1 — closed 23 May 2026
@@ -118,6 +128,8 @@ After this milestone:
 - **Step E — close GHG and Nature pillar integration-test coverage gaps.** Threaded `confidence_terms` through `_fake_ch4_snapshot`, `_fake_viirs_snapshot`, `_fake_co2_snapshot`, `fake_kba`, and six Nature fakes. Surfaced an interesting pre-existing artefact: `ghg.data_quality_attribution` had been reading as ~1.0 in integration tests because single-survivor renormalisation pushed the only non-None sub-score (`nearby_source_isolation = 1.0` placeholder) to full weight — a misleading signal hidden by defensive "is not None" assertions. Post-E, GHG_DQA lands in the realistic 0.7-0.8 range in CI.
 - **Option-A — daily mosaic + chunked compute.** Step B's uncapped server-side HF surfaced a new problem at Distrito Federal scale: AOD's ~5,200 swath images per 90-day window pushed EE's compute graph past the 5-minute `.getInfo()` timeout. Implementation: per-image Feature tagged with `day_bucket` (UTC midnight-to-midnight); FeatureCollection-level distinct-day counting via `aggregate_array().distinct()`; client-side date chunking at `_SERVER_SIDE_HF_CHUNK_DAYS = 10`. Also corrected a latent semantic bug: `_server_side_hf` had been counting granules as `n_valid`, overcounting independent information by ~58× for MAIAC and ~14× for S5P L3 CH4. Post-fix, `n_valid` correctly represents distinct UTC dates. Surfaced `granule_count` in `provenance.extra` for audit transparency (informational only, not in any score arithmetic).
 
+[VERIFIED 24 May 2026] Engine gap discovered during M-UI-A1-SURFACE sub-milestone 3 investigation: the granule_count and n_valid_dates fields were computed inside _server_side_hf but not actually threaded to provenance.extra. Engine fix landed same day: see engine/core/repeatable_core.py + tests/test_repeatable_core.py:test_server_side_hf_returns_n_valid_dates_and_granule_count + test_server_side_hf_granule_count_vs_dates_diverges_for_multi_swath.
+
 **Real Step 8 — recalibration verdict.** Sapezal Plantation and Distrito Federal re-screened against the full post-fix pipeline:
 
 | | Sapezal | Brasilia | Healthy band |
@@ -130,8 +142,8 @@ After this milestone:
 Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and intuitive); NO₂ confidence (0.684) > CO confidence (0.564) shows the multiplier effect working as designed; static-snapshot indicators (KBA, Hansen, regional_loss_evidence) saturate at 1.0; live-revisit indicators distribute across the band based on actual coverage; no silent dropouts that look like bugs (CO₂ skipping is `out_of_coverage` per ODIAC's 2020-2023 vintage, expected; PM₂.₅/PM₁₀ None is pre-existing, separate issue). `CONFIDENCE_FORMULA_WEIGHTS` did NOT require iteration — the 0.30/0.30/0.25/0.15 structure landed in the healthy range at first try.
 
 **Test trajectory.**
-- Entering milestone: ~1013 passed
-- After M-TIER-A1 core: 1063 passed (+50: 32 formula + 17 pillar rollup + 1 GHG_DQA rewire)
+- Entering milestone: ~1011 passed
+- After M-TIER-A1 core: 1063 passed (+52: 34 formula + 17 pillar rollup + 1 GHG_DQA rewire)
 - After Step A: 1065 (+2 strict-None canaries)
 - After Steps B, C: 1065 (no test count change; smoke-test caught EE bugs that CI couldn't have surfaced)
 - After Step D: 1076 (+11: 7 D3.1 pillar re-derivation tests + 4 D3.2 server-side HF tests)
@@ -144,8 +156,8 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
 *Engine:*
 - `engine/constants.py` — `CONFIDENCE_FORMULA_WEIGHTS` (0.30/0.30/0.25/0.15), `SPATIAL_CONTEXT_THRESHOLD = 3.0`, `COLUMN_TO_SURFACE_MULTIPLIER` (1.00/0.95/0.88/0.80/1.00), `QA_PER_INDICATOR`, `EXPECTED_N_PER_WINDOW_DAY` (TROPOMI gases at 0.3 after Step 8 recalibration), `SINGLE_SNAPSHOT_INDICATORS`, `NATIVE_PIXEL_AREA_M2`.
-- `engine/core/confidence.py` (new, ~230 LOC) — universal additive formula × column multiplier; per-term helpers; survivor-renormalise pillar rollup with optional weight dict.
-- `engine/core/repeatable_core.py` — `_server_side_hf` server-side computation; `_daily_mosaic_by_utc_day` helper; `_date_chunks_iso` for client-side chunking; legacy `_per_date_site_series` deprecated. `six_step` returns `confidence_terms` dict and surfaces `n_valid_dates` + `granule_count` in provenance.extra.
+- `engine/core/confidence.py` (new, ~250 LOC) — universal additive formula × column multiplier; per-term helpers; survivor-renormalise pillar rollup with optional weight dict.
+- `engine/core/repeatable_core.py` — `_server_side_hf` server-side computation; `_date_chunks_iso` helper for client-side chunking; legacy `_per_date_site_series` deprecated. `six_step` returns `confidence_terms` dict and surfaces `n_valid_dates` + `granule_count` in provenance.extra.
 - `engine/{air,ghg,nature}.py` — per-indicator confidence wiring; GHG_DQA sub-scores re-derived from per-indicator A1 terms read from `provenance.extra.confidence_terms`; Nature `valid_pixel_coverage` recomputed from per-indicator QA; `_single_snapshot_confidence_terms` helper for non-six_step indicators.
 
 *Docs:*
@@ -154,7 +166,7 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 - `docs/provenance_schema.md`: extra-field surfacing of `n_valid_dates` and `granule_count` documented.
 
 *Tests:*
-- `tests/test_confidence_formula.py` (new, 32 tests) — per-term helpers, canonical universal-weight tests (perfect / NO₂-moderate / CO-weak / missing-term), HF=0 drag, multiplier dispatch parametrised over 10 indicator/uncertainty pairs, strict-None at n_valid=0 lock.
+- `tests/test_confidence_formula.py` (new, 34 tests) — per-term helpers, canonical universal-weight tests (perfect / NO₂-moderate / CO-weak / missing-term), HF=0 drag, multiplier dispatch parametrised over 10 indicator/uncertainty pairs, strict-None at n_valid=0 lock.
 - `tests/test_pillar_confidence_rollup.py` (new, 24 tests: 17 from M-TIER-A1 core + 7 from Step D) — `compute_pillar_confidence` semantics, GHG_DQA sub-score derivation, Nature `valid_pixel_coverage` recompute, strict-None propagation when one indicator has no confidence_terms.
 - `tests/test_repeatable_core.py` (new section, 4 D3.2 + 1 Option-A tests) — `_server_side_hf` EE-bug coverage via faithful `_FakeDict` / `_FakeFilter` / `_FakeList` mocks; daily-mosaic multi-image-per-day collapse.
 - `tests/test_ghg.py` and `tests/test_nature.py` — fake snapshots threaded with `confidence_terms`; mathematical-consistency lock (`confidence == formula(terms)`).
@@ -171,7 +183,9 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
 **Followups logged for v1.x.**
 
-1. **Performance: variable chunk size per indicator.** Current `_SERVER_SIDE_HF_CHUNK_DAYS = 10` is tuned to avoid Distrito Federal's per-chunk EE timeout, but creates 9 sequential chunks for every indicator including those (TROPOMI gases, MODIS NDVI) that have ~1 image/day and don't need chunking at all. Sapezal screening currently takes ~7 minutes total, dominated by 450s on AOD's 9 chunks. Fix: per-indicator chunk-size lookup in `engine/constants.py`; full-window for low-cadence products, 10-day chunks only for AOD + CH4. Estimated 1-2 hours. Big small-buffer win.
+1. **[CLOSED — 24 May 2026] Performance: variable chunk size per indicator.** Current `_SERVER_SIDE_HF_CHUNK_DAYS = 10` is tuned to avoid Distrito Federal's per-chunk EE timeout, but creates 9 sequential chunks for every indicator including those (TROPOMI gases, MODIS NDVI) that have ~1 image/day and don't need chunking at all. Sapezal screening currently takes ~7 minutes total, dominated by 450s on AOD's 9 chunks. Fix: per-indicator chunk-size lookup in `engine/constants.py`; full-window for low-cadence products, 10-day chunks only for AOD + CH4. Estimated 1-2 hours. Big small-buffer win.
+
+    Implementation landed in `engine/constants.py`: `SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR`. See followup #1 closure entry below for details.
 
 2. **Performance: consider parallel chunks within an indicator.** Independent chunks of the same indicator could run concurrently via `ThreadPoolExecutor`. Would further reduce single-slow-indicator dominance. Estimated 3-4 hours. Defer pending whether (1) above is sufficient.
 

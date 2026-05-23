@@ -165,7 +165,33 @@ canonical slot. Rules:
    - `nature.ndvi`: `{"ndvi_negative_trend_threshold": -0.01}`
    - `nature.dw`: `{"composite_window_days": 90}`
    - `nature.regional_loss_evidence`: `{"buffer_loss_rate_m2_per_m2": ..., "ring_loss_rate_m2_per_m2": ..., "lookback_years": 5, "ratio_threshold": 2.0, "hansen_max_loss_year": 23}`
-3. **Don't accumulate cruft.** If three or more indicators need the same
+3. **`n_valid_dates` (int) and `granule_count` (int) — six_step audit
+   transparency.** Indicators that flow through `engine.core.six_step` (all
+   Air pollutants, GHG CH₄ / VIIRS, Nature NDVI) emit two informational
+   counts in `extra`:
+   - `n_valid_dates` — distinct UTC dates with at least one valid
+     observation in the analysis window. Feeds the A1 confidence
+     formula's `n_valid` term (via `compute_n_valid_term`).
+   - `granule_count` — raw image count in the source ImageCollection
+     before per-date deduplication. Always ≥ `n_valid_dates`; equal for
+     daily-single-image products, much larger for multi-swath products
+     (MAIAC AOD: granule_count ≈ 58× n_valid_dates; S5P L3 CH₄: ≈ 14×).
+     Surfaces the dates-vs-granules ratio so audit reviewers can verify
+     the engine is collapsing many swaths into per-date evidence (the
+     pre-Option-A bug counted granules as dates, inflating
+     `n_valid` ~58× for MAIAC). Never enters score arithmetic.
+
+   Static-snapshot indicators (KBA, Dynamic World composite, Hansen,
+   ODIAC) take the `_single_snapshot_confidence_terms` path and do NOT
+   carry these fields — they aren't applicable.
+4. **`confidence_terms` (dict) — M-TIER-A1 confidence formula inputs.**
+   Every indicator with a per-indicator confidence value emits the four
+   formula terms (`qa`, `n_valid`, `anomaly_strength`, `spatial_context`)
+   plus the `column_to_surface_uncertainty` enum tag in
+   `extra.confidence_terms`. See `engine/core/confidence.py` for the
+   formula; the UI "What's behind this confidence?" expander reads this
+   dict.
+5. **Don't accumulate cruft.** If three or more indicators need the same
    `extra` key, promote it to a canonical field (doc update + schema update
    + migration).
 
