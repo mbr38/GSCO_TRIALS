@@ -1,46 +1,36 @@
 {
-  "id": "stub-brasilia",
-  "name": "Rio De Janeiro, Brazil \u2014 Region screening",
-  "type": "screening",
-  "screening_setup": {"centre": {
-      "lat": -22.1964411180919,
-      "lon": -42.65713042961129
+  "date_saved": "2026-05-23T10:21:01.230149+00:00",
+  "id": "2f11a009-479c-4679-964c-829ed80923e3",
+  "name": "Distrito Federal, Brazil \u2014 Region screening",
+  "payload": {
+    "_failures": {
+      "air": [
+        {
+          "indicator_id": "air.pm10",
+          "pollutant": "pm10",
+          "reason": "site buffer (43.1 km) smaller than pm10 native pixel (44.5 km) \u2014 increase radius or pick a finer-resolution pollutant"
+        },
+        {
+          "indicator_id": "air.pm25",
+          "pollutant": "pm25",
+          "reason": "site buffer (43.1 km) smaller than pm25 native pixel (44.5 km) \u2014 increase radius or pick a finer-resolution pollutant"
+        }
+      ]
     },
-    "centre_metadata": {
-      "country": "Brazil",
-      "region_name": "Rio De Janeiro",
-      "source": "P-04 region scope \u00b7 Rio De Janeiro, Brazil"
-    },
-    "indicators": [
-      "nature.dw.trees_pct",
-      "nature.forest_loss.ha",
-      "nature.habitat.natural_loss_ha",
-      "nature.kba.proximity_score",
-      "nature.ndvi.score",
-      "nature.recovery.score",
-      "nature.water.area_now_ha"
-    ],
-    "mode": "screening",
-    "radius_km": 118.2,
-    "time_range": [
-      "2026-02-21",
-      "2026-05-22"
-    ]},
-  "date_saved": "2026-05-20T00:00:00Z",
-  "payload": {"_meta": {
+    "_meta": {
       "aoi": {
         "centre": {
-          "lat": -22.1964411180919,
-          "lon": -42.65713042961129
+          "lat": -15.780772420610594,
+          "lon": -47.79677514111361
         },
-        "radius_km": 118.2
+        "radius_km": 43.1
       },
       "centre_metadata": {
         "country": "Brazil",
-        "region_name": "Rio De Janeiro",
-        "source": "P-04 region scope \u00b7 Rio De Janeiro, Brazil"
+        "region_name": "Distrito Federal",
+        "source": "P-04 region scope \u00b7 Distrito Federal, Brazil"
       },
-      "computed_at": "2026-05-22T10:32:47.111312+00:00",
+      "computed_at": "2026-05-23T10:19:55.841539+00:00",
       "mode": "screening",
       "pillars_run": [
         "air",
@@ -48,6 +38,18 @@
         "nature"
       ],
       "selected_indicators": [
+        "air.aai.score",
+        "air.aod.score",
+        "air.co.score",
+        "air.hcho.score",
+        "air.no2.score",
+        "air.o3.score",
+        "air.pm10.score",
+        "air.pm25.score",
+        "air.so2.score",
+        "ghg.ch4.score",
+        "ghg.co2.score",
+        "ghg.viirs.score",
         "nature.dw.trees_pct",
         "nature.forest_loss.ha",
         "nature.habitat.natural_loss_ha",
@@ -57,246 +59,789 @@
         "nature.water.area_now_ha"
       ],
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.aai": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_AER_AI",
+      "band": "absorbing_aerosol_index",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.aai",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.aod": {
+      "asset_id": "MODIS/061/MCD19A2_GRANULES",
+      "band": "Optical_Depth_055",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "NASA MODIS MAIAC",
+      "data_type": "satellite_observation",
+      "extra": {
+        "aod_qa_bit_mask": "0xF00",
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.9,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.aod",
+      "method_note": "MODIS MAIAC; AOD_QA bits 8-11 mask non-best retrievals",
+      "native_scale_m": 1000.0,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.co": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_CO",
+      "band": "CO_column_number_density",
+      "column_to_surface_uncertainty": "weak",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "weak",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.co",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.hcho": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_HCHO",
+      "band": "tropospheric_HCHO_column_number_density",
+      "column_to_surface_uncertainty": "moderate",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "moderate",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.hcho",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.no2": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
+      "band": "NO2_column_number_density",
+      "column_to_surface_uncertainty": "moderate",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "moderate",
+          "n_valid": 1.0,
+          "qa": 0.9,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.no2",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.air.o3": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_O3",
+      "band": "O3_column_number_density",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.o3",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.air.pm_or_aerosol": {
       "formula": "fallback_aai_only"
     },
+    "_provenance.air.so2": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_SO2",
+      "band": "SO2_column_number_density",
+      "column_to_surface_uncertainty": "moderate_weak",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "moderate_weak",
+          "n_valid": 1.0,
+          "qa": 0.75,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "air.so2",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.ghg.ch4": {
+      "asset_id": "COPERNICUS/S5P/OFFL/L3_CH4",
+      "band": "CH4_column_volume_mixing_ratio_dry_air",
+      "column_to_surface_uncertainty": "weak",
+      "coverage_window": null,
+      "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "weak",
+          "n_valid": 0.14814814814814814,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "ghg.ch4",
+      "method_note": null,
+      "native_scale_m": 1113.2,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.ghg.co2": {
+      "asset_id": "projects/supply-chain-observatory/assets/odiac",
+      "band": "b1",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": [
+        "2020-01-01",
+        "2023-12-31"
+      ],
+      "data_source": "ODIAC / NIES Japan",
+      "data_type": "emissions_inventory_allocation",
+      "extra": {},
+      "indicator_id": "ghg.co2",
+      "method_note": null,
+      "native_scale_m": 1000.0,
+      "observations": {
+        "count": 0,
+        "unit": "monthly_grids"
+      },
+      "sector_signal_anomaly": null,
+      "skipped_reason": "out_of_coverage",
+      "temporal_mode": "standing_exposure",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.ghg.viirs": {
+      "asset_id": "NASA/VIIRS/002/VNP46A2",
+      "band": "Gap_Filled_DNB_BRDF_Corrected_NTL",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "NASA / NOAA (VIIRS VNP46A2)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 0.7333333333333333,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "ghg.viirs",
+      "method_note": null,
+      "native_scale_m": 463.83,
+      "observations": null,
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
     "_provenance.nature.dw": {
       "asset_id": "GOOGLE/DYNAMICWORLD/V1",
       "band": "label",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "Google / WRI (Dynamic World V1)",
       "data_type": "ml_classified_satellite",
       "extra": {
-        "composite_window_days": 90
+        "composite_window_days": 90,
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.9,
+          "spatial_context": 1.0
+        }
       },
-      "method_note": "DW 90-day mode composite; class fractions via frequencyHistogram; scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "indicator_id": "nature.dw",
+      "method_note": "DW 90-day mode composite; class fractions via frequencyHistogram; scale=76m (adaptive; native 10m; target ~1.0M px)",
       "native_scale_m": 10.0,
       "observations": null,
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.nature.forest_loss": {
       "asset_id": "UMD/hansen/global_forest_change_2023_v1_11",
       "band": "lossyear",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "UMD / Hansen Global Forest Change",
-      "data_type": "ml_classified_satellite",
-      "extra": {},
-      "method_note": "Hansen lossyear band; pixels with lossyear in time_range weighted by ee.Image.pixelArea(); scale=208m (adaptive; native 31m; target ~1.0M px)",
+      "data_type": "reference_dataset",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 1.0,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "nature.forest_loss",
+      "method_note": "Hansen lossyear band; pixels with lossyear in time_range weighted by ee.Image.pixelArea(); scale=76m (adaptive; native 31m; target ~1.0M px)",
       "native_scale_m": 30.92,
       "observations": {
         "count": 1,
         "unit": "annual_rasters"
       },
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "standing_exposure",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.nature.habitat": {
       "asset_id": "GOOGLE/DYNAMICWORLD/V1",
       "band": "label",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "Google / WRI (Dynamic World V1)",
       "data_type": "ml_classified_satellite",
       "extra": {
         "baseline_time_range": [
-          "2021-02-21",
-          "2021-05-22"
+          "2021-02-22",
+          "2021-05-23"
         ],
         "baseline_years": 5,
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        },
         "conversion_saturation_pct": 0.1
       },
-      "method_note": "DW mode composite (current vs baseline 5y earlier); class-fraction deltas \u2192 natural\u2192non-natural attribution; scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "indicator_id": "nature.habitat",
+      "method_note": "DW mode composite (current vs baseline 5y earlier); class-fraction deltas \u2192 natural\u2192non-natural attribution; scale=76m (adaptive; native 10m; target ~1.0M px)",
       "native_scale_m": 10.0,
       "observations": null,
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.nature.kba": {
       "asset_id": "projects/supply-chain-observatory/assets/KBAsGlobal_2026_March_01_POL",
       "band": null,
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "BirdLife International (Key Biodiversity Areas)",
       "data_type": "reference_dataset",
       "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 1.0,
+          "spatial_context": 1.0
+        },
         "distance_decay_km": 10.0
       },
+      "indicator_id": "nature.kba",
       "method_note": "vector distance + buffer intersection; score = max(overlap_pct/100, exp(-dist_km/10.0))",
       "native_scale_m": 0.0,
       "observations": {
         "count": 1,
         "unit": "static_snapshot"
       },
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.nature.ndvi": {
       "asset_id": "MODIS/061/MOD13Q1",
       "band": "NDVI",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "NASA MODIS (MOD13Q1)",
       "data_type": "satellite_observation",
       "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 0.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 0.2222222222222222,
+          "qa": 0.9,
+          "spatial_context": 1.0
+        },
         "ndvi_negative_trend_threshold": -0.01
       },
+      "indicator_id": "nature.ndvi",
       "method_note": "MOD13Q1 NDVI \u00f7 10000; IC \u00a70.2 six-step pipeline with direction='lower_is_worse' (lower NDVI = worse); scale=250m (native)",
       "native_scale_m": 250.0,
       "observations": {
         "count": 1,
         "unit": "16day_composites"
       },
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
     "_provenance.nature.recovery": {
       "asset_id": "MODIS/061/MOD13Q1",
       "band": "NDVI",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "NASA MODIS (MOD13Q1)",
       "data_type": "satellite_observation",
       "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.85,
+          "spatial_context": 1.0
+        },
         "placeholder": true
       },
+      "indicator_id": "nature.recovery",
       "method_note": "v1 placeholder \u2014 score=0.0 baseline; wires once engine/core/trend.py lands per-pixel NDVI improvement and natural-cover-gain attribution",
       "native_scale_m": 250.0,
       "observations": null,
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.nature.regional_loss_evidence": {
+      "asset_id": "UMD/hansen/global_forest_change_2023_v1_11",
+      "band": "lossyear",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "UMD / Hansen Global Forest Change",
+      "data_type": "reference_dataset",
+      "extra": {
+        "buffer_loss_rate_m2_per_m2": 0.0055579565305052024,
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 1.0,
+          "spatial_context": 1.0
+        },
+        "hansen_max_loss_year": 23,
+        "lookback_years": 5,
+        "ratio_threshold": 2.0,
+        "ring_loss_rate_m2_per_m2": 0.011620685575372242
+      },
+      "indicator_id": "nature.regional_loss_evidence",
+      "method_note": "Hansen lossyear sum over Site_Buffer and Background_Ring across the most recent 5 loss years (years 2019-2023); flag = 1.0 if ring_rate > 2.0 \u00d7 buffer_rate (audit \u00a79.3 v1.4)",
+      "native_scale_m": 30.92,
+      "observations": {
+        "count": 5,
+        "unit": "annual_rasters"
+      },
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "standing_exposure",
+      "time_range": [
+        "2019-01-01",
+        "2023-12-31"
       ]
     },
     "_provenance.nature.water": {
       "asset_id": "GOOGLE/DYNAMICWORLD/V1",
       "band": "label",
+      "column_to_surface_uncertainty": "n_a",
       "coverage_window": null,
       "data_source": "Google / WRI (Dynamic World V1)",
       "data_type": "ml_classified_satellite",
-      "extra": {},
-      "method_note": "DW water + flooded_vegetation pixel counts via frequencyHistogram (JRC GSW deferred per GEE \u00a74.3); scale=208m (adaptive; native 10m; target ~1.0M px)",
+      "extra": {
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 0.9,
+          "spatial_context": 1.0
+        }
+      },
+      "indicator_id": "nature.water",
+      "method_note": "DW water + flooded_vegetation pixel counts via frequencyHistogram (JRC GSW deferred per GEE \u00a74.3); scale=76m (adaptive; native 10m; target ~1.0M px)",
       "native_scale_m": 10.0,
       "observations": null,
+      "sector_signal_anomaly": null,
       "skipped_reason": null,
+      "temporal_mode": "live_window",
       "time_range": [
-        "2026-02-21",
-        "2026-05-22"
+        "2026-02-22",
+        "2026-05-23"
       ]
     },
-    "air.attribution_confidence_score": null,
-    "air.audit_followup_priority": null,
-    "air.heavy_industry_score": null,
-    "air.industrial_air_pollution_burden": null,
-    "air.industrial_combustion_proxy": null,
-    "air.pm_or_aerosol": null,
-    "air.pollution_proxy_score": null,
-    "air.smoke_dust_regional_transport": null,
-    "air.spatiotemporal_anomaly_score": null,
+    "air.aai.anomaly": -0.009683973124064882,
+    "air.aai.background": -0.4550892555995804,
+    "air.aai.confidence": 0.955,
+    "air.aai.hf": 1.0,
+    "air.aai.score": 0.0,
+    "air.aai.site": -0.4647732287236453,
+    "air.aai.trend": null,
+    "air.aai.trend_p": null,
+    "air.aai.z": -0.15138630676522563,
+    "air.aod.anomaly": 3.0995406359154956,
+    "air.aod.background": 45.47775048310486,
+    "air.aod.confidence": 0.7200000000000001,
+    "air.aod.hf": 0.0,
+    "air.aod.score": 0.11473048933387055,
+    "air.aod.site": 48.57729111902036,
+    "air.aod.trend": null,
+    "air.aod.trend_p": null,
+    "air.aod.z": 0.3441914680016116,
+    "air.attribution_confidence_score": 0.6988214285714286,
+    "air.audit_followup_priority": 0.16046132693552,
+    "air.co.anomaly": -0.5524929732836306,
+    "air.co.background": 23.296876223854774,
+    "air.co.confidence": 0.564,
+    "air.co.hf": 0.0,
+    "air.co.score": 0.0,
+    "air.co.site": 22.744383250571143,
+    "air.co.trend": null,
+    "air.co.trend_p": null,
+    "air.co.z": -0.7541334075252922,
+    "air.hcho.anomaly": -8.045070489833165,
+    "air.hcho.background": 113.49647489751675,
+    "air.hcho.confidence": 0.66975,
+    "air.hcho.hf": 0.0,
+    "air.hcho.score": 0.0,
+    "air.hcho.site": 105.45140440768358,
+    "air.hcho.trend": null,
+    "air.hcho.trend_p": null,
+    "air.hcho.z": -0.40756307693140004,
+    "air.heavy_industry_score": 0.10291235992709533,
+    "air.industrial_air_pollution_burden": 0.1372164799027938,
+    "air.industrial_combustion_proxy": 0.20582471985419065,
+    "air.no2.anomaly": 1.8565797235415644,
+    "air.no2.background": 43.93856654491184,
+    "air.no2.confidence": 0.684,
+    "air.no2.hf": 0.0,
+    "air.no2.score": 0.34304119975698444,
+    "air.no2.site": 45.79514626845341,
+    "air.no2.trend": null,
+    "air.no2.trend_p": null,
+    "air.no2.z": 1.0291235992709533,
+    "air.o3.anomaly": -0.3942861603797496,
+    "air.o3.background": 258.3360881269175,
+    "air.o3.confidence": 0.705,
+    "air.o3.hf": 0.0,
+    "air.o3.score": 0.0,
+    "air.o3.site": 257.94180196653775,
+    "air.o3.trend": null,
+    "air.o3.trend_p": null,
+    "air.o3.z": -0.7058208703955342,
+    "air.pm10.anomaly": null,
+    "air.pm10.background": null,
+    "air.pm10.confidence": null,
+    "air.pm10.hf": null,
+    "air.pm10.score": null,
+    "air.pm10.site": null,
+    "air.pm10.trend": null,
+    "air.pm10.trend_p": null,
+    "air.pm10.z": null,
+    "air.pm25.anomaly": null,
+    "air.pm25.background": null,
+    "air.pm25.confidence": null,
+    "air.pm25.hf": null,
+    "air.pm25.score": null,
+    "air.pm25.site": null,
+    "air.pm25.trend": null,
+    "air.pm25.trend_p": null,
+    "air.pm25.z": null,
+    "air.pm_or_aerosol": 0.0,
+    "air.pollution_proxy_score": 0.10291235992709533,
+    "air.smoke_dust_regional_transport": 0.0,
+    "air.so2.anomaly": -2.546159387676937,
+    "air.so2.background": 5.989431950605301,
+    "air.so2.confidence": 0.594,
+    "air.so2.hf": 0.0,
+    "air.so2.score": 0.0,
+    "air.so2.site": 3.443272562928364,
+    "air.so2.trend": null,
+    "air.so2.trend_p": null,
+    "air.so2.z": -0.0808413830106446,
+    "air.spatiotemporal_anomaly_score": 0.06539595558440785,
     "air.trend_score": 0.0,
-    "air.voc_photochemical": null,
-    "composite.confidence": null,
-    "composite.overall_screening": null,
+    "air.voc_photochemical": 0.10291235992709533,
+    "composite.confidence": 0.6988214285714286,
+    "composite.overall_screening": 0.21287252728732767,
     "ghg.activity_adjusted_co2": null,
-    "ghg.activity_score": null,
-    "ghg.audit_followup_priority": null,
-    "ghg.ch4_context_adjusted": null,
-    "ghg.ch4_hotspot_signal": null,
+    "ghg.activity_score": 0.3626238975357618,
+    "ghg.audit_followup_priority": 0.20504353222813687,
+    "ghg.ch4.anomaly": 3.6412542144446434,
+    "ghg.ch4.background": 1885.4889212998698,
+    "ghg.ch4.confidence": 0.3595555555555556,
+    "ghg.ch4.hf": 0.0,
+    "ghg.ch4.score": 0.08772294692558102,
+    "ghg.ch4.site": 1889.1301755143145,
+    "ghg.ch4.trend": null,
+    "ghg.ch4.trend_p": null,
+    "ghg.ch4.z": 0.2631688407767431,
+    "ghg.ch4_context_adjusted": 0.08772294692558102,
+    "ghg.ch4_hotspot_signal": 0.0,
+    "ghg.co2.confidence": null,
+    "ghg.co2.mean": null,
+    "ghg.co2.relative_intensity": null,
+    "ghg.co2.score": null,
+    "ghg.co2.total": null,
+    "ghg.co2.trend": null,
+    "ghg.co2.trend_p": null,
     "ghg.co2_context": null,
-    "ghg.combustion_proxy": null,
-    "ghg.core_audit_support": null,
-    "ghg.data_quality_attribution": 0.8791044776119402,
-    "ghg.fire_or_regional_transport_risk": null,
+    "ghg.combustion_proxy": 0.20582471985419065,
+    "ghg.core_audit_support": 0.16717782207518733,
+    "ghg.data_quality_attribution": 0.7749444444444444,
+    "ghg.fire_or_regional_transport_risk": 0.0,
     "ghg.fossil_combustion_score": null,
     "ghg.nearby_source_isolation": 1.0,
-    "ghg.retrieval_inventory_quality": 0.7,
+    "ghg.retrieval_inventory_quality": 0.85,
     "ghg.spatial_resolution_suitability": 1.0,
-    "ghg.spatiotemporal_anomaly": null,
-    "ghg.temporal_coverage": null,
+    "ghg.spatiotemporal_anomaly": 0.08772294692558102,
+    "ghg.temporal_coverage": 0.4407407407407407,
     "ghg.trend": 0.0,
-    "nature.biodiversity_exposure": 0.5601308118180075,
+    "ghg.viirs.anomaly": 12.484216641638362,
+    "ghg.viirs.confidence": 0.625,
+    "ghg.viirs.score": 0.3626238975357618,
+    "ghg.viirs.site": 12.7517602774756,
+    "ghg.viirs.trend": null,
+    "nature.biodiversity_exposure": 0.43149899073999465,
     "nature.cloud_observation_quality": 0.8,
-    "nature.dw.bare_ha": 3326.208864381438,
-    "nature.dw.bare_pct": 0.07104167284151872,
-    "nature.dw.built_ha": 243203.545402054,
-    "nature.dw.built_pct": 5.194378167699102,
-    "nature.dw.class_confidence": 0.6169936868312635,
-    "nature.dw.crops_ha": 10715.856719539157,
-    "nature.dw.crops_pct": 0.22887089125344556,
+    "nature.dw.bare_ha": 2445.9858403830062,
+    "nature.dw.bare_pct": 0.4079006960851342,
+    "nature.dw.built_ha": 74194.90382495118,
+    "nature.dw.built_pct": 12.37298778124907,
+    "nature.dw.class_confidence": 0.4923588333770851,
+    "nature.dw.confidence": 0.9700000000000001,
+    "nature.dw.crops_ha": 73888.72313630352,
+    "nature.dw.crops_pct": 12.321928076010689,
     "nature.dw.dominant_class": "trees",
-    "nature.dw.flooded_veg_ha": 2116.2841275334313,
-    "nature.dw.flooded_veg_pct": 0.04519991700998844,
-    "nature.dw.grass_ha": 746219.9972890576,
-    "nature.dw.grass_pct": 15.937879753401107,
-    "nature.dw.shrub_ha": 50764.79917398842,
-    "nature.dw.shrub_pct": 1.0842422715551736,
-    "nature.dw.snow_ha": 1144.8750198131677,
-    "nature.dw.snow_pct": 0.024452414120157685,
-    "nature.dw.trees_ha": 2888797.2204479706,
-    "nature.dw.trees_pct": 61.69936868312635,
-    "nature.dw.water_ha": 735764.3394376579,
-    "nature.dw.water_pct": 15.714566228993155,
+    "nature.dw.flooded_veg_ha": 21.33462425605168,
+    "nature.dw.flooded_veg_pct": 0.0035578325683993314,
+    "nature.dw.grass_ha": 82861.95077610559,
+    "nature.dw.grass_pct": 13.818333222752049,
+    "nature.dw.shrub_ha": 64393.66211942777,
+    "nature.dw.shrub_pct": 10.738500267799019,
+    "nature.dw.snow_ha": 205.27368203119994,
+    "nature.dw.snow_pct": 0.03423211876622059,
+    "nature.dw.trees_ha": 295244.0989648354,
+    "nature.dw.trees_pct": 49.23588333770851,
+    "nature.dw.water_ha": 6396.350996550846,
+    "nature.dw.water_pct": 1.066676667060913,
     "nature.external_driver_screening": 1.0,
-    "nature.flooded_veg.area_now_ha": 2116.2841275334345,
-    "nature.followup_priority": 0.282947261103343,
+    "nature.flooded_veg.area_now_ha": 21.33462425605168,
+    "nature.followup_priority": 0.2731127226983261,
+    "nature.forest_loss.confidence": 1.0,
     "nature.forest_loss.ha": 0.0,
     "nature.forest_loss.pct": 0.0,
-    "nature.forest_loss.pct_norm": 0.0,
     "nature.habitat.annualised_rate": 0.0,
     "nature.habitat.annualised_rate_score": 0.0,
-    "nature.habitat.bare_expansion_ha": 0.0,
-    "nature.habitat.built_expansion_ha": 0.0,
-    "nature.habitat.conversion_score": 0.0,
-    "nature.habitat.nat_to_bare_ha": 0.0,
-    "nature.habitat.nat_to_bare_pct_norm": 0.0,
-    "nature.habitat.nat_to_built_ha": 0.0,
-    "nature.habitat.nat_to_built_pct_norm": 0.0,
+    "nature.habitat.bare_expansion_ha": 269.6654420342321,
+    "nature.habitat.built_expansion_ha": 2541.5702054292287,
+    "nature.habitat.confidence": 0.955,
+    "nature.habitat.conversion_score": 0.012775342936165,
+    "nature.habitat.nat_to_bare_ha": 269.6654420342321,
+    "nature.habitat.nat_to_bare_pct_norm": 0.00462083947446547,
+    "nature.habitat.nat_to_built_ha": 2541.5702054292287,
+    "nature.habitat.nat_to_built_pct_norm": 0.043550956488083686,
     "nature.habitat.nat_to_crop_ha": 0.0,
     "nature.habitat.natural_loss_ha": 0.0,
     "nature.habitat.natural_loss_pct": 0.0,
     "nature.habitat.natural_loss_pct_norm": 0.0,
-    "nature.kba.dist_km": 12.889862031412115,
-    "nature.kba.overlap_ha": 199838.41169355693,
-    "nature.kba.overlap_pct": 4.552963235999497,
-    "nature.kba.proximity_score": 0.2755499932522439,
-    "nature.low_ndvi.ha": 56040.914725402945,
-    "nature.low_ndvi.pct": 1.276792696129945,
-    "nature.low_ndvi.pct_norm": 0.012767926961299449,
-    "nature.ndvi.anomaly": 0.006252846364618092,
-    "nature.ndvi.inverted_anomaly": 0.0,
-    "nature.ndvi.mean": 0.775813073996619,
+    "nature.kba.confidence": 1.0,
+    "nature.kba.dist_km": 9.399565545787405,
+    "nature.kba.overlap_ha": 65830.17561872843,
+    "nature.kba.overlap_pct": 11.280298721828801,
+    "nature.kba.proximity_score": 0.3906448067180452,
+    "nature.low_ndvi.ha": 14309.118612446366,
+    "nature.low_ndvi.pct": 2.451932276913972,
+    "nature.low_ndvi.pct_norm": 0.02451932276913972,
+    "nature.ndvi.anomaly": -0.05365491903755759,
+    "nature.ndvi.confidence": 0.4866666666666667,
+    "nature.ndvi.inverted_anomaly": 0.1674105907174108,
+    "nature.ndvi.mean": 0.6846326848383526,
     "nature.ndvi.negative_trend": null,
-    "nature.ndvi.score": 0.0,
+    "nature.ndvi.score": 0.1674105907174108,
     "nature.ndvi.slope": null,
     "nature.ndvi.slope_p": null,
-    "nature.ndvi.z": 0.0603973612412126,
-    "nature.quality_attribution": 0.7617974747325053,
+    "nature.ndvi.z": -0.5022317721522324,
+    "nature.quality_attribution": 0.798471766675417,
     "nature.recovery.bare_reduction_ha": null,
+    "nature.recovery.confidence": 0.955,
     "nature.recovery.natural_cover_gain_ha": null,
     "nature.recovery.ndvi_improvement_pct": null,
     "nature.recovery.score": 0.0,
+    "nature.regional_loss_evidence.confidence": 1.0,
     "nature.seasonal_comparability": 1.0,
-    "nature.sensitive_land_cover_presence": 0.7876669062509262,
-    "nature.spatiotemporal_anomaly_score": 0.02013245374707087,
+    "nature.sensitive_land_cover_presence": 0.7379627466082799,
+    "nature.spatiotemporal_anomaly_score": 0.0,
     "nature.supplier_spatial_link": 0.7,
-    "nature.valid_pixel_coverage": 0.6169936868312635,
-    "nature.vegetation_condition": 0.00255358539225989,
-    "nature.water.area_now_ha": 735764.339437659,
-    "nature.water_or_flooded_veg_exposure": 0.7879883073001571}
+    "nature.valid_pixel_coverage": 0.925,
+    "nature.vegetation_condition": 0.0802386303766628,
+    "nature.water.area_now_ha": 6396.350996550846,
+    "nature.water.confidence": 0.9700000000000001,
+    "nature.water_or_flooded_veg_exposure": 0.053511724981465614
+  },
+  "screening_setup": {
+    "centre": {
+      "lat": -15.780772420610594,
+      "lon": -47.79677514111361
+    },
+    "centre_metadata": {
+      "country": "Brazil",
+      "region_name": "Distrito Federal",
+      "source": "P-04 region scope \u00b7 Distrito Federal, Brazil"
+    },
+    "indicators": [
+      "air.aai.score",
+      "air.aod.score",
+      "air.co.score",
+      "air.hcho.score",
+      "air.no2.score",
+      "air.o3.score",
+      "air.pm10.score",
+      "air.pm25.score",
+      "air.so2.score",
+      "ghg.ch4.score",
+      "ghg.co2.score",
+      "ghg.viirs.score",
+      "nature.dw.trees_pct",
+      "nature.forest_loss.ha",
+      "nature.habitat.natural_loss_ha",
+      "nature.kba.proximity_score",
+      "nature.ndvi.score",
+      "nature.recovery.score",
+      "nature.water.area_now_ha"
+    ],
+    "mode": "screening",
+    "radius_km": 43.1,
+    "time_range": [
+      "2026-02-22",
+      "2026-05-23"
+    ]
+  },
+  "type": "screening"
 }
