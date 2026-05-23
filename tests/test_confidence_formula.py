@@ -120,11 +120,12 @@ class TestComputeNValidTerm:
         assert v == pytest.approx(1.0)
 
     def test_partial_coverage(self) -> None:
-        # 45/90 daily obs → 0.5.
+        # Post-Step-8 recalibration: TROPOMI NO₂ expected_n = 0.3 obs/day,
+        # so a 90-day window expects ~27 valid observations. 9 obs → 9/27 = 1/3.
         v = compute_n_valid_term(
-            "air.no2", n_observations=45, window_days=90,
+            "air.no2", n_observations=9, window_days=90,
         )
-        assert v == pytest.approx(0.5)
+        assert v == pytest.approx(1.0 / 3.0)
 
     def test_single_snapshot_passthrough_to_one_when_produced(self) -> None:
         # ODIAC: n=1 (or any positive) → 1.0; n=0 → 0.0.
@@ -144,6 +145,31 @@ class TestComputeNValidTerm:
         assert compute_n_valid_term(
             "air.no2", n_observations=10, window_days=None,
         ) is None
+
+    def test_live_revisit_zero_observations_returns_none_not_zero(self) -> None:
+        # M-TIER-A1 Step 8 design lock: for live-revisit indicators,
+        # n_observations=0 means "no information about coverage", which
+        # collapses to None rather than 0.0 ("perfect-bad coverage").
+        # Strict-None then propagates through compute_indicator_confidence
+        # and the pillar rollup drops the indicator via survivor-renormalise.
+        for live_id in ("air.no2", "air.co", "ghg.ch4", "ghg.viirs", "nature.ndvi"):
+            v = compute_n_valid_term(
+                live_id, n_observations=0, window_days=90,
+            )
+            assert v is None, (
+                f"{live_id} with n=0 should return None (no information), "
+                f"got {v!r}"
+            )
+
+    def test_single_snapshot_zero_observations_still_returns_zero(self) -> None:
+        # SINGLE_SNAPSHOT_INDICATORS keep 0.0 for n=0 because "snapshot
+        # attempted and failed" IS information — semantic is distinct
+        # from the live-revisit branch above.
+        for snap_id in ("ghg.co2", "nature.dw", "nature.habitat",
+                        "nature.forest_loss", "nature.kba"):
+            assert compute_n_valid_term(
+                snap_id, n_observations=0, window_days=None,
+            ) == 0.0, f"{snap_id} with n=0 should keep 0.0 (attempted-and-failed)"
         assert compute_n_valid_term(
             "air.no2", n_observations=10, window_days=0,
         ) is None

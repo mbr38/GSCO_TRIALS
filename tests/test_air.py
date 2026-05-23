@@ -69,6 +69,23 @@ def fake_ee(monkeypatch):
     )
 
 
+# M-TIER-A1 Step D — keep `confidence` and `confidence_terms` mutually
+# consistent so integration tests exercise the SAME confidence math the
+# engine actually runs. Pre-Step-D the fake was missing `confidence_terms`
+# entirely (logged as a v1.x followup) which silenced the pillar QA
+# sub-score re-derivation paths in CI; this update restores coverage.
+#
+# Terms chosen non-uniform so each weight's contribution is visible in
+# integration tests:
+#   c_raw = 0.30·0.85 + 0.30·0.60 + 0.25·0.40 + 0.15·1.00 = 0.685
+#   multiplier "n_a" = 1.00 → c_final = 0.685
+#
+# Choice (b) over (a): I picked mathematical consistency between the
+# `confidence` and `confidence_terms` fields rather than freezing
+# confidence=0.7 for legacy convenience. A fake six_step that produces
+# `confidence ≠ formula(confidence_terms)` is a footgun — integration
+# tests would assert a value the real engine can never produce. The
+# cost is one direct-assertion test update in D2.
 _DEFAULT_SIX_STEP: dict = {
     "site":       100.0,
     "background": 50.0,
@@ -77,7 +94,14 @@ _DEFAULT_SIX_STEP: dict = {
     "hf":         0.4,
     "trend":      None,
     "trend_p":    None,
-    "confidence": 0.7,
+    "confidence": 0.685,
+    "confidence_terms": {
+        "qa":                            0.85,
+        "n_valid":                       0.60,
+        "anomaly_strength":              0.40,
+        "spatial_context":               1.00,
+        "column_to_surface_uncertainty": "n_a",
+    },
     "score":      0.6,
 }
 
@@ -208,7 +232,10 @@ class TestCanonicalIdMapping:
         assert result["air.no2.site"] == 100.0
         assert result["air.no2.background"] == 50.0
         assert result["air.no2.anomaly"] == 50.0
-        assert result["air.no2.confidence"] == 0.7
+        # Updated for M-TIER-A1 Step D — _DEFAULT_SIX_STEP now provides confidence_terms
+        # whose universal-formula sum equals 0.685, replacing the legacy
+        # mathematically-inconsistent confidence=0.7 placeholder.
+        assert result["air.no2.confidence"] == 0.685
 
     def test_none_values_propagate(self, fake_ee, fake_six_step) -> None:
         # trend / trend_p are None until engine/core/trend.py lands; the

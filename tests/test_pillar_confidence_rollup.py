@@ -209,3 +209,174 @@ class TestNatureValidPixelCoverageRecompute:
         # 1.0 was removed by M-V1x-RECONCILE.
         out = compute_nature_quality_sub_scores({}, aoi={"radius_km": 5})
         assert "nature.external_driver_screening" not in out
+
+
+# ---------------------------------------------------------------------------
+# D3.1 (M-TIER-A1 Step D) — re-derivation coverage with explicit "recomputes
+# from per-indicator terms" framing + the missing strict-None edge cases.
+#
+# The TestGhgDqaSubScoreRecompute / TestNatureValidPixelCoverageRecompute
+# classes above already cover the well-formed payload shape (indicator
+# entirely absent ⇄ indicator present with full confidence_terms). The
+# tests below extend coverage to *malformed* provenance — where the
+# indicator's provenance exists but its `extra.confidence_terms` is
+# missing or partially missing. This is the realistic in-engine case
+# when an indicator's snapshot ran but the confidence helper hit
+# strict-None on one of its inputs (e.g. anomaly_strength=None when
+# six_step's HF computation returned None on a degenerate background).
+# ---------------------------------------------------------------------------
+
+
+class TestGhgDqaRederivationStrictNone:
+    """D3.1 — strict-None propagation when an indicator's provenance is
+    present but `extra.confidence_terms` is missing or partial.
+
+    These cases were uncovered before D3.1 because the existing
+    TestGhgDqaSubScoreRecompute tests use the "indicator entirely absent"
+    shape, where the rollup never has to consult `extra.confidence_terms`.
+    """
+
+    @staticmethod
+    def _payload_with_raw_provenance(**per_indicator_provenance) -> dict:
+        # Caller supplies the entire provenance dict per indicator
+        # (whatever shape we want to exercise).
+        return {
+            f"_provenance.ghg.{ind}": prov
+            for ind, prov in per_indicator_provenance.items()
+        }
+
+    def test_ghg_temporal_coverage_recomputes_from_per_indicator_n_valid(
+        self,
+    ) -> None:
+        # Explicit "recomputes from per-indicator" naming for
+        # discoverability. Same shape as TestGhgDqaSubScoreRecompute's
+        # equivalent, kept as a thin alias so a future grep on
+        # "recomputes_from_per_indicator" surfaces all the rollup paths.
+        payload = {
+            f"_provenance.ghg.{ind}": {"extra": {"confidence_terms": {"n_valid": v}}}
+            for ind, v in [("ch4", 0.6), ("co2", 0.9), ("viirs", 0.3)]
+        }
+        out = compute_temporal_coverage(payload)
+        assert out["ghg.temporal_coverage"] == pytest.approx((0.6 + 0.9 + 0.3) / 3)
+
+    def test_ghg_spatial_resolution_suitability_recomputes_from_per_indicator_spatial_context(
+        self,
+    ) -> None:
+        payload = {
+            f"_provenance.ghg.{ind}": {"extra": {"confidence_terms": {"spatial_context": v}}}
+            for ind, v in [("ch4", 0.5), ("co2", 1.0), ("viirs", 0.8)]
+        }
+        out = compute_spatial_resolution_suitability(payload)
+        assert out["ghg.spatial_resolution_suitability"] == pytest.approx(
+            (0.5 + 1.0 + 0.8) / 3
+        )
+
+    def test_ghg_retrieval_inventory_quality_recomputes_from_per_indicator_qa(
+        self,
+    ) -> None:
+        payload = {
+            f"_provenance.ghg.{ind}": {"extra": {"confidence_terms": {"qa": v}}}
+            for ind, v in [("ch4", 0.85), ("co2", 1.00), ("viirs", 0.85)]
+        }
+        out = compute_retrieval_inventory_quality(payload)
+        assert out["ghg.retrieval_inventory_quality"] == pytest.approx(
+            (0.85 + 1.00 + 0.85) / 3
+        )
+
+    def test_strict_none_propagation_when_one_indicator_has_no_confidence_terms(
+        self,
+    ) -> None:
+        # ch4 has confidence_terms; co2 has provenance but no extra dict;
+        # viirs has provenance with extra={} but no confidence_terms key.
+        # All three "missing" shapes should produce the same result: drop
+        # that indicator from the rollup via survivor-renormalise rather
+        # than crash or silently zero.
+        payload = self._payload_with_raw_provenance(
+            ch4={"extra": {"confidence_terms": {"n_valid": 0.7, "qa": 0.85, "spatial_context": 0.6}}},
+            co2={},                                # no extra dict at all
+            viirs={"extra": {}},                   # extra dict empty
+        )
+        # Only ch4 contributes a survivor.
+        assert compute_temporal_coverage(payload) == {
+            "ghg.temporal_coverage": pytest.approx(0.7),
+        }
+        assert compute_retrieval_inventory_quality(payload) == {
+            "ghg.retrieval_inventory_quality": pytest.approx(0.85),
+        }
+        assert compute_spatial_resolution_suitability(payload) == {
+            "ghg.spatial_resolution_suitability": pytest.approx(0.6),
+        }
+
+    def test_strict_none_when_confidence_terms_key_value_is_none(self) -> None:
+        # The per-term lookup `terms.get(term)` returns None when the
+        # specific term is missing OR explicitly None. The reader's
+        # type check `isinstance(value, (int, float))` is what filters
+        # this out; verify it does.
+        payload = self._payload_with_raw_provenance(
+            ch4={"extra": {"confidence_terms": {
+                "n_valid": None,         # explicitly None — should drop
+                "qa":      0.85,
+                "spatial_context": 0.6,
+            }}},
+            co2={"extra": {"confidence_terms": {
+                "n_valid": 0.9,
+                "qa":      0.95,
+                "spatial_context": 0.7,
+            }}},
+        )
+        # Only co2 contributes to temporal_coverage; ch4's None n_valid drops.
+        assert compute_temporal_coverage(payload) == {
+            "ghg.temporal_coverage": pytest.approx(0.9),
+        }
+        # But ch4's qa is real → contributes to retrieval_inventory_quality.
+        assert compute_retrieval_inventory_quality(payload) == {
+            "ghg.retrieval_inventory_quality": pytest.approx((0.85 + 0.95) / 2),
+        }
+
+
+class TestNatureValidPixelCoverageRederivationStrictNone:
+    """D3.1 — Nature mirror of the GHG strict-None tests."""
+
+    @staticmethod
+    def _payload_with_raw_provenance(**per_indicator_provenance) -> dict:
+        return {
+            f"_provenance.nature.{ind}": prov
+            for ind, prov in per_indicator_provenance.items()
+        }
+
+    def test_nature_valid_pixel_coverage_recomputes_from_per_indicator_qa(
+        self,
+    ) -> None:
+        payload = {
+            f"_provenance.nature.{ind}": {"extra": {"confidence_terms": {"qa": v}}}
+            for ind, v in [
+                ("kba",         1.0),
+                ("dw",          0.9),
+                ("habitat",     0.85),
+                ("forest_loss", 1.0),
+                ("ndvi",        0.9),
+                ("water",       0.9),
+                ("recovery",    0.85),
+                ("regional_loss_evidence", 1.0),
+            ]
+        }
+        out = compute_nature_quality_sub_scores(payload, aoi={"radius_km": 5})
+        expected = (1.0 + 0.9 + 0.85 + 1.0 + 0.9 + 0.9 + 0.85 + 1.0) / 8
+        assert out["nature.valid_pixel_coverage"] == pytest.approx(expected)
+
+    def test_nature_strict_none_propagation_with_malformed_provenance(self) -> None:
+        # kba has terms; dw provenance lacks extra entirely; habitat has
+        # extra={}; ndvi has confidence_terms but qa is None. Only kba
+        # and any other "real" survivor should contribute.
+        payload = self._payload_with_raw_provenance(
+            kba={"extra": {"confidence_terms": {"qa": 1.0}}},
+            dw={},
+            habitat={"extra": {}},
+            ndvi={"extra": {"confidence_terms": {"qa": None}}},
+            forest_loss={"extra": {"confidence_terms": {"qa": 0.85}}},
+        )
+        out = compute_nature_quality_sub_scores(payload, aoi={"radius_km": 5})
+        # Survivors: kba (1.0) and forest_loss (0.85).
+        assert out["nature.valid_pixel_coverage"] == pytest.approx(
+            (1.0 + 0.85) / 2
+        )

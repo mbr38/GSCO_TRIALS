@@ -222,6 +222,122 @@ def _buffer_area_m2(radius_km: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Server-side N_valid + HF (M-TIER-A1 Step 8)
+# ---------------------------------------------------------------------------
+
+
+def _server_side_hf(
+    aoi: dict,
+    image_collection: ee.ImageCollection,
+    band: str,
+    bg_median: float,
+    bg_std: float,
+    z_threshold: float,
+    scale: float | None,
+) -> tuple[int, float | None]:
+    """Compute (n_valid, HF) over the *entire* filtered collection server-side.
+
+    Maps over every image (no `.limit()` cap — that cap was the bug the
+    Brasilia + Rotterdam AOD/CH4 diagnostic surfaced). Per-image:
+
+      1. reduceRegion with a *combined* Mean + Count reducer over
+         Site_Buffer at `scale`. Mean may be null when the band is
+         fully masked over the buffer, but Count is *always* a real
+         Number (0 when no valid pixels, ≥1 otherwise). `is_valid` is
+         derived from Count, sidestepping the null-propagation problem.
+      2. `is_hot   = (z >= z_threshold) AND is_valid`, where the z math
+         uses the steady-state (bg_median, bg_std) baseline from steps 1+2.
+         The mean is guarded with `If(is_valid, mean, 0)` so invalid rows
+         don't crash arithmetic.
+
+    Aggregates the per-image `is_valid` and `is_hot` sums via
+    `reduceColumns(ee.Reducer.sum().repeat(2), ...)` — one `.getInfo()`
+    at the end, no client-side loop.
+
+    Returns:
+        n_valid: count of images whose site-buffer mean was non-null at
+                 the requested scale. This is what feeds the A1
+                 confidence formula's N_valid term via
+                 `compute_n_valid_term(n_observations=n_valid, ...)`.
+        hf:      `n_hot / n_valid` as a float in [0, 1], or `None` when
+                 `bg_std <= 0` (degenerate background — z undefined) or
+                 `n_valid == 0` (no data — strict-None propagates upward).
+
+    Design note on null handling. An earlier draft used a
+    `_MISSING_SITE_VALUE_SENTINEL` passed as the `ee.Dictionary.get`
+    default, but EE's `get(key, default)` returns `default` only when
+    the key is *absent* — not when the key is present and maps to
+    `null`. `reduceRegion` produces `{band: null}` (not a missing key)
+    when the band is fully masked, so the sentinel never fired and
+    downstream `ee.Number(null).neq(...)` raised `Number.neq:
+    Parameter 'left' is required and may not be null.`. The Count
+    reducer sidesteps this: it's a counting reducer, so the absence
+    of valid pixels is encoded as the value `0`, never as `null`.
+    """
+    geom = site_buffer(aoi["centre"], aoi["radius_km"])
+    bg_std_degenerate = bg_std <= 0
+
+    # Combined reducer: one reduceRegion per image, both Mean and Count
+    # returned in one dict.  Mean may be null when the band is fully
+    # masked; Count is always a Number (0 when no pixels, ≥1 otherwise),
+    # so we drive is_valid from Count.
+    mean_count_reducer = ee.Reducer.mean().combine(
+        reducer2=ee.Reducer.count(),
+        sharedInputs=True,
+    )
+
+    # EE's combine() naming convention with sharedInputs:
+    #   - first reducer's output keeps the band name             → `<band>`
+    #   - subsequent reducers get a suffix from the reducer name → `<band>_count`
+    mean_key  = band
+    count_key = f"{band}_count"
+
+    def per_image(image: ee.Image) -> ee.Feature:
+        reduction = image.select(band).reduceRegion(
+            reducer=mean_count_reducer,
+            geometry=geom,
+            scale=scale,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        )
+        # `default=0` covers the rare case where the band is missing
+        # from the image entirely (vs the common case of being present
+        # but fully masked, which Count already encodes as 0).
+        count = ee.Number(reduction.get(count_key, 0))
+        is_valid = count.gt(0)
+        # Mean reducer over zero valid pixels OMITS the output key
+        # entirely (not even null), so we MUST pass a default to
+        # reduction.get(mean_key) — both branches of If evaluate
+        # server-side, so an undefaulted .get() crashes the map even
+        # when is_valid=0 short-circuits it logically. The default 0.0
+        # is never read on the valid path (count > 0 → key present).
+        site_mean = ee.Number(
+            ee.Algorithms.If(is_valid, reduction.get(mean_key, 0.0), 0.0)
+        )
+        if bg_std_degenerate:
+            is_hot = ee.Number(0)
+        else:
+            z = site_mean.subtract(bg_median).divide(bg_std)
+            is_hot = z.gte(z_threshold).And(is_valid)
+        return ee.Feature(None, {"is_valid": is_valid, "is_hot": is_hot})
+
+    fc = image_collection.select(band).map(per_image)
+    summed = fc.reduceColumns(
+        reducer=ee.Reducer.sum().repeat(2),
+        selectors=["is_valid", "is_hot"],
+    ).getInfo() or {}
+    sums = summed.get("sum") or [0, 0]
+    n_valid = int(sums[0] or 0)
+    n_hot   = int(sums[1] or 0)
+
+    if n_valid == 0:
+        return 0, None
+    if bg_std_degenerate:
+        return n_valid, None
+    return n_valid, n_hot / n_valid
+
+
+# ---------------------------------------------------------------------------
 # Orchestration — all six steps in one call
 # ---------------------------------------------------------------------------
 
@@ -251,26 +367,39 @@ def six_step(
         aoi, ic_window, band, seasonal=seasonal, scale=scale,
     )
 
-    series = _per_date_site_series(aoi, ic_window, band, scale=scale)
+    # M-TIER-A1 Step 8 — server-side N_valid + HF. Replaces the
+    # client-side `_per_date_site_series` + `anomaly_z_hf(series)` path
+    # which had a 100-image cap that under-reported n_observations for
+    # multi-swath / multi-orbit assets (see tools/diag_aod_ch4_controls.py).
+    # `anomaly_z_hf` is still called with an empty series to compute
+    # anomaly + z from the steady-state values; HF is overwritten with
+    # the server-side count below.
+    azhf = anomaly_z_hf(site, bg_median, bg_std, [], z_threshold=z_threshold)
+    n_valid, hf = _server_side_hf(
+        aoi, ic_window, band, bg_median, bg_std, z_threshold, scale,
+    )
+    azhf["hf"] = hf
 
-    azhf = anomaly_z_hf(site, bg_median, bg_std, series, z_threshold=z_threshold)
     score = to_score(site, bg_median, bg_std, direction=direction, k=k)
 
-    if _trend is not None and series:
-        trend, trend_p = _trend.theil_sen_slope(series)
-    else:
-        # TODO(M5+): wire Theil-Sen / Mann-Kendall once engine/core/trend.py lands.
-        trend, trend_p = None, None
+    # Trend (M-TIER-A2): trend.py doesn't exist yet — the existing
+    # `if _trend is not None and series` block was dead code (always
+    # False since the import always fails). When Tier A2 lands, it must
+    # provide a server-side reducer following the same pattern as
+    # `_server_side_hf` below — no client-side per-date series sampling.
+    # See docstring "Trend computation (M-TIER-A2 follow-up)" below.
+    trend, trend_p = None, None
 
     # M-TIER-A1 — per-indicator confidence via the universal 4-term formula
     # × column-to-surface multiplier (IC_v4 §6.3 / audit §1.1).
     # Strict-None at the indicator level: any missing term collapses the
     # confidence to None; pillar rollups handle that via survivor-renormalise.
+    # n_observations now comes from the server-side count, not len(series).
     confidence_terms = _confidence_terms_from_six_step_state(
         indicator_id=indicator_id,
         aoi=aoi,
         time_range=time_range,
-        n_observations=len(series),
+        n_observations=n_valid,
         hf=azhf["hf"],
     )
     confidence = compute_indicator_confidence(
@@ -346,17 +475,21 @@ def _per_date_site_series(
     band: str,
     scale: float | None = None,
 ) -> list[float]:
-    """Per-date Site_Buffer mean across `image_collection`.
+    """DEPRECATED (M-TIER-A1 Step 8, 23 May 2026) — superseded by
+    `_server_side_hf` for HF computation; no longer called by `six_step`.
 
-    Capped at the most recent `_PER_DATE_SERIES_MAX_OBSERVATIONS` images via
-    `.limit(N)` because EE's compute graph aborts a `.map().getInfo()` chain
-    once the collection grows past ~5000 elements — running the air pillar
-    across all 9 pollutants crossed that limit in practice. The output feeds
-    HF only, so a recency-weighted approximation is acceptable for screening.
+    Retained here for any out-of-tree caller that imported it pre-Step-8
+    and for the diagnostic tools that mirror its semantics inline. New
+    code should call `_server_side_hf` instead — it (a) drops the
+    100-image cap that hid temporal coverage for multi-swath assets like
+    MODIS MAIAC GRANULES, and (b) does the HF arithmetic server-side
+    rather than pulling per-date values to the client.
 
-    TODO(M5+): replace this with a fully server-side HF computation using
-    `ee.Reducer.sum()` over a per-image z-test — would remove the cap and
-    cut overall EE compute cost.
+    Per-date Site_Buffer mean across `image_collection`. Capped at the
+    most recent `_PER_DATE_SERIES_MAX_OBSERVATIONS` images via `.limit(N)`
+    because EE's compute graph aborted a `.map().getInfo()` chain once
+    the collection grew past ~5000 elements. The output fed HF in
+    pre-Step-8 six_step, which is what Step 8 lifted server-side.
     """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
 

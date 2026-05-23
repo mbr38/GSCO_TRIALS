@@ -346,18 +346,26 @@ QA_PER_INDICATOR: dict[str, float] = {
 #     conservatively raised to 0.0625 (no fractional revisit credit).
 #   * Indicators in SINGLE_SNAPSHOT_INDICATORS use a 1.0 pass-through.
 EXPECTED_N_PER_WINDOW_DAY: dict[str, float] = {
-    "air.no2":   1.0,
-    "air.so2":   1.0,
-    "air.co":    1.0,
-    "air.hcho":  1.0,
-    "air.o3":    1.0,
-    "air.aai":   1.0,
+    # TROPOMI gases — tropical-latitude clean-pixel rate is ~30 % per day
+    # after qa_value filtering and cloud masking. Calibrated against
+    # Sapezal + Brasilia 90-day Feb–May 2026 window (Step 8 recalibration,
+    # 22 May 2026).
+    "air.no2":   0.3,
+    "air.so2":   0.3,
+    "air.co":    0.3,
+    "air.hcho":  0.3,
+    "air.o3":    0.3,
+    "air.aai":   0.3,
+    # CAMS PM is daily model output regardless of cloud cover.
     "air.pm25":  1.0,
     "air.pm10":  1.0,
-    "air.aod":   1.0,
-    "ghg.ch4":   1.0,
+    # MODIS MAIAC AOD — cloudy-sky retrieval limited; ~30 % is realistic.
+    "air.aod":   0.3,
+    # Sentinel-5P CH4 — same cadence as other TROPOMI gases.
+    "ghg.ch4":   0.3,
+    # VIIRS NTL — nightly composite generally produced.
     "ghg.viirs": 1.0,
-    "nature.ndvi": 1.0 / 16.0,
+    "nature.ndvi": 0.2,
 }
 
 # Single-snapshot indicators: N_valid pass-through to 1.0 when the

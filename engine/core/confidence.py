@@ -68,12 +68,28 @@ def compute_n_valid_term(
     Single-snapshot indicators (DW composites, Hansen / ODIAC annual
     rasters, KBA vector data) bypass the ratio and pass through 1.0
     when the snapshot was produced (n_observations >= 1) or 0.0 when
-    skipped.
+    skipped. Here 0.0 is the right semantic — the snapshot was
+    *attempted and failed*, which is a real piece of information.
 
     Live-revisit indicators (TROPOMI, CAMS, MAIAC, VIIRS, MODIS NDVI)
     use `EXPECTED_N_PER_WINDOW_DAY[indicator_id] · window_days` as the
     denominator. Returns None when either input is missing or
     `window_days <= 0`.
+
+    Step 8 design lock (22 May 2026): for live-revisit indicators,
+    n_observations=0 returns None (no information about coverage), not
+    0.0 (perfect-bad coverage). Zero observations means we have no
+    data on the indicator's actual revisit behaviour over this AOI/
+    window — structurally different from "we sampled and got 0 valid
+    pixels per attempt." The None then strict-Nones the whole
+    indicator's confidence (compute_indicator_confidence) and the
+    pillar rollup drops it via survivor-renormalise. See also the
+    matching strict-None pattern in compute_anomaly_strength_term.
+
+    The SINGLE_SNAPSHOT_INDICATORS branch keeps 0.0 on n=0 because
+    "snapshot was attempted and produced nothing" IS information — it
+    means the composite/raster build failed end-to-end, which is a
+    real signal to surface in the confidence rather than hide.
     """
     if indicator_id in SINGLE_SNAPSHOT_INDICATORS:
         if n_observations is None:
@@ -81,6 +97,10 @@ def compute_n_valid_term(
         return 1.0 if n_observations >= 1 else 0.0
 
     if n_observations is None or window_days is None or window_days <= 0:
+        return None
+    # Step 8 design lock: n_observations == 0 → None (no information),
+    # NOT 0.0 (perfect-bad coverage). See class docstring above.
+    if n_observations == 0:
         return None
     per_day = EXPECTED_N_PER_WINDOW_DAY.get(indicator_id)
     if per_day is None or per_day <= 0:
@@ -103,6 +123,15 @@ def compute_anomaly_strength_term(
     returns 1.0 — "no anomaly concept applies → not a confidence
     drag". This is unconditional (never None) because absence of an
     HF concept is a structural property, not a missing input.
+
+    Step 8 design lock (22 May 2026): when n_valid=0 (zero observations
+    in the window), HF is necessarily None, and this function returns
+    None. The downstream compute_indicator_confidence then strict-Nones
+    the whole indicator's confidence. Survivor-renormalise at the pillar
+    level drops the indicator from the rollup. This is "no data, no
+    claim" — the indicator emits None rather than a low-confidence
+    zero-floor value. Revisit in Tier B1 if user feedback indicates
+    silent dropouts confuse the UI rendering.
     """
     if hf is not None:
         return _clamp01(hf)

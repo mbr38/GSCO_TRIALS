@@ -16,6 +16,51 @@
 > and a new bare/built reducer (~1–2 hr work); (b) remove the orphan
 > IDs from Schema_v2 §4.6 (5 min). Decision deferred to a separate
 > small milestone.
+>
+> **Add confidence_terms to _DEFAULT_SIX_STEP to enable integration testing of pillar QA sub-score re-derivation paths.**
+> M-TIER-A1 made the GHG_DQA sub-scores (`temporal_coverage`,
+> `spatial_resolution_suitability`, `retrieval_inventory_quality`) and
+> Nature's `valid_pixel_coverage` derive from per-indicator
+> `confidence_terms` (qa / n_valid / anomaly_strength / spatial_context)
+> stored in each indicator's `_provenance.<pillar>.<indicator>.extra.confidence_terms`.
+> The integration-test fake in `tests/test_air.py::_DEFAULT_SIX_STEP`
+> still has the pre-A1 9-key shape and lacks `confidence_terms`, so all
+> three pillars' `_format_result` functions take the graceful-absence
+> branch (the dict is omitted from provenance.extra) and the pillar
+> QA sub-score derivations compute to None across the board in CI. The
+> consumers correctly handle absence so nothing breaks, but the
+> post-A1 rollup paths aren't exercised. Fix: update `_DEFAULT_SIX_STEP`
+> to include a representative `confidence_terms` dict (and parallel
+> updates for any GHG/Nature integration fakes that follow the same
+> pattern). Pre-existing gap; surfaced by M-TIER-A1 Step B 23 May 2026.
+>
+> **Status (M-TIER-A1 Step D, 23 May 2026):** `_DEFAULT_SIX_STEP` in
+> `tests/test_air.py` now carries `confidence_terms` (closed for the
+> Air pillar's snapshot path). The GHG and Nature pillar test fakes
+> are still open — see the dedicated entry below.
+>
+> **Thread confidence_terms through GHG/Nature pillar fakes (_fake_ch4_snapshot et al.) to enable integration-test coverage of pillar QA sub-score re-derivation paths.**
+> M-TIER-A1 Step D D1 added `confidence_terms` to
+> `tests/test_air.py::_DEFAULT_SIX_STEP`, closing the integration-test
+> gap for the Air pillar's confidence flow. The GHG pillar's test
+> fakes (`_fake_ch4_snapshot` / `_fake_viirs_snapshot` /
+> `_fake_co2_snapshot` in `tests/test_ghg.py`) mock at
+> `compute_ghg_indicator_snapshot` / `compute_co2_snapshot` — one
+> level above six_step — and their provenance dicts lack
+> `extra.confidence_terms` entirely. Same gap on the Nature side
+> wherever the pillar's `compute_*` functions are monkey-patched.
+> D3.1 (M-TIER-A1 Step D, this milestone) adds *direct* unit-test
+> coverage of the re-derivation functions (`compute_temporal_coverage`,
+> `compute_spatial_resolution_suitability`,
+> `compute_retrieval_inventory_quality`, Nature's
+> `compute_nature_quality_sub_scores`), so the formula correctness is
+> pinned in CI. What remains uncovered is the *integration* flow —
+> i.e. that real `run_pillar` invocations propagate per-indicator
+> confidence terms through to the pillar's QA sub-scores end-to-end.
+> Fix: extend the GHG/Nature fakes to carry a representative
+> `extra.confidence_terms` dict the same way `_DEFAULT_SIX_STEP` now
+> does. Small standalone follow-up; logged here so it doesn't get
+> lost.
 
 > **Scope (historical).** This doc collects v1.x deferrals from across milestones, not
 > just M5.5. The original "M5.5 follow-ups" header was retired when the
