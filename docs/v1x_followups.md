@@ -83,6 +83,134 @@
 > list outgrew its origin; the M5.5/M5.5b/M5.5c/M5.6 sections below are
 > preserved verbatim for historical context.
 
+---
+
+## M-TIER-A1 — closed 23 May 2026
+
+**Summary.** Replaced the placeholder flat per-pillar confidence values (~1.0 / 0.7 / 0.8 across Air, GHG, Nature) with a real per-indicator confidence formula that aggregates to the pillar level via the existing weight dictionaries. Per audit §1.1, this was the single most important v1.x defensibility item — every confidence dot, every verbal-summary tier, and `composite.confidence = min(...)` had been uninformative placeholders since v1 launch.
+
+After this milestone:
+- Every single-value indicator emits a real `<indicator>.confidence` via the universal 4-term additive formula `c_raw = 0.30·QA + 0.30·N_valid + 0.25·anomaly_strength + 0.15·spatial_context`, then `c_final = c_raw × COLUMN_TO_SURFACE_MULTIPLIER[uncertainty_tag]`.
+- Pillar-level aggregates recompute from per-indicator inputs via existing `*_QUALITY_ATTRIBUTION_WEIGHTS` dicts (audit doc §1.5 / §6.3.2 rollup pattern preserved).
+- `composite.confidence = min(...)` becomes genuinely informative; produces realistic 0.60-0.80 values for typical sites rather than the prior 0.7 floor.
+- Static `column_to_surface_uncertainty` multipliers are applied per audit §1.5, so NO₂ confidence > CO confidence on identical-quality observations even before BLH lands in Tier C1b.
+- Hotspot Frequency is computed server-side over the full time window — no `.limit(N)` cap on the per-image map — restoring correct per-date semantics for multi-swath products (MAIAC AOD, S5P L3 CH4) per IC_v4 §0.2 step 5.
+
+**Design decisions locked.** Eight decisions from the A1 design conversation (22 May 2026):
+
+| # | Decision | Lock |
+|---|---|---|
+| Q1 | Granularity | Per-indicator + per-pillar |
+| Q2 | Term combination | Additive |
+| Q3 | anomaly_strength | HF-based (hotspot frequency) |
+| Q4b | Existing pillar sub-score dicts | Survive, recomputed from per-indicator inputs |
+| Q5 | composite.confidence rule | Keep `min(...)` |
+| Q6 | Missing-term propagation | Strict-None at indicator level; survivor-renormalise at pillar level |
+| Q7 | column_to_surface_uncertainty | Fold static multiplier into A1 |
+| Q8 | Test fixtures | Synthesised for formula correctness; EE-snapshot goldens for integration |
+
+**Step 8 recalibration and engine-architecture sub-milestones.** What was originally scoped as a one-hour calibration check unfolded into a 5-step sub-milestone (Steps A through E plus a critical Option-A fix), each of which uncovered and addressed a real engine issue masked by the prior placeholder confidence:
+
+- **Step A — strict-None at n_valid=0.** Locked the design: zero observations propagates as None (no information), not 0.0 (perfect-bad coverage). Added 2 canary tests.
+- **Step B — server-side HF computation.** Replaced the legacy `_per_date_site_series` with `_server_side_hf`, removing the `.limit(100)` cap that had been silently truncating coverage for every multi-image-per-day product since v1 launch. Killed the dead client-side trend code path (`engine/core/trend.py` doesn't exist; the consumer was always returning None — confirmed by inspection).
+- **Step C — pre-flight smoke test + diagnostic.** Smoke test caught two real EE bugs in `_server_side_hf` that no CI test would have surfaced: (1) `ee.Dictionary.get(key, default)` returns null when key is present-but-null (masked-band case); fixed via combined Mean+Count reducer. (2) `ee.Algorithms.If(...)` evaluates both branches eagerly server-side; fixed via `default=0.0` on the lookup. **Both bugs would have shipped silently broken.** The Brasilia/Rotterdam diagnostic confirmed the `.limit(100)` cap was the dominant cause of zero-observation readings (Brasilia AOD: 0 → 107 valid samples; Rotterdam AOD: 1 → 169) — the "wet-season masking" story was wrong; we just had a sampling bug.
+- **Step D — close the Air pillar integration-test coverage gap.** Updated `_DEFAULT_SIX_STEP` to carry `confidence_terms`, exposing the pillar QA sub-score re-derivation paths to CI for the first time. Added 11 new tests (`test_pillar_confidence_rollup.py` D3.1 + `test_repeatable_core.py` D3.2). D3.2 specifically defends against the two Step C EE bugs via faithful EE-semantic mocks — one test was even refactored mid-creation when its first mock was too lenient to catch the regression it targeted.
+- **Step E — close GHG and Nature pillar integration-test coverage gaps.** Threaded `confidence_terms` through `_fake_ch4_snapshot`, `_fake_viirs_snapshot`, `_fake_co2_snapshot`, `fake_kba`, and six Nature fakes. Surfaced an interesting pre-existing artefact: `ghg.data_quality_attribution` had been reading as ~1.0 in integration tests because single-survivor renormalisation pushed the only non-None sub-score (`nearby_source_isolation = 1.0` placeholder) to full weight — a misleading signal hidden by defensive "is not None" assertions. Post-E, GHG_DQA lands in the realistic 0.7-0.8 range in CI.
+- **Option-A — daily mosaic + chunked compute.** Step B's uncapped server-side HF surfaced a new problem at Distrito Federal scale: AOD's ~5,200 swath images per 90-day window pushed EE's compute graph past the 5-minute `.getInfo()` timeout. Implementation: per-image Feature tagged with `day_bucket` (UTC midnight-to-midnight); FeatureCollection-level distinct-day counting via `aggregate_array().distinct()`; client-side date chunking at `_SERVER_SIDE_HF_CHUNK_DAYS = 10`. Also corrected a latent semantic bug: `_server_side_hf` had been counting granules as `n_valid`, overcounting independent information by ~58× for MAIAC and ~14× for S5P L3 CH4. Post-fix, `n_valid` correctly represents distinct UTC dates. Surfaced `granule_count` in `provenance.extra` for audit transparency (informational only, not in any score arithmetic).
+
+**Real Step 8 — recalibration verdict.** Sapezal Plantation and Distrito Federal re-screened against the full post-fix pipeline:
+
+| | Sapezal | Brasilia | Healthy band |
+|---|---|---|---|
+| `air.attribution_confidence_score` | 0.699 | 0.699 | 0.65-0.80 ✓ |
+| `ghg.data_quality_attribution` | 0.685 | 0.775 | 0.65-0.80 ✓ |
+| `nature.quality_attribution` | 0.795 | 0.799 | 0.65-0.80 ✓ |
+| `composite.confidence` | **0.685** | **0.699** | 0.60-0.80 ✓ |
+
+Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and intuitive); NO₂ confidence (0.684) > CO confidence (0.564) shows the multiplier effect working as designed; static-snapshot indicators (KBA, Hansen, regional_loss_evidence) saturate at 1.0; live-revisit indicators distribute across the band based on actual coverage; no silent dropouts that look like bugs (CO₂ skipping is `out_of_coverage` per ODIAC's 2020-2023 vintage, expected; PM₂.₅/PM₁₀ None is pre-existing, separate issue). `CONFIDENCE_FORMULA_WEIGHTS` did NOT require iteration — the 0.30/0.30/0.25/0.15 structure landed in the healthy range at first try.
+
+**Test trajectory.**
+- Entering milestone: ~1013 passed
+- After M-TIER-A1 core: 1063 passed (+50: 32 formula + 17 pillar rollup + 1 GHG_DQA rewire)
+- After Step A: 1065 (+2 strict-None canaries)
+- After Steps B, C: 1065 (no test count change; smoke-test caught EE bugs that CI couldn't have surfaced)
+- After Step D: 1076 (+11: 7 D3.1 pillar re-derivation tests + 4 D3.2 server-side HF tests)
+- After Step E: 1076 (no count change; existing tests' defensive "is not None" assertions absorbed the value shifts)
+- After Option-A: 1076 (test infrastructure extended with `_FakeFilter`, `_FakeList`, etc. for the chunked-aggregation path)
+
+**Final state: 1076 passed, 8 skipped, 0 failures.**
+
+**Deliverables.**
+
+*Engine:*
+- `engine/constants.py` — `CONFIDENCE_FORMULA_WEIGHTS` (0.30/0.30/0.25/0.15), `SPATIAL_CONTEXT_THRESHOLD = 3.0`, `COLUMN_TO_SURFACE_MULTIPLIER` (1.00/0.95/0.88/0.80/1.00), `QA_PER_INDICATOR`, `EXPECTED_N_PER_WINDOW_DAY` (TROPOMI gases at 0.3 after Step 8 recalibration), `SINGLE_SNAPSHOT_INDICATORS`, `NATIVE_PIXEL_AREA_M2`.
+- `engine/core/confidence.py` (new, ~230 LOC) — universal additive formula × column multiplier; per-term helpers; survivor-renormalise pillar rollup with optional weight dict.
+- `engine/core/repeatable_core.py` — `_server_side_hf` server-side computation; `_daily_mosaic_by_utc_day` helper; `_date_chunks_iso` for client-side chunking; legacy `_per_date_site_series` deprecated. `six_step` returns `confidence_terms` dict and surfaces `n_valid_dates` + `granule_count` in provenance.extra.
+- `engine/{air,ghg,nature}.py` — per-indicator confidence wiring; GHG_DQA sub-scores re-derived from per-indicator A1 terms read from `provenance.extra.confidence_terms`; Nature `valid_pixel_coverage` recomputed from per-indicator QA; `_single_snapshot_confidence_terms` helper for non-six_step indicators.
+
+*Docs:*
+- `docs/Indicators_Computation_v4.md` v4.1 → v4.2: new §8 "Confidence (M-TIER-A1)" with canonical formula, per-term definitions, column-to-surface multiplier table, per-pillar rollup logic, composite rule, `provenance.extra` audit hook.
+- `docs/Indicator_ID_Schema_v2.md` v2.1 → v2.2: footnote on `column_to_surface_uncertainty` row noting dual role as A1 confidence multiplier (single source of truth).
+- `docs/provenance_schema.md`: extra-field surfacing of `n_valid_dates` and `granule_count` documented.
+
+*Tests:*
+- `tests/test_confidence_formula.py` (new, 32 tests) — per-term helpers, canonical universal-weight tests (perfect / NO₂-moderate / CO-weak / missing-term), HF=0 drag, multiplier dispatch parametrised over 10 indicator/uncertainty pairs, strict-None at n_valid=0 lock.
+- `tests/test_pillar_confidence_rollup.py` (new, 24 tests: 17 from M-TIER-A1 core + 7 from Step D) — `compute_pillar_confidence` semantics, GHG_DQA sub-score derivation, Nature `valid_pixel_coverage` recompute, strict-None propagation when one indicator has no confidence_terms.
+- `tests/test_repeatable_core.py` (new section, 4 D3.2 + 1 Option-A tests) — `_server_side_hf` EE-bug coverage via faithful `_FakeDict` / `_FakeFilter` / `_FakeList` mocks; daily-mosaic multi-image-per-day collapse.
+- `tests/test_ghg.py` and `tests/test_nature.py` — fake snapshots threaded with `confidence_terms`; mathematical-consistency lock (`confidence == formula(terms)`).
+- `tests/test_air.py` — `_DEFAULT_SIX_STEP` now provides `confidence_terms`; one direct-assertion update for the consistency requirement.
+
+*Diagnostic scripts (for future regression):*
+- `tools/diag_aod_ch4_zero_obs.py` — initial diagnostic at Brasilia.
+- `tools/diag_aod_ch4_controls.py` — Rotterdam control + Brasilia point-sample.
+- `tools/diag_aod_ch4_step8.py` — post-Option-A end-to-end.
+- `tools/smoke_server_side_hf.py` — pre-flight EE smoke test (caught the two Step C bugs).
+
+*Plain-language explainer:*
+- `docs/M-TIER-A1_plain_language_explainer.md` — non-technical walkthrough of the whole story for non-engineer audiences.
+
+**Followups logged for v1.x.**
+
+1. **Performance: variable chunk size per indicator.** Current `_SERVER_SIDE_HF_CHUNK_DAYS = 10` is tuned to avoid Distrito Federal's per-chunk EE timeout, but creates 9 sequential chunks for every indicator including those (TROPOMI gases, MODIS NDVI) that have ~1 image/day and don't need chunking at all. Sapezal screening currently takes ~7 minutes total, dominated by 450s on AOD's 9 chunks. Fix: per-indicator chunk-size lookup in `engine/constants.py`; full-window for low-cadence products, 10-day chunks only for AOD + CH4. Estimated 1-2 hours. Big small-buffer win.
+
+2. **Performance: consider parallel chunks within an indicator.** Independent chunks of the same indicator could run concurrently via `ThreadPoolExecutor`. Would further reduce single-slow-indicator dominance. Estimated 3-4 hours. Defer pending whether (1) above is sufficient.
+
+3. **UX: drop AOD and CH4 from default indicator selection at small buffers.** Both are methodologically weak at sub-10 km scales and contribute most of the per-screening compute cost. Letting users opt in rather than opt out would dramatically improve default UX.
+
+4. **PM₂.₅ / PM₁₀ persistently None at both demo sites.** Pre-existing engine issue, separate from A1. CAMS coverage at Brazilian latitudes or a band/QA filter issue. Worth a brief investigation.
+
+5. **`composite.overall_screening` rank-order:** Brasilia (0.213) currently ranks above Sapezal (0.179) on the headline screening score. This is the *opposite* of the intended demo narrative ("high-priority Amazon vs low-priority capital region"). Separate from A1 — likely a sub-aggregate weight or calibration issue downstream of the pollution/habitat scores themselves. Worth a deliberate "demo calibration" pass before any external demo.
+
+6. **`nature.dw.class_confidence` lands at 0.47-0.49 at both demo sites** — lowest Nature sub-score by margin. Sanity check that DW probability outputs are wired correctly.
+
+7. **`_SERVER_SIDE_HF_CHUNK_DAYS = 10` constant tuning** — chosen empirically; sensitivity analysis recommended for Tier B1 alongside the confidence formula weights.
+
+8. **Tier C1b — BLH-aware `column_to_surface_uncertainty` multiplier.** Currently a static enum lookup (audit §1.5 table). Once ERA5 wind/BLH ingest lands, replace static multiplier with BLH-modulated values. Extension point is `engine/constants.py:COLUMN_TO_SURFACE_MULTIPLIER`.
+
+9. **`CONFIDENCE_FORMULA_WEIGHTS` calibration.** Current values 0.30/0.30/0.25/0.15 chosen on first principles; landed healthy at first try. Tier B1 sensitivity analysis should verify ±0.05 perturbations don't flip demo-site rankings.
+
+10. **Saved-analyses regeneration.** Sapezal and Brasilia JSONs from the Step 8 verification run (23 May 2026) can be promoted to `demo/saved_analyses/high_priority_amazon.json` and `low_priority_brasilia.json` directly — they already reflect the post-Option-A pipeline.
+
+**Unblocks.**
+
+- **Tier A2 (trend engine).** `engine/core/trend.py` skeleton can now be built with the per-date semantic conventions established in Option-A. The placeholder M-FOLLOWUP-FALLBACK in Vegetation_Condition can be removed.
+- **Tier B1 (sensitivity analysis).** Has concrete targets: `CONFIDENCE_FORMULA_WEIGHTS`, `COLUMN_TO_SURFACE_MULTIPLIER` values, `_SERVER_SIDE_HF_CHUNK_DAYS`.
+- **Tier C1a / C1b / C2 (sector, wind, BLH).** All have clearly defined extension points in the A1 surface: `confidence_terms` dict structure, multiplier lookup table, `sector_signal_anomaly` provenance flag.
+- **P-09 Indicator Library cards.** Can now display real per-indicator confidence values + the four constituent terms via `provenance.extra.confidence_terms`. Previously the cards had nothing meaningful to show.
+- **P-05 / P-11 confidence dots.** Tell a real story for the first time.
+- **Verbal summary tiering.** `composite_confidence_bucket` (`high ≥ 0.66`, `moderate 0.33-0.66`, `low < 0.33`) now corresponds to actual data quality.
+
+**Methodological honesty notes (worth preserving).**
+
+- The HF-based `anomaly_strength` (Q3=B) produces honest-but-occasionally-counterintuitive pairings at quiet sites: a supplier with low pollution and low HF gets "low priority, with moderate confidence — limited anomaly evidence in the observation window." This is the locked behaviour per Risk R2; verbal-summary template language already accommodates it.
+- The strict-None lock at n_valid=0 (Step A) drops genuinely-zero-observation indicators from pillar rollups via survivor-renormalise. This is a deliberate "no data, no claim" semantic and is the right behaviour, but it means low-coverage indicators (e.g. CH4 at cloudy AOIs) silently absent themselves rather than producing very-low confidence. P-05 UI consumers should distinguish "indicator skipped due to zero coverage" from "indicator reported low confidence."
+- The `column_to_surface_uncertainty` multiplier is a defensible v1 calibration based on audit §1.5 framing, not an empirical fit. Sensitivity analysis (Tier B1) should confirm the chosen values don't unduly suppress NO₂ confidence relative to CO at sites where NO₂ is the dominant indicator.
+- The pre-fix "Brasilia AOD has 107 valid observations" finding from the Step C diagnostic was a granule count, not a date count. All comparisons of pre-fix to post-fix observation counts must account for this — granule counts and date counts are not the same unit.
+
+*Closed by claude.ai planning session, 23 May 2026. Anchored to `Indicators_Audit_and_v1x_Roadmap.md` v1.5 §1.1 + §6 Tier A1. Authoritative for M-TIER-A1 milestone state.*
+
+---
+
 ## Pillar-wide EE errors surface as raw server-side strings (M-UI-E.1)
 
 **Update (M-NATURE-DEFENSIVE, May 2026).** The *expected* empty-result
