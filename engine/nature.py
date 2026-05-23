@@ -1168,6 +1168,13 @@ def compute_ndvi_condition(
     ndvi_confidence_terms = raw.get("confidence_terms")
     if ndvi_confidence_terms is not None:
         ndvi_extra["confidence_terms"] = ndvi_confidence_terms
+    # M-UI-A1-SURFACE engine-gap fix — same dates + granules surface as Air/GHG.
+    ndvi_n_valid_dates = raw.get("n_valid_dates")
+    if ndvi_n_valid_dates is not None:
+        ndvi_extra["n_valid_dates"] = ndvi_n_valid_dates
+    ndvi_granule_count = raw.get("granule_count")
+    if ndvi_granule_count is not None:
+        ndvi_extra["granule_count"] = ndvi_granule_count
 
     return {
         "nature.ndvi.mean":             raw.get("site"),

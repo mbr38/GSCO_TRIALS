@@ -17,11 +17,16 @@ and leaves their outputs as None with a TODO.
 
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, NamedTuple
 
 import ee
 
-from engine.constants import ANOMALY_Z_THRESHOLD, NORMALISATION_K
+from engine.constants import (
+    ANOMALY_Z_THRESHOLD,
+    NORMALISATION_K,
+    SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
+    SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR,
+)
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.confidence import (
     compute_anomaly_strength_term,
@@ -228,15 +233,18 @@ def _buffer_area_m2(radius_km: float) -> float:
 
 _MS_PER_UTC_DAY: int = 86_400_000
 
-# Chunk the time-range into windows of this many days when running
-# `_server_side_hf` so no single `getInfo()` exceeds EE's 5-minute hard
-# timeout for high-cadence multi-swath products at large buffers. See
-# `_server_side_hf` docstring for the design rationale.
-_SERVER_SIDE_HF_CHUNK_DAYS: int = 10
+# v1.x followup #1 — the legacy module-level `_SERVER_SIDE_HF_CHUNK_DAYS`
+# constant has been replaced by per-indicator values in
+# `engine.constants.SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR`, with
+# `SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT` as the fallback. Low-cadence
+# indicators (~1 image/day) get chunk_days = 90 = full window → single-
+# chunk fast path; high-cadence multi-swath products (AOD, CH4) keep
+# 10-day chunks to stay under EE's 5-minute getInfo timeout.
 
 
 def _date_chunks_iso(
-    time_range: tuple[str, str], chunk_days: int = _SERVER_SIDE_HF_CHUNK_DAYS,
+    time_range: tuple[str, str],
+    chunk_days: int = SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
 ) -> list[tuple[str, str]]:
     """Split an ISO-date window into half-open chunks of `chunk_days` each.
 
@@ -276,8 +284,9 @@ def _server_side_hf(
     scale: float | None,
     *,
     time_range: tuple[str, str] | None = None,
-) -> tuple[int, float | None]:
-    """Compute (n_valid, HF) over the filtered collection server-side.
+    indicator_id: str | None = None,
+) -> "ServerSideHfResult":
+    """Compute (n_valid_dates, HF, granule_count) over the collection server-side.
 
     Counts **distinct UTC days** (not granules) where the buffer was
     observable / crossed threshold. Two design properties matter:
@@ -338,13 +347,26 @@ def _server_side_hf(
       are union'd into client-side Python sets across chunks.
 
     Returns:
-        n_valid: count of distinct UTC days (across the full
+        A ``ServerSideHfResult`` named tuple with three fields:
+
+        n_valid_dates: count of distinct UTC days (across the full
                  `time_range`) with at least one granule whose buffer
                  was usable. Feeds the A1 confidence formula's N_valid
-                 term via `compute_n_valid_term(n_observations=n_valid)`.
+                 term via `compute_n_valid_term(n_observations=...)`.
+                 Also surfaced in ``provenance.extra.n_valid_dates`` for
+                 audit transparency (the close-entry's promised dates-
+                 vs-granules disambiguation lives here).
         hf:      `n_hot_days / n_valid_days` as a float in [0, 1], or
                  `None` when `bg_std <= 0` (degenerate background) or
-                 `n_valid == 0` (no data — strict-None propagates).
+                 `n_valid_dates == 0` (no data — strict-None propagates).
+        granule_count: raw image count across the full `time_range`
+                 (before per-date dedup). Always ≥ ``n_valid_dates`` for
+                 multi-swath / multi-orbit products; equal for daily-
+                 single-image products. Informational only — never
+                 enters score arithmetic. Surfaced in
+                 ``provenance.extra.granule_count`` so audit reviewers
+                 can see the rate at which the engine collapsed many
+                 swaths into per-date evidence.
 
     Args:
         time_range: required for chunking. When None, falls back to a
@@ -399,47 +421,94 @@ def _server_side_hf(
             "day_bucket": day_bucket,
         })
 
-    # Decide chunking. When time_range is missing, fall back to a single
-    # call over the whole collection (tests + unusual callers).
+    # Decide chunking. Three paths:
+    #   1. `time_range` is missing — single call over the whole collection
+    #      (tests + unusual callers). No filterDate; no chunk lookup.
+    #   2. `chunk_days >= window_days` (v1x followup #1, 24 May 2026) —
+    #      low-cadence indicator's full window fits in one call. Skip
+    #      `_date_chunks_iso` entirely; reuse the no-filterDate path with
+    #      the upstream-filtered ic_window (already date-bounded by
+    #      `six_step`).
+    #   3. Otherwise — per-indicator chunked path. Use the indicator-
+    #      specific value from
+    #      `SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR`, falling through to
+    #      `SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT` (10 days) when the indicator
+    #      isn't in the lookup. Each chunk filters the collection by date.
+    chunks: list[tuple[str, str] | None]
     if time_range is None:
-        chunks: list[tuple[str, str]] = [("__unused__", "__unused__")]
+        chunks = [None]
     else:
-        chunks = _date_chunks_iso(time_range)
+        chunk_days = SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR.get(
+            indicator_id or "", SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
+        )
+        win_days = _window_days(time_range)
+        if win_days is None or chunk_days >= win_days:
+            # Fast path: one call over the upstream-filtered collection.
+            chunks = [None]
+        else:
+            chunks = list(_date_chunks_iso(time_range, chunk_days=chunk_days))
 
     valid_days_seen: set[int] = set()
     hot_days_seen:   set[int] = set()
+    granule_count_total = 0
 
     selected = image_collection.select(band)
 
-    for chunk_start, chunk_end in chunks:
-        if time_range is None:
+    for chunk in chunks:
+        if chunk is None:
             chunk_ic = selected
         else:
-            chunk_ic = selected.filterDate(chunk_start, chunk_end)
+            chunk_ic = selected.filterDate(chunk[0], chunk[1])
 
         fc = chunk_ic.map(per_image)
         valid_fc = fc.filter(ee.Filter.eq("is_valid", 1))
         hot_fc   = fc.filter(ee.Filter.eq("is_hot",   1))
 
-        # One getInfo per chunk for both distinct-day arrays.
+        # One getInfo per chunk: distinct-day arrays for the two
+        # validity bands AND the raw granule count for this chunk. The
+        # granule count piggybacks on the existing dict so we don't pay
+        # an extra round-trip (M-UI-A1-SURFACE engine-gap fix, 24 May 2026).
         chunk_result = ee.Dictionary({
-            "valid_days": valid_fc.aggregate_array("day_bucket").distinct(),
-            "hot_days":   hot_fc.aggregate_array("day_bucket").distinct(),
+            "valid_days":    valid_fc.aggregate_array("day_bucket").distinct(),
+            "hot_days":      hot_fc.aggregate_array("day_bucket").distinct(),
+            "granule_count": chunk_ic.size(),
         }).getInfo() or {}
 
         for day in chunk_result.get("valid_days") or []:
             valid_days_seen.add(int(day))
         for day in chunk_result.get("hot_days") or []:
             hot_days_seen.add(int(day))
+        granule_count_total += int(chunk_result.get("granule_count") or 0)
 
-    n_valid = len(valid_days_seen)
-    n_hot   = len(hot_days_seen)
+    n_valid_dates = len(valid_days_seen)
+    n_hot         = len(hot_days_seen)
 
-    if n_valid == 0:
-        return 0, None
+    if n_valid_dates == 0:
+        return ServerSideHfResult(0, None, granule_count_total)
     if bg_std_degenerate:
-        return n_valid, None
-    return n_valid, n_hot / n_valid
+        return ServerSideHfResult(n_valid_dates, None, granule_count_total)
+    return ServerSideHfResult(
+        n_valid_dates,
+        n_hot / n_valid_dates,
+        granule_count_total,
+    )
+
+
+class ServerSideHfResult(NamedTuple):
+    """Return shape for ``_server_side_hf``.
+
+    Added in the M-UI-A1-SURFACE engine-gap fix (24 May 2026): the
+    legacy ``(n_valid, hf)`` 2-tuple folded the distinct-dates count
+    and granule count into the same opaque integer, leaving the
+    audit-transparency dates-vs-granules disambiguation un-surfaceable
+    downstream. The named tuple lets every caller pick the field by
+    name; positional unpacking (``n, h, g = _server_side_hf(...)``)
+    still works for callers that want it.
+    """
+
+    n_valid_dates: int
+    hf:            float | None
+    granule_count: int
 
 
 # ---------------------------------------------------------------------------
@@ -480,11 +549,12 @@ def six_step(
     # anomaly + z from the steady-state values; HF is overwritten with
     # the server-side count below.
     azhf = anomaly_z_hf(site, bg_median, bg_std, [], z_threshold=z_threshold)
-    n_valid, hf = _server_side_hf(
+    hf_result = _server_side_hf(
         aoi, ic_window, band, bg_median, bg_std, z_threshold, scale,
         time_range=time_range,
+        indicator_id=indicator_id,
     )
-    azhf["hf"] = hf
+    azhf["hf"] = hf_result.hf
 
     score = to_score(site, bg_median, bg_std, direction=direction, k=k)
 
@@ -505,7 +575,7 @@ def six_step(
         indicator_id=indicator_id,
         aoi=aoi,
         time_range=time_range,
-        n_observations=n_valid,
+        n_observations=hf_result.n_valid_dates,
         hf=azhf["hf"],
     )
     confidence = compute_indicator_confidence(
@@ -534,6 +604,12 @@ def six_step(
                 indicator_id or "", "n_a",
             ),
         },
+        # M-UI-A1-SURFACE engine-gap fix (24 May 2026): surface the raw
+        # date and granule counts so pillar `_format_result` functions
+        # can thread them into provenance.extra. Informational only —
+        # never enters score arithmetic. See ServerSideHfResult.
+        "n_valid_dates": hf_result.n_valid_dates,
+        "granule_count": hf_result.granule_count,
     }
 
 

@@ -412,6 +412,13 @@ class _FakeImageCollection:
     def select(self, _band):
         return self
 
+    def size(self):
+        # M-UI-A1-SURFACE engine-gap fix: _server_side_hf now reads
+        # chunk_ic.size() into the chunk_result dict to surface
+        # granule_count. The mock returns a plain int that the
+        # _FakeDictionaryConstructor passes through verbatim.
+        return len(self.images)
+
     def filterDate(self, _start, _end):                         # noqa: N802
         # Mocks ignore date filtering — tests pass time_range=None which
         # already skips chunking, but keep the method for defensive parity.
@@ -512,7 +519,7 @@ class TestServerSideHfEEBugCoverage:
         images = [_FakeImage(masked_reduction) for _ in range(10)]
         ic = _FakeImageCollection(images)
 
-        n_valid, hf = _server_side_hf(
+        result = _server_side_hf(
             aoi=self._AOI,
             image_collection=ic,
             band=self._BAND,
@@ -521,12 +528,15 @@ class TestServerSideHfEEBugCoverage:
             z_threshold=2.0,
             scale=1113.2,
         )
-        assert n_valid == 0, (
+        assert result.n_valid_dates == 0, (
             "Every image should be invalid (Count=0). A regression to "
             "sentinel-default null-checking would crash on _FakeNumber(None) "
-            "instead of returning n_valid=0."
+            "instead of returning n_valid_dates=0."
         )
-        assert hf is None, "HF must be None when n_valid=0"
+        assert result.hf is None, "HF must be None when n_valid_dates=0"
+        # M-UI-A1-SURFACE engine-gap: granule_count is the RAW image count
+        # regardless of validity. 10 fully-masked images → 10 granules.
+        assert result.granule_count == 10
 
     def test_server_side_hf_handles_zero_valid_pixels_with_missing_key(
         self, patched_ee,
@@ -575,7 +585,7 @@ class TestServerSideHfEEBugCoverage:
         )
         ic = _FakeImageCollection(images)
 
-        n_valid, hf = _server_side_hf(
+        result = _server_side_hf(
             aoi=self._AOI,
             image_collection=ic,
             band=self._BAND,
@@ -584,14 +594,15 @@ class TestServerSideHfEEBugCoverage:
             z_threshold=2.0,
             scale=1113.2,
         )
-        assert n_valid == 3, (
+        assert result.n_valid_dates == 3, (
             "Only the 3 valid images should count. A regression that "
             "drops the `default=0.0` from reduction.get(mean_key, 0.0) "
             "would crash with _FakeNumber(None) on the 7 missing-key "
             "images instead of skipping them."
         )
         # All 3 valid images had mean=7.5e-5 ≥ threshold → all hot.
-        assert hf == pytest.approx(1.0)
+        assert result.hf == pytest.approx(1.0)
+        assert result.granule_count == 10  # 3 valid + 7 invalid = 10 raw
 
     def test_server_side_hf_no_artificial_cap(self, patched_ee) -> None:
         """Step C Finding 1 (the under-counting that motivated the
@@ -619,7 +630,7 @@ class TestServerSideHfEEBugCoverage:
         ic = _FakeImageCollection(images)
         assert len(images) == 500
 
-        n_valid, hf = _server_side_hf(
+        result = _server_side_hf(
             aoi=self._AOI,
             image_collection=ic,
             band=self._BAND,
@@ -628,13 +639,94 @@ class TestServerSideHfEEBugCoverage:
             z_threshold=2.0,
             scale=1113.2,
         )
-        assert n_valid == 250, (
+        assert result.n_valid_dates == 250, (
             f"Expected all 250 valid DAYS to be counted (no cap, no .limit); "
-            f"got {n_valid}. If this is ~100, the .limit(100) cap has been "
-            f"reintroduced somewhere in _server_side_hf's chain."
+            f"got {result.n_valid_dates}. If this is ~100, the .limit(100) "
+            f"cap has been reintroduced somewhere in _server_side_hf's chain."
         )
         # z = (6e-5 − 5e-5)/1e-5 = 1.0 < 2.0 → none hot.
-        assert hf == pytest.approx(0.0)
+        assert result.hf == pytest.approx(0.0)
+        # M-UI-A1-SURFACE engine-gap: granule_count counts ALL raw images
+        # regardless of validity (500 here = 250 valid + 250 invalid).
+        assert result.granule_count == 500
+
+    def test_server_side_hf_returns_n_valid_dates_and_granule_count(
+        self, patched_ee,
+    ) -> None:
+        """M-UI-A1-SURFACE engine-gap fix (24 May 2026).
+
+        Audit-transparency surface: the named-tuple return now carries
+        both the distinct-dates count and the raw granule count. 100
+        images clustered across 10 distinct UTC days mimics a daily
+        product with ~10 swaths/day. Post-fix, the engine reports
+        BOTH numbers so reviewers can see the dates-vs-granules ratio.
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        ms_day = 86_400_000
+        valid_reduction = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
+        # 100 images, 10 per day across 10 distinct UTC days.
+        images = [
+            _FakeImage(valid_reduction, time_start=(i // 10) * ms_day)
+            for i in range(100)
+        ]
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=5e-5,
+            bg_std=1e-5,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 10, (
+            "10 distinct UTC days; the 10×10 granule fan-out must NOT "
+            "inflate the dates count (Option-A semantic lock)."
+        )
+        assert result.granule_count == 100, (
+            "All 100 raw images must be counted regardless of per-date "
+            "collapsing. A regression that pre-dedups by day would drop "
+            "this to 10 and lose the audit-transparency signal."
+        )
+
+    def test_server_side_hf_granule_count_vs_dates_diverges_for_multi_swath(
+        self, patched_ee,
+    ) -> None:
+        """Same engine-gap fix, multi-swath scenario.
+
+        Mimics MAIAC AOD's ~58 granules/day cadence at lower scale: 580
+        granules clustered on 10 distinct UTC days. The two numbers must
+        diverge in the expected way — n_valid_dates=10, granule_count=580
+        — so the close-entry's "granule count is informational; dates is
+        the score-bearing number" story is verifiable from the engine
+        output, not just from the docstring.
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        ms_day = 86_400_000
+        valid_reduction = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
+        # 580 images, 58 per day across 10 distinct UTC days.
+        images = [
+            _FakeImage(valid_reduction, time_start=(i // 58) * ms_day)
+            for i in range(580)
+        ]
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=5e-5,
+            bg_std=1e-5,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 10
+        assert result.granule_count == 580
+        # The numbers must diverge — that's the whole point of the fix.
+        assert result.granule_count > result.n_valid_dates
 
     def test_server_side_hf_bg_std_zero_returns_n_valid_but_no_hf(
         self, patched_ee,
@@ -652,7 +744,7 @@ class TestServerSideHfEEBugCoverage:
             _FakeImage(valid_reduction, time_start=i * ms_day) for i in range(10)
         ])
 
-        n_valid, hf = _server_side_hf(
+        result = _server_side_hf(
             aoi=self._AOI,
             image_collection=ic,
             band=self._BAND,
@@ -661,5 +753,167 @@ class TestServerSideHfEEBugCoverage:
             z_threshold=2.0,
             scale=1113.2,
         )
-        assert n_valid == 10
-        assert hf is None
+        assert result.n_valid_dates == 10
+        assert result.hf is None
+
+
+# ---------------------------------------------------------------------------
+# v1x followup #1 — per-indicator chunk size lookup for _server_side_hf
+# ---------------------------------------------------------------------------
+
+
+class TestServerSideHfChunkSizeLookup:
+    """v1x followup #1 (24 May 2026).
+
+    The chunk size for `_server_side_hf` is now per-indicator, sourced
+    from `engine.constants.SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR`.
+    Low-cadence products (~1 image/day) get `chunk_days = 90` so a 90-day
+    window runs as a single chunk — no `_date_chunks_iso`, no per-chunk
+    `filterDate`, no 9× round-trip overhead. High-cadence multi-swath
+    products (AOD, CH4) stay at `chunk_days = 10` to bound EE compute.
+
+    These tests pin the dispatch by spying on `_date_chunks_iso` and
+    counting `filterDate` invocations on the fake collection.
+    """
+
+    _AOI = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 5.0}
+    _BAND = "NO2"
+    _TIME_RANGE = ("2026-02-22", "2026-05-23")    # 90 days inclusive
+    _MS_DAY = 86_400_000
+
+    def _make_collection(
+        self, n_images: int, monkeypatch,
+    ) -> _FakeImageCollection:
+        """Build a mock collection of n_images valid images, each on a
+        distinct UTC day, with `.filterDate` instrumented to count calls."""
+        valid_reduction = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
+        images = [
+            _FakeImage(valid_reduction, time_start=i * self._MS_DAY)
+            for i in range(n_images)
+        ]
+        ic = _FakeImageCollection(images)
+        # Monkey-patch filterDate to count calls (default mock just returns
+        # self; that's fine, we only need the call count for the dispatch
+        # assertion).
+        ic._filter_calls = 0
+        original_filterDate = ic.filterDate                     # noqa: N806
+        def counting_filterDate(start, end):                    # noqa: N802
+            ic._filter_calls += 1
+            return original_filterDate(start, end)
+        monkeypatch.setattr(ic, "filterDate", counting_filterDate)
+        return ic
+
+    def test_server_side_hf_single_chunk_path_for_low_cadence_indicator(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """`air.no2` has chunk_days = 90 in the lookup. With a 90-day
+        window, `_date_chunks_iso` must NOT be called and `filterDate`
+        must NOT fire on the collection — the upstream-filtered
+        `ic_window` is reused as-is."""
+        from engine.core.repeatable_core import _server_side_hf
+        import engine.core.repeatable_core as _rc
+
+        spy_calls: list = []
+        original = _rc._date_chunks_iso
+        def spy(*args, **kw):
+            spy_calls.append((args, kw))
+            return original(*args, **kw)
+        monkeypatch.setattr(_rc, "_date_chunks_iso", spy)
+
+        ic = self._make_collection(100, monkeypatch)
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.no2",
+        )
+
+        assert spy_calls == [], (
+            "_date_chunks_iso must NOT be called when chunk_days >= window_days"
+        )
+        assert ic._filter_calls == 0, (
+            "filterDate must NOT fire on the single-chunk fast path"
+        )
+        # All 100 distinct UTC days counted (the per_image map ran once
+        # over the full collection).
+        assert result.n_valid_dates == 100
+        # z = (6e-5 − 5e-5) / 1e-5 = 1.0 < 2.0 → no hot days.
+        assert result.hf == pytest.approx(0.0)
+
+    def test_server_side_hf_chunked_path_for_high_cadence_indicator(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """`air.aod` has chunk_days = 10 in the lookup. A 90-day window
+        → 9 chunks → `_date_chunks_iso` IS called, `filterDate` fires 9
+        times, and the set-union-across-chunks logic dedupes day buckets
+        correctly even when the mock filterDate is a no-op."""
+        from engine.core.repeatable_core import _server_side_hf
+        import engine.core.repeatable_core as _rc
+
+        spy_calls: list = []
+        original = _rc._date_chunks_iso
+        def spy(time_range, chunk_days):
+            spy_calls.append({"time_range": time_range, "chunk_days": chunk_days})
+            return original(time_range, chunk_days=chunk_days)
+        monkeypatch.setattr(_rc, "_date_chunks_iso", spy)
+
+        ic = self._make_collection(50, monkeypatch)
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.aod",
+        )
+
+        assert len(spy_calls) == 1, (
+            "_date_chunks_iso must be called exactly once on the chunked path"
+        )
+        assert spy_calls[0]["chunk_days"] == 10, (
+            "chunk_days for air.aod must be 10 per the per-indicator lookup"
+        )
+        assert ic._filter_calls == 9, (
+            f"Expected 9 filterDate calls for 90-day window / 10-day chunks; "
+            f"got {ic._filter_calls}"
+        )
+        # The mock filterDate is a no-op (returns full collection), so each
+        # of the 9 chunks sees all 50 images. Union-across-chunks dedupes
+        # to 50 distinct day buckets. This is also the property that
+        # guarantees real-EE chunking produces the same total as a single
+        # full-window call — proven here by construction.
+        assert result.n_valid_dates == 50
+
+    def test_server_side_hf_unknown_indicator_falls_through_to_default(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """An indicator_id absent from the lookup dict (e.g. a future
+        indicator added to NATURE_INDICATOR_CONFIG before someone
+        remembers to update the chunk-size lookup) must fall through to
+        `SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT = 10`, NOT raise KeyError,
+        NOT crash, NOT silently skip chunking."""
+        from engine.constants import SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT
+        from engine.core.repeatable_core import _server_side_hf
+        import engine.core.repeatable_core as _rc
+
+        spy_calls: list = []
+        original = _rc._date_chunks_iso
+        def spy(time_range, chunk_days):
+            spy_calls.append({"chunk_days": chunk_days})
+            return original(time_range, chunk_days=chunk_days)
+        monkeypatch.setattr(_rc, "_date_chunks_iso", spy)
+
+        ic = self._make_collection(20, monkeypatch)
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.fictional_future_indicator",
+        )
+
+        assert len(spy_calls) == 1
+        assert spy_calls[0]["chunk_days"] == SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT
+        # 90-day window / 10-day default chunks = 9 chunks.
+        assert ic._filter_calls == 9
+        del result  # unused; suppress the assignment-not-used hint.

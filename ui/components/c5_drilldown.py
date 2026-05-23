@@ -27,6 +27,8 @@ import streamlit as st
 
 from engine.constants import (
     AIR_FOLLOWUP_WEIGHTS,
+    COLUMN_TO_SURFACE_MULTIPLIER,
+    CONFIDENCE_FORMULA_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
     NATURE_FOLLOWUP_WEIGHTS,
 )
@@ -274,6 +276,9 @@ def _render_air_panel(payload: dict) -> None:
                 score=payload.get(f"air.{row.indicator}.score"),
                 value_spec=row.value_spec,
             )
+            _render_confidence_terms_expander(
+                payload, "air", row.indicator, row.display_name,
+            )
         st.divider()
         _render_datasets_used_subexpander("air", _AIR_DATASET_KEYS, payload)
 
@@ -317,6 +322,9 @@ def _render_ghg_panel(payload: dict) -> None:
                 z=payload.get(f"ghg.{row.indicator}.z"),
                 confidence=payload.get(f"ghg.{row.indicator}.confidence"),
                 score=payload.get(f"ghg.{row.indicator}.score"),
+            )
+            _render_confidence_terms_expander(
+                payload, "ghg", row.indicator, row.display_name,
             )
         st.divider()
         _render_datasets_used_subexpander("ghg", _GHG_DATASET_KEYS, payload)
@@ -373,6 +381,8 @@ def _render_nature_panel(payload: dict) -> None:
                 f"(buffer overlap: {_fmt(overlap_pct, '.2f')}%, "
                 f"{_fmt(overlap_ha, '.1f')} ha)"
             )
+        _render_nature_confidence_row(payload, "nature.kba.confidence")
+        _render_confidence_terms_expander(payload, "nature", "kba", "KBA proximity")
 
         # M-UI-E.4 polish — habitat conversion metric + caption.
         st.divider()
@@ -400,6 +410,12 @@ def _render_nature_panel(payload: dict) -> None:
                     f"Hansen forest loss: **{_fmt(forest_loss_ha, '.1f')} ha**"
                 )
             st.caption(" · ".join(lines))
+        _render_nature_confidence_row(payload, "nature.habitat.confidence",        label="habitat")
+        _render_nature_confidence_row(payload, "nature.forest_loss.confidence",    label="forest loss")
+        _render_nature_confidence_row(payload, "nature.regional_loss_evidence.confidence", label="regional loss evidence")
+        _render_confidence_terms_expander(payload, "nature", "habitat",                 "habitat")
+        _render_confidence_terms_expander(payload, "nature", "forest_loss",             "forest loss")
+        _render_confidence_terms_expander(payload, "nature", "regional_loss_evidence",  "regional loss evidence")
 
         # M-UI-E.4 polish — NDVI mean leads instead of the score, because
         # the score is often None in v1 (depends on trend.py which isn't
@@ -427,6 +443,10 @@ def _render_nature_panel(payload: dict) -> None:
                 f"(z: {_fmt(ndvi_z, '.2f')}) · "
                 f"Buffer below NDVI 0.3: **{_fmt(low_ndvi_pct, '.1f')}%**"
             )
+        _render_nature_confidence_row(payload, "nature.ndvi.confidence",     label="NDVI")
+        _render_nature_confidence_row(payload, "nature.recovery.confidence", label="recovery")
+        _render_confidence_terms_expander(payload, "nature", "ndvi",     "NDVI")
+        _render_confidence_terms_expander(payload, "nature", "recovery", "recovery")
 
         # M-UI-E.4 polish — dominant land cover as a metric with the
         # class-confidence percentage as the delta caption.
@@ -444,11 +464,254 @@ def _render_nature_panel(payload: dict) -> None:
             )
         with col_context:
             _render_dw_composition_table(payload)
+        # M-UI-A1-SURFACE Sub-milestone 1: nature.water has no card of its
+        # own; the JRC GSW area is land-cover-adjacent, so its confidence
+        # rides with the DW card. nature.dw's own A1 confidence is
+        # deliberately not duplicated here — class_confidence already
+        # serves as the DW card's confidence affordance.
+        _render_nature_confidence_row(payload, "nature.water.confidence", label="water area")
+        _render_confidence_terms_expander(payload, "nature", "water", "water area")
 
         # M-UI-E.4 polish — divider before the datasets-used expander,
         # matching the Air and GHG panels.
         st.divider()
         _render_datasets_used_subexpander("nature", _NATURE_DATASET_KEYS, payload)
+
+
+def _format_nature_confidence_line(
+    confidence: float | None,
+    label:      str | None = None,
+) -> str:
+    """Pure formatter for the Nature per-indicator confidence caption.
+
+    M-UI-A1-SURFACE Sub-milestone 1. Closes the Nature drilldown
+    asymmetry where only ``nature.dw.class_confidence`` was rendered
+    inline. Each Nature indicator that contributes to a card now
+    surfaces its M-TIER-A1 ``<indicator>.confidence`` via this
+    caption. Numeric uses 3 decimals per spec (Air/GHG uniform rows
+    use ``.2f``; Nature drilldown spec calls for 3 to align with
+    the confidence_terms expander coming in Sub-milestone 2).
+    """
+    glyph  = confidence_glyph(confidence)
+    prefix = f"Confidence ({label})" if label else "Confidence"
+    return f"{prefix}: {glyph} {_fmt(confidence, '.3f')}"
+
+
+def _render_nature_confidence_row(
+    payload:        dict,
+    confidence_key: str,
+    label:          str | None = None,
+) -> None:
+    """Render the per-indicator confidence caption inside a Nature card."""
+    confidence = payload.get(confidence_key)
+    st.caption(_format_nature_confidence_line(confidence, label=label))
+
+
+# ---------------------------------------------------------------------------
+# M-UI-A1-SURFACE Sub-milestone 2 — "What's behind this confidence?" panel
+# ---------------------------------------------------------------------------
+
+# Per-term display labels + plain-language captions. Copy is the authoritative
+# user-facing wording for the four A1 confidence-formula terms and the
+# column-to-surface multiplier; ties to docs/M-TIER-A1_plain_language_explainer.md.
+# Keys MUST match engine.constants.CONFIDENCE_FORMULA_WEIGHTS.
+_CONFIDENCE_TERM_LABELS: dict[str, tuple[str, str]] = {
+    "qa": (
+        "Data quality",
+        "How clean the raw sensor data was",
+    ),
+    "n_valid": (
+        "Observation coverage",
+        "How many observation days vs expected for this sensor's revisit cadence",
+    ),
+    "anomaly_strength": (
+        "Anomaly persistence",
+        "Fraction of observation days that crossed the anomaly threshold",
+    ),
+    "spatial_context": (
+        "Pixel/buffer match",
+        "How well the satellite's pixel size matches the analysis buffer",
+    ),
+}
+
+_COLUMN_TO_SURFACE_CAPTION: str = (
+    "Reduction for satellite measurements that look at the whole air "
+    "column rather than ground-level"
+)
+
+_STRICT_NONE_TERM_CAPTION: str = (
+    "this term couldn't be computed; the indicator's confidence is None "
+    "and dropped from the pillar rollup."
+)
+
+
+@dataclass(frozen=True)
+class _ConfidenceTermRow:
+    """One row inside the confidence_terms breakdown table.
+
+    `value` and `contribution` are None for strict-None propagation —
+    matches engine.core.confidence.compute_indicator_confidence.
+    """
+
+    key:          str
+    display_name: str
+    caption:      str
+    value:        float | None
+    weight:       float
+    contribution: float | None
+
+
+def _build_confidence_terms_rows(
+    terms: dict | None,
+) -> list[_ConfidenceTermRow] | None:
+    """Pure helper — return per-term rows for rendering, or None if
+    terms is missing/empty.
+
+    Iterates over CONFIDENCE_FORMULA_WEIGHTS so the row order tracks the
+    engine's canonical term order. Each row carries the value (or None),
+    the engine's weight for that term, and the precomputed contribution
+    (value × weight, or None on strict-None).
+    """
+    if not terms:
+        return None
+    rows: list[_ConfidenceTermRow] = []
+    for key, weight in CONFIDENCE_FORMULA_WEIGHTS.items():
+        display_name, caption = _CONFIDENCE_TERM_LABELS[key]
+        value = terms.get(key)
+        contribution = value * weight if value is not None else None
+        rows.append(_ConfidenceTermRow(
+            key=key,
+            display_name=display_name,
+            caption=caption,
+            value=value,
+            weight=weight,
+            contribution=contribution,
+        ))
+    return rows
+
+
+def _compute_final_confidence(
+    terms: dict | None,
+) -> tuple[float | None, float | None, str | None]:
+    """Pure helper — return (c_raw, c_final, uncertainty_tag).
+
+    Mirrors engine.core.confidence.compute_indicator_confidence's
+    strict-None semantics and column-to-surface multiplier. Used to
+    render the highlighted final confidence at the bottom of the
+    breakdown. Returning the math here (rather than reading the
+    payload's `.confidence` field) lets the caller verify the
+    breakdown adds up to the final number on screen.
+    """
+    if not terms:
+        return None, None, None
+    tag = terms.get("column_to_surface_uncertainty")
+    values = [terms.get(k) for k in CONFIDENCE_FORMULA_WEIGHTS]
+    if any(v is None for v in values):
+        return None, None, tag
+    c_raw = sum(
+        v * w for v, w in zip(values, CONFIDENCE_FORMULA_WEIGHTS.values())
+    )
+    if tag in COLUMN_TO_SURFACE_MULTIPLIER:
+        multiplier = COLUMN_TO_SURFACE_MULTIPLIER[tag]
+        c_final = max(0.0, min(1.0, c_raw * multiplier))
+    else:
+        c_final = c_raw
+    return c_raw, c_final, tag
+
+
+def _render_confidence_terms(terms: dict | None) -> None:
+    """Render the 4-term confidence breakdown inside an expandable section.
+
+    `terms` is the dict from ``_provenance.<indicator>.extra.confidence_terms``:
+    ``{qa, n_valid, anomaly_strength, spatial_context, column_to_surface_uncertainty}``.
+
+    Layout per term: name + caption + value (3 dp) + 0-1 progress bar +
+    ``× weight = contribution``. After the four rows: column-to-surface
+    adjustment (enum tag + multiplier) and the final confidence value
+    band-coloured per the same thresholds the C3 chip uses.
+
+    Strict-None: a per-term None renders "—" + the strict-None caption;
+    a None/empty dict short-circuits to "No confidence breakdown
+    available for this indicator."
+    """
+    rows = _build_confidence_terms_rows(terms)
+    if rows is None:
+        st.caption("No confidence breakdown available for this indicator.")
+        return
+
+    for row in rows:
+        col_name, col_value, col_bar, col_contrib = st.columns([3, 1, 2, 2])
+        with col_name:
+            st.markdown(f"**{row.display_name}**")
+            st.caption(row.caption)
+        with col_value:
+            st.markdown(f"`{_fmt(row.value, '.3f')}`")
+        with col_bar:
+            if row.value is not None:
+                st.progress(max(0.0, min(1.0, row.value)))
+            else:
+                st.caption("—")
+        with col_contrib:
+            if row.contribution is not None:
+                st.markdown(
+                    f"× {row.weight:.2f} = **{row.contribution:.3f}**"
+                )
+            else:
+                st.caption(_STRICT_NONE_TERM_CAPTION)
+
+    c_raw, c_final, tag = _compute_final_confidence(terms)
+    st.divider()
+    col_tag, col_mult = st.columns([3, 3])
+    with col_tag:
+        st.markdown("**Column-to-surface adjustment**")
+        st.caption(_COLUMN_TO_SURFACE_CAPTION)
+    with col_mult:
+        if tag and tag in COLUMN_TO_SURFACE_MULTIPLIER:
+            multiplier = COLUMN_TO_SURFACE_MULTIPLIER[tag]
+            st.markdown(
+                f"Tag: `{tag}` &nbsp; × **{multiplier:.2f}**"
+            )
+        else:
+            st.caption("Not applicable")
+
+    if c_final is not None:
+        colour = band_colour(band_for_score(c_final))
+        st.markdown(
+            "**Final confidence:** "
+            f"<span style='background:{colour};color:white;padding:2px 8px;"
+            f"border-radius:3px;font-weight:600;'>{c_final:.3f}</span>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "**Final confidence:** "
+            "<span style='color:#6b7280;'>Not available "
+            "(strict-None propagation)</span>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_confidence_terms_expander(
+    payload: dict,
+    pillar:  str,
+    slug:    str,
+    label:   str,
+) -> None:
+    """Wire the breakdown helper to the payload's provenance.extra.
+
+    Pull ``_provenance.<pillar>.<slug>.extra.confidence_terms`` from
+    the payload and render it inside an ``st.expander``. Nesting depth
+    is panel-expander → this expander, same depth as the existing
+    "Datasets used" sub-expander (verified working in Streamlit 1.57).
+    """
+    provenance = payload.get(f"_provenance.{pillar}.{slug}") or {}
+    extra      = provenance.get("extra") or {}
+    terms      = extra.get("confidence_terms")
+    with st.expander(
+        f"What's behind this confidence? ({label})",
+        expanded=False,
+    ):
+        _render_confidence_terms(terms)
 
 
 def _render_dw_composition_table(payload: dict) -> None:

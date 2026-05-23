@@ -368,6 +368,38 @@ EXPECTED_N_PER_WINDOW_DAY: dict[str, float] = {
     "nature.ndvi": 0.2,
 }
 
+# Per-indicator chunk size for _server_side_hf. Indicators not in this dict
+# fall through to the default. Calibrated against Sapezal 5 km and Distrito
+# Federal 43.1 km buffers, 90-day windows (v1x followup #1, 24 May 2026).
+#
+# Rationale: Step 8 Option A introduced client-side date chunking to keep
+# each per-indicator getInfo() under EE's 5-minute hard timeout for
+# high-cadence multi-swath products (MAIAC AOD at ~58 granules/day,
+# S5P L3 CH4 at ~14/day). For low-cadence products (~1 image/day), the
+# chunking is pure overhead — ~30-45s per indicator burned on graph
+# compilation + 9 sequential getInfo round-trips when one call would
+# have sufficed. Sapezal's ~7-minute total runtime is dominated by this.
+# The lookup keeps chunking ONLY where it's needed.
+SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR: dict[str, int] = {
+    # Low-cadence products: single chunk = full window, no chunking overhead.
+    "air.no2":     90,
+    "air.so2":     90,
+    "air.co":      90,
+    "air.hcho":    90,
+    "air.o3":      90,
+    "air.aai":     90,
+    "air.pm25":    90,
+    "air.pm10":    90,
+    "ghg.viirs":   90,
+    "nature.ndvi": 90,
+    # High-cadence multi-swath products: keep chunked to stay under EE's
+    # 5-minute getInfo timeout at large buffers (Distrito Federal 43.1 km).
+    "air.aod":     10,   # ~58 granules/day → ~5,200/window → needs chunking
+    "ghg.ch4":     10,   # ~14 granules/day, conservative chunking until verified
+}
+SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT: int = 10  # fallback when indicator not in map
+
+
 # Single-snapshot indicators: N_valid pass-through to 1.0 when the
 # composite / annual raster was produced, 0.0 when skipped. These don't
 # have a per-day observation count.

@@ -24,7 +24,10 @@ from ui.components.c5_drilldown import (
     _GHG_ROWS,
     _NATURE_DATASET_KEYS,
     _NATURE_FORMULA,
+    _build_confidence_terms_rows,
+    _compute_final_confidence,
     _fmt,
+    _format_nature_confidence_line,
 )
 
 
@@ -165,3 +168,115 @@ def test_air_row_slugs_match_dataset_keys():
 def test_ghg_row_slugs_match_dataset_keys():
     row_slugs = {r.indicator for r in _GHG_ROWS}
     assert row_slugs == set(_GHG_DATASET_KEYS)
+
+
+# ---------------------------------------------------------------------------
+# Nature confidence row (M-UI-A1-SURFACE Sub-milestone 1)
+# ---------------------------------------------------------------------------
+
+def test_format_nature_confidence_line_none_renders_low_glyph_and_em_dash():
+    """None confidence → empty/low-tier glyph + canonical em-dash."""
+    assert _format_nature_confidence_line(None) == "Confidence: ○ —"
+
+
+def test_format_nature_confidence_line_high_value_renders_filled_glyph():
+    """A value above the high tertile (0.66) renders the filled dot."""
+    assert _format_nature_confidence_line(0.756) == "Confidence: ● 0.756"
+
+
+def test_format_nature_confidence_line_moderate_value_renders_half_glyph():
+    """A value in the moderate tertile (0.33–0.66) renders the half dot."""
+    assert _format_nature_confidence_line(0.500) == "Confidence: ◐ 0.500"
+
+
+def test_format_nature_confidence_line_with_label_includes_parenthetical():
+    """Multi-indicator cards (e.g. habitat conversion) disambiguate via
+    a label that appears in parentheses next to the Confidence prefix."""
+    line = _format_nature_confidence_line(0.685, label="habitat")
+    assert line == "Confidence (habitat): ● 0.685"
+
+
+def test_format_nature_confidence_line_uses_three_decimals():
+    """Spec calls for 3 decimals (vs Air/GHG uniform row's 2) to align
+    with the confidence_terms breakdown coming in Sub-milestone 2."""
+    line = _format_nature_confidence_line(0.123456)
+    assert "0.123" in line
+    assert "0.1234" not in line
+
+
+# ---------------------------------------------------------------------------
+# Confidence terms expander (M-UI-A1-SURFACE Sub-milestone 2)
+# ---------------------------------------------------------------------------
+
+_FULL_TERMS = {
+    "qa": 0.85,
+    "n_valid": 0.70,
+    "anomaly_strength": 0.40,
+    "spatial_context": 1.00,
+    "column_to_surface_uncertainty": "moderate",
+}
+
+
+def test_render_confidence_terms_full_dict_builds_four_rows_with_contributions():
+    """Spec 3.1 — full dict produces the four engine-canonical term rows
+    with non-None values and matching contributions (value × weight).
+    """
+    rows = _build_confidence_terms_rows(_FULL_TERMS)
+    assert rows is not None
+    assert [r.key for r in rows] == ["qa", "n_valid", "anomaly_strength", "spatial_context"]
+    # qa: 0.85 × 0.30 = 0.255
+    qa_row = rows[0]
+    assert qa_row.value == pytest.approx(0.85)
+    assert qa_row.weight == pytest.approx(0.30)
+    assert qa_row.contribution == pytest.approx(0.255)
+    # spatial_context: 1.00 × 0.15 = 0.15
+    sc_row = rows[3]
+    assert sc_row.contribution == pytest.approx(0.15)
+
+
+def test_render_confidence_terms_none_and_empty_short_circuit():
+    """Spec 3.2 — both None and {} return None so the renderer falls
+    through to the 'No confidence breakdown available' caption."""
+    assert _build_confidence_terms_rows(None)  is None
+    assert _build_confidence_terms_rows({})    is None
+
+
+def test_render_confidence_terms_partial_dict_with_none_value_carries_strict_none():
+    """Spec 3.3 — a per-term None within an otherwise populated dict
+    renders the row but carries None as value and contribution. The
+    other three terms still compute their contributions cleanly.
+    """
+    partial = {
+        "qa": 0.85,
+        "n_valid": None,
+        "anomaly_strength": 0.40,
+        "spatial_context": 1.00,
+        "column_to_surface_uncertainty": "n_a",
+    }
+    rows = _build_confidence_terms_rows(partial)
+    assert rows is not None
+    by_key = {r.key: r for r in rows}
+    assert by_key["n_valid"].value is None
+    assert by_key["n_valid"].contribution is None
+    # The other three terms compute normally.
+    assert by_key["qa"].contribution               == pytest.approx(0.255)
+    assert by_key["anomaly_strength"].contribution == pytest.approx(0.10)
+    assert by_key["spatial_context"].contribution  == pytest.approx(0.15)
+
+
+def test_compute_final_confidence_full_dict_applies_multiplier():
+    """c_raw = 0.255 + 0.21 + 0.10 + 0.15 = 0.715; multiplier=0.95
+    → c_final ≈ 0.679. Mirrors engine.core.confidence."""
+    c_raw, c_final, tag = _compute_final_confidence(_FULL_TERMS)
+    assert tag == "moderate"
+    assert c_raw   == pytest.approx(0.715)
+    assert c_final == pytest.approx(0.715 * 0.95)
+
+
+def test_compute_final_confidence_strict_none_propagates():
+    """Any None term collapses both c_raw and c_final to None — matches
+    compute_indicator_confidence's strict-None lock."""
+    partial = {**_FULL_TERMS, "n_valid": None}
+    c_raw, c_final, _ = _compute_final_confidence(partial)
+    assert c_raw   is None
+    assert c_final is None

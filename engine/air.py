@@ -352,6 +352,15 @@ def _format_result(
     confidence_terms = raw.get("confidence_terms")
     if confidence_terms is not None:
         extra["confidence_terms"] = confidence_terms
+    # M-UI-A1-SURFACE engine-gap fix — surface the raw date and granule
+    # counts (informational, never enters score arithmetic). Both keys
+    # are absent for non-six_step paths; consumers must handle absence.
+    n_valid_dates = raw.get("n_valid_dates")
+    if n_valid_dates is not None:
+        extra["n_valid_dates"] = n_valid_dates
+    granule_count = raw.get("granule_count")
+    if granule_count is not None:
+        extra["granule_count"] = granule_count
 
     result[f"_provenance.air.{pollutant}"] = build_provenance(
         indicator_id=f"air.{pollutant}",

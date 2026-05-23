@@ -103,6 +103,14 @@ _DEFAULT_SIX_STEP: dict = {
         "column_to_surface_uncertainty": "n_a",
     },
     "score":      0.6,
+    # M-UI-A1-SURFACE engine-gap fix (24 May 2026) — six_step now
+    # surfaces the raw date and granule counts so pillar _format_result
+    # functions can thread them into provenance.extra. The 54 / 270
+    # values are deliberately chosen so n_valid_dates × ~5 = granule_count
+    # (an AOD-like multi-swath cadence; not authoritative, just a
+    # plausible shape for tests asserting on shape rather than value).
+    "n_valid_dates": 54,
+    "granule_count": 270,
 }
 
 
@@ -740,3 +748,27 @@ class TestProvenanceShape:
         assert prov["data_type"] == "satellite_observation"
         assert "MAIAC" in prov["data_source"]
         assert "aod_qa_bit_mask" in prov["extra"]
+
+    def test_six_step_provenance_extra_includes_n_valid_dates_and_granule_count(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        """M-UI-A1-SURFACE engine-gap fix (24 May 2026).
+
+        The M-TIER-A1 closed-entry promised that the raw distinct-dates
+        count and the raw granule count would surface in
+        ``provenance.extra`` for audit transparency. Pre-fix the fields
+        were computed inside ``_server_side_hf`` but never threaded out.
+        Post-fix ``six_step`` returns them in its result dict and the
+        Air ``_format_result`` lifts both into ``extra``. This test
+        pins both ends of the wiring against the canonical fake.
+        """
+        fake_six_step()  # uses _DEFAULT_SIX_STEP which now carries both fields
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="no2", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        extra = result["_provenance.air.no2"]["extra"]
+        assert extra["n_valid_dates"] == 54
+        assert extra["granule_count"] == 270
+        # Sanity — the fix didn't displace the existing confidence_terms.
+        assert "confidence_terms" in extra

@@ -788,7 +788,16 @@ _provenance.<pillar>.<indicator>.extra.confidence_terms = {
 
 A reviewer reading a result payload can reproduce the per-indicator confidence value without re-running the engine; the pillar QA sub-scores (`ghg.temporal_coverage`, etc.) walk these dicts when assembling the pillar rollup.
 
-### 8.5 What this unblocks
+### 8.5 v1.x performance note — per-indicator chunk size
+
+The server-side N_valid + HF computation in `engine.core.repeatable_core._server_side_hf` runs against a date-chunked client-side loop. The chunk size is **per-indicator**, sourced from `engine.constants.SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR` (with `SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT = 10` as the fallback for indicators not in the lookup).
+
+- **Low-cadence products (~1 image/day):** `chunk_days = 90` → a 90-day window fits in a single chunk, with no `_date_chunks_iso` call, no per-chunk `filterDate`, and a single `getInfo()` round-trip. Indicators on this path: NO₂, SO₂, CO, HCHO, O₃, AAI, PM₂.₅, PM₁₀, VIIRS NTL, MODIS NDVI.
+- **High-cadence multi-swath products:** `chunk_days = 10`. Indicators: MAIAC AOD (~58 granules/day → ~5,200/window at large buffers; would exceed EE's 5-minute `getInfo()` timeout without chunking) and S5P L3 CH₄ (~14/day, conservatively chunked until verified at large buffers).
+
+Real-EE measurement at Brasilia 43.1 km, 90-day window (24 May 2026): NO₂ drops from 30.3 s (chunked) to 7.8 s (single-chunk), a 3.9× speedup, with identical `n_valid` between the two paths. AOD stays at ~23 s as expected — its chunking is structural, not overhead. The combined per-pillar saving is ~3 minutes for a full-indicator Sapezal/Brasilia run.
+
+### 8.6 What this unblocks
 
 - **Verbal-summary tiering becomes meaningful** — `composite_confidence_bucket` actually corresponds to data quality.
 - **P-05 / P-11 confidence dots tell a real story** — UI doesn't need to add a footnote.
@@ -798,4 +807,4 @@ A reviewer reading a result payload can reproduce the per-indicator confidence v
 
 ---
 
-*Document version 4.2 — 22 May 2026 (M-TIER-A1). Built from `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`, `Indicators_Audit_and_v1x_Roadmap.md` v1.5.*
+*Document version 4.2.1 — 24 May 2026 (v1x followup #1, per-indicator chunk size for `_server_side_hf`). Built from `Final_Indicators_List.pdf`, `Indicators_Full_Research.pdf`, `PLFS_v4.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Indicator_ID_Schema_v2.md`, `Indicators_Audit_and_v1x_Roadmap.md` v1.5.*

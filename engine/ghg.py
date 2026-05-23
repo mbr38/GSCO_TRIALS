@@ -1181,6 +1181,13 @@ def _format_result(
     confidence_terms = raw.get("confidence_terms")
     if confidence_terms is not None:
         extra["confidence_terms"] = confidence_terms
+    # M-UI-A1-SURFACE engine-gap fix — same dates + granules surface as Air.
+    n_valid_dates = raw.get("n_valid_dates")
+    if n_valid_dates is not None:
+        extra["n_valid_dates"] = n_valid_dates
+    granule_count = raw.get("granule_count")
+    if granule_count is not None:
+        extra["granule_count"] = granule_count
 
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
         indicator_id=f"ghg.{indicator}",
