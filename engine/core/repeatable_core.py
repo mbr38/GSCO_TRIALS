@@ -17,6 +17,7 @@ and leaves their outputs as None with a TODO.
 
 from __future__ import annotations
 
+import concurrent.futures
 from typing import Iterable, NamedTuple
 
 import ee
@@ -242,6 +243,15 @@ _MS_PER_UTC_DAY: int = 86_400_000
 # 10-day chunks to stay under EE's 5-minute getInfo timeout.
 
 
+# v1.x followup #2 — when the chunked path is taken (i.e. > 1 chunk), the
+# per-chunk getInfo calls are network-bound and independent, so they run
+# concurrently via ThreadPoolExecutor. Max concurrency is capped at AOD's
+# worst case (90-day window / 10-day chunks = 9 chunks); higher values
+# don't add speedup with our current indicator set. EE's per-user
+# concurrent-request limit is typically ~40, leaving comfortable headroom.
+_SERVER_SIDE_HF_MAX_CONCURRENCY: int = 9
+
+
 def _date_chunks_iso(
     time_range: tuple[str, str],
     chunk_days: int = SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
@@ -272,6 +282,43 @@ def _date_chunks_iso(
         chunks.append((cursor.isoformat(), next_cursor.isoformat()))
         cursor = next_cursor
     return chunks
+
+
+def _process_chunk_for_server_side_hf(
+    selected: ee.ImageCollection,
+    chunk: tuple[str, str] | None,
+    per_image,
+) -> tuple[set[int], set[int], int]:
+    """Run one chunk's reduce + getInfo. Returns (valid_days, hot_days, granule_count).
+
+    Extracted from the chunked loop body so the chunked path can submit
+    each chunk to a ThreadPoolExecutor (v1.x followup #2). The single-
+    chunk fast paths in `_server_side_hf` call it inline.
+
+    `selected` is the band-selected ImageCollection (already filtered for
+    bounds upstream). `chunk` is either an (iso_start, iso_end) date pair
+    to filter further, or None to use `selected` unchanged. `per_image`
+    is the closure over reducer + baseline state defined in
+    `_server_side_hf` — closures-in-threads are safe (no pickling, GIL
+    not held during EE network wait).
+    """
+    chunk_ic = selected if chunk is None else selected.filterDate(chunk[0], chunk[1])
+    fc = chunk_ic.map(per_image)
+    valid_fc = fc.filter(ee.Filter.eq("is_valid", 1))
+    hot_fc   = fc.filter(ee.Filter.eq("is_hot",   1))
+    # One getInfo per chunk: distinct-day arrays for the two validity
+    # bands AND the raw granule count for this chunk. The granule count
+    # piggybacks on the existing dict so we don't pay an extra round-trip
+    # (M-UI-A1-SURFACE engine-gap fix, 24 May 2026).
+    chunk_result = ee.Dictionary({
+        "valid_days":    valid_fc.aggregate_array("day_bucket").distinct(),
+        "hot_days":      hot_fc.aggregate_array("day_bucket").distinct(),
+        "granule_count": chunk_ic.size(),
+    }).getInfo() or {}
+    valid_days = {int(d) for d in (chunk_result.get("valid_days") or [])}
+    hot_days   = {int(d) for d in (chunk_result.get("hot_days")   or [])}
+    granule_count = int(chunk_result.get("granule_count") or 0)
+    return valid_days, hot_days, granule_count
 
 
 def _server_side_hf(
@@ -454,31 +501,37 @@ def _server_side_hf(
 
     selected = image_collection.select(band)
 
-    for chunk in chunks:
-        if chunk is None:
-            chunk_ic = selected
-        else:
-            chunk_ic = selected.filterDate(chunk[0], chunk[1])
-
-        fc = chunk_ic.map(per_image)
-        valid_fc = fc.filter(ee.Filter.eq("is_valid", 1))
-        hot_fc   = fc.filter(ee.Filter.eq("is_hot",   1))
-
-        # One getInfo per chunk: distinct-day arrays for the two
-        # validity bands AND the raw granule count for this chunk. The
-        # granule count piggybacks on the existing dict so we don't pay
-        # an extra round-trip (M-UI-A1-SURFACE engine-gap fix, 24 May 2026).
-        chunk_result = ee.Dictionary({
-            "valid_days":    valid_fc.aggregate_array("day_bucket").distinct(),
-            "hot_days":      hot_fc.aggregate_array("day_bucket").distinct(),
-            "granule_count": chunk_ic.size(),
-        }).getInfo() or {}
-
-        for day in chunk_result.get("valid_days") or []:
-            valid_days_seen.add(int(day))
-        for day in chunk_result.get("hot_days") or []:
-            hot_days_seen.add(int(day))
-        granule_count_total += int(chunk_result.get("granule_count") or 0)
+    # v1.x followup #2 — concurrent chunks. Each chunk's getInfo() is an
+    # independent network-bound EE call; threading parallelises the wait
+    # without GIL conflict. Fast paths (`len(chunks) == 1`) skip the
+    # executor entirely so single-call indicators don't pay the pool
+    # creation overhead.
+    if len(chunks) > 1:
+        max_workers = min(_SERVER_SIDE_HF_MAX_CONCURRENCY, len(chunks))
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers,
+        ) as executor:
+            futures = [
+                executor.submit(
+                    _process_chunk_for_server_side_hf,
+                    selected, chunk, per_image,
+                )
+                for chunk in chunks
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                chunk_valid, chunk_hot, chunk_n = future.result()
+                # Set union deduplicates day_buckets that happen to land
+                # in two chunks (test 3.3c pins this invariant).
+                valid_days_seen |= chunk_valid
+                hot_days_seen   |= chunk_hot
+                granule_count_total += chunk_n
+    else:
+        chunk_valid, chunk_hot, chunk_n = _process_chunk_for_server_side_hf(
+            selected, chunks[0], per_image,
+        )
+        valid_days_seen |= chunk_valid
+        hot_days_seen   |= chunk_hot
+        granule_count_total += chunk_n
 
     n_valid_dates = len(valid_days_seen)
     n_hot         = len(hot_days_seen)

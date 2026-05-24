@@ -917,3 +917,204 @@ class TestServerSideHfChunkSizeLookup:
         # 90-day window / 10-day default chunks = 9 chunks.
         assert ic._filter_calls == 9
         del result  # unused; suppress the assignment-not-used hint.
+
+
+# ---------------------------------------------------------------------------
+# v1x followup #2 — concurrent chunks within an indicator
+# ---------------------------------------------------------------------------
+
+
+class TestServerSideHfChunkConcurrency:
+    """v1x followup #2 (24 May 2026).
+
+    When `_server_side_hf` takes the chunked path (chunk_days < window_days,
+    so `len(chunks) > 1`), each chunk's getInfo() runs concurrently via a
+    ThreadPoolExecutor. The single-chunk fast paths (low-cadence indicators
+    + the no-time_range path) keep their inline execution.
+
+    These tests pin three properties:
+      - chunked path actually instantiates the executor and submits each
+        chunk to it (3.3a),
+      - fast path skips the executor entirely (3.3b),
+      - set-union semantics for day_buckets across chunks dedupe correctly
+        even when two chunks return overlapping day_buckets (3.3c).
+    """
+
+    _AOI = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 5.0}
+    _BAND = "NO2"
+    _TIME_RANGE = ("2026-02-22", "2026-05-23")    # 90 days inclusive
+    _MS_DAY = 86_400_000
+
+    def _make_collection(self, n_images: int) -> _FakeImageCollection:
+        valid_reduction = {self._BAND: 6e-5, f"{self._BAND}_count": 4}
+        images = [
+            _FakeImage(valid_reduction, time_start=i * self._MS_DAY)
+            for i in range(n_images)
+        ]
+        return _FakeImageCollection(images)
+
+    def test_server_side_hf_chunked_path_runs_concurrently_for_aod(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """`air.aod` triggers 9 chunks (90-day window / 10-day chunks).
+        Each chunk MUST be submitted to a ThreadPoolExecutor and the
+        per-chunk helper MUST be invoked exactly 9 times."""
+        import concurrent.futures as _cf
+        import engine.core.repeatable_core as _rc
+        from engine.core.repeatable_core import _server_side_hf
+
+        executor_instantiations = []
+        real_pool = _cf.ThreadPoolExecutor
+
+        class _SpyPool(real_pool):
+            def __init__(self, *a, **kw):
+                executor_instantiations.append(kw)
+                super().__init__(*a, **kw)
+
+        monkeypatch.setattr(
+            _rc.concurrent.futures, "ThreadPoolExecutor", _SpyPool,
+        )
+
+        chunk_calls = []
+        real_chunker = _rc._process_chunk_for_server_side_hf
+
+        def spy_chunker(selected, chunk, per_image):
+            chunk_calls.append(chunk)
+            return real_chunker(selected, chunk, per_image)
+
+        monkeypatch.setattr(
+            _rc, "_process_chunk_for_server_side_hf", spy_chunker,
+        )
+
+        ic = self._make_collection(50)
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.aod",
+        )
+
+        # ThreadPoolExecutor instantiated exactly once (one with-block),
+        # max_workers capped at the 9-chunk count (not the constant ceiling).
+        assert len(executor_instantiations) == 1
+        assert executor_instantiations[0].get("max_workers") == 9
+        # Per-chunk helper called once per chunk (9 chunks for AOD's
+        # 90-day window / 10-day chunk_days).
+        assert len(chunk_calls) == 9
+        # Sanity: each chunk_calls entry is a real (iso_start, iso_end)
+        # tuple, not None — the chunked path never feeds None to the
+        # helper (that's reserved for the fast path).
+        assert all(
+            isinstance(c, tuple) and len(c) == 2 for c in chunk_calls
+        )
+        # Regression: result must match the synchronous baseline. The
+        # mock filterDate is a no-op so every chunk sees all 50 images;
+        # set-union dedupes to 50 distinct days.
+        assert result.n_valid_dates == 50
+
+    def test_server_side_hf_fast_path_does_not_use_executor(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """`air.no2` has chunk_days = 90 → single chunk = fast path.
+        The ThreadPoolExecutor MUST NOT be instantiated (no thread-pool
+        creation overhead for indicators that fit in one call)."""
+        import concurrent.futures as _cf
+        import engine.core.repeatable_core as _rc
+        from engine.core.repeatable_core import _server_side_hf
+
+        executor_instantiations = []
+        real_pool = _cf.ThreadPoolExecutor
+
+        class _SpyPool(real_pool):
+            def __init__(self, *a, **kw):
+                executor_instantiations.append(kw)
+                super().__init__(*a, **kw)
+
+        monkeypatch.setattr(
+            _rc.concurrent.futures, "ThreadPoolExecutor", _SpyPool,
+        )
+
+        chunk_calls = []
+        real_chunker = _rc._process_chunk_for_server_side_hf
+
+        def spy_chunker(selected, chunk, per_image):
+            chunk_calls.append(chunk)
+            return real_chunker(selected, chunk, per_image)
+
+        monkeypatch.setattr(
+            _rc, "_process_chunk_for_server_side_hf", spy_chunker,
+        )
+
+        ic = self._make_collection(50)
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.no2",
+        )
+
+        assert executor_instantiations == [], (
+            "Fast path must not instantiate ThreadPoolExecutor"
+        )
+        # Single inline call with `chunk=None` (the fast-path sentinel
+        # the chunked-vs-fast dispatch uses).
+        assert chunk_calls == [None]
+        assert result.n_valid_dates == 50
+
+    def test_server_side_hf_chunk_results_union_correctly_under_concurrency(
+        self, patched_ee, monkeypatch,
+    ) -> None:
+        """When two chunks happen to compute the same day_bucket (e.g. a
+        cross-chunk-boundary granule), the set-union accumulator MUST
+        deduplicate. A regression that switched the union to e.g. list
+        extension would double-count those days and inflate
+        n_valid_dates."""
+        import engine.core.repeatable_core as _rc
+        from engine.core.repeatable_core import _server_side_hf
+
+        # Per-chunk synthetic return values with overlapping day_buckets.
+        # 9 chunks (AOD path); the 1st and 2nd chunks share day 100; the
+        # 2nd and 3rd chunks share day 200. Set union must collapse both
+        # overlaps. Naive list-concat would yield 7 days instead of 5
+        # across the first 3 chunks (the rest are empty).
+        per_chunk_returns = [
+            ({100, 50}, {100}, 10),       # chunk 0
+            ({100, 200, 75}, {100}, 8),    # chunk 1 — shares 100 with chunk 0
+            ({200, 99}, set(), 5),         # chunk 2 — shares 200 with chunk 1
+            (set(), set(), 0),              # remaining 6 chunks empty
+            (set(), set(), 0),
+            (set(), set(), 0),
+            (set(), set(), 0),
+            (set(), set(), 0),
+            (set(), set(), 0),
+        ]
+        call_idx = {"i": 0}
+
+        def fake_chunker(selected, chunk, per_image):
+            i = call_idx["i"]
+            call_idx["i"] += 1
+            return per_chunk_returns[i]
+
+        monkeypatch.setattr(
+            _rc, "_process_chunk_for_server_side_hf", fake_chunker,
+        )
+
+        ic = self._make_collection(10)  # contents irrelevant — chunker mocked
+        result = _server_side_hf(
+            aoi=self._AOI, image_collection=ic, band=self._BAND,
+            bg_median=5e-5, bg_std=1e-5,
+            z_threshold=2.0, scale=1113.2,
+            time_range=self._TIME_RANGE,
+            indicator_id="air.aod",
+        )
+
+        # Union: {100, 50} ∪ {100, 200, 75} ∪ {200, 99} = {50, 75, 99, 100, 200}
+        # = 5 distinct days. (List-concat regression would give 7.)
+        assert result.n_valid_dates == 5
+        # Hot days: {100} ∪ {100} ∪ {} = {100} = 1 distinct hot day.
+        # hf = 1 / 5 = 0.2.
+        assert result.hf == pytest.approx(0.2)
+        # Granule count is a plain sum (no dedup) — 10 + 8 + 5 = 23.
+        assert result.granule_count == 23
