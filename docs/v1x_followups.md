@@ -353,6 +353,37 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
     Logged 24 May 2026 from v1x followup #4 investigation.
 
+12. **[CLOSED — 24 May 2026] Wire DW probability bands into nature.dw.class_confidence.** Replaced the pixel-fraction placeholder at `engine/nature.py:635-640` with `mean(prob_<dominant>)` masked to pixels where the dominant class wins the per-pixel argmax. Resolves the IC_v5 TODO at the same site. See commit `942f72e`.
+
+13. **[PARTIAL — 24 May 2026] Performance: apply filterBounds(site_buffer) at the ImageCollection construction site for raster pillars.**
+
+    Diagnosed during the saved-analyses regeneration (commit `295e67c`): the orchestrator iterates the full global granule pool for high-cadence multi-swath products (e.g. MAIAC AOD: 121,521 granules over 90 days globally) instead of the buffer-intersecting subset. `_server_side_hf`'s chunked reduceRegion correctly handles non-intersecting granules but still iterates them on the EE compute graph.
+
+    Fix (commit `<this commit>`): `six_step` and `_ndvi_low_area_pct` now apply `filterBounds(envelope.bounds())` immediately after `filterDate`, where `envelope = site_buffer(centre, r_background_km)` (the outer analysis circle, which encloses both `site_buffer` and `background_ring`). Used `.bounds()` (axis-aligned bbox) rather than the circle because EE's filterBounds-on-circle path triggers a cross-projection intersection failure against MODIS-sinusoidal-projected ICs that have been through a `.map(multiply+rename+copyProperties)` step (NDVI crashes; AOD survives only because its scale_factor=1.0 skips the multiply).
+
+    Regression check: composite.confidence, composite.overall_screening, and per-indicator n_valid_dates are bit-identical to the pre-fix baseline at both demo sites.
+
+    Achieved speedups (real EE, 24 May 2026): Sapezal 178s → 95s (**1.87×**); Brasilia 258s → 251s (**1.03×**). Below the 2× target. Granule iteration cost dropped 24× (Brasilia AOD: 121,521 → 5,130 granules) but per-granule reduceRegion cost increased proportionally for assets where the remaining granules carry real pixel content over the buffer region (South American MAIAC granules for Brasilia AOD).
+
+    Sub-followup #13b filed below for the remaining bottleneck.
+
+14. **Performance follow-up #13b — per-substep filterBounds in `six_step` for tight site_value / _server_side_hf scope.**
+
+    The principled envelope filter in #13 (`bounds(envelope)` ≈ 400×400 km bbox at Brasilia) keeps every South American MAIAC granule because `background_value` needs them. But `site_value` and `_server_side_hf` only reduce over the site buffer (43.1 km at Brasilia) — they don't need the ring's granules. Today they consume the same envelope-filtered IC as `background_value`, paying the cost without using the data.
+
+    Fix: split the filterBounds across substeps inside `six_step`:
+    - `site_value` → IC with `filterBounds(site_buffer.bounds())` (tight, ≈86×86 km at Brasilia)
+    - `background_value` → IC with `filterBounds(envelope.bounds())` (unchanged from #13)
+    - `_server_side_hf` → IC with `filterBounds(site_buffer.bounds())` (tight)
+
+    Expected speedup: Brasilia AOD orchestrator timing should drop from ~117s to ~20-30s (the AOD compute is the dominant remaining cost; tightening its filter to ~86 km bbox should cut granule count from 5,130 to ~500-1,000).
+
+    Estimated effort: 1 hour (engine edit + 2 new tests + real-EE timing verification).
+
+    Demo-relevance: medium-low. Pre-#13 was 258s for Brasilia; post-#13 is 251s; post-#13b would be ~90-120s. The cached saved-analyses load instantly regardless; this only affects live screening.
+
+    Logged 24 May 2026 from v1x followup #13 STOP-and-report on Brasilia timing.
+
 **Unblocks.**
 
 - **Tier A2 (trend engine).** `engine/core/trend.py` skeleton can now be built with the per-date semantic conventions established in Option-A. The placeholder M-FOLLOWUP-FALLBACK in Vegetation_Condition can be removed.

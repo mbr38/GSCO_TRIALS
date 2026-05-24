@@ -1287,7 +1287,18 @@ def _ndvi_low_area_pct(
     low-NDVI rather than failing the whole NDVI indicator.
     """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
-    mean_image = ic.filterDate(time_range[0], time_range[1]).mean()
+    # v1x followup #13 — filterBounds(geom.bounds()): site_buffer is the
+    # correct filter scope (this helper reduces over the site buffer only,
+    # no background ring), but `.bounds()` (axis-aligned bbox) is required
+    # because EE's filterBounds-on-circle path triggers a cross-projection
+    # intersection failure against the sinusoidal-projected MODIS NDVI IC
+    # which this helper consumes. Same workaround as six_step; see comment
+    # there for the full rationale.
+    mean_image = (
+        ic.filterDate(time_range[0], time_range[1])
+          .filterBounds(geom.bounds())
+          .mean()
+    )
     low_mask = mean_image.lt(0.3)
     reduction = (
         low_mask.reduceRegion(

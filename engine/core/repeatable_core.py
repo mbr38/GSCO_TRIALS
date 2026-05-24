@@ -24,6 +24,8 @@ import ee
 
 from engine.constants import (
     ANOMALY_Z_THRESHOLD,
+    BACKGROUND_RING_MAX_KM,
+    BACKGROUND_RING_RADIUS_MULTIPLE,
     NORMALISATION_K,
     SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
     SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR,
@@ -587,7 +589,37 @@ def six_step(
     Raises `IndicatorComputeError` if the site or background reduction yields
     no valid pixels for `band` in `time_range`.
     """
-    ic_window = image_collection.filterDate(time_range[0], time_range[1])
+    # v1x followup #13 — filterBounds to the analysis envelope (= circle at
+    # r_background_km, which encloses both site_buffer and background_ring).
+    # The envelope, not site_buffer alone, is required: background_value
+    # reduces over the ring (annulus from r_site to r_background) and would
+    # silently lose granules that intersect only the ring if we filtered on
+    # the smaller site_buffer. For granule footprints typical of v1 raster
+    # assets (MAIAC ~1200 km, S5P L3 ~2600 km swaths) the two filters
+    # produce identical reductions in practice — the envelope choice is the
+    # principled safe default that survives smaller-footprint future assets.
+    #
+    # `.bounds()` (axis-aligned bbox) instead of the buffer circle: EE's
+    # filterBounds-on-circle path triggers a cross-projection intersection
+    # against the sinusoidal-projected MODIS NDVI IC (which goes through a
+    # `.map(multiply+rename)` upstream); the .mean() reducer then fails
+    # with "reduce.mean: Projection error: Unable to compute intersection
+    # of geometries in projections SR-ORG:6974 and EPSG:4326". The bounds
+    # rectangle avoids that intersection path entirely. Verified empirically
+    # across NDVI (MODIS sinusoidal), AOD (MODIS sinusoidal), and S5P L3
+    # (EPSG:4326) — the bounds form works for all three. Net effect: a
+    # slightly larger filter than the circle, but still ~24× smaller than
+    # the unfiltered global pool for granule-based assets.
+    r_background_km = min(
+        BACKGROUND_RING_RADIUS_MULTIPLE * aoi["radius_km"],
+        BACKGROUND_RING_MAX_KM,
+    )
+    analysis_envelope = site_buffer(aoi["centre"], r_background_km)
+    ic_window = (
+        image_collection
+        .filterDate(time_range[0], time_range[1])
+        .filterBounds(analysis_envelope.bounds())
+    )
 
     site = site_value(aoi, ic_window, band, scale=scale)
     bg_median, bg_std = background_value(

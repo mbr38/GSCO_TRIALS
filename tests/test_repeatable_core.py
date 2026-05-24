@@ -1118,3 +1118,163 @@ class TestServerSideHfChunkConcurrency:
         assert result.hf == pytest.approx(0.2)
         # Granule count is a plain sum (no dedup) — 10 + 8 + 5 = 23.
         assert result.granule_count == 23
+
+
+# ---------------------------------------------------------------------------
+# v1x followup #13 — filterBounds at the analysis envelope in six_step
+# ---------------------------------------------------------------------------
+
+
+class TestSixStepFilterBoundsScope:
+    """v1x followup #13 (24 May 2026). six_step now applies
+    filterBounds(analysis_envelope) immediately after filterDate, where
+    analysis_envelope = site_buffer(centre, r_background_km). Two
+    invariants the test pins:
+
+      - filterBounds IS called (regression guard against the pre-#13
+        state where the orchestrator iterated the full global granule
+        pool, e.g. ~120K MAIAC granules for a 90-day window).
+      - The geometry is the analysis envelope (r_background_km), NOT
+        the site buffer (r_site_km). Filtering on site_buffer alone
+        would drop granules that intersect only the background ring,
+        silently changing background_value's reduction.
+    """
+
+    def test_six_step_filterBounds_uses_analysis_envelope_not_site_buffer(
+        self, monkeypatch,
+    ) -> None:
+        import engine.core.repeatable_core as rc
+
+        # Capture filterBounds calls on the IC.
+        filter_bounds_calls = []
+        date_calls = []
+
+        class _SpyIc:
+            def filterDate(self, start, end):
+                date_calls.append((start, end))
+                return self
+            def filterBounds(self, geom):
+                filter_bounds_calls.append(geom)
+                return self
+
+        # Capture every site_buffer() invocation. The only one inside
+        # six_step's own body is the envelope construction; site_value
+        # and background_value's internal site_buffer / background_ring
+        # calls are stubbed away below. The envelope sentinel implements
+        # .bounds() (returns itself) because six_step now calls
+        # filterBounds(envelope.bounds()) per the MODIS-projection fix.
+        class _EnvelopeSentinel:
+            def bounds(self):
+                return self
+
+        sentinel_envelope = _EnvelopeSentinel()
+        captured_radius_km = []
+
+        def fake_site_buffer(centre, radius_km):
+            captured_radius_km.append(radius_km)
+            return sentinel_envelope
+
+        monkeypatch.setattr(rc, "site_buffer", fake_site_buffer)
+
+        # Stub the rest of six_step's downstream surface — they have
+        # their own coverage and would otherwise need full EE mocks.
+        monkeypatch.setattr(
+            rc, "site_value",
+            lambda aoi, ic, band, scale: 1.0,
+        )
+        monkeypatch.setattr(
+            rc, "background_value",
+            lambda aoi, ic, band, seasonal, scale: (0.5, 0.1),
+        )
+        monkeypatch.setattr(
+            rc, "_server_side_hf",
+            lambda *a, **kw: rc.ServerSideHfResult(5, 0.0, 100),
+        )
+        monkeypatch.setattr(
+            rc, "_confidence_terms_from_six_step_state",
+            lambda **kw: {
+                "qa": 0.9, "n_valid": 1.0,
+                "anomaly_strength": 0.0, "spatial_context": 1.0,
+            },
+        )
+        monkeypatch.setattr(
+            rc, "compute_indicator_confidence",
+            lambda **kw: 0.8,
+        )
+
+        aoi = {"centre": {"lat": -15.78, "lon": -47.80}, "radius_km": 43.1}
+        rc.six_step(
+            aoi=aoi, image_collection=_SpyIc(), band="some_band",
+            time_range=("2026-01-01", "2026-04-01"), ee_client=None,
+            indicator_id="air.no2",
+        )
+
+        # filterDate fired once (regression guard for the date filter
+        # itself — the new filterBounds line sits immediately after it).
+        assert date_calls == [("2026-01-01", "2026-04-01")]
+
+        # filterBounds fired exactly once with the envelope sentinel,
+        # NOT a separate object derived from the site buffer.
+        assert filter_bounds_calls == [sentinel_envelope]
+
+        # Envelope radius = min(BACKGROUND_RING_RADIUS_MULTIPLE * 43.1,
+        # BACKGROUND_RING_MAX_KM) = min(215.5, 200.0) = 200.0. Pins that
+        # six_step picks the larger envelope, not the smaller site_buffer
+        # radius (43.1) — the key safety property of the fix.
+        assert captured_radius_km == [200.0]
+
+    def test_six_step_filterBounds_envelope_for_small_buffer_below_max(
+        self, monkeypatch,
+    ) -> None:
+        """At small site radii (e.g. Sapezal r=5 km) the envelope falls
+        below the 200 km cap and equals 5 × radius_km = 25 km. Pins the
+        formula on the non-clamped branch."""
+        import engine.core.repeatable_core as rc
+
+        class _SpyIc:
+            def filterDate(self, *_a, **_kw): return self
+            def filterBounds(self, _g): return self
+
+        class _EnvelopeSentinel:
+            def bounds(self): return self
+
+        captured_radius_km = []
+        monkeypatch.setattr(
+            rc, "site_buffer",
+            lambda centre, radius_km: (
+                captured_radius_km.append(radius_km) or _EnvelopeSentinel()
+            ),
+        )
+        monkeypatch.setattr(
+            rc, "site_value",
+            lambda aoi, ic, band, scale: 1.0,
+        )
+        monkeypatch.setattr(
+            rc, "background_value",
+            lambda aoi, ic, band, seasonal, scale: (0.5, 0.1),
+        )
+        monkeypatch.setattr(
+            rc, "_server_side_hf",
+            lambda *a, **kw: rc.ServerSideHfResult(5, 0.0, 100),
+        )
+        monkeypatch.setattr(
+            rc, "_confidence_terms_from_six_step_state",
+            lambda **kw: {
+                "qa": 0.9, "n_valid": 1.0,
+                "anomaly_strength": 0.0, "spatial_context": 1.0,
+            },
+        )
+        monkeypatch.setattr(
+            rc, "compute_indicator_confidence",
+            lambda **kw: 0.8,
+        )
+
+        aoi = {"centre": {"lat": -13.5, "lon": -58.8}, "radius_km": 5.0}
+        rc.six_step(
+            aoi=aoi, image_collection=_SpyIc(), band="some_band",
+            time_range=("2026-01-01", "2026-04-01"), ee_client=None,
+            indicator_id="air.no2",
+        )
+
+        # min(5 * 5.0, 200.0) = 25.0 — the unclamped 5× branch.
+        assert captured_radius_km == [25.0]
