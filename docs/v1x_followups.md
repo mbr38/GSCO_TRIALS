@@ -321,7 +321,9 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
     User decision (24 May 2026): keep AOD and CH4 in the default selection. The strict-None semantics + survivor-renormalise at the pillar level already handle low-coverage cases gracefully (the indicators emit None and drop out of the pillar rollup without dragging the pillar score down). Removing them from the default would hide their availability from users who DO want them, particularly at large buffers where coverage is good (e.g. Distrito Federal had AOD n_valid=64 dates and CH4 n_valid=4 dates). The information cost of keeping them outweighs the speed cost (~10-15s per indicator at small buffers post-followup-#1).
 
-4. **PM₂.₅ / PM₁₀ persistently None at both demo sites.** Pre-existing engine issue, separate from A1. CAMS coverage at Brazilian latitudes or a band/QA filter issue. Worth a brief investigation.
+4. **[RESOLVED — 24 May 2026, no fix required] PM₂.₅ / PM₁₀ persistently None at both demo sites.** Pre-existing engine issue, separate from A1. CAMS coverage at Brazilian latitudes or a band/QA filter issue. Worth a brief investigation.
+
+    Investigation (24 May 2026, `tools/diag_pm_coverage.py`) confirmed CAMS NRT data is present and plausible at all demo sites (Sapezal, Brasilia, Rotterdam control). The None values surface from the sub-pixel guardrail at `engine/air.py:251-261` which intentionally short-circuits CAMS computation when buffer radius < 44.5 km (CAMS NRT native pixel). At sub-CAMS-pixel buffers, site and background sample the same underlying grid cell, yielding no meaningful spatial contrast. The E4 fallback in `compute_pm_or_aerosol` (`formula='fallback_aai_only'`) correctly handles this case. The guardrail is doing its job; the demo output reflects intentional design. `tools/diag_pm_coverage.py` left in place for future regression.
 
 5. **[RESOLVED — 23 May 2026, no fix required] `composite.overall_screening` rank-order:** Brasilia (0.213) currently ranks above Sapezal (0.179) on the headline screening score. This is the *opposite* of the intended demo narrative ("high-priority Amazon vs low-priority capital region"). Separate from A1 — likely a sub-aggregate weight or calibration issue downstream of the pollution/habitat scores themselves. Worth a deliberate "demo calibration" pass before any external demo.
 
@@ -336,6 +338,18 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 9. **`CONFIDENCE_FORMULA_WEIGHTS` calibration.** Current values 0.30/0.30/0.25/0.15 chosen on first principles; landed healthy at first try. Tier B1 sensitivity analysis should verify ±0.05 perturbations don't flip demo-site rankings.
 
 10. **Saved-analyses regeneration.** Sapezal and Brasilia JSONs from the Step 8 verification run (23 May 2026) can be promoted to `demo/saved_analyses/high_priority_amazon.json` and `low_priority_brasilia.json` directly — they already reflect the post-Option-A pipeline.
+
+11. **UX: surface `buffer_below_cams_pixel` as a P-05 skipped_reason for PM₂.₅ / PM₁₀ at sub-CAMS-pixel AOIs.**
+
+    Currently the sub-pixel guardrail at `engine/air.py:251-261` raises `IndicatorComputeError` which is caught by the generic handler (`air.py:804-811`), routing PM indicators to None with the message buried in `_failures['air']`. This means P-05 / C4b shows empty cells for PM₂.₅ and PM₁₀ with no on-screen explanation; users have to read the JSON `_failures` key to understand why.
+
+    Fix: promote the guardrail's failure to use `_emit_skipped_air_result` with a new `skipped_reason='buffer_below_cams_pixel'` so the C4b grid (and C5 drilldown if applicable) renders an actionable "PM bands skipped — buffer below CAMS native pixel (44.5 km)" message in place of the empty cell.
+
+    Estimated effort: 30 minutes (engine edit + 1-2 new tests + UI verification).
+
+    Demo-relevance: medium. Current behaviour is silently degraded; the fix gives users a clear message. Not a blocker for v1 demo but useful before any external review or user testing.
+
+    Logged 24 May 2026 from v1x followup #4 investigation.
 
 **Unblocks.**
 
