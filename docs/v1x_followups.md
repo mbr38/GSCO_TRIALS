@@ -367,22 +367,25 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
     Sub-followup #13b filed below for the remaining bottleneck.
 
-14. **Performance follow-up #13b — per-substep filterBounds in `six_step` for tight site_value / _server_side_hf scope.**
+14. **[REJECTED — investigated 24 May 2026, no semantically-safe speedup at this filter granularity] Per-substep filterBounds in `six_step` for tight site_value / _server_side_hf scope.**
 
-    The principled envelope filter in #13 (`bounds(envelope)` ≈ 400×400 km bbox at Brasilia) keeps every South American MAIAC granule because `background_value` needs them. But `site_value` and `_server_side_hf` only reduce over the site buffer (43.1 km at Brasilia) — they don't need the ring's granules. Today they consume the same envelope-filtered IC as `background_value`, paying the cost without using the data.
+    Hypothesis (from #13's Brasilia report): `site_value` and `_server_side_hf` only reduce over the site buffer, so they should be cheaper if their IC is filtered to `site_buffer.bounds()` instead of the wider `envelope.bounds()` used for `background_value`. Expected ~3–5× speedup at Brasilia AOD.
 
-    Fix: split the filterBounds across substeps inside `six_step`:
-    - `site_value` → IC with `filterBounds(site_buffer.bounds())` (tight, ≈86×86 km at Brasilia)
-    - `background_value` → IC with `filterBounds(envelope.bounds())` (unchanged from #13)
-    - `_server_side_hf` → IC with `filterBounds(site_buffer.bounds())` (tight)
+    Implemented + real-EE verified (24 May 2026). Hypothesis did not hold; both STOP conditions tripped:
 
-    Expected speedup: Brasilia AOD orchestrator timing should drop from ~117s to ~20-30s (the AOD compute is the dominant remaining cost; tightening its filter to ~86 km bbox should cut granule count from 5,130 to ~500-1,000).
+    - **At Brasilia: granule_count was UNCHANGED** (5130 → 5130). MAIAC granule footprints (~1200 km × 2400 km swaths) are far larger than either bbox, so nearly every granule whose footprint touches the 400×400 km envelope bbox also touches the 86×86 km site bbox. No granules dropped → no speedup. Wall time 250.8 s → 237.0 s (1.06×, below the 1.5× STOP threshold).
 
-    Estimated effort: 1 hour (engine edit + 2 new tests + real-EE timing verification).
+    - **At Sapezal: 4 granules WERE dropped** (5130 → 5126). Those 4 granules had EE-declared footprints just outside `site_buffer.bounds()` but actual pixels extending into `site_buffer` (granule footprints are bounding polygons, not pixel-precise masks). Their absence shifted `site_value`'s per-pixel mean over `site_buffer`, propagating into anomaly → z → score → pillar aggregates. Result: `composite.overall_screening` drifted +0.0017 at Sapezal and +0.0013 at Brasilia (third decimal). Engine values changing without a corresponding scientific change is a bug per the regression-check rule. Wall time also got *worse* at Sapezal (95.3 s → 144.1 s, 0.66×) — the additional IC construction added overhead the granule-drop didn't recover.
 
-    Demo-relevance: medium-low. Pre-#13 was 258s for Brasilia; post-#13 is 251s; post-#13b would be ~90-120s. The cached saved-analyses load instantly regardless; this only affects live screening.
+    Root cause: the conceptual model "granules outside site_buffer don't contribute to site_value" is correct in the per-pixel reduction sense (those pixels return is_valid=0) but wrong at the filterBounds level. filterBounds is a footprint-bbox check, not a pixel check; it can drop granules whose declared footprint is offset from the bbox edge but whose actual pixel grid extends inside.
 
-    Logged 24 May 2026 from v1x followup #13 STOP-and-report on Brasilia timing.
+    Engine reverted to the post-#13 state. The investigation surfaced two real findings worth keeping:
+
+    - The per-image footprint precision is at the granule-polygon level, not the pixel level. Any future filterBounds tightening must account for this with a buffer margin (e.g. dilate the site bbox by 1 pixel × native_scale_m before filtering) — OR avoid further tightening past the envelope altogether.
+
+    - For Brasilia-scale AOIs, the remaining AOD wall-time cost (~117 s) is not addressable through filterBounds geometry alone. The granules surviving the envelope filter all contain real South American MAIAC pixel content; reducing them is genuinely expensive. Future speedup attempts should target the per-chunk concurrent execution (already at 9-wide), the chunk-size constant (already at 10 days for AOD), or a coarser scale (already adaptive). The remaining lever is likely accepting the cost or moving to a lower-cadence aerosol product.
+
+    Logged 24 May 2026; rejected same day.
 
 **Unblocks.**
 
