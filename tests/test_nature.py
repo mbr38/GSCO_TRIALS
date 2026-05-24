@@ -167,6 +167,124 @@ class TestNormaliseDwHistogram:
 
 
 # ---------------------------------------------------------------------------
+# 4b. DW class_confidence — wires DW probability bands (v1x followup #12)
+# ---------------------------------------------------------------------------
+#
+# These tests use a chainable MagicMock to stand in for the EE call chain
+# inside compute_current_land_cover. The compute now makes two getInfo
+# calls in sequence: (1) the label-band frequencyHistogram → dominant
+# class, (2) the dominant-class probability band mean → class_confidence.
+# Mock pattern mirrors the one in tests/test_nature_defensive.py (kept
+# local here to honour the test-file layout the task spec named).
+
+class TestDwClassConfidenceWiring:
+    """v1x followup #12 — nature.dw.class_confidence now reads the
+    dominant class's DW probability band (mean over the buffer), replacing
+    the placeholder that returned the dominant class's pixel fraction."""
+
+    _AOI_LOCAL = {"centre": {"lat": -3.20, "lon": -52.20}, "radius_km": 25}
+    _TR_LOCAL = ("2026-02-19", "2026-05-20")
+
+    @staticmethod
+    def _stub(monkeypatch, *, getinfo_side_effect=None, getinfo_return=None):
+        from unittest.mock import MagicMock
+
+        chain = MagicMock()
+        if getinfo_side_effect is not None:
+            chain.getInfo.side_effect = getinfo_side_effect
+        else:
+            chain.getInfo.return_value = getinfo_return
+        for attr in (
+            "select", "mode", "mean", "sum", "reduceRegion",
+            "filterDate", "filterBounds", "multiply", "rename",
+            "copyProperties", "gte", "lte", "lt", "eq", "And",
+            "updateMask",
+        ):
+            getattr(chain, attr).return_value = chain
+        size_chain = MagicMock()
+        size_chain.getInfo.return_value = 5
+        chain.size.return_value = size_chain
+
+        fake_ic_cls = MagicMock(return_value=chain)
+        fake_image_cls = MagicMock(return_value=chain)
+        fake_image_cls.pixelArea.return_value = chain
+        monkeypatch.setattr("engine.nature.ee.ImageCollection", fake_ic_cls)
+        monkeypatch.setattr("engine.nature.ee.Image", fake_image_cls)
+        monkeypatch.setattr("engine.nature.ee.Reducer", MagicMock())
+        monkeypatch.setattr(
+            "engine.nature.adaptive_scale_m", lambda _g, native, **_kw: native,
+        )
+        monkeypatch.setattr(
+            "engine.nature.site_buffer", lambda *_a, **_kw: object(),
+        )
+        return chain
+
+    def test_dw_class_confidence_reads_dominant_class_probability_band(
+        self, monkeypatch,
+    ) -> None:
+        chain = self._stub(
+            monkeypatch,
+            getinfo_side_effect=[
+                {"label": {"1": 100}},   # histogram reduction → 100% trees
+                {"trees": 0.75},          # dominant-prob reduction
+            ],
+        )
+        from engine.nature import compute_current_land_cover
+        result = compute_current_land_cover(
+            aoi=self._AOI_LOCAL, time_range=self._TR_LOCAL, ee_client=None,
+        )
+        assert result["nature.dw.dominant_class"] == "trees"
+        assert result["nature.dw.class_confidence"] == pytest.approx(0.75)
+        # Two getInfo calls: histogram + dominant-prob. If the old
+        # pixel-fraction placeholder were still in place, only the
+        # histogram getInfo would fire.
+        assert chain.getInfo.call_count == 2
+
+    def test_dw_class_confidence_handles_zero_pixels(self, monkeypatch) -> None:
+        # Empty histogram triggers the existing skip path; every emitted
+        # canonical ID (class_confidence included) goes to None, and the
+        # new dominant-prob getInfo is never issued.
+        chain = self._stub(monkeypatch, getinfo_return={})
+        from engine.nature import compute_current_land_cover
+        result = compute_current_land_cover(
+            aoi=self._AOI_LOCAL, time_range=self._TR_LOCAL, ee_client=None,
+        )
+        assert result["nature.dw.class_confidence"] is None
+        assert (
+            result["_provenance.nature.dw"]["skipped_reason"] == "no_dw_pixels"
+        )
+        assert chain.getInfo.call_count == 1
+
+    def test_dw_class_confidence_uses_correct_band_for_dominant_class(
+        self, monkeypatch,
+    ) -> None:
+        # Trees 70%, crops 30% → dominant is "trees". The engine MUST
+        # select the trees band for the probability read, not crops.
+        from unittest.mock import call
+        chain = self._stub(
+            monkeypatch,
+            getinfo_side_effect=[
+                {"label": {"1": 70, "4": 30}},
+                {"trees": 0.5},
+            ],
+        )
+        from engine.nature import compute_current_land_cover
+        result = compute_current_land_cover(
+            aoi=self._AOI_LOCAL, time_range=self._TR_LOCAL, ee_client=None,
+        )
+        assert result["nature.dw.dominant_class"] == "trees"
+        assert result["nature.dw.class_confidence"] == pytest.approx(0.5)
+        select_calls = chain.select.call_args_list
+        assert call("label") in select_calls
+        assert call("trees") in select_calls
+        assert call("crops") not in select_calls
+        # Mask construction: label_mode.eq(<trees_index>). trees = 1 per
+        # DW_INDEX_TO_LABEL. Asserts the mask uses the dominant class's
+        # integer index, not e.g. the wrong class or a name-based filter.
+        assert call(1) in chain.eq.call_args_list
+
+
+# ---------------------------------------------------------------------------
 # 5. NDVI helper sub-scores
 # ---------------------------------------------------------------------------
 

@@ -101,6 +101,23 @@ KBA_ASSET_ID: str = (
 DW_COMPOSITE_WINDOW_DAYS: int = 90
 
 
+# Dynamic World class order as documented in the asset (label band values).
+# Lifted to module level so the inverse mapping (class name → index) is
+# available cheaply to compute_current_land_cover for the dominant-class
+# mask construction (v1x followup #12).
+DW_INDEX_TO_LABEL: tuple[str, ...] = (
+    "water",
+    "trees",
+    "grass",
+    "flooded_vegetation",
+    "crops",
+    "shrub_and_scrub",
+    "built",
+    "bare",
+    "snow_and_ice",
+)
+
+
 @dataclass(frozen=True)
 class NatureIndicatorConfig:
     """Static config for one Nature single-value indicator.
@@ -580,9 +597,14 @@ def compute_current_land_cover(
     # Frontier Farm — remote rainforest, high cloud cover in the recent
     # 90-day window). Materialising first lets Python's ``.get`` return
     # None safely and route through the canonical skipped-result path.
+    #
+    # Mode of the label band: per-pixel argmax class across the 90-day
+    # window. Reused below to (a) derive class fractions via
+    # frequencyHistogram and (b) build the dominant-class mask for
+    # class_confidence (v1x followup #12).
+    label_mode_img = ic.select("label").mode()
     reduction = (
-        ic.select("label")
-        .mode()
+        label_mode_img
         .reduceRegion(
             reducer=ee.Reducer.frequencyHistogram(),
             geometry=geom,
@@ -632,12 +654,40 @@ def compute_current_land_cover(
     dominant = max(eligible, key=eligible.get) if eligible else None
 
     result["nature.dw.dominant_class"] = dominant
-    # TODO(IC_v5): class_confidence is `mean(prob_<dominant>)` over the
-    # buffer. Placeholder uses the dominant class's pixel fraction in [0,1]
-    # which is a defensible proxy until we wire the probability bands.
-    result["nature.dw.class_confidence"] = (
-        eligible[dominant] / 100.0 if dominant else None
-    )
+    # v1x followup #12: mean DW probability of the dominant class,
+    # restricted to the pixels where the dominant class actually wins
+    # (i.e. label_mode == dominant_index). This answers "on the pixels we
+    # called <dominant>, how confident was the model" — the natural
+    # interpretation of the field name. The earlier whole-buffer mean was
+    # dragged down by pixels where another class was winning and the
+    # dominant band's probability was correspondingly low (Sapezal: 0.27
+    # under whole-buffer mean; expected ~0.55 under dominant-pixel mean).
+    #
+    # Note on the upper-tail cap: DW v1 90-day mean per-class probabilities
+    # cap around 0.7-0.75 even for homogeneous landscapes — the 9-class
+    # softmax + temporal averaging both compress the upper tail. Verified
+    # via tools/diag_dw_class_confidence.py (Sahara core mean max-prob
+    # ~0.60). Consumers should not assume the [0, 1] range is uniformly
+    # populated; in practice values cluster in [0.5, 0.75].
+    if dominant is None:
+        result["nature.dw.class_confidence"] = None
+    else:
+        dom_idx = DW_INDEX_TO_LABEL.index(dominant)
+        dom_prob_img = (
+            ic.select(dominant).mean()
+              .updateMask(label_mode_img.eq(dom_idx))
+        )
+        dom_prob_reduction = dom_prob_img.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=geom,
+            scale=scale_m,
+            bestEffort=True,
+            maxPixels=int(1e10),
+        ).getInfo()
+        dom_prob = (dom_prob_reduction or {}).get(dominant)
+        result["nature.dw.class_confidence"] = (
+            float(dom_prob) if dom_prob is not None else None
+        )
 
     # Sub-scores derived from the class fractions.
     natural_pct = sum(pct_per_class.get(c, 0.0) for c in DW_NATURAL_CLASSES)
@@ -684,29 +734,17 @@ def _normalise_dw_histogram(histogram: dict) -> dict[str, int]:
     """Convert {class_index_str: count} into {dw_class_label: count}.
 
     `histogram` keys come back from EE as stringified integers ("0".."8").
-    The Dynamic World class order is documented in the asset: water=0,
-    trees=1, grass=2, flooded_vegetation=3, crops=4, shrub_and_scrub=5,
-    built=6, bare=7, snow_and_ice=8.
+    The Dynamic World class order is documented at module level
+    (see `DW_INDEX_TO_LABEL`).
     """
-    dw_index_to_label = (
-        "water",
-        "trees",
-        "grass",
-        "flooded_vegetation",
-        "crops",
-        "shrub_and_scrub",
-        "built",
-        "bare",
-        "snow_and_ice",
-    )
     out: dict[str, int] = {}
     for key, count in histogram.items():
         try:
             idx = int(key)
         except (TypeError, ValueError):
             continue
-        if 0 <= idx < len(dw_index_to_label):
-            out[dw_index_to_label[idx]] = int(count or 0)
+        if 0 <= idx < len(DW_INDEX_TO_LABEL):
+            out[DW_INDEX_TO_LABEL[idx]] = int(count or 0)
     return out
 
 
