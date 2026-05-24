@@ -339,7 +339,9 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
 10. **Saved-analyses regeneration.** Sapezal and Brasilia JSONs from the Step 8 verification run (23 May 2026) can be promoted to `demo/saved_analyses/high_priority_amazon.json` and `low_priority_brasilia.json` directly — they already reflect the post-Option-A pipeline.
 
-11. **UX: surface `buffer_below_cams_pixel` as a P-05 skipped_reason for PM₂.₅ / PM₁₀ at sub-CAMS-pixel AOIs.**
+11. **[WON'T FIX — 24 May 2026] UX: surface `buffer_below_cams_pixel` as a P-05 skipped_reason for PM₂.₅ / PM₁₀ at sub-CAMS-pixel AOIs.**
+
+    User decision (24 May 2026): UX edge case for sub-CAMS-pixel buffers; the E4 fallback in `compute_pm_or_aerosol` (`formula='fallback_aai_only'`) correctly handles the screening output. Empty cells for PM₂.₅/PM₁₀ are visible but the underlying screening signal is preserved via the AAI fallback. Address only if user testing surfaces confusion. Not blocking. Original entry preserved below for record.
 
     Currently the sub-pixel guardrail at `engine/air.py:251-261` raises `IndicatorComputeError` which is caught by the generic handler (`air.py:804-811`), routing PM indicators to None with the message buried in `_failures['air']`. This means P-05 / C4b shows empty cells for PM₂.₅ and PM₁₀ with no on-screen explanation; users have to read the JSON `_failures` key to understand why.
 
