@@ -95,6 +95,134 @@
 
 ---
 
+## M-UI-A1-SURFACE — closed 24 May 2026
+
+**Summary.** Surfaced M-TIER-A1's per-indicator confidence values and underlying provenance fields (`confidence_terms`, `n_valid_dates`, `granule_count`) to demo audiences across P-05, P-09, and P-11. After this milestone, the engine's confidence work is no longer invisible: every indicator's confidence appears on screen, the 4-term breakdown is one click away from any indicator, audit-transparency fields land in both the in-app provenance expander and the report exports.
+
+Pre-M-UI-A1-SURFACE state: the engine emitted real values post-M-TIER-A1, but UI consumers either ignored the new fields entirely or rendered only at the pillar level. Demo audiences saw "real" pillar confidence (via C3 + C6) but had no way to see *why* the confidence was the value it was, no per-indicator surface for Nature beyond `nature.dw.class_confidence`, no audit-transparency fields, and no UI consumption of `confidence_terms`.
+
+Post-M-UI-A1-SURFACE state: confidence is visible at every layer where it should be, in a form appropriate to each surface (in-app expanders for live exploration, prose-formatted sentences for PDF auditors, structured columns for CSV-based analysis).
+
+---
+
+**Design decisions locked.** Five decisions from the UI surface design conversation (24 May 2026):
+
+| # | Decision | Lock |
+|---|---|---|
+| D1 | Nature drilldown asymmetry | Extend to all Nature indicators (consistency with Air/GHG) |
+| D2 | confidence_terms surface | Expandable section under each indicator's confidence in C5 |
+| D3 | n_valid_dates / granule_count placement | "Datasets used" expander on P-05; allowlisted to PDF; full structured columns in CSV |
+| D4 | Confidence threshold bucketing | Shared with score thresholds (0.33, 0.66) for v1; split deferred to B1 |
+| D5 | P-09 confidence inclusion | Static family-based explanation only; live values deferred to B-grade follow-up |
+
+---
+
+**Sub-milestone arc.** Six sub-milestones, plus mid-milestone gap fixes:
+
+- **Sub-milestone 1 — Nature drilldown confidence parity.** Added `_format_nature_confidence_line` (pure formatter) and `_render_nature_confidence_row` (Streamlit wrapper). All 7 Nature indicators (KBA, habitat, forest_loss, regional_loss_evidence, recovery, water, NDVI) gained inline confidence rows in their respective themed cards. DW intentionally excluded (`class_confidence` has different semantics from A1 confidence_terms). 5 new tests.
+
+- **Sub-milestone 2 — `confidence_terms` expander.** Pre-flight R1 check confirmed Streamlit 1.42+ supports nested expanders; existing "Datasets used" pattern at line 534 already does this. Added `_ConfidenceTermRow` frozen dataclass, pure helpers (`_build_confidence_terms_rows`, `_compute_final_confidence`), Streamlit renderers (`_render_confidence_terms`, `_render_confidence_terms_expander`). 19 expanders wired across Air (9), GHG (3), Nature (7) panels. The breakdown's "Final confidence" is recomputed from the terms via `_compute_final_confidence` rather than read from the payload — defensive pattern (if the two ever disagree, that's a real engine bug worth surfacing). 5 new tests.
+
+- **Fix to sub-milestone 2 — column-to-surface row suppression.** Added `_should_render_column_to_surface_row(tag)` pure helper. The "Column-to-surface adjustment" row is now suppressed entirely when the multiplier == 1.00 (n_a and strong tags). 6 new tests.
+
+- **Engine gap fix — `n_valid_dates` + `granule_count` plumbing.** Discovered during sub-milestone 3 investigation: M-TIER-A1 closed-entry claimed both fields were emitted in `provenance.extra`, but neither field was ever threaded out of `_server_side_hf`. Fixed in `engine/core/repeatable_core.py` — `_server_side_hf` now returns both values; `six_step` and `_format_result` thread them to `provenance.extra` for every indicator that goes through the server-side HF path. 4 new tests (2 in `test_repeatable_core.py` for the engine return, 1 in `test_air.py` for integration, 1 schema test).
+
+- **Closed-entry audit.** Per the verification gap surfaced by the engine fix, audited the full M-TIER-A1 closed-entry section-by-section against actual code. Five DRIFT findings + one AMBIGUOUS finding + one out-of-scope observation; all corrected (`_daily_mosaic_by_utc_day` reference replaced with `_date_chunks_iso`, test counts synced, `confidence.py` LOC bumped to ~250, followup #1 annotated `[CLOSED — 24 May 2026]`). Process-improvement note added at the top of `v1x_followups.md` requiring future closed-entries to include a verification step.
+
+- **Sub-milestone 3 — provenance extra iteration.** Extended `_render_provenance_block` (c5_drilldown.py) and `_render_provenance_appendix` (p11_sections.py) to iterate over `extra` and render each field via `_format_extra_value`. `confidence_terms` deliberately excluded from both surfaces (it has its own home in the sub-milestone 2 expander) with a code comment documenting the exclusion. 7 new tests + 5 type-dispatch parametrised tests.
+
+- **Sub-milestone 4 — P-09 static explanation.** Added `INDICATOR_CONFIDENCE_FAMILY: dict[str, str]` to `engine/constants.py` — 35 entries covering all 19 raw + 16 derived P-09 cards. Three families: `live_revisit` (12), `single_snapshot` (8), `derived` (16). Two-tier lookup (`full_id` first, then base form) resolves the `nature.habitat.conversion_score` (derived) vs `nature.habitat.natural_loss_ha` (raw) namespace collision deterministically. `_confidence_explanation_for` helper added in `ui/components/p09_library.py`; new expander wired into every P-09 card. 7 new tests.
+
+- **R4 copy refinements.** Two copy-tightening edits to the P-09 explanations to address ambiguities surfaced in sub-milestone 4: (1) derived branch now distinguishes confidence-aggregation rule from score-aggregation rule (relevant for `composite.overall_screening` cards where the score uses mean but the confidence rule uses min); (2) single_snapshot branch acknowledges vintage-drift cases where the dataset is `out_of_coverage` and the "1.0 by construction" framing doesn't apply. Existing tests updated.
+
+- **Sub-milestone 5 — P-11 CSV columns.** Added 7 new columns (`confidence_term_qa`, `confidence_term_n_valid`, `confidence_term_anomaly_strength`, `confidence_term_spatial_context`, `column_to_surface_multiplier`, `n_valid_dates`, `granule_count`). `column_to_surface_multiplier` is derived from the existing `column_to_surface_uncertainty` enum via the engine constant `COLUMN_TO_SURFACE_MULTIPLIER` (single source of truth, stays in lockstep with engine recalibration). All 7 columns defensively render as empty strings for indicators without extras (no crash on pre-fix payloads). 2 new tests.
+
+- **Sub-milestone 6 — PDF audit-transparency refinement.** First implementation rendered all extras as code-like `key: value` bullets in the PDF appendix. Reviewer feedback: too engineering-ish for a business/audit audience. Refined to a PDF allowlist (`_PDF_AUDIT_TRANSPARENCY_KEYS = {"n_valid_dates", "granule_count"}`) — only fields telling a clear "what data did we actually look at" story surface in the PDF. Rendering rewritten as prose: *"air.aod — 64 distinct dates observed across 3,712 raw images"*. Indicators where `granule_count == n_valid_dates` (single-image-per-day) omitted entirely. Section omitted entirely when no indicator has multi-swath divergence. Footer caption directs PDF readers to the CSV export for engineering depth. 3 new tests + 1 regression test confirming CSV unchanged.
+
+---
+
+**Test trajectory.**
+- Entering milestone: 1079 passing (post-M-TIER-A1 + followup #1)
+- After sub-milestone 1: 1084 (+5)
+- After sub-milestone 2 + fix: 1095 (+5 + 6)
+- After engine gap fix: 1099 (+4)
+- After sub-milestones 3 + 5 + (initial sub-milestone 6): 1117 (+18)
+- After sub-milestone 4: 1118 *(intermediate count not reconstructed; see note)*
+- After R4 copy refinements: 1118 *(assertion-only edits — no count change)*
+- After PDF refinement: 1118 *(intermediate count not reconstructed; see note)*
+
+*Note: the SM4 → R4 → PDF refinement intermediate counts weren't reconstructed; all three show the verified final-state total. The earlier trajectory rows use the bookkeeping the milestone log carried at the time of each transition.*
+
+**Final state: 1118 passed, 8 skipped, 0 failures.** Test count gained: ~40.
+
+---
+
+**Deliverables.**
+
+*UI components:*
+- `ui/components/c5_drilldown.py` — Nature confidence rows added (7 indicators); `_render_confidence_terms` + `_build_confidence_terms_rows` + `_compute_final_confidence` helpers; "What's behind this confidence?" expanders wired across Air/GHG/Nature panels; column-to-surface row suppression for multiplier=1.00; provenance block iterates `extra` excluding `confidence_terms`; `_EXTRA_FIELD_LABELS` lookup for pretty-naming known keys.
+- `ui/components/p09_library.py` — "What confidence means for this indicator" expander on every card (both raw and derived variants); `_confidence_explanation_for` helper with three-family dispatch + fallback for unknown IDs.
+- `ui/components/p11_sections.py` — `_render_provenance_appendix` extended with allowlisted audit-transparency block; prose rendering for `n_valid_dates`/`granule_count` divergence; section omitted when no multi-swath indicator present; engineering parameters excluded (belong in CSV).
+- `ui/components/p11_csv.py` — 7 new A1-extra columns; `_fmt_int` helper; `column_to_surface_multiplier` derived from engine enum.
+
+*Engine:*
+- `engine/core/repeatable_core.py` — `_server_side_hf` now returns `n_valid_dates` + `granule_count`; values threaded through `six_step` and `_format_result` to `provenance.extra`.
+- `engine/constants.py` — `INDICATOR_CONFIDENCE_FAMILY: dict[str, str]` lookup added (35 entries).
+
+*Docs:*
+- `docs/v1x_followups.md` — M-TIER-A1 closed-entry corrected (5 DRIFT items + AMBIGUOUS arithmetic + followup #1 closure annotation); process-improvement note added requiring verification step on future closed-entries.
+- `docs/M-TIER-A1_plain_language_explainer.md` — moved from claude.ai outputs into the repo (was previously claimed in closed-entry but absent).
+- `docs/provenance_schema.md` — `n_valid_dates` and `granule_count` extra fields documented.
+
+*Tests:*
+- `tests/test_c5_drilldown.py` — coverage for Nature confidence rows, confidence terms helpers, column-to-surface suppression, provenance extra iteration, value formatter.
+- `tests/test_p09_library.py` — coverage for `_confidence_explanation_for` across all three families, fallback, base-form lookup, namespace-collision disambiguation.
+- `tests/test_p11_sections.py` — coverage for PDF audit-transparency allowlist, prose rendering, single-swath omission, section omission, CSV regression check.
+- `tests/test_p11_csv.py` — coverage for the 7 new columns (populated + empty cases).
+- `tests/test_repeatable_core.py` — coverage for the engine gap fix.
+
+---
+
+**Followups logged for v1.x.**
+
+1. **Live confidence values on P-09 cards** (was D5 in spec — locked as B-grade deferral). Currently P-09 shows static family-based explanations. A follow-up would extend each card to display the most-recent screening's actual confidence value when a site is active. Adds coupling to active-site context state. Estimated 2-3 hours when prioritised.
+
+2. **Confidence threshold bucketing for confidence-specific bands** (was D4 in spec — deferred to B1). Current `TRAFFIC_LIGHT_THRESHOLDS = (0.33, 0.66)` is shared between scores and confidence. A1 produces confidences in ~0.27–1.00 range, so the bottom tier rarely triggers. A B1 sensitivity-analysis milestone could justify a split with `CONFIDENCE_THRESHOLDS = (0.40, 0.70)` or similar.
+
+3. **R4 follow-ups (deferred until demo feedback):**
+   - Composite.overall_screening copy clarity — current derived-branch copy distinguishes confidence vs score aggregation rules at the end; if demo audiences still conflate them, copy could be split per derived sub-aggregate type.
+   - Single-snapshot vintage caveats — addressed for the out-of-coverage case; deeper vintage-drift discussion (e.g. quantifying how outdated a 2020-2023 ODIAC vintage is for 2026 use) could be added if reviewers want it.
+
+4. **Closed-entry verification process improvement.** Adopted: future closed-entries should include a verification step where each "X is in state Y" factual claim is spot-checked against actual code/files before commit. Documented at the top of `v1x_followups.md`.
+
+5. **P-09 "active-site context" wiring** — needed if Live confidence values on P-09 (#1 above) is ever promoted from B-grade.
+
+---
+
+**Unblocks.**
+
+- **Demo audiences can see M-TIER-A1's deliverables.** The "tool says I'm not sure when it really isn't sure" story is now visible on screen, not just in JSONs.
+- **The supervisor demo can be done live (not just via cached saved-analyses).** Performance is acceptable post-followup-#1; UI surface now reflects engine reality.
+- **Future Tier C1a / C1b / C2** (sector, wind, BLH) have obvious UI extension points — wind/BLH inputs slot into the `confidence_terms` expander pattern; sector signal slots into the audit-transparency block.
+- **B1 sensitivity analysis** can use the visible terms to demonstrate "if we change this weight, here's what shifts."
+- **Tier A2 trend engine** uses the same confidence-terms surface for its outputs once it exists.
+- **Methodological honesty in the PDF export** — audit reviewers can see that AOD's 3,712 raw images collapsed to 64 distinct dates, validating the post-Option-A semantic correctness without having to read the engine code.
+
+---
+
+**Methodological honesty notes (worth preserving).**
+
+- The defensive recomputation of `final_confidence` in the UI (`_compute_final_confidence`) is a deliberate redundancy. The UI does not trust the payload's `<indicator>.confidence` field blindly; instead it computes it from the displayed terms. If the two ever disagree, the visible breakdown will surface the discrepancy. This is the same defensive pattern that caught the Step C bugs during M-TIER-A1 — make the math visible at every layer so future bugs surface instead of hide.
+- The PDF audit-transparency allowlist is a deliberate audience-fit choice. Engineering calibration parameters (`ratio_threshold`, `lookback_years`, `composite_window_days`, etc.) belong in the CSV, where the audience is technical and the format is structured for analysis. The PDF audience is business/audit, and the prose format with two narrative-relevant fields (`n_valid_dates`, `granule_count`) serves them. Don't be tempted to "complete" the PDF section by adding the suppressed fields — the suppression is the design.
+- The two-tier `INDICATOR_CONFIDENCE_FAMILY` lookup (full-id first, then base form) defends against the `nature.habitat.*` namespace collision. Future additions of `nature.<theme>.<variant>` IDs must register both forms if there's any ambiguity. Test `test_confidence_explanation_for_nature_habitat_disambiguates_raw_vs_derived` defends this contract.
+- The engine gap fix (`n_valid_dates` + `granule_count` plumbing) was a documentation-vs-code drift surfaced by the M-UI-A1-SURFACE work. Worth knowing: the M-TIER-A1 closed-entry described the *intended* state, not the *verified* state, in this area. The closed-entry audit confirmed no other significant drift, but the process improvement (verify before declaring close) is now adopted.
+
+---
+
+*Closed by claude.ai planning session, 24 May 2026. Anchored to `Indicators_Audit_and_v1x_Roadmap.md` v1.5 §1.1 + §6 Tier A1 (UI surface). Authoritative for M-UI-A1-SURFACE milestone state. Builds on M-TIER-A1 closed-entry (23 May 2026); followup #1 closed entry (24 May 2026).*
+
+---
+
 ## M-TIER-A1 — closed 23 May 2026
 
 **Summary.** Replaced the placeholder flat per-pillar confidence values (~1.0 / 0.7 / 0.8 across Air, GHG, Nature) with a real per-indicator confidence formula that aggregates to the pillar level via the existing weight dictionaries. Per audit §1.1, this was the single most important v1.x defensibility item — every confidence dot, every verbal-summary tier, and `composite.confidence = min(...)` had been uninformative placeholders since v1 launch.
