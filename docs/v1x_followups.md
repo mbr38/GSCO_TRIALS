@@ -387,6 +387,22 @@ Distribution sanity checks all pass: per-indicator spread is 0.27-1.00 (wide and
 
     Logged 24 May 2026; rejected same day.
 
+15. **Tier C2 (BLH ingestion) — [DEFERRED — 24 May 2026].**
+
+    Pre-spec investigation completed 24 May 2026 surfaced clean integration approach (multiplicative composition with existing static `column_to_surface_uncertainty` multiplier; `ECMWF/ERA5/HOURLY` `boundary_layer_height` as the source). Methodological framing per audit §1.5 is sound: BLH would adjust per-observation confidence based on anomaly vs local climatology, not compute column-to-surface conversion.
+
+    Decision to defer based on:
+    - Demo audiences and website-demo audiences don't see per-observation confidence adjustments.
+    - Aggregation dampening (min across pillars) means BLH adjustments don't shift composite rank order materially.
+    - Six open methodological questions remain (climatology definition, penalty function shape, magnitude, symmetry, composition with `anomaly_strength`, whether static tags should be revisited) — each is a real design call without a canonical answer.
+    - Engine cost (~10s/screening for 5 BLH fetches) and engineering cost (~4-5 days) without visible benefit at current project maturity.
+
+    Appropriate timing: when the tool is submitted for peer review or used by atmospheric-science methodologists. Until then the static `column_to_surface_uncertainty` enum (per audit §1.5 v1 calibration) is defensible.
+
+    Investigation findings preserved in `tools/diag_blh_demo_sites.py` (timing + diurnal cycle at Sapezal / Brasilia / Rotterdam) and inline in this followup. Pre-spec scope estimate: ~390 LOC across `engine/core/blh.py` (new), `engine/core/confidence.py`, `engine/core/repeatable_core.py`, `engine/core/provenance.py`, `ui/components/c5_drilldown.py`, `ui/components/p11_csv.py`, `tests/test_blh.py` (new), `tests/test_confidence.py`.
+
+    **Cross-tier infrastructure note.** Tier C1b (wind) uses the same ERA5 HOURLY asset (`u_component_of_wind_10m`, `v_component_of_wind_10m`). If C1b is implemented before C2 returns, build `engine/core/era5.py` as a shared fetch helper rather than two indicator-specific modules. C2's eventual implementation can then reuse the same infrastructure.
+
 **Unblocks.**
 
 - **Tier A2 (trend engine).** `engine/core/trend.py` skeleton can now be built with the per-date semantic conventions established in Option-A. The placeholder M-FOLLOWUP-FALLBACK in Vegetation_Condition can be removed.
