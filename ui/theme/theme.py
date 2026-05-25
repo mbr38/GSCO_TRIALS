@@ -61,12 +61,15 @@ html, body, [data-testid="stAppViewContainer"] {{
 }}
 
 /* ---------------------------------------------------------------- */
-/* Headings — Instrument Serif at weight 400                        */
+/* Headings — Instrument Serif at weight 400, all levels h1..h6     */
 /* ---------------------------------------------------------------- */
-h1, h2, h3,
+h1, h2, h3, h4, h5, h6,
 [data-testid="stMarkdownContainer"] h1,
 [data-testid="stMarkdownContainer"] h2,
-[data-testid="stMarkdownContainer"] h3 {{
+[data-testid="stMarkdownContainer"] h3,
+[data-testid="stMarkdownContainer"] h4,
+[data-testid="stMarkdownContainer"] h5,
+[data-testid="stMarkdownContainer"] h6 {{
     font-family: {FONTS['serif_display']};
     font-weight: 400;
     color: {COLORS['text_primary']};
@@ -81,6 +84,16 @@ h1, [data-testid="stMarkdownContainer"] h1 {{
    Scoped to .stMarkdown so button-label <p>s aren't affected. */
 .stMarkdown p {{
     color: {COLORS['text_secondary']};
+    font-family: {FONTS['sans_body']};
+}}
+
+/* Force DM Sans on form widgets (selectbox value text, inputs, etc.) —
+   BaseWeb ships with Source Sans Pro internally and wins on specificity
+   without an explicit selector here. */
+[data-baseweb="select"], [data-baseweb="select"] *,
+[data-baseweb="input"] input,
+[data-baseweb="textarea"] textarea,
+[data-baseweb="popover"], [data-baseweb="popover"] * {{
     font-family: {FONTS['sans_body']};
 }}
 
@@ -101,6 +114,7 @@ h1, [data-testid="stMarkdownContainer"] h1 {{
     box-shadow: {SHADOW_BUTTON};
     transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
     cursor: pointer;
+    white-space: nowrap;
 }}
 .stButton > button:hover {{
     transform: translateY(-1px);
@@ -135,6 +149,17 @@ footer {{ visibility: hidden; }}
     padding-top: 1rem;
     padding-bottom: 4rem;
     max-width: 1280px;
+}}
+
+/* Equal-height adjacent boxes inside an st.columns(...) row.
+   Streamlit's flex columns stretch to the tallest sibling automatically,
+   but bordered containers (st.container(border=True)) inside a column
+   only grow to fit their own content. Cascade height:100% from the
+   column down through the layout wrapper to the bordered block. */
+[data-testid="stHorizontalBlock"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"] [data-testid="stColumn"] [data-testid="stLayoutWrapper"],
+[data-testid="stHorizontalBlock"] [data-testid="stColumn"] [data-testid="stLayoutWrapper"] > [data-testid="stVerticalBlock"] {{
+    height: 100%;
 }}
 
 /* ---------------------------------------------------------------- */

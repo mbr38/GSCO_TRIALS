@@ -1,0 +1,160 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e7] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e8] [cursor=pointer]:
+              - /url: http://localhost:8765/
+              - generic [ref=e11]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e12] [cursor=pointer]:
+              - /url: http://localhost:8765/Scope_Setup
+              - generic [ref=e15]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e16] [cursor=pointer]:
+              - /url: http://localhost:8765/Workflow_Hub
+              - generic [ref=e19]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e20] [cursor=pointer]:
+              - /url: http://localhost:8765/Inspect_Setup
+              - generic [ref=e23]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e24] [cursor=pointer]:
+              - /url: http://localhost:8765/Screening_Results
+              - generic [ref=e27]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e28] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Setup
+              - generic [ref=e31]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e32] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Results
+              - generic [ref=e35]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e36] [cursor=pointer]:
+              - /url: http://localhost:8765/Indicator_Library
+              - generic [ref=e39]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e40] [cursor=pointer]:
+              - /url: http://localhost:8765/Saved_Analyses
+              - generic [ref=e43]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e44] [cursor=pointer]:
+              - /url: http://localhost:8765/Reports
+              - generic [ref=e47]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e48] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e49] [cursor=pointer]:
+              - /url: http://localhost:8765/engine_scratch
+              - generic [ref=e52]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e55]:
+    - generic [ref=e454]:
+      - generic [ref=e459]:
+        - button "Fullscreen" [ref=e464] [cursor=pointer]:
+          - img [ref=e465]
+        - img "0" [ref=e470]
+      - paragraph [ref=e477]:
+        - text: Signed in as
+        - strong [ref=e478]: Policy Maker
+        - text: · Session
+        - code [ref=e479]: 73544eed
+      - generic [ref=e483]:
+        - paragraph [ref=e490]: "Scope: not set"
+        - button "Pick scope" [ref=e495] [cursor=pointer]:
+          - paragraph [ref=e499]: Pick scope
+      - button "Sign out" [ref=e504] [cursor=pointer]:
+        - paragraph [ref=e508]: Sign out
+    - separator [ref=e513]
+    - heading "Reports" [level=1] [ref=e518]:
+      - text: Reports
+      - generic [ref=e519]:
+        - link "Link to heading":
+          - /url: "#reports"
+          - img
+    - paragraph [ref=e524]: Build a report from one or more saved analyses. Templates are filtered by your user type; sources are filtered to compatible saved-analysis types.
+    - heading "Template" [level=3] [ref=e530]:
+      - text: Template
+      - generic [ref=e531]:
+        - link "Link to heading":
+          - /url: "#template"
+          - img
+    - generic [ref=e533]:
+      - paragraph [ref=e537]: Choose a report template
+      - generic [ref=e539]:
+        - generic [ref=e540]:
+          - generic [ref=e541]: Policy audit report
+          - combobox "Selected Policy audit report. Choose a report template" [ref=e543]
+        - img "open" [ref=e545]
+    - paragraph [ref=e551]: Region-level audit framing. Covers methodology, pillar-by-pillar findings against the screened region, indicator-level provenance, and regulatory alignment notes.
+    - heading "Sources" [level=3] [ref=e557]:
+      - text: Sources
+      - generic [ref=e558]:
+        - link "Link to heading":
+          - /url: "#sources"
+          - img
+    - generic [ref=e560]:
+      - paragraph [ref=e564]: Pick one or more saved analyses to include
+      - generic [ref=e567]:
+        - generic [ref=e568]:
+          - combobox "Pick one or more saved analyses to include" [ref=e570]
+          - generic: Choose options
+        - img "open" [ref=e572] [cursor=pointer]
+    - heading "Title and notes" [level=3] [ref=e579]:
+      - text: Title and notes
+      - generic [ref=e580]:
+        - link "Link to heading":
+          - /url: "#title-and-notes"
+          - img
+    - generic [ref=e582]:
+      - paragraph [ref=e586]: Report title (will appear on the title page)
+      - textbox "Report title (will appear on the title page)" [ref=e589]:
+        - /placeholder: e.g. Q2 2026 audit — Brazilian Soy & Cattle suppliers
+    - generic [ref=e591]:
+      - paragraph [ref=e595]: Additional notes (optional, included in the report's introduction)
+      - textbox "Additional notes (optional, included in the report's introduction)" [ref=e598]:
+        - /placeholder: ""
+    - paragraph [ref=e603]: "Missing: at least one source, title."
+    - 'button "Next: Preview report" [disabled] [ref=e606]':
+      - paragraph [ref=e610]: "Next: Preview report"

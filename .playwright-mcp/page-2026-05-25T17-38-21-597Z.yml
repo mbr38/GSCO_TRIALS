@@ -1,0 +1,141 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e7] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e8] [cursor=pointer]:
+              - /url: http://localhost:8765/
+              - generic [ref=e11]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e12] [cursor=pointer]:
+              - /url: http://localhost:8765/Scope_Setup
+              - generic [ref=e15]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e16] [cursor=pointer]:
+              - /url: http://localhost:8765/Workflow_Hub
+              - generic [ref=e19]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e20] [cursor=pointer]:
+              - /url: http://localhost:8765/Inspect_Setup
+              - generic [ref=e23]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e24] [cursor=pointer]:
+              - /url: http://localhost:8765/Screening_Results
+              - generic [ref=e27]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e28] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Setup
+              - generic [ref=e31]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e32] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Results
+              - generic [ref=e35]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e36] [cursor=pointer]:
+              - /url: http://localhost:8765/Indicator_Library
+              - generic [ref=e39]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e40] [cursor=pointer]:
+              - /url: http://localhost:8765/Saved_Analyses
+              - generic [ref=e43]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e44] [cursor=pointer]:
+              - /url: http://localhost:8765/Reports
+              - generic [ref=e47]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e48] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e49] [cursor=pointer]:
+              - /url: http://localhost:8765/engine_scratch
+              - generic [ref=e52]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e55]:
+    - generic [ref=e142]:
+      - generic [ref=e147]:
+        - button "Fullscreen" [ref=e152] [cursor=pointer]:
+          - img [ref=e153]
+        - img "0" [ref=e158]
+      - paragraph [ref=e165]:
+        - text: Signed in as
+        - strong [ref=e166]: Policy Maker
+        - text: · Session
+        - code [ref=e167]: 73544eed
+      - generic [ref=e171]:
+        - paragraph [ref=e178]: "Scope: not set"
+        - button "Pick scope" [ref=e183] [cursor=pointer]:
+          - paragraph [ref=e187]: Pick scope
+      - button "Sign out" [ref=e192] [cursor=pointer]:
+        - paragraph [ref=e196]: Sign out
+    - separator [ref=e201]
+    - heading "Scope Setup" [level=1] [ref=e206]:
+      - text: Scope Setup
+      - generic [ref=e207]:
+        - link "Link to heading":
+          - /url: "#scope-setup"
+          - img
+    - paragraph [ref=e212]:
+      - text: Choose what you want to screen. You can change this any time from the
+      - strong [ref=e213]: Change scope
+      - text: link in the top nav.
+    - heading "Preview" [level=3] [ref=e307]:
+      - text: Preview
+      - generic [ref=e220]:
+        - link "Link to heading":
+          - /url: "#pick-a-scope-mode"
+          - img
+    - alert [ref=e310]:
+      - paragraph [ref=e315]:
+        - strong [ref=e316]: No scope
+        - text: — you'll configure each screening from scratch on the Inspect Setup page using free coordinates (or the geocoded search). This is the right choice for ad-hoc inspection of a single point that isn't part of a curated supply chain.
+    - paragraph [ref=e321]:
+      - text: On the next page (
+      - strong [ref=e322]: Inspect Setup
+      - text: ), the Supplier and Region tabs will be hidden — only
+      - strong [ref=e323]: Free coordinates
+      - text: is available.
+    - separator [ref=e328]
+    - generic [ref=e330]:
+      - button "← Back to mode pick" [ref=e335] [cursor=pointer]:
+        - paragraph [ref=e339]: ← Back to mode pick
+      - button "Confirm and continue" [ref=e344] [cursor=pointer]:
+        - paragraph [ref=e348]: Confirm and continue

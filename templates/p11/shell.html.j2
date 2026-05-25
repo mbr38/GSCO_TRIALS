@@ -14,8 +14,15 @@
       font-size: 9pt; color: #6b7280;
     }
   }
+  /* color-scheme: light pins the iframe's UA colors to light mode so
+     Streamlit's dark parent page doesn't bleed in via inherited
+     color-scheme. background ensures the report reads as a printed
+     page floating on the dark app shell (and is harmless under PDF
+     export — paper is white anyway). */
+  html { color-scheme: light; }
   body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-         color: #1f2937; line-height: 1.45; }
+         color: #1f2937; background: #ffffff; line-height: 1.45;
+         margin: 0; padding: 16px 24px; }
   h1   { font-size: 22pt; margin: 0 0 4mm 0; color: #111827; }
   h2   { font-size: 16pt; margin: 8mm 0 3mm 0; color: #111827;
          border-bottom: 1px solid #e5e7eb; padding-bottom: 2mm; }

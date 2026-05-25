@@ -35,8 +35,14 @@ _LOGO_WIDTH_PX = 120  # tune via visual diff; aspect ~2.23:1 -> ~54px tall
 # ---------------------------------------------------------------------------
 
 def render_persistent_nav() -> None:
-    """Standard top nav: brand mark, user-type chip, scope chip, sign-out."""
-    col_brand, col_user, col_scope, col_signout = st.columns([1, 2, 5, 1])
+    """Standard top nav: brand mark, user-type chip, scope chip, sign-out.
+
+    Column ratios chosen so each button fits without wrapping at typical
+    laptop widths (~1280px): the sign-out column gets 2 parts (was 1)
+    and the scope column shrinks from 5 to 4 to compensate. The nested
+    scope-chip splits 3:2 (was 4:1) to give the Pick/Change button room.
+    """
+    col_brand, col_user, col_scope, col_signout = st.columns([1, 2, 4, 2])
     with col_brand:
         _render_brand_mark()
     with col_user:
@@ -89,7 +95,7 @@ def _render_scope_chip() -> None:
     Mode Pick (not mid-Preview from a previous visit).
     """
     label, button_label = _scope_chip_label(st.session_state.get("scope"))
-    col_label, col_button = st.columns([4, 1])
+    col_label, col_button = st.columns([3, 2])
     with col_label:
         st.caption(label)
     with col_button:
