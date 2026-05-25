@@ -1,0 +1,27 @@
+[     287ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[     291ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  155098ms] [WARNING] WebSocket onclose @ http://localhost:8765/static/js/index.D2ZqaFuW.js:17
+[  155133ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  155133ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[  155240ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/health:0
+[  155241ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/host-config:0
+[  155346ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  155348ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[  155589ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/health:0
+[  155590ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/host-config:0
+[  155831ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  155833ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[  156287ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/health:0
+[  156288ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/host-config:0
+[  156636ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  156639ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[  157564ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/health:0
+[  157565ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/host-config:0
+[  158509ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  158510ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0
+[  160393ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/health:0
+[  160394ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8765/_stcore/host-config:0
+[  161902ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/09_Indicator_Library/_stcore/health:0
+[  161903ms] [ERROR] Client Error: response received with status 404 when attempting to reach /09_Indicator_Library/_stcore/health @ http://localhost:8765/static/js/index.D2ZqaFuW.js:16
+[  161903ms] [ERROR] Connection failed with status 404. @ http://localhost:8765/static/js/index.D2ZqaFuW.js:21
+[  161945ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/09_Indicator_Library/_stcore/host-config:0

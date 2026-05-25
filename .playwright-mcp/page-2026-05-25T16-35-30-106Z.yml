@@ -1,0 +1,125 @@
+- generic [ref=e2]:
+  - generic [ref=e6]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e7] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e8] [cursor=pointer]:
+              - /url: http://localhost:8765/
+              - generic [ref=e11]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e12] [cursor=pointer]:
+              - /url: http://localhost:8765/Scope_Setup
+              - generic [ref=e15]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e16] [cursor=pointer]:
+              - /url: http://localhost:8765/Workflow_Hub
+              - generic [ref=e19]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e20] [cursor=pointer]:
+              - /url: http://localhost:8765/Inspect_Setup
+              - generic [ref=e23]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e24] [cursor=pointer]:
+              - /url: http://localhost:8765/Screening_Results
+              - generic [ref=e27]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e28] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Setup
+              - generic [ref=e31]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e32] [cursor=pointer]:
+              - /url: http://localhost:8765/Prioritisation_Results
+              - generic [ref=e35]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e36] [cursor=pointer]:
+              - /url: http://localhost:8765/Indicator_Library
+              - generic [ref=e39]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e40] [cursor=pointer]:
+              - /url: http://localhost:8765/Saved_Analyses
+              - generic [ref=e43]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e44] [cursor=pointer]:
+              - /url: http://localhost:8765/Reports
+              - generic [ref=e47]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e48] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e49] [cursor=pointer]:
+              - /url: http://localhost:8765/engine_scratch
+              - generic [ref=e52]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e55]:
+    - generic [ref=e1794]:
+      - generic [ref=e1799]:
+        - button "Fullscreen" [ref=e1804] [cursor=pointer]:
+          - img [ref=e1805]
+        - img "0" [ref=e1810]
+      - paragraph [ref=e1817]:
+        - text: Signed in as
+        - strong [ref=e1818]: Policy Maker
+        - text: · Session
+        - code [ref=e1819]: 06ffdef7
+      - generic [ref=e1825]:
+        - paragraph [ref=e1832]: "Scope: not set"
+        - button "Pick scope" [ref=e1837] [cursor=pointer]:
+          - paragraph [ref=e1841]: Pick scope
+      - button "Sign out" [ref=e1844] [cursor=pointer]:
+        - paragraph [ref=e1848]: Sign out
+    - separator [ref=e1853]
+    - heading "Prioritisation — Results" [level=1] [ref=e1858]:
+      - text: Prioritisation — Results
+      - generic [ref=e1859]:
+        - link "Link to heading":
+          - /url: "#prioritisation-results"
+          - img
+    - alert [ref=e1862]:
+      - generic [ref=e1865]:
+        - generic [ref=e1868]: ⚠️
+        - paragraph [ref=e1870]:
+          - strong [ref=e1871]: Prioritisation can't start.
+          - text: No batch setup is loaded. Go to
+          - strong [ref=e1872]: Prioritisation Setup (P-07)
+          - text: to configure a batch.
+    - button "Go to P-07 Setup" [ref=e1875] [cursor=pointer]:
+      - paragraph [ref=e1879]: Go to P-07 Setup

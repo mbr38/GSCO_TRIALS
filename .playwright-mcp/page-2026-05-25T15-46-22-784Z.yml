@@ -1,0 +1,137 @@
+- generic:
+  - generic:
+    - generic [ref=e2]:
+      - generic [ref=e6]:
+        - generic:
+          - list:
+            - generic:
+              - generic [ref=e7] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Main
+              - listitem:
+                - link "Landing" [ref=e8] [cursor=pointer]:
+                  - /url: http://localhost:8765/
+                  - generic [ref=e11]: 🏠
+                  - generic:
+                    - generic:
+                      - paragraph: Landing
+              - listitem:
+                - link "Scope Setup" [ref=e12] [cursor=pointer]:
+                  - /url: http://localhost:8765/Scope_Setup
+                  - generic [ref=e15]: 🌍
+                  - generic:
+                    - generic:
+                      - paragraph: Scope Setup
+              - listitem:
+                - link "Workflow Hub" [ref=e16] [cursor=pointer]:
+                  - /url: http://localhost:8765/Workflow_Hub
+                  - generic [ref=e19]: 🔀
+                  - generic:
+                    - generic:
+                      - paragraph: Workflow Hub
+              - listitem:
+                - link "Inspect — Setup" [ref=e20] [cursor=pointer]:
+                  - /url: http://localhost:8765/Inspect_Setup
+                  - generic [ref=e23]: 🔍
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Setup
+              - listitem:
+                - link "Inspect — Results" [ref=e24] [cursor=pointer]:
+                  - /url: http://localhost:8765/Screening_Results
+                  - generic [ref=e27]: 📊
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Results
+              - listitem:
+                - link "Prioritisation — Setup" [ref=e28] [cursor=pointer]:
+                  - /url: http://localhost:8765/Prioritisation_Setup
+                  - generic [ref=e31]: 📋
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Setup
+              - listitem:
+                - link "Prioritisation — Results" [ref=e32] [cursor=pointer]:
+                  - /url: http://localhost:8765/Prioritisation_Results
+                  - generic [ref=e35]: 📈
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Results
+              - listitem:
+                - link "Indicator Library" [ref=e36] [cursor=pointer]:
+                  - /url: http://localhost:8765/Indicator_Library
+                  - generic [ref=e39]: 📚
+                  - generic:
+                    - generic:
+                      - paragraph: Indicator Library
+              - listitem:
+                - link "Saved Analyses" [ref=e40] [cursor=pointer]:
+                  - /url: http://localhost:8765/Saved_Analyses
+                  - generic [ref=e43]: 💾
+                  - generic:
+                    - generic:
+                      - paragraph: Saved Analyses
+              - listitem:
+                - link "Reports" [ref=e44] [cursor=pointer]:
+                  - /url: http://localhost:8765/Reports
+                  - generic [ref=e47]: 📄
+                  - generic:
+                    - generic:
+                      - paragraph: Reports
+            - generic:
+              - generic [ref=e48] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Developer
+              - listitem:
+                - link "Engine Scratch (dev)" [ref=e49] [cursor=pointer]:
+                  - /url: http://localhost:8765/engine_scratch
+                  - generic [ref=e52]: 🧪
+                  - generic:
+                    - generic:
+                      - paragraph: Engine Scratch (dev)
+      - generic [ref=e55]:
+        - heading "GSCO Environmental Monitoring & Decision-Support Tool" [level=1] [ref=e60]:
+          - text: GSCO Environmental Monitoring & Decision-Support Tool
+          - generic [ref=e61]:
+            - link "Link to heading":
+              - /url: "#gsco-environmental-monitoring-and-decision-support-tool"
+              - img
+        - paragraph [ref=e66]: A geospatial decision-support tool for monitoring environmental conditions across supply chains. Built on Earth Engine, designed for two audiences.
+        - separator [ref=e71]
+        - heading "Who's using the tool today?" [level=3] [ref=e76]:
+          - text: Who's using the tool today?
+          - generic [ref=e77]:
+            - link "Link to heading":
+              - /url: "#whos-using-the-tool-today"
+              - img
+        - paragraph [ref=e82]: Pick the role that matches what you're doing in this session.
+        - generic [ref=e84]:
+          - generic [ref=e88]:
+            - heading "Policy Maker" [level=3] [ref=e94]:
+              - text: Policy Maker
+              - generic [ref=e95]:
+                - link "Link to heading":
+                  - /url: "#policy-maker"
+                  - img
+            - paragraph [ref=e100]: Monitor environmental conditions across regions and named supply chains. Connect to the GSCO catalogue or upload your own regions.
+            - button "Continue as Policy Maker" [ref=e103] [cursor=pointer]:
+              - paragraph [ref=e107]: Continue as Policy Maker
+          - generic [ref=e111]:
+            - heading "MNC" [level=3] [ref=e117]:
+              - text: MNC
+              - generic [ref=e118]:
+                - link "Link to heading":
+                  - /url: "#mnc"
+                  - img
+            - paragraph [ref=e123]: Screen and prioritise environmental conditions across your suppliers. Upload your supplier list and run targeted analyses.
+            - button "Continue as MNC" [ref=e126] [cursor=pointer]:
+              - paragraph [ref=e130]: Continue as MNC
+        - separator [ref=e135]
+        - paragraph [ref=e140]: Demo build — authentication deferred.
+    - dialog "dialog" [ref=e143]:
+      - generic [ref=e144]: Page not found
+      - generic [ref=e146]: The page that you have requested does not seem to exist. Running the app's main page.
+      - button "Close" [active] [ref=e147] [cursor=pointer]:
+        - img [ref=e148]

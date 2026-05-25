@@ -1,0 +1,157 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: University of Cambridge · Institute for Manufacturing · Industrial Resilience Research Group
+      - generic [ref=e7]:
+        - link "LinkedIn" [ref=e8] [cursor=pointer]:
+          - /url: https://www.linkedin.com/company/industrial-resilience-research-group/
+        - link "IfM Website" [ref=e9] [cursor=pointer]:
+          - /url: https://www.ifm.eng.cam.ac.uk
+    - generic [ref=e10]:
+      - generic [ref=e11] [cursor=pointer]:
+        - img "Cambridge Engineering" [ref=e12]
+        - img "IRRG" [ref=e13]
+        - img "GSCO" [ref=e14]
+      - generic [ref=e15]:
+        - button "Home" [ref=e16] [cursor=pointer]
+        - button "Team" [ref=e17] [cursor=pointer]
+        - button "Capabilities" [ref=e18] [cursor=pointer]
+        - button "Research" [ref=e20] [cursor=pointer]
+        - button "Projects" [ref=e21] [cursor=pointer]
+        - button "Network" [ref=e22] [cursor=pointer]
+        - button "Publications" [ref=e24] [cursor=pointer]
+        - button "News" [ref=e26] [cursor=pointer]
+        - button "Request Demo" [ref=e27] [cursor=pointer]
+        - button "Log in" [ref=e28] [cursor=pointer]
+  - generic [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e34]:
+        - generic [ref=e37]: Cambridge University · Live Data & Analytics Platform
+        - heading "The world's supply chains, made visible" [level=1] [ref=e38]
+        - paragraph [ref=e39]: The Global Supply Chain Observatory maps, monitors, and stress-tests critical mineral supply chains in near real-time — powered by AI, satellite remote sensing, and 244,000+ interconnected data relationships across 210 countries.
+        - generic [ref=e40]:
+          - button "Explore the Observatory" [ref=e41] [cursor=pointer]
+          - button "View Research Domains" [ref=e42] [cursor=pointer]
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]: 244,802
+            - generic [ref=e46]: Relationships Generated
+          - generic [ref=e47]:
+            - generic [ref=e48]: 63,929
+            - generic [ref=e49]: Nodes in Graph
+          - generic [ref=e50]:
+            - generic [ref=e51]: "210"
+            - generic [ref=e52]: Countries Covered
+          - generic [ref=e53]:
+            - generic [ref=e54]: 40,200
+            - generic [ref=e55]: Supply Chain Facts
+      - generic [ref=e57]: Transparency · Sustainability · Resilience
+    - generic [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]: The Observatory
+        - heading "The most comprehensive digital data infrastructure for global supply chains" [level=2] [ref=e62]
+        - paragraph [ref=e63]: Built by Cambridge's Industrial Resilience Research Group in partnership with Google Cloud. Funded by DSIT through the UK-India Critical Minerals initiative.
+      - generic [ref=e64]:
+        - generic [ref=e66]:
+          - generic [ref=e67]: ◉
+          - heading "Visibility" [level=3] [ref=e68]
+          - paragraph [ref=e69]: Map complex multi-tier supplier networks automatically, identifying critical nodes, bottlenecks, and dependency relationships across global value chains.
+        - generic [ref=e71]:
+          - generic [ref=e72]: ◎
+          - heading "Traceability" [level=3] [ref=e73]
+          - paragraph [ref=e74]: Track materials from source to consumer using satellite imagery, Google Earth Engine, and unique datasets to infer supply chain risk profiles in near real-time.
+        - generic [ref=e76]:
+          - generic [ref=e77]: ◈
+          - heading "Transparency" [level=3] [ref=e78]
+          - paragraph [ref=e79]: Facilitate openness in supplier practices, environmental impacts, labour conditions, and regulatory compliance through digital auditing frameworks.
+    - generic [ref=e81]:
+      - generic [ref=e83]:
+        - generic [ref=e84]: Live Platform Intelligence
+        - heading "Observatory at scale" [level=2] [ref=e85]
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - generic [ref=e88]: "0"
+          - generic [ref=e89]: Relationships Generated
+        - generic [ref=e90]:
+          - generic [ref=e91]: "0"
+          - generic [ref=e92]: Nodes in Graph
+        - generic [ref=e93]:
+          - generic [ref=e94]: "0"
+          - generic [ref=e95]: Supply Chain Facts
+        - generic [ref=e96]:
+          - generic [ref=e97]: "0"
+          - generic [ref=e98]: Evidence Snippets
+        - generic [ref=e99]:
+          - generic [ref=e100]: "0"
+          - generic [ref=e101]: Trade Facts
+        - generic [ref=e102]:
+          - generic [ref=e103]: "0"
+          - generic [ref=e104]: Countries Covered
+        - generic [ref=e105]:
+          - generic [ref=e106]: "0"
+          - generic [ref=e107]: Summaries Generated
+        - generic [ref=e108]:
+          - generic [ref=e109]: "0"
+          - generic [ref=e110]: Dataset Files
+    - generic [ref=e112]:
+      - generic [ref=e114]:
+        - generic [ref=e115]: Explore
+        - heading "Discover what GSCO offers" [level=2] [ref=e116]
+      - generic [ref=e117]:
+        - generic [ref=e119] [cursor=pointer]:
+          - generic [ref=e120]: ⬡
+          - heading "Capabilities" [level=3] [ref=e121]
+          - paragraph [ref=e122]: Platform tools and AI-powered analytics
+        - generic [ref=e124] [cursor=pointer]:
+          - generic [ref=e125]: ◉
+          - heading "Research Domains" [level=3] [ref=e126]
+          - paragraph [ref=e127]: Critical minerals, REE, batteries, and PV
+        - generic [ref=e129] [cursor=pointer]:
+          - generic [ref=e130]: ◈
+          - heading "Live Projects" [level=3] [ref=e131]
+          - paragraph [ref=e132]: Active partnerships and demonstrations
+        - generic [ref=e134] [cursor=pointer]:
+          - generic [ref=e135]: ◎
+          - heading "Stakeholder Network" [level=3] [ref=e136]
+          - paragraph [ref=e137]: 200+ partners across two continents
+        - generic [ref=e139] [cursor=pointer]:
+          - generic [ref=e140]: ◇
+          - heading "Our Team" [level=3] [ref=e141]
+          - paragraph [ref=e142]: Cambridge researchers and leadership
+  - contentinfo [ref=e143]:
+    - generic [ref=e144]:
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147] [cursor=pointer]:
+            - img "Cambridge Engineering" [ref=e148]
+            - img "IRRG" [ref=e149]
+            - img "GSCO" [ref=e150]
+          - paragraph [ref=e151]:
+            - text: A pioneering research initiative within the University of Cambridge's
+            - text: Institute for Manufacturing.
+        - generic [ref=e152]:
+          - generic [ref=e153]: Observatory
+          - generic [ref=e154] [cursor=pointer]: Home
+          - generic [ref=e155] [cursor=pointer]: Capabilities
+          - generic [ref=e156] [cursor=pointer]: Research
+          - generic [ref=e157] [cursor=pointer]: Projects
+        - generic [ref=e158]:
+          - generic [ref=e159]: Network
+          - generic [ref=e160] [cursor=pointer]: Stakeholders
+          - generic [ref=e161] [cursor=pointer]: Publications
+          - generic [ref=e162] [cursor=pointer]: Our Team
+          - generic [ref=e163] [cursor=pointer]: Contact
+        - generic [ref=e164]:
+          - generic [ref=e165]: Research
+          - generic [ref=e166]: Critical Minerals
+          - generic [ref=e167]: Rare Earth Elements
+          - generic [ref=e168]: EV Batteries
+          - generic [ref=e169]: Photovoltaics
+      - generic [ref=e170]:
+        - generic [ref=e171]: © 2026 Global Supply Chain Observatory · University of Cambridge
+        - generic [ref=e172]:
+          - link "IfM Website" [ref=e173] [cursor=pointer]:
+            - /url: https://www.ifm.eng.cam.ac.uk
+          - link "LinkedIn" [ref=e174] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/industrial-resilience-research-group/
+          - generic [ref=e175]: Powered by Google Cloud

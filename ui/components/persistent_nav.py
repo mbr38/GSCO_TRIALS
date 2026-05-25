@@ -1,9 +1,10 @@
 """Persistent navigation strip (M-P0103).
 
-Shared across every authenticated page. Renders the user-type chip,
-the loaded-scope chip with a "Change scope" link, and the sign-out
-button. Replaces the per-page ``_render_nav`` helpers that pages 02,
-04, 05 (and the scratch page) inlined before this milestone.
+Shared across every authenticated page. Renders the brand mark
+(GSCO logo) on the left, then the user-type chip, the loaded-scope
+chip with a "Change scope" link, and the sign-out button. Replaces
+the per-page ``_render_nav`` helpers that pages 02, 04, 05 (and the
+scratch page) inlined before this milestone.
 
 The scope-chip label is built by ``_scope_chip_label``, a pure
 function that takes the M-P02 scope dict and returns the
@@ -17,9 +18,16 @@ decisions.
 # M-P0103
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
 
 from utils.state import sign_out
+
+# Brand-mark asset. Three .parent hops to reach the repo root:
+# ui/components/persistent_nav.py -> ui/components -> ui -> <repo root>
+_LOGO_PATH = Path(__file__).resolve().parent.parent.parent / "assets" / "gsco_logo.png"
+_LOGO_WIDTH_PX = 120  # tune via visual diff; aspect ~2.23:1 -> ~54px tall
 
 
 # ---------------------------------------------------------------------------
@@ -27,8 +35,10 @@ from utils.state import sign_out
 # ---------------------------------------------------------------------------
 
 def render_persistent_nav() -> None:
-    """Standard top nav: user-type chip, scope chip, sign-out."""
-    col_user, col_scope, col_signout = st.columns([2, 5, 1])
+    """Standard top nav: brand mark, user-type chip, scope chip, sign-out."""
+    col_brand, col_user, col_scope, col_signout = st.columns([1, 2, 5, 1])
+    with col_brand:
+        _render_brand_mark()
     with col_user:
         _render_user_type_chip()
     with col_scope:
@@ -41,6 +51,22 @@ def render_persistent_nav() -> None:
         ):
             sign_out()
             st.switch_page("app.py")
+
+
+# ---------------------------------------------------------------------------
+# Brand mark
+# ---------------------------------------------------------------------------
+
+def _render_brand_mark() -> None:
+    """GSCO logo, leftmost in the nav per Wireframes Appendix B.
+
+    Falls back to a "GSCO" caption if the asset is missing so the nav
+    keeps rendering during local dev before the PNG is dropped in.
+    """
+    if _LOGO_PATH.exists():
+        st.image(str(_LOGO_PATH), width=_LOGO_WIDTH_PX)
+    else:
+        st.caption("**GSCO**")
 
 
 # ---------------------------------------------------------------------------

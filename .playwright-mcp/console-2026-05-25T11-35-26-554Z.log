@@ -1,0 +1,2 @@
+[    1032ms] [WARNING] You are using the in-browser Babel transformer. Be sure to precompile your scripts for production - https://babeljs.io/docs/setup/ @ https://unpkg.com/@babel/standalone/babel.min.js:2
+[   10232ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://app.cambridge-gsco.co.uk/favicon.ico:0

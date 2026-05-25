@@ -7,6 +7,7 @@ Run with: streamlit run app.py
 import streamlit as st
 
 from demo.saved_analyses import seed_saved_analyses
+from ui.theme.theme import apply_gsco_theme
 from utils.state import init_session, set_user_type
 
 # ----------------------------------------------------------------------------
@@ -19,6 +20,10 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
 )
+
+# Inject the GSCO global CSS. Idempotent and safe to double-call (e.g. when
+# gsco_app.py has already injected on this rerun).
+apply_gsco_theme()
 
 # Initialise session state on first run.
 init_session()

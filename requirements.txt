@@ -54,3 +54,7 @@ Jinja2>=3.0
 # Requires system libraries (Pango + Cairo); see README for install
 # instructions per OS.
 weasyprint>=62.0
+
+# Persistent top nav — used by ui/theme/nav.py (render_top_nav).
+# Provides the horizontal `option_menu` widget styled to the GSCO palette.
+streamlit-option-menu>=0.3.6

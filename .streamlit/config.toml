@@ -1,0 +1,12 @@
+# Streamlit theme — keep in sync with ui/theme/tokens.py.
+# Streamlit's built-in theme covers default widgets (selectbox, slider,
+# expander, etc.). Custom components — headings, buttons, cards, nav —
+# are styled by ui.theme.theme.apply_gsco_theme().
+
+[theme]
+base = "dark"
+primaryColor = "#7bc342"               # accent_green
+backgroundColor = "#060a12"             # body_bg
+secondaryBackgroundColor = "#0d1422"    # surface_elevated
+textColor = "#ffffff"                   # text_primary
+font = "sans serif"

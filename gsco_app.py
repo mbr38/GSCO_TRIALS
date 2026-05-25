@@ -11,6 +11,15 @@ Run with: ``streamlit run gsco_app.py``.
 # M-DEMO-POLISH
 import streamlit as st
 
+from ui.theme.theme import apply_gsco_theme
+
+# Inject the GSCO global CSS at the top of the navigation script.
+# Streamlit's standard rerun model re-executes this entire script
+# top-to-bottom on every user interaction (st.navigation is a router,
+# not an alternative execution model), so this call themes every page
+# render — no per-page wrapper needed.
+apply_gsco_theme()
+
 
 landing = st.Page(
     "app.py",
