@@ -1,0 +1,134 @@
+- generic [ref=e2]:
+  - generic [ref=e7]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e12] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e18] [cursor=pointer]:
+              - /url: http://localhost:8501/
+              - generic [ref=e21]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e27] [cursor=pointer]:
+              - /url: http://localhost:8501/Scope_Setup
+              - generic [ref=e30]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e36] [cursor=pointer]:
+              - /url: http://localhost:8501/Workflow_Hub
+              - generic [ref=e39]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e45] [cursor=pointer]:
+              - /url: http://localhost:8501/Inspect_Setup
+              - generic [ref=e48]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e54] [cursor=pointer]:
+              - /url: http://localhost:8501/Screening_Results
+              - generic [ref=e57]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Setup
+              - generic [ref=e66]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e72] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Results
+              - generic [ref=e75]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e81] [cursor=pointer]:
+              - /url: http://localhost:8501/Indicator_Library
+              - generic [ref=e84]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e90] [cursor=pointer]:
+              - /url: http://localhost:8501/Saved_Analyses
+              - generic [ref=e93]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e99] [cursor=pointer]:
+              - /url: http://localhost:8501/Reports
+              - generic [ref=e102]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e107] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e113] [cursor=pointer]:
+              - /url: http://localhost:8501/engine_scratch
+              - generic [ref=e116]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e123]:
+      - button "keyboard_double_arrow_right" [ref=e214] [cursor=pointer]:
+        - generic [ref=e216]: keyboard_double_arrow_right
+    - generic [ref=e125]:
+      - heading "GSCO Environmental Monitoring & Decision-Support Tool" [level=1] [ref=e130]:
+        - text: GSCO Environmental Monitoring & Decision-Support Tool
+        - generic [ref=e131]:
+          - link "Link to heading":
+            - /url: "#gsco-environmental-monitoring-and-decision-support-tool"
+            - img
+      - paragraph [ref=e136]: A geospatial decision-support tool for monitoring environmental conditions across supply chains. Built on Earth Engine, designed for two audiences.
+      - separator [ref=e141]
+      - heading "Who's using the tool today?" [level=3] [ref=e146]:
+        - text: Who's using the tool today?
+        - generic [ref=e147]:
+          - link "Link to heading":
+            - /url: "#whos-using-the-tool-today"
+            - img
+      - paragraph [ref=e152]: Pick the role that matches what you're doing in this session.
+      - generic [ref=e154]:
+        - generic [ref=e158]:
+          - heading "Policy Maker" [level=3] [ref=e164]:
+            - text: Policy Maker
+            - generic [ref=e165]:
+              - link "Link to heading":
+                - /url: "#policy-maker"
+                - img
+          - paragraph [ref=e170]: Monitor environmental conditions across regions and named supply chains. Connect to the GSCO catalogue or upload your own regions.
+          - button "Continue as Policy Maker" [ref=e173] [cursor=pointer]:
+            - paragraph [ref=e177]: Continue as Policy Maker
+        - generic [ref=e181]:
+          - heading "MNC" [level=3] [ref=e187]:
+            - text: MNC
+            - generic [ref=e188]:
+              - link "Link to heading":
+                - /url: "#mnc"
+                - img
+          - paragraph [ref=e193]: Screen and prioritise environmental conditions across your suppliers. Upload your supplier list and run targeted analyses.
+          - button "Continue as MNC" [ref=e196] [cursor=pointer]:
+            - paragraph [ref=e200]: Continue as MNC
+      - separator [ref=e205]
+      - paragraph [ref=e210]: Demo build — authentication deferred.

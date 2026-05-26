@@ -22,6 +22,7 @@ st.set_page_config(
     page_title="Saved Analyses — GSCO",
     page_icon="💾",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 require_user_type()

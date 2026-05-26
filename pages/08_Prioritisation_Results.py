@@ -21,6 +21,7 @@ st.set_page_config(
     page_title="Prioritisation Results — GSCO",
     page_icon="📊",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 require_user_type()
