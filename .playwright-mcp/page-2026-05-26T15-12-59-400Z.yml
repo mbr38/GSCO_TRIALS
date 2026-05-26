@@ -1,0 +1,9 @@
+- banner [ref=e7]:
+  - generic [ref=e9]:
+    - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+      - generic [ref=e14]: keyboard_double_arrow_right
+    - generic [ref=e15]:
+      - button "Deploy" [ref=e17] [cursor=pointer]:
+        - generic [ref=e19]: Deploy
+      - button "Main menu" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]

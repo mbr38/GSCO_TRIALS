@@ -307,14 +307,38 @@ def _render_indicator_section() -> set[str]:
 def _render_pillar_indicators_p07(
     pillar: str, label: str, generation: int,
 ) -> None:
-    """Per-pillar expander for indicator selection."""
+    """Per-pillar expander for indicator selection.
+
+    The pillar-level toggle at the top of the expander is the parallel of
+    P-04's: one click selects/deselects every indicator in this pillar
+    independently of the other two. Same generation-counter pattern, so
+    the per-indicator checkboxes below it refresh cleanly.
+    """
     pillar_ids = INDICATORS_BY_PILLAR[pillar]
     selected   = st.session_state["p07_selected_indicators"]
     n_selected = sum(1 for ind in pillar_ids if ind in selected)
+    all_in_pillar_selected = all(ind in selected for ind in pillar_ids)
     with st.expander(
         f"{label} ({n_selected} / {len(pillar_ids)} selected)",
         expanded=True,
     ):
+        new_all = st.checkbox(
+            f"**Select all {label}**",
+            value=all_in_pillar_selected,
+            key=f"p07_pillar_all_{pillar}_v{generation}",
+        )
+        if new_all and not all_in_pillar_selected:
+            selected.update(pillar_ids)
+            st.session_state["p07_indicator_generation"] += 1
+            st.rerun()
+        elif not new_all and all_in_pillar_selected:
+            for ind in pillar_ids:
+                selected.discard(ind)
+            st.session_state["p07_indicator_generation"] += 1
+            st.rerun()
+
+        st.divider()
+
         cols = st.columns(3)
         for i, indicator_id in enumerate(pillar_ids):
             col = cols[i % 3]
