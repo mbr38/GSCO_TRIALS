@@ -18,7 +18,7 @@ st.set_page_config(
     page_title="Landing — GSCO",
     page_icon="🌍",
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # Inject the GSCO global CSS. Idempotent and safe to double-call (e.g. when

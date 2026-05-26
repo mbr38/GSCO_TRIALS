@@ -140,7 +140,20 @@ h1, [data-testid="stMarkdownContainer"] h1 {{
 /* ---------------------------------------------------------------- */
 /* Layout — hide Streamlit chrome, widen the container              */
 /* ---------------------------------------------------------------- */
-[data-testid="stHeader"] {{ display: none; }}
+/* Hide the Streamlit top header chrome (deploy button, branding) but keep
+   the sidebar collapse/expand toggle reachable — in current Streamlit the
+   toggle for a collapsed sidebar lives inside stHeader, so a blanket
+   display:none on stHeader leaves users with no way to reopen the nav. */
+[data-testid="stHeader"] {{
+    background: transparent;
+    height: 0;
+}}
+[data-testid="stHeader"] > * {{ display: none; }}
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="stHeader"] [data-testid="stSidebarCollapsedControl"] {{
+    display: flex !important;
+    visibility: visible !important;
+}}
 #MainMenu {{ visibility: hidden; }}
 footer {{ visibility: hidden; }}
 [data-testid="stToolbar"] {{ display: none; }}
