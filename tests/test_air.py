@@ -111,6 +111,12 @@ _DEFAULT_SIX_STEP: dict = {
     # plausible shape for tests asserting on shape rather than value).
     "n_valid_dates": 54,
     "granule_count": 270,
+    # M-TIER-A3 Step E — three new MOD44W land-mask fields per spec §3.6.
+    # The 0.523 value is the Mumbai-port real-EE land fraction captured
+    # during smoke verification — a coastal-realistic non-trivial mock.
+    "ring_land_fraction":     0.523,
+    "ring_land_mask_applied": True,
+    "ring_land_mask_asset":   "MODIS/006/MOD44W",
 }
 
 
@@ -772,3 +778,43 @@ class TestProvenanceShape:
         assert extra["granule_count"] == 270
         # Sanity — the fix didn't displace the existing confidence_terms.
         assert "confidence_terms" in extra
+
+    def test_provenance_extra_carries_ring_land_fraction(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        # M-TIER-A3 Step E (§4.4). The fake's coastal-realistic 0.523 land
+        # fraction must reach provenance.extra unchanged.
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="no2", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        extra = result["_provenance.air.no2"]["extra"]
+        assert extra["ring_land_fraction"] == 0.523
+
+    def test_provenance_extra_carries_land_mask_applied_true(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        # M-TIER-A3 Step E (§4.4) — `land_mask_applied=True` is the
+        # production default for v1.x post-LM3; spec §3.6 names this
+        # field for the future M-CLIM-A3b composition partner.
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="no2", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        extra = result["_provenance.air.no2"]["extra"]
+        assert extra["land_mask_applied"] is True
+
+    def test_provenance_extra_carries_land_mask_asset_string(
+        self, fake_ee, fake_six_step,
+    ) -> None:
+        # M-TIER-A3 Step E (§4.4) — the MOD44W asset ID is always
+        # populated for vintage tracking, even when apply_land_mask=False.
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant="no2", time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        extra = result["_provenance.air.no2"]["extra"]
+        assert extra["land_mask_asset"] == "MODIS/006/MOD44W"

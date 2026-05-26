@@ -1051,7 +1051,11 @@ def compute_regional_loss_evidence(
     centre = aoi["centre"]
     radius_km = aoi["radius_km"]
     site = site_buffer(centre, radius_km)
-    ring = background_ring(centre, radius_km)
+    # M-TIER-A3 Step B — background_ring returns a dict; extract geometry.
+    # Hansen forest-loss already has its own `datamask` band that flags
+    # water, so we don't compose with the MOD44W mask here per spec §8
+    # (out-of-scope: indicators with their own water handling).
+    ring = background_ring(centre, radius_km)["geometry"]
 
     image = ee.Image(cfg.asset_id).select("lossyear")
     lookback_start_offset = _HANSEN_MAX_LOSS_YEAR - HANSEN_LOOKBACK_YEARS + 1
@@ -1213,6 +1217,16 @@ def compute_ndvi_condition(
     ndvi_granule_count = raw.get("granule_count")
     if ndvi_granule_count is not None:
         ndvi_extra["granule_count"] = ndvi_granule_count
+    # M-TIER-A3 Step E — MOD44W land-mask provenance fields per spec §3.6.
+    ndvi_ring_land_fraction = raw.get("ring_land_fraction")
+    if ndvi_ring_land_fraction is not None:
+        ndvi_extra["ring_land_fraction"] = ndvi_ring_land_fraction
+    ndvi_ring_land_mask_applied = raw.get("ring_land_mask_applied")
+    if ndvi_ring_land_mask_applied is not None:
+        ndvi_extra["land_mask_applied"] = ndvi_ring_land_mask_applied
+    ndvi_ring_land_mask_asset = raw.get("ring_land_mask_asset")
+    if ndvi_ring_land_mask_asset is not None:
+        ndvi_extra["land_mask_asset"] = ndvi_ring_land_mask_asset
 
     return {
         "nature.ndvi.mean":             raw.get("site"),

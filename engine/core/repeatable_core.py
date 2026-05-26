@@ -26,6 +26,7 @@ from engine.constants import (
     ANOMALY_Z_THRESHOLD,
     BACKGROUND_RING_MAX_KM,
     BACKGROUND_RING_RADIUS_MULTIPLE,
+    LAND_MASK_FRACTION_MIN_THRESHOLD,
     NORMALISATION_K,
     SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
     SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR,
@@ -121,19 +122,65 @@ def background_value(
     band: str,
     seasonal: bool = True,
     scale: float | None = None,
+    *,
+    ring: dict | None = None,
 ) -> tuple[float, float]:
     """Median and stdDev of `band` over Background_Ring.
 
     When `seasonal=True` and `engine/core/seasonality.py` is available, the
     image collection is filtered to the same calendar months as the analysis
     window (§0.6). Until that module exists, the seasonal filter is a no-op.
+
+    M-TIER-A3 Step E — when `ring` is supplied by the caller (typically
+    `six_step`), reuse it so the land-fraction `getInfo` round-trip is paid
+    once per indicator rather than twice. The constructed ring dict is
+    backward-compatible: legacy callers that pass nothing get the
+    pre-milestone behaviour of internal construction.
     """
-    geom = background_ring(aoi["centre"], aoi["radius_km"])
+    # M-TIER-A3 Step B/C — background_ring returns a dict carrying the
+    # land mask + geometric land_fraction. Step C consumes the mask via
+    # per-image `updateMask` so the reduction only sees land pixels.
+    if ring is None:
+        ring = background_ring(aoi["centre"], aoi["radius_km"])
+    geom = ring["geometry"]
+    mask = ring["mask"]
+
+    # M-TIER-A3 Step D / LM7 — when masking is enabled and the geometric
+    # land fraction is below the threshold, the residual land set is too
+    # small to support a meaningful background reduction. Fire the
+    # existing ring-empty skip path with a *distinct* reason so analytics
+    # can separate "almost all ocean" from "ring empty for indicator-
+    # specific reasons (sparse overpass, all cloudy)". User-facing
+    # message stays the same — both subtypes route through the
+    # `background_ring_no_data` skipped_reason renderer (spec §3.5,
+    # `Inspection.js` Q-A3-1 recommendation).
+    if mask is not None and ring["land_fraction"] < LAND_MASK_FRACTION_MIN_THRESHOLD:
+        raise BackgroundRingNoDataError(
+            indicator_id=band,
+            reason=(
+                f"ring_empty_post_land_mask: geometric land fraction "
+                f"{ring['land_fraction']:.3f} is below the "
+                f"{LAND_MASK_FRACTION_MIN_THRESHOLD:.2f} threshold "
+                f"(buffer={aoi['radius_km']}km centre={aoi['centre']}) — "
+                "ring is effectively over water"
+            ),
+        )
+
     ic = image_collection.select(band)
 
     if seasonal and _seasonality is not None:
         ic = _seasonality.same_month_filter(ic)
     # TODO(M3+): wire same-month filter once engine/core/seasonality.py lands.
+
+    # Per-image masking (not post-mean) so the land mask composes with any
+    # per-image cloud masks already in `image_collection` — the cloud mask
+    # AND the land mask both fire, leaving only valid-land pixels for the
+    # spatial median+stdDev reduction. For a *static* mask this is
+    # equivalent to `ic.mean().updateMask(mask)`; the per-image shape is
+    # the spec-locked form (LM3 + §3.4) and survives a future swap to a
+    # time-varying mask without changing the call site.
+    if mask is not None:
+        ic = ic.map(lambda img: img.updateMask(mask))
 
     img = ic.mean()
     reducers = ee.Reducer.median().combine(ee.Reducer.stdDev(), sharedInputs=True)
@@ -621,9 +668,17 @@ def six_step(
         .filterBounds(analysis_envelope.bounds())
     )
 
+    # M-TIER-A3 Step E — construct the background ring once here so the
+    # land-fraction `getInfo` round-trip is paid once per indicator. The
+    # same dict is reused inside `background_value` (skipping its internal
+    # construction) and surfaced in the return payload so pillar
+    # `_format_result` functions can thread the three new MOD44W fields
+    # into `provenance.extra` (spec §3.6).
+    ring = background_ring(aoi["centre"], aoi["radius_km"])
+
     site = site_value(aoi, ic_window, band, scale=scale)
     bg_median, bg_std = background_value(
-        aoi, ic_window, band, seasonal=seasonal, scale=scale,
+        aoi, ic_window, band, seasonal=seasonal, scale=scale, ring=ring,
     )
 
     # M-TIER-A1 Step 8 — server-side N_valid + HF. Replaces the
@@ -695,6 +750,15 @@ def six_step(
         # never enters score arithmetic. See ServerSideHfResult.
         "n_valid_dates": hf_result.n_valid_dates,
         "granule_count": hf_result.granule_count,
+        # M-TIER-A3 Step E — three new provenance.extra fields per spec §3.6.
+        # Geometric land share of the background ring; whether the mask
+        # was applied to the reduction; and the asset ID for vintage
+        # tracking. Pillar `_format_result` functions copy these into
+        # `extra` for audit transparency and future M-CLIM-A3b
+        # composition. Always populated by the Step B/E pipeline.
+        "ring_land_fraction":  ring["land_fraction"],
+        "ring_land_mask_applied": ring["land_mask_applied"],
+        "ring_land_mask_asset":   ring["land_mask_asset"],
     }
 
 

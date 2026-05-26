@@ -522,7 +522,7 @@ Six things change the right buffer size in practice. The tool should expose enou
 
 5. **Cross-border buffers.** A buffer that crosses a national border may pull in regions with very different emissions baselines and very different KBA reporting completeness. Surface this as a "buffer crosses border" warning.
 
-6. **Coastal / over-water buffers.** A 25 km buffer near the coast spends a large fraction over open water, which has near-zero NO₂/SO₂/CO and inflated NDVI masking. The Valid_Pixel_Coverage sub-score handles this automatically by going down; no separate warning needed but the user should see the valid-pixel percentage in the result card.
+6. **Coastal / over-water buffers.** A 25 km buffer near the coast spends a large fraction of its Background_Ring over open water. Since v1.x (M-TIER-A3, 26 May 2026) the engine intersects the ring with a global land mask (MOD44W v6, 250 m) before reducing, so the median + σ baseline is computed only from terrestrial pixels — restoring methodological honesty. Below a 5% land-fraction floor (`LAND_MASK_FRACTION_MIN_THRESHOLD`) the indicator skips through the existing `BackgroundRingNoDataError` path with the distinct `ring_empty_post_land_mask` reason. The Site_Buffer is **not** masked: supplier coordinates are assumed terrestrial by upstream context, and coastal facilities (ports, on-water refineries) intentionally keep their on-water buffer pixels. Provenance carries three new fields per ring-based indicator (`ring_land_fraction`, `land_mask_applied`, `land_mask_asset`) so reviewers can see the geometric land share and the MOD44W vintage that was used.
 
 ### 6.4 Why we reject other plausible radii
 

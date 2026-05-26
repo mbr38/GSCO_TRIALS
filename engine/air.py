@@ -361,6 +361,18 @@ def _format_result(
     granule_count = raw.get("granule_count")
     if granule_count is not None:
         extra["granule_count"] = granule_count
+    # M-TIER-A3 Step E — three MOD44W land-mask provenance fields per
+    # spec §3.6. Absent for non-six_step paths (matches the existing
+    # n_valid_dates / granule_count convention).
+    ring_land_fraction = raw.get("ring_land_fraction")
+    if ring_land_fraction is not None:
+        extra["ring_land_fraction"] = ring_land_fraction
+    ring_land_mask_applied = raw.get("ring_land_mask_applied")
+    if ring_land_mask_applied is not None:
+        extra["land_mask_applied"] = ring_land_mask_applied
+    ring_land_mask_asset = raw.get("ring_land_mask_asset")
+    if ring_land_mask_asset is not None:
+        extra["land_mask_asset"] = ring_land_mask_asset
 
     result[f"_provenance.air.{pollutant}"] = build_provenance(
         indicator_id=f"air.{pollutant}",

@@ -1182,9 +1182,25 @@ class TestSixStepFilterBoundsScope:
             rc, "site_value",
             lambda aoi, ic, band, scale: 1.0,
         )
+        # M-TIER-A3 Step E — background_value now accepts a `ring=` kwarg
+        # so six_step can construct the ring once and pass it in. The
+        # lambda stub mirrors the new positional+kwarg shape.
         monkeypatch.setattr(
             rc, "background_value",
-            lambda aoi, ic, band, seasonal, scale: (0.5, 0.1),
+            lambda aoi, ic, band, seasonal, scale, *, ring: (0.5, 0.1),
+        )
+        # M-TIER-A3 Step E — six_step now calls background_ring directly
+        # to surface land-mask provenance fields in its return dict.
+        # Stub it so this test doesn't need real EE access.
+        monkeypatch.setattr(
+            rc, "background_ring",
+            lambda centre, radius_km: {
+                "geometry": object(),
+                "mask": None,
+                "land_fraction": 1.0,
+                "land_mask_applied": True,
+                "land_mask_asset": "MODIS/006/MOD44W",
+            },
         )
         monkeypatch.setattr(
             rc, "_server_side_hf",
@@ -1249,9 +1265,21 @@ class TestSixStepFilterBoundsScope:
             rc, "site_value",
             lambda aoi, ic, band, scale: 1.0,
         )
+        # M-TIER-A3 Step E — background_value now accepts `ring=` kwarg;
+        # six_step calls background_ring directly so we stub both.
         monkeypatch.setattr(
             rc, "background_value",
-            lambda aoi, ic, band, seasonal, scale: (0.5, 0.1),
+            lambda aoi, ic, band, seasonal, scale, *, ring: (0.5, 0.1),
+        )
+        monkeypatch.setattr(
+            rc, "background_ring",
+            lambda centre, radius_km: {
+                "geometry": object(),
+                "mask": None,
+                "land_fraction": 1.0,
+                "land_mask_applied": True,
+                "land_mask_asset": "MODIS/006/MOD44W",
+            },
         )
         monkeypatch.setattr(
             rc, "_server_side_hf",

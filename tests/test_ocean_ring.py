@@ -75,8 +75,20 @@ class TestBackgroundValueRaisesNewError:
         # is touched. Stubbing the whole Reducer namespace gives every
         # method a callable that returns another mock with .combine.
         monkeypatch.setattr(repeatable_core.ee, "Reducer", MagicMock())
+        # M-TIER-A3 Step B — background_ring now returns a dict carrying
+        # the land mask + geometric land_fraction; downstream code extracts
+        # `["geometry"]`. The sentinel here only needs to be subscriptable
+        # with that key — the geometry value is opaque to background_value.
         monkeypatch.setattr(
-            repeatable_core, "background_ring", lambda *_a, **_kw: object(),
+            repeatable_core,
+            "background_ring",
+            lambda *_a, **_kw: {
+                "geometry": object(),
+                "mask": None,
+                "land_fraction": 1.0,
+                "land_mask_applied": True,
+                "land_mask_asset": "MODIS/006/MOD44W",
+            },
         )
         return chain
 

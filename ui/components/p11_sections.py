@@ -418,7 +418,83 @@ def _render_provenance_for_payload(payload) -> str:
     extras_html = _render_provenance_extras(prov_blocks)
     if extras_html:
         blocks.append(extras_html)
+    # M-TIER-A3 Step H2 — coastal handling sub-block. Renders only when
+    # at least one indicator's ring touched water; reuses Surface 1's
+    # copy template for consistency with the P-05 C5 expander.
+    coastal_html = _render_coastal_handling_appendix(prov_blocks)
+    if coastal_html:
+        blocks.append(coastal_html)
     return "\n".join(blocks)
+
+
+# M-TIER-A3 Step H2 — copy mirrors the C5 expander Surface 1 template
+# (kept in sync by string match in `tests/test_coastal_handling_surfaces.py`).
+_COASTAL_HANDLING_APPENDIX_HEADER: str = "Coastal AOI handling"
+_COASTAL_HANDLING_APPENDIX_INTRO: str = (
+    "One or more indicators in this report ran against a background ring "
+    "that partly overlapped the coastline. The tool applied a global land "
+    "mask (MODIS MOD44W v6, 250 m) to exclude ocean pixels from the "
+    "baseline reduction — the median + σ comparison was computed against "
+    "the terrestrial portion of the ring only. Without this adjustment, "
+    "ocean pixels (which have near-zero pollution and would otherwise "
+    "average in as \"clean background\") would artificially depress the "
+    "baseline and inflate the supplier's anomaly score. The land-only "
+    "baseline gives a more honest comparison against the surrounding "
+    "terrestrial area."
+)
+
+
+def _render_coastal_handling_appendix(
+    prov_blocks: list[tuple[str, dict]],
+) -> str:
+    """Render a coastal-AOI-handling sub-block when any indicator's
+    background ring was partly over water (spec H2 PDF surface).
+
+    Iterates the report's provenance blocks once. For each indicator
+    whose `extra.ring_land_fraction < 1.0` and `extra.land_mask_applied`
+    is truthy, surface a row showing the geometric land fraction. If
+    *no* indicator hit the coastline, omit the section entirely so the
+    PDF doesn't carry a misleading "this is a coastal site" heading
+    for a fully inland AOI.
+    """
+    rows: list[str] = []
+    any_below_warning_threshold = False
+    for ind_id, prov in sorted(prov_blocks):
+        extra = prov.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        land_fraction = extra.get("ring_land_fraction")
+        if not isinstance(land_fraction, (int, float)):
+            continue
+        if land_fraction >= 1.0:
+            continue
+        if extra.get("land_mask_applied") is False:
+            continue
+        water_pct = max(0, min(100, round((1.0 - float(land_fraction)) * 100)))
+        land_pct  = 100 - water_pct
+        rows.append(
+            f"<li><strong>{html.escape(ind_id)}</strong> — "
+            f"{land_pct}% land / {water_pct}% water</li>"
+        )
+        # Warning band threshold matches the C5 expander Surface 1.
+        if land_fraction < 0.20:
+            any_below_warning_threshold = True
+    if not rows:
+        return ""
+    parts = [
+        f"<h4>{_COASTAL_HANDLING_APPENDIX_HEADER}</h4>",
+        f"<p>{_COASTAL_HANDLING_APPENDIX_INTRO}</p>",
+        "<ul class='provenance-extras'>",
+        "\n".join(rows),
+        "</ul>",
+    ]
+    if any_below_warning_threshold:
+        parts.append(
+            "<p><em>At least one indicator's comparison area is mostly "
+            "water; the baseline is computed from a small land area and "
+            "should be interpreted with care.</em></p>"
+        )
+    return "\n".join(parts)
 
 
 # M-UI-A1-SURFACE Sub-milestone 3 polish (24 May 2026): the PDF

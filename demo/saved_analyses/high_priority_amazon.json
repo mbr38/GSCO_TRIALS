@@ -1,19 +1,19 @@
 {
-  "date_saved": "2026-05-24T17:20:52.170575+00:00",
+  "date_saved": "2026-05-26T22:00:56.129865+00:00",
   "id": "62141346-d3bc-4e18-a951-1768135477ba",
-  "name": "Sapezal Plantation (demo) \u2014 Soy & Cattle \u2014 Par\u00e1 / Mato Grosso",
+  "name": "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso",
   "payload": {
     "_failures": {
       "air": [
         {
           "indicator_id": "air.pm10",
           "pollutant": "pm10",
-          "reason": "site buffer (5 km) smaller than pm10 native pixel (44.5 km) \u2014 increase radius or pick a finer-resolution pollutant"
+          "reason": "site buffer (5 km) smaller than pm10 native pixel (44.5 km) — increase radius or pick a finer-resolution pollutant"
         },
         {
           "indicator_id": "air.pm25",
           "pollutant": "pm25",
-          "reason": "site buffer (5 km) smaller than pm25 native pixel (44.5 km) \u2014 increase radius or pick a finer-resolution pollutant"
+          "reason": "site buffer (5 km) smaller than pm25 native pixel (44.5 km) — increase radius or pick a finer-resolution pollutant"
         }
       ]
     },
@@ -28,9 +28,9 @@
       "centre_metadata": {
         "node_id": "soy_04",
         "node_name": "Sapezal Plantation (demo)",
-        "source": "P-04 supply-chain scope \u00b7 Soy & Cattle \u2014 Par\u00e1 / Mato Grosso"
+        "source": "P-04 supply-chain scope · Soy & Cattle — Pará / Mato Grosso"
       },
-      "computed_at": "2026-05-24T17:20:52.170096+00:00",
+      "computed_at": "2026-05-26T22:00:56.128477+00:00",
       "mode": "screening",
       "pillars_run": [
         "air",
@@ -78,8 +78,11 @@
           "qa": 0.85,
           "spatial_context": 1.0
         },
-        "granule_count": 1257,
-        "n_valid_dates": 88
+        "granule_count": 1275,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 89,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.aai",
       "method_note": null,
@@ -109,8 +112,11 @@
           "qa": 0.9,
           "spatial_context": 1.0
         },
-        "granule_count": 121521,
-        "n_valid_dates": 32
+        "granule_count": 5126,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 32,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.aod",
       "method_note": "MODIS MAIAC; AOD_QA bits 8-11 mask non-best retrievals",
@@ -139,8 +145,11 @@
           "qa": 0.85,
           "spatial_context": 1.0
         },
-        "granule_count": 1256,
-        "n_valid_dates": 69
+        "granule_count": 1112,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 70,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.co",
       "method_note": null,
@@ -169,8 +178,11 @@
           "qa": 0.85,
           "spatial_context": 1.0
         },
-        "granule_count": 1251,
-        "n_valid_dates": 70
+        "granule_count": 1102,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 71,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.hcho",
       "method_note": null,
@@ -199,8 +211,11 @@
           "qa": 0.9,
           "spatial_context": 1.0
         },
-        "granule_count": 1160,
-        "n_valid_dates": 81
+        "granule_count": 1053,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 84,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.no2",
       "method_note": null,
@@ -229,8 +244,11 @@
           "qa": 0.85,
           "spatial_context": 1.0
         },
-        "granule_count": 1251,
-        "n_valid_dates": 87
+        "granule_count": 1258,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 89,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.o3",
       "method_note": null,
@@ -262,8 +280,11 @@
           "qa": 0.75,
           "spatial_context": 1.0
         },
-        "granule_count": 1250,
-        "n_valid_dates": 50
+        "granule_count": 623,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 50,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "air.so2",
       "method_note": null,
@@ -292,8 +313,11 @@
           "qa": 0.85,
           "spatial_context": 0.4220128216441705
         },
-        "granule_count": 1249,
-        "n_valid_dates": 2
+        "granule_count": 1273,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 2,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "ghg.ch4",
       "method_note": null,
@@ -349,7 +373,10 @@
           "spatial_context": 1.0
         },
         "granule_count": 84,
-        "n_valid_dates": 66
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
+        "n_valid_dates": 66,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "ghg.viirs",
       "method_note": null,
@@ -446,7 +473,7 @@
         "conversion_saturation_pct": 0.1
       },
       "indicator_id": "nature.habitat",
-      "method_note": "DW mode composite (current vs baseline 5y earlier); class-fraction deltas \u2192 natural\u2192non-natural attribution; scale=10m (native)",
+      "method_note": "DW mode composite (current vs baseline 5y earlier); class-fraction deltas → natural→non-natural attribution; scale=10m (native)",
       "native_scale_m": 10.0,
       "observations": null,
       "sector_signal_anomaly": null,
@@ -505,11 +532,14 @@
           "spatial_context": 1.0
         },
         "granule_count": 4,
+        "land_mask_applied": true,
+        "land_mask_asset": "MODIS/006/MOD44W",
         "n_valid_dates": 4,
-        "ndvi_negative_trend_threshold": -0.01
+        "ndvi_negative_trend_threshold": -0.01,
+        "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "nature.ndvi",
-      "method_note": "MOD13Q1 NDVI \u00f7 10000; IC \u00a70.2 six-step pipeline with direction='lower_is_worse' (lower NDVI = worse); scale=250m (native)",
+      "method_note": "MOD13Q1 NDVI ÷ 10000; IC §0.2 six-step pipeline with direction='lower_is_worse' (lower NDVI = worse); scale=250m (native)",
       "native_scale_m": 250.0,
       "observations": {
         "count": 1,
@@ -541,7 +571,7 @@
         "placeholder": true
       },
       "indicator_id": "nature.recovery",
-      "method_note": "v1 placeholder \u2014 score=0.0 baseline; wires once engine/core/trend.py lands per-pixel NDVI improvement and natural-cover-gain attribution",
+      "method_note": "v1 placeholder — score=0.0 baseline; wires once engine/core/trend.py lands per-pixel NDVI improvement and natural-cover-gain attribution",
       "native_scale_m": 250.0,
       "observations": null,
       "sector_signal_anomaly": null,
@@ -574,7 +604,7 @@
         "ring_loss_rate_m2_per_m2": 0.002902907162703464
       },
       "indicator_id": "nature.regional_loss_evidence",
-      "method_note": "Hansen lossyear sum over Site_Buffer and Background_Ring across the most recent 5 loss years (years 2019-2023); flag = 1.0 if ring_rate > 2.0 \u00d7 buffer_rate (audit \u00a79.3 v1.4)",
+      "method_note": "Hansen lossyear sum over Site_Buffer and Background_Ring across the most recent 5 loss years (years 2019-2023); flag = 1.0 if ring_rate > 2.0 × buffer_rate (audit §9.3 v1.4)",
       "native_scale_m": 30.92,
       "observations": {
         "count": 5,
@@ -605,7 +635,7 @@
         }
       },
       "indicator_id": "nature.water",
-      "method_note": "DW water + flooded_vegetation pixel counts via frequencyHistogram (JRC GSW deferred per GEE \u00a74.3); scale=10m (native)",
+      "method_note": "DW water + flooded_vegetation pixel counts via frequencyHistogram (JRC GSW deferred per GEE §4.3); scale=10m (native)",
       "native_scale_m": 10.0,
       "observations": null,
       "sector_signal_anomaly": null,
@@ -616,15 +646,15 @@
         "2026-05-23"
       ]
     },
-    "air.aai.anomaly": -0.003215692575386009,
-    "air.aai.background": -0.6551574932500581,
+    "air.aai.anomaly": -0.0023069029368735228,
+    "air.aai.background": -0.6474493589758484,
     "air.aai.confidence": 0.955,
     "air.aai.hf": 1.0,
     "air.aai.score": 0.0,
-    "air.aai.site": -0.6583731858254441,
+    "air.aai.site": -0.649756261912722,
     "air.aai.trend": null,
     "air.aai.trend_p": null,
-    "air.aai.z": -0.06761018002280914,
+    "air.aai.z": -0.04848333658370132,
     "air.aod.anomaly": -9.0669947547634,
     "air.aod.background": 76.23819393951831,
     "air.aod.confidence": 0.7200000000000001,
@@ -633,48 +663,48 @@
     "air.aod.site": 67.17119918475491,
     "air.aod.trend": null,
     "air.aod.trend_p": null,
-    "air.aod.z": -0.5337880533915712,
+    "air.aod.z": -0.5336980209851486,
     "air.attribution_confidence_score": 0.6988214285714286,
-    "air.audit_followup_priority": 0.1619096752079645,
-    "air.co.anomaly": -0.30352013088937824,
-    "air.co.background": 27.586248779575502,
+    "air.audit_followup_priority": 0.15572307105713923,
+    "air.co.anomaly": -0.34767078604914303,
+    "air.co.background": 27.52420025231925,
     "air.co.confidence": 0.564,
     "air.co.hf": 0.0,
     "air.co.score": 0.0,
-    "air.co.site": 27.282728648686124,
+    "air.co.site": 27.176529466270107,
     "air.co.trend": null,
     "air.co.trend_p": null,
-    "air.co.z": -0.7379486179261827,
-    "air.hcho.anomaly": 16.398052524022944,
-    "air.hcho.background": 106.22656140579211,
+    "air.co.z": -0.8541915629358098,
+    "air.hcho.anomaly": 14.744340055213712,
+    "air.hcho.background": 105.79058149005742,
     "air.hcho.confidence": 0.66975,
     "air.hcho.hf": 0.0,
-    "air.hcho.score": 0.43425807783750625,
-    "air.hcho.site": 122.62461392981506,
+    "air.hcho.score": 0.3938954867251188,
+    "air.hcho.site": 120.53492154527113,
     "air.hcho.trend": null,
     "air.hcho.trend_p": null,
-    "air.hcho.z": 1.3027742335125188,
-    "air.heavy_industry_score": 0.02816183734925091,
-    "air.industrial_air_pollution_burden": 0.019786479141582266,
-    "air.industrial_combustion_proxy": 0.008956641834273511,
-    "air.no2.anomaly": 0.03562630874399986,
-    "air.no2.background": 40.828337674541665,
+    "air.hcho.z": 1.1816864601753567,
+    "air.heavy_industry_score": 0.023718076565487398,
+    "air.industrial_air_pollution_burden": 0.01383554466320098,
+    "air.industrial_combustion_proxy": 0.0,
+    "air.no2.anomaly": -0.00982695671490319,
+    "air.no2.background": 40.762556502068385,
     "air.no2.confidence": 0.684,
     "air.no2.hf": 0.0,
-    "air.no2.score": 0.014927736390455852,
-    "air.no2.site": 40.863963983285664,
+    "air.no2.score": 0.0,
+    "air.no2.site": 40.75272954535348,
     "air.no2.trend": null,
     "air.no2.trend_p": null,
-    "air.no2.z": 0.04478320917136756,
-    "air.o3.anomaly": 0.08036193222915244,
-    "air.o3.background": 256.35526018536274,
+    "air.no2.z": -0.012283777754583461,
+    "air.o3.anomaly": 0.07794747169270977,
+    "air.o3.background": 256.1832490597932,
     "air.o3.confidence": 0.705,
     "air.o3.hf": 0.0,
-    "air.o3.score": 0.11578799210913288,
-    "air.o3.site": 256.4356221175919,
+    "air.o3.score": 0.1140274480729041,
+    "air.o3.site": 256.2611965314859,
     "air.o3.trend": null,
     "air.o3.trend_p": null,
-    "air.o3.z": 0.3473639763273986,
+    "air.o3.z": 0.3420823442187123,
     "air.pm10.anomaly": null,
     "air.pm10.background": null,
     "air.pm10.confidence": null,
@@ -694,25 +724,25 @@
     "air.pm25.trend_p": null,
     "air.pm25.z": null,
     "air.pm_or_aerosol": 0.0,
-    "air.pollution_proxy_score": 0.08909033728104736,
+    "air.pollution_proxy_score": 0.07839309333788737,
     "air.smoke_dust_regional_transport": 0.0,
     "air.so2.anomaly": 3.252281653668809,
     "air.so2.background": 5.48323262362013,
     "air.so2.confidence": 0.594,
     "air.so2.hf": 0.0,
-    "air.so2.score": 0.03947252738685693,
+    "air.so2.score": 0.03953012760914566,
     "air.so2.site": 8.735514277288939,
     "air.so2.trend": null,
     "air.so2.trend_p": null,
-    "air.so2.z": 0.11841758216057079,
-    "air.spatiotemporal_anomaly_score": 0.08634947624627884,
+    "air.so2.z": 0.11859038282743699,
+    "air.spatiotemporal_anomaly_score": 0.07820758034388124,
     "air.trend_score": 0.0,
-    "air.voc_photochemical": 0.24476495825771646,
+    "air.voc_photochemical": 0.21975323297714022,
     "composite.confidence": 0.6846939531441852,
-    "composite.overall_screening": 0.17801332991364838,
+    "composite.overall_screening": 0.1754264459333493,
     "ghg.activity_adjusted_co2": null,
-    "ghg.activity_score": 0.2809580528956264,
-    "ghg.audit_followup_priority": 0.11551878405028498,
+    "ghg.activity_score": 0.2809428285199767,
+    "ghg.audit_followup_priority": 0.11394180611242685,
     "ghg.ch4.anomaly": -7.674581586284376,
     "ghg.ch4.background": 1908.8389169152522,
     "ghg.ch4.confidence": 0.27241931637507827,
@@ -721,7 +751,7 @@
     "ghg.ch4.site": 1901.1643353289678,
     "ghg.ch4.trend": null,
     "ghg.ch4.trend_p": null,
-    "ghg.ch4.z": -0.4955344170304483,
+    "ghg.ch4.z": -0.4953629802540363,
     "ghg.ch4_context_adjusted": 0.0,
     "ghg.ch4_hotspot_signal": 0.0,
     "ghg.co2.confidence": null,
@@ -732,8 +762,8 @@
     "ghg.co2.trend": null,
     "ghg.co2.trend_p": null,
     "ghg.co2_context": null,
-    "ghg.combustion_proxy": 0.008956641834273511,
-    "ghg.core_audit_support": 0.03203672769664299,
+    "ghg.combustion_proxy": 0.0,
+    "ghg.core_audit_support": 0.028094282851997672,
     "ghg.data_quality_attribution": 0.6846939531441852,
     "ghg.fire_or_regional_transport_risk": 0.0,
     "ghg.fossil_combustion_score": null,
@@ -745,7 +775,7 @@
     "ghg.trend": 0.0,
     "ghg.viirs.anomaly": 3.416333547932226,
     "ghg.viirs.confidence": 0.625,
-    "ghg.viirs.score": 0.2809580528956264,
+    "ghg.viirs.score": 0.2809428285199767,
     "ghg.viirs.site": 3.5635915151299327,
     "ghg.viirs.trend": null,
     "nature.biodiversity_exposure": 0.37570547611564115,
@@ -773,7 +803,7 @@
     "nature.dw.water_pct": 0.009500154377508634,
     "nature.external_driver_screening": 1.0,
     "nature.flooded_veg.area_now_ha": 0.0,
-    "nature.followup_priority": 0.2566115304826956,
+    "nature.followup_priority": 0.25661446063048177,
     "nature.forest_loss.confidence": 1.0,
     "nature.forest_loss.ha": 0.0,
     "nature.forest_loss.pct": 0.0,
@@ -801,13 +831,13 @@
     "nature.low_ndvi.pct_norm": 0.0,
     "nature.ndvi.anomaly": -0.02876247897980222,
     "nature.ndvi.confidence": 0.4866666666666667,
-    "nature.ndvi.inverted_anomaly": 0.12253588731293093,
+    "nature.ndvi.inverted_anomaly": 0.12256193307103024,
     "nature.ndvi.mean": 0.801371548451441,
     "nature.ndvi.negative_trend": null,
-    "nature.ndvi.score": 0.12253588731293093,
+    "nature.ndvi.score": 0.12256193307103024,
     "nature.ndvi.slope": null,
     "nature.ndvi.slope_p": null,
-    "nature.ndvi.z": -0.3676076619387928,
+    "nature.ndvi.z": -0.3676857992130907,
     "nature.quality_attribution": 0.7931659620338379,
     "nature.recovery.bare_reduction_ha": null,
     "nature.recovery.confidence": 0.955,
@@ -820,7 +850,7 @@
     "nature.spatiotemporal_anomaly_score": 0.0,
     "nature.supplier_spatial_link": 0.7,
     "nature.valid_pixel_coverage": 0.925,
-    "nature.vegetation_condition": 0.05514114929081892,
+    "nature.vegetation_condition": 0.055152869881963607,
     "nature.water.area_now_ha": 0.76,
     "nature.water.confidence": 0.9700000000000001,
     "nature.water_or_flooded_veg_exposure": 0.0004750077188754317
@@ -833,7 +863,7 @@
     "centre_metadata": {
       "node_id": "soy_04",
       "node_name": "Sapezal Plantation (demo)",
-      "source": "P-04 supply-chain scope \u00b7 Soy & Cattle \u2014 Par\u00e1 / Mato Grosso"
+      "source": "P-04 supply-chain scope · Soy & Cattle — Pará / Mato Grosso"
     },
     "indicators": [
       "air.aai.score",

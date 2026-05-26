@@ -274,8 +274,18 @@ def fake_co2_ee(monkeypatch):
         monkeypatch.setattr(
             "engine.ghg.site_buffer", lambda *_a, **_kw: object(),
         )
+        # M-TIER-A3 Step B — background_ring returns a dict; ghg.py
+        # extracts `["geometry"]`. Wrap the sentinel so the call site
+        # still receives a distinguishable opaque object.
         monkeypatch.setattr(
-            "engine.ghg.background_ring", lambda *_a, **_kw: object(),
+            "engine.ghg.background_ring",
+            lambda *_a, **_kw: {
+                "geometry": object(),
+                "mask": None,
+                "land_fraction": 1.0,
+                "land_mask_applied": True,
+                "land_mask_asset": "MODIS/006/MOD44W",
+            },
         )
         return fake_ic
     return install
@@ -1233,3 +1243,83 @@ class TestProvenanceShape:
         assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
         assert prov["data_type"] == "satellite_observation"
         assert "VIIRS" in prov["data_source"]
+
+    # M-TIER-A3 Step E (§4.4) — three land-mask fields land in extra
+    # when six_step's return dict carries them. Pins the GHG side of
+    # LM4 ("at least one indicator from each pillar verified to consume
+    # the masked ring") via the CH₄ six_step path.
+
+    def test_ch4_provenance_extra_carries_ring_land_fraction(self) -> None:
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["ch4"]
+        result = _format_result(
+            indicator="ch4", cfg=cfg,
+            raw={
+                "site": 1900.0, "background": 1880.0, "anomaly": 20.0,
+                "z": 2.5, "hf": 0.40, "trend": None, "trend_p": None,
+                "confidence": 0.80, "score": 0.60,
+                "ring_land_fraction":     0.571,    # Rio real-EE value
+                "ring_land_mask_applied": True,
+                "ring_land_mask_asset":   "MODIS/006/MOD44W",
+            },
+            time_range=_TIME_RANGE,
+        )
+        extra = result["_provenance.ghg.ch4"]["extra"]
+        assert extra["ring_land_fraction"] == 0.571
+
+    def test_ch4_provenance_extra_carries_land_mask_applied_true(self) -> None:
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["ch4"]
+        result = _format_result(
+            indicator="ch4", cfg=cfg,
+            raw={
+                "site": 1900.0, "background": 1880.0, "anomaly": 20.0,
+                "z": 2.5, "hf": 0.40, "trend": None, "trend_p": None,
+                "confidence": 0.80, "score": 0.60,
+                "ring_land_fraction":     1.0,
+                "ring_land_mask_applied": True,
+                "ring_land_mask_asset":   "MODIS/006/MOD44W",
+            },
+            time_range=_TIME_RANGE,
+        )
+        extra = result["_provenance.ghg.ch4"]["extra"]
+        assert extra["land_mask_applied"] is True
+
+    def test_ch4_provenance_extra_carries_land_mask_asset_string(self) -> None:
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["ch4"]
+        result = _format_result(
+            indicator="ch4", cfg=cfg,
+            raw={
+                "site": 1900.0, "background": 1880.0, "anomaly": 20.0,
+                "z": 2.5, "hf": 0.40, "trend": None, "trend_p": None,
+                "confidence": 0.80, "score": 0.60,
+                "ring_land_fraction":     1.0,
+                "ring_land_mask_applied": True,
+                "ring_land_mask_asset":   "MODIS/006/MOD44W",
+            },
+            time_range=_TIME_RANGE,
+        )
+        extra = result["_provenance.ghg.ch4"]["extra"]
+        assert extra["land_mask_asset"] == "MODIS/006/MOD44W"
+
+    def test_ch4_provenance_extra_omits_fields_when_absent_from_raw(self) -> None:
+        # Defensive: legacy six_step payloads pre-Step-E don't carry these
+        # keys. The conventional pattern (matching n_valid_dates / granule_count)
+        # is to omit them from extra rather than emit None values.
+        from engine.ghg import _format_result
+        cfg = GHG_INDICATOR_CONFIG["ch4"]
+        result = _format_result(
+            indicator="ch4", cfg=cfg,
+            raw={
+                "site": 1900.0, "background": 1880.0, "anomaly": 20.0,
+                "z": 2.5, "hf": 0.40, "trend": None, "trend_p": None,
+                "confidence": 0.80, "score": 0.60,
+                # No ring_land_* keys.
+            },
+            time_range=_TIME_RANGE,
+        )
+        extra = result["_provenance.ghg.ch4"]["extra"]
+        assert "ring_land_fraction" not in extra
+        assert "land_mask_applied" not in extra
+        assert "land_mask_asset" not in extra

@@ -99,10 +99,10 @@ The four weights sum to 1.0; wind is held out at zero per the Rule 1 rescaling p
 
 **Two v1.x options exist, documented in v1x_followups:**
 
-- **Option 1 — Land-mask the ring.** Intersect the background ring with a global land mask before reducing. Cheap. Fixes coastal cases. Does not fix sparse-coverage cases.
+- **Option 1 — Land-mask the ring.** ✅ **SHIPPED (M-TIER-A3, 26 May 2026).** Intersects the background ring with MOD44W v6 (250 m static water mask) before reducing. Cheap. Fixes coastal cases; below the 5% land-fraction threshold the existing `BackgroundRingNoDataError` skip path fires with the distinct `ring_empty_post_land_mask` reason marker. Does not fix sparse-coverage cases (M-CLIM-A3b will).
 - **Option 2 — Regional climatology fallback.** When the ring has no usable pixels, fall back to a pre-computed regional median + σ for the same band (e.g. national-mean S5P NO₂ for the AOI's country). Methodologically the right answer; fixes both cases. Requires per-indicator climatology fixtures and a vintage story.
 
-**Recommendation.** Ship Option 1 in early v1.x — it's a few hours of work and immediately fixes every coastal AOI in the demo set (Rio de Janeiro, Mumbai, Shenzhen, etc.). Treat Option 2 as a v1.x-late milestone: it needs roughly one climatology fixture per pollutant × per country, plus a "fallback used" provenance flag so the user knows the z-score is regional-climatology-based.
+**Recommendation.** Option 1 is shipped. Option 2 (M-CLIM-A3b) remains a v1.x-late milestone: it needs roughly one climatology fixture per pollutant × per country, plus a "fallback used" provenance flag so the user knows the z-score is regional-climatology-based. Composition with M-TIER-A3 is already wired: M-CLIM-A3b triggers off the post-masking `ring_empty_post_land_mask` event, reading `provenance.extra.land_mask_applied` to decide whether to fall back.
 
 ### 1.4 Spec-doc drift (LOW but worth knowing)
 
@@ -741,7 +741,7 @@ Combining the per-indicator audit above and the items in `v1x_followups.md`, the
 
 **A2. `engine/core/trend.py`** (cross-cutting issue §1.2). Theil-Sen + Mann-Kendall. ~1-2 weeks. Unblocks P-06, Vegetation_Condition's 0.25 trend weight, and every `*.trend` ID. Also removes the M-FOLLOWUP-FALLBACK known-zero substitution.
 
-**A3. Background-ring fallback Option 1 — land mask** (cross-cutting issue §1.3). Intersect background ring with global land mask before reducing. ~2-3 days. Fixes every coastal AOI in the demo set.
+**A3. Background-ring fallback Option 1 — land mask** ✅ **DONE (26 May 2026, M-TIER-A3).** Intersect background ring with global land mask (MOD44W v6, 250 m) before reducing. Real-EE verified at Sapezal (land_fraction 0.9999), Mumbai (0.524), Rio (0.571), Shenzhen (0.585); coastal CH₄ z-scores bounded post-mask. Three new `provenance.extra` fields (`ring_land_fraction`, `land_mask_applied`, `land_mask_asset`) thread through air/ghg/nature pillars. Below the LM7 threshold (`< 0.05` land) the existing `BackgroundRingNoDataError` skip path fires with the distinct `ring_empty_post_land_mask` reason marker. Sparse-coverage AOIs still routed to skip path — climatology fallback (M-CLIM-A3b, audit §1.3 Option 2) remains the open v1.x-late composition partner.
 
 **Outcome of Tier A.** Every existing v1 indicator emits a defensible value, a defensible confidence, and a defensible trend (in trend mode). No new datasets. No new dependencies. **This is the foundation for everything below.**
 

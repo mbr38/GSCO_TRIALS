@@ -80,6 +80,15 @@ BACKGROUND_RING_MAX_KM: float = 200.0
 # to default the background ring radius when not supplied explicitly.
 BACKGROUND_RING_RADIUS_MULTIPLE = 5
 
+# M-TIER-A3 LM7 — when the Background_Ring's geometric land fraction
+# (MOD44W mean over the annulus) is below this threshold, treat the ring
+# as effectively-water-only and route through the existing ring-empty
+# skip path (BackgroundRingNoDataError) with a distinct `reason_detail`
+# so analytics can separate "ring over ocean" from "ring sparse-coverage".
+# Below 5% land coverage the residual land-pixel set is too small to
+# carry a meaningful background reduction.
+LAND_MASK_FRACTION_MIN_THRESHOLD: float = 0.05
+
 # ---------------------------------------------------------------------------
 # Pillar weights — v1 rescaled forms
 # ---------------------------------------------------------------------------

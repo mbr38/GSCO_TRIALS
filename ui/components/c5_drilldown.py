@@ -720,6 +720,11 @@ def _render_confidence_terms_expander(
     the payload and render it inside an ``st.expander``. Nesting depth
     is panel-expander → this expander, same depth as the existing
     "Datasets used" sub-expander (verified working in Streamlit 1.57).
+
+    M-TIER-A3 Step H2 — when the background ring is partly over water
+    (``ring_land_fraction < 1.0``), append a "Coastal handling"
+    sub-section explaining how the land mask shaped the baseline.
+    Fully inland AOIs see no change to the expander (sub-section omitted).
     """
     provenance = payload.get(f"_provenance.{pillar}.{slug}") or {}
     extra      = provenance.get("extra") or {}
@@ -729,6 +734,86 @@ def _render_confidence_terms_expander(
         expanded=False,
     ):
         _render_confidence_terms(terms)
+        _render_coastal_handling_section(extra)
+
+
+# ---------------------------------------------------------------------------
+# M-TIER-A3 Step H2 — "Coastal handling" sub-section inside the C5 expander
+# ---------------------------------------------------------------------------
+
+# Visibility threshold per spec §3.8 — render the sub-section only when the
+# ring is at least partly over water. Fully inland AOIs (land_fraction ≈ 1.0)
+# see no change to the expander.
+_COASTAL_HANDLING_VISIBILITY_THRESHOLD: float = 1.0
+
+# Warning band threshold per spec §3.8 — append a methodology caveat when
+# the residual land area is small but above LM7's hard skip floor (0.05).
+_COASTAL_HANDLING_WARNING_THRESHOLD: float = 0.20
+
+_COASTAL_HANDLING_HEADER: str = "**Coastal handling**"
+
+_COASTAL_HANDLING_BODY_TEMPLATE: str = (
+    "This site is near water. The surrounding comparison area "
+    "(the *background ring*) overlaps the coastline, so **{water_pct}%** of "
+    "it is ocean. The tool excludes those ocean pixels from the comparison, "
+    "leaving the remaining **{land_pct}%** of land to serve as the baseline."
+    "\n\n"
+    "Without this adjustment, ocean pixels — which have near-zero pollution "
+    "and would otherwise be averaged in as \"clean background\" — would "
+    "artificially depress the baseline and inflate the supplier's anomaly "
+    "score. The land-only baseline gives a more honest comparison against "
+    "the surrounding terrestrial area."
+)
+
+_COASTAL_HANDLING_WARNING: str = (
+    "This site's comparison area is mostly water; the baseline is computed "
+    "from a small land area and should be interpreted with care."
+)
+
+
+def _format_coastal_handling_pcts(
+    land_fraction: float,
+) -> tuple[int, int]:
+    """Return (water_pct, land_pct) for the spec §3.8 template, rounded to ints.
+
+    Pure helper so the rounding rule has a single source of truth and the
+    rendering function stays declarative.
+    """
+    land_pct = round(max(0.0, min(1.0, land_fraction)) * 100)
+    water_pct = 100 - land_pct
+    return water_pct, land_pct
+
+
+def _render_coastal_handling_section(extra: dict | None) -> None:
+    """Render the spec §3.8 Surface 1 sub-section, or no-op.
+
+    Visibility:
+      - Sub-section is omitted entirely when `extra` is absent / lacks
+        `ring_land_fraction` / `ring_land_fraction >= 1.0` (fully inland)
+        / `land_mask_applied` is False.
+      - When 0.20 ≤ land_fraction < 1.0: header + body template.
+      - When 0.05 < land_fraction < 0.20: header + body + warning caveat.
+        (Below 0.05 the LM7 floor fires the skip path before we ever
+        reach the C5 expander; the warning is the surfacing for the
+        narrow "mostly-water but not empty" band.)
+    """
+    if not isinstance(extra, dict):
+        return
+    land_fraction = extra.get("ring_land_fraction")
+    if land_fraction is None or land_fraction >= _COASTAL_HANDLING_VISIBILITY_THRESHOLD:
+        return
+    if extra.get("land_mask_applied") is False:
+        # Mask not applied; the section's claims would be misleading.
+        return
+
+    water_pct, land_pct = _format_coastal_handling_pcts(land_fraction)
+    st.divider()
+    st.markdown(_COASTAL_HANDLING_HEADER)
+    st.markdown(_COASTAL_HANDLING_BODY_TEMPLATE.format(
+        water_pct=water_pct, land_pct=land_pct,
+    ))
+    if land_fraction < _COASTAL_HANDLING_WARNING_THRESHOLD:
+        st.warning(_COASTAL_HANDLING_WARNING)
 
 
 def _render_dw_composition_table(payload: dict) -> None:
@@ -844,6 +929,10 @@ _EXTRA_FIELD_LABELS: dict[str, str] = {
     "n_valid_dates":               "Valid dates observed",
     "granule_count":                "Raw image (granule) count",
     "column_to_surface_multiplier": "Column-to-surface multiplier",
+    # M-TIER-A3 Step H2 — MOD44W land-mask audit-transparency fields.
+    "ring_land_fraction":           "Background ring land fraction",
+    "land_mask_applied":            "Land mask applied to ring",
+    "land_mask_asset":              "Land mask asset",
 }
 
 

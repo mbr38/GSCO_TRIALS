@@ -399,8 +399,25 @@ def six_step(aoi, ic_band, time_range, ee_client, ...) -> dict:
 def site_buffer(centre: dict, radius_km: float, projection: str = "geodetic") -> dict:
     """Builds the inner circular geometry. geodetic per §H14."""
 
-def background_ring(centre, r_site_km, r_background_km=None) -> dict:
-    """If r_background_km is None, set to min(5·r_site_km, 200) per §6.2 IC_v3."""
+def background_ring(
+    centre, r_site_km, r_background_km=None,
+    apply_land_mask: bool = True,
+) -> dict:
+    """If r_background_km is None, set to min(5·r_site_km, 200) per §6.2 IC_v4.
+
+    M-TIER-A3 — returns a dict (was: bare ee.Geometry) with five keys:
+      - geometry: ee.Geometry of the annulus (unchanged from pre-milestone)
+      - mask: ee.Image binary land mask (land=1) when apply_land_mask=True, else None
+      - land_fraction: float in [0.0, 1.0], geometric land share of the
+        annulus per MOD44W (always computed; ~500 ms getInfo per call)
+      - land_mask_applied: mirrors apply_land_mask for provenance
+      - land_mask_asset: MOD44W asset ID, always populated for vintage tracking
+
+    Below `engine.constants.LAND_MASK_FRACTION_MIN_THRESHOLD` (0.05) the
+    downstream reducer raises BackgroundRingNoDataError with the distinct
+    reason marker `ring_empty_post_land_mask`. Spec lock LM3 makes
+    apply_land_mask=True the production default.
+    """
 
 def pixel_size_warning(selected_indicators, r_site_km) -> dict | None:
     """Returns the H10 warning payload listing affected indicators,
@@ -463,7 +480,13 @@ CAMS_MIN_VALID_PCT = 0.5                 # §1.2 E4 trigger
 DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD = 0.40   # §3 Verbal_Summary
 
 # Buffer caps
-BACKGROUND_RING_MAX_KM = 200             # §6.2 IC_v3
+BACKGROUND_RING_MAX_KM = 200             # §6.2 IC_v4
+
+# M-TIER-A3 — land-mask floor for Background_Ring (LM7). Below 5% land
+# fraction the reducer routes through BackgroundRingNoDataError with
+# reason `ring_empty_post_land_mask`. Asset ID lives next to the
+# constructor in engine/core/buffers.py (LAND_MASK_ASSET = "MODIS/006/MOD44W").
+LAND_MASK_FRACTION_MIN_THRESHOLD = 0.05
 
 # Pillar weights — v1 rescaled forms
 AIR_POLLUTION_PROXY_WEIGHTS = {

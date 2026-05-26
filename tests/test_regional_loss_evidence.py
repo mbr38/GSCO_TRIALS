@@ -114,9 +114,19 @@ def _install_fakes(
         "engine.nature.site_buffer",
         lambda *_a, **_kw: site_geom,
     )
+    # M-TIER-A3 Step B — background_ring returns a dict; nature.py extracts
+    # `["geometry"]`. Wrap the sentinel ring geom in the dict shape so the
+    # SUT's `ring = background_ring(...)["geometry"]` continues to receive
+    # the area-bearing _RingGeom.
     monkeypatch.setattr(
         "engine.nature.background_ring",
-        lambda *_a, **_kw: ring_geom,
+        lambda *_a, **_kw: {
+            "geometry": ring_geom,
+            "mask": None,
+            "land_fraction": 1.0,
+            "land_mask_applied": True,
+            "land_mask_asset": "MODIS/006/MOD44W",
+        },
     )
     # `_buffer_area_ha` reads from a pure-Python calculation, not EE; the
     # SUT uses its return value to compute site_area_m2. We override it

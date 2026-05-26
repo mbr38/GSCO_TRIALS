@@ -32,6 +32,37 @@ _SUB_SECTION_LABELS: dict[str, str] = {
 }
 
 
+# M-TIER-A3 Step H2 Surface 2 — ring-based indicators (those that use
+# Background_Ring as the comparison surface). When rendered in the
+# library, each of these gets the shared coastal-handling methodology
+# paragraph below the card's Limitations section. Order matches spec §3.8.
+_RING_BASED_INDICATORS: frozenset[str] = frozenset({
+    "air.no2.score",
+    "air.so2.score",
+    "air.co.score",
+    "air.hcho.score",
+    "air.aai.score",
+    "air.o3.score",
+    "air.aod.score",
+    "ghg.ch4.score",
+    "ghg.co2.score",
+})
+
+_COASTAL_HANDLING_CARD_PARAGRAPH: str = (
+    "**Coastal sites.** When the surrounding comparison area "
+    "(the \"background ring\") overlaps the coastline, the tool excludes "
+    "ocean pixels from the baseline calculation. The comparison is made "
+    "against the land portion of the ring only.\n\n"
+    "This matters because pollutants in air don't behave the same over "
+    "open ocean as over land — ocean values are typically near-zero "
+    "(clean marine air), and including them would artificially depress "
+    "the baseline and make every coastal supplier look like an outlier. "
+    "The land mask uses the MODIS MOD44W global water dataset "
+    "(250 m resolution). The exact land-vs-water split for a given "
+    "screening run is shown in the confidence breakdown."
+)
+
+
 def render_indicator_library() -> None:
     library    = load_library()
     esg_caveat = get_esg_caveat()
@@ -164,6 +195,14 @@ def _render_card(card: IndicatorCardContent) -> None:
 
         st.markdown("**Limitations**")
         st.markdown(card.limitations)
+
+        # M-TIER-A3 Step H2 Surface 2 — ring-based indicators get the
+        # shared coastal-handling methodology paragraph. Static text;
+        # the per-run land vs water split is surfaced in the C5
+        # "Coastal handling" sub-section on P-05 (Surface 1).
+        if card.indicator_id in _RING_BASED_INDICATORS:
+            st.markdown("**How this is computed (coastal sites)**")
+            st.markdown(_COASTAL_HANDLING_CARD_PARAGRAPH)
 
         st.markdown("**Regulatory / ESG alignment**")
         st.markdown(card.esg_alignment)

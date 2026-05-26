@@ -414,7 +414,8 @@ def compute_co2_snapshot(
     n_months = int(ic.size().getInfo() or 0)
 
     site_geom = site_buffer(aoi["centre"], radius_km)
-    ring_geom = background_ring(aoi["centre"], radius_km)
+    # M-TIER-A3 Step B — background_ring returns a dict; extract geometry.
+    ring_geom = background_ring(aoi["centre"], radius_km)["geometry"]
 
     # ODIAC b1 holds t C *per cell per month*; sum the cells inside the
     # buffer over time, divide by n_months and multiply by 12 to annualise,
@@ -1188,6 +1189,16 @@ def _format_result(
     granule_count = raw.get("granule_count")
     if granule_count is not None:
         extra["granule_count"] = granule_count
+    # M-TIER-A3 Step E — MOD44W land-mask provenance fields per spec §3.6.
+    ring_land_fraction = raw.get("ring_land_fraction")
+    if ring_land_fraction is not None:
+        extra["ring_land_fraction"] = ring_land_fraction
+    ring_land_mask_applied = raw.get("ring_land_mask_applied")
+    if ring_land_mask_applied is not None:
+        extra["land_mask_applied"] = ring_land_mask_applied
+    ring_land_mask_asset = raw.get("ring_land_mask_asset")
+    if ring_land_mask_asset is not None:
+        extra["land_mask_asset"] = ring_land_mask_asset
 
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
         indicator_id=f"ghg.{indicator}",
