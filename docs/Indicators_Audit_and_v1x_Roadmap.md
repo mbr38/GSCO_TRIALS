@@ -687,6 +687,10 @@ Nature_Quality_Attribution_v1 — same as reference (no deferrals).
 Nature_FollowUp_Priority_v1 — same as reference.
 ```
 
+**Engine-sync note (M-UI-A6 follow-up, 28 May 2026).** `engine.nature.compute_regional_loss_evidence` previously emitted the **raw** `regional_loss_evidence` flag under `nature.external_driver_screening`, omitting the IC §7.5 inversion `External_Driver_Screening = 1 − regional_loss_evidence`. Effect: when an external driver was present (flag = 1.0) it *raised* `Nature_Quality_Attribution` (and the follow-up priority) and the C7 "external driver explains the change" caveat fired in the wrong condition — both sign-inverted. Now corrected: the engine emits `1 − evidence` and preserves the raw flag in `provenance.extra.regional_loss_evidence`. Magnitude on the composite was small (0.10 × 0.15 × ⅓ ≈ 0.5%) but directionally wrong.
+
+**Open v1.x decision — attributability vs measurement confidence (deferred).** `Supplier_Spatial_Link` and `External_Driver_Screening` are *attributability* signals (can we blame the supplier?), which is conceptually distinct from M-TIER-A1 *measurement* confidence (is the data reliable?). v1 keeps them inside `Nature_Quality_Attribution` per IC §7.5 — which both feeds `Nature_FollowUp_Priority` (0.15) and is rendered as the Nature score's "confidence" reading in C5. Whether attributability should instead be (a) its own explicit axis, (b) folded into the measurement-confidence rollup, or (c) display-only, is a v1.x design question, **not** settled here. The M-UI-A6 follow-up only corrected the §7.5 sign; it did not restructure where the term lives.
+
 **Post-§9.3 v1.4 formula (after Hansen demotion):**
 
 ```

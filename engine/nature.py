@@ -1046,12 +1046,16 @@ def compute_regional_loss_evidence(
 ) -> dict:
     """Audit §9.3 / IC_v4 §7.5 — Hansen ring-vs-buffer loss-rate comparison.
 
-    Emits `nature.external_driver_screening` (replacing the v1 placeholder
-    that returned a constant 1.0). The flag is 1.0 when forest loss in the
+    Emits `nature.external_driver_screening`, the IC §7.5 attribution-
+    confidence sub-score: ``External_Driver_Screening = 1 − regional_loss_evidence``.
+    The raw `regional_loss_evidence` flag is 1.0 when forest loss in the
     Background_Ring outpaces the Site_Buffer by more than
-    `HANSEN_LOSS_RATIO_THRESHOLD`, signalling a regional driver (drought,
-    fire, regional deforestation) rather than supplier-attributable change;
-    0.0 otherwise.
+    `HANSEN_LOSS_RATIO_THRESHOLD` (a regional driver — drought, fire,
+    regional deforestation — rather than supplier-attributable change), 0.0
+    otherwise. The emitted sub-score is therefore 0.0 when an external driver
+    is present (low confidence the supplier is implicated) and 1.0 when it is
+    not (high confidence). It feeds `Nature_Quality_Attribution` at weight
+    0.10. The raw flag is preserved in `provenance.extra.regional_loss_evidence`.
 
     Hansen's annual cadence makes the user's `time_range` too narrow for
     this comparison — we always read the most recent
@@ -1107,11 +1111,20 @@ def compute_regional_loss_evidence(
     buffer_loss_rate = buffer_loss_m2 / site_area_m2 if site_area_m2 > 0 else 0.0
     ring_loss_rate = ring_loss_m2 / ring_area_m2 if ring_area_m2 > 0 else 0.0
 
-    flag = (
+    # IC §7.5 — `regional_loss_evidence` is the raw evidence flag: 1.0 when
+    # ring loss outpaces buffer loss by > HANSEN_LOSS_RATIO_THRESHOLD (an
+    # external driver — drought/fire/regional deforestation — likely explains
+    # the change). The *scored* sub-score is its inverse:
+    #   External_Driver_Screening = 1 − regional_loss_evidence
+    # so the Nature_Quality_Attribution term reads as attribution confidence —
+    # 1.0 = no external driver (supplier implicated), 0.0 = regional driver
+    # likely explains it. The raw flag is retained in provenance.extra.
+    regional_loss_evidence = (
         1.0
         if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD * buffer_loss_rate
         else 0.0
     )
+    external_driver_screening = 1.0 - regional_loss_evidence
 
     lookback_start_year = 2000 + lookback_start_offset
     lookback_end_year = 2000 + _HANSEN_MAX_LOSS_YEAR
@@ -1129,7 +1142,7 @@ def compute_regional_loss_evidence(
     )
 
     return {
-        "nature.external_driver_screening": flag,
+        "nature.external_driver_screening": external_driver_screening,
         "nature.regional_loss_evidence.confidence": rle_confidence,
         "_provenance.nature.regional_loss_evidence": build_provenance(
             indicator_id="nature.regional_loss_evidence",
@@ -1143,11 +1156,14 @@ def compute_regional_loss_evidence(
                 f"Hansen lossyear sum over Site_Buffer and Background_Ring "
                 f"across the most recent {HANSEN_LOOKBACK_YEARS} loss years "
                 f"(years {lookback_start_year}-{lookback_end_year}); "
-                f"flag = 1.0 if ring_rate > {HANSEN_LOSS_RATIO_THRESHOLD} × "
-                "buffer_rate (audit §9.3 v1.4)"
+                f"regional_loss_evidence = 1.0 if ring_rate > "
+                f"{HANSEN_LOSS_RATIO_THRESHOLD} × buffer_rate; "
+                "External_Driver_Screening = 1 − regional_loss_evidence "
+                "(audit §9.3 v1.4 / IC §7.5)"
             ),
             observations={"count": HANSEN_LOOKBACK_YEARS, "unit": "annual_rasters"},
             extra={
+                "regional_loss_evidence":     regional_loss_evidence,
                 "buffer_loss_rate_m2_per_m2": buffer_loss_rate,
                 "ring_loss_rate_m2_per_m2":   ring_loss_rate,
                 "lookback_years":             HANSEN_LOOKBACK_YEARS,

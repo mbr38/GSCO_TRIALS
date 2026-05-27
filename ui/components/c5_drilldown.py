@@ -1110,10 +1110,15 @@ _ODIAC_UNAVAILABLE_INTERPRETATION: str = (
 _DATA_UNAVAILABLE_TEXT: str = "Data not available for this AOI"
 
 # §4.3 — sub-section header disclaimer (the most important defensive copy).
+# The second sentence (M-UI-A6 follow-up) makes the fixed-window /
+# cross-reference-only framing explicit: these values sit on a fixed,
+# latest-available window that need not align with the analysis period.
 _REFERENCE_SECTION_HEADER_COPY: str = (
     "The following data are shown for context and are not part of the "
-    "composite score. They reflect cumulative or inventory-allocated "
-    "values rather than the current screening window."
+    "composite score. They reflect cumulative or inventory-allocated values "
+    "over a fixed, latest-available window — not your analysis window — so "
+    "use them to cross-reference the live signals rather than as "
+    "measurements of the screening period."
 )
 
 # §5.3 / RD11 — "Why reference data?" explainer (sub-section-level per the
