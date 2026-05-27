@@ -1,0 +1,325 @@
+[  265681ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  265681ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  265681ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  265690ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  267687ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  267687ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  267687ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  267696ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  269695ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  269695ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  269695ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  269705ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  271702ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  271702ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  271703ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  271712ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  273710ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  273710ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  273710ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  273719ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  275718ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  275718ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  275718ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  275728ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  277729ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  277729ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  277729ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  277738ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  279736ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  279737ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  279737ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  279746ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  281744ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  281744ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  281744ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  281754ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  283780ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  283780ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  283780ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  283788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  285787ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  285787ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  285787ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  285797ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  287794ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  287794ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  287794ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  287803ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  289803ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  289803ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  289804ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  289804ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  291813ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  291813ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  291813ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  291822ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  293820ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  293821ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  293821ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  293830ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  295827ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  295828ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  295828ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  295839ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  297835ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  297835ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  297836ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  297846ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  299843ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  299843ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  299843ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  299853ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  301850ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  301851ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  301851ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  301860ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  303858ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  303858ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  303858ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  303869ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  305865ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  305866ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  305866ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  305875ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  307873ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  307873ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  307873ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  307874ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  309880ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  309880ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  309881ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  309890ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  311889ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  311889ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  311889ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  311898ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  313896ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  313896ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  313896ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  313908ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  315903ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  315903ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  315904ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  315913ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  317911ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  317912ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  317912ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  317921ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  319919ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  319920ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  319920ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  319930ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  321928ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  321928ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  321928ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  321937ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  323937ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  323937ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  323937ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  323946ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  325943ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  325944ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  325944ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  325953ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  327952ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  327952ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  327952ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  327962ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  329959ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  329959ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  329960ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  329970ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  331967ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  331967ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  331967ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  331976ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  333974ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  333974ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  333974ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  333985ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  335982ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  335982ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  335983ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  335991ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  337989ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  337990ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  337990ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  337999ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  339997ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  339997ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  339998ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  340008ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  342005ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  342005ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  342005ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  342014ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  344011ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  344011ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  344011ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8532/static/js/index.D2ZqaFuW.js:21
+[  344021ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  346019ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  346019ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  346021ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  348025ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  348025ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  348028ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  350036ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  350036ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  350038ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  352040ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  352040ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  352042ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  354044ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  354044ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  354046ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  356056ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  356056ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  356060ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  358063ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  358064ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  358066ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  360070ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  360070ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  360073ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  362076ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  362076ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  362077ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  364082ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  364083ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  364088ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  366088ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  366088ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  366089ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  368095ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  368095ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  368097ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  370099ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  370100ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  370101ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  372116ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  372116ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  372118ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  374122ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  374122ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  374125ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  376129ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  376129ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  376131ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  378137ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  378137ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  378140ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  380144ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  380145ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  380147ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  382151ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  382151ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  382154ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  384158ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  384158ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  384161ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  386165ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  386166ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  386168ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  388173ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  388174ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  388176ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  390181ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  390182ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  390184ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  392188ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  392188ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  392191ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  394196ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  394196ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  394198ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  396203ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  396203ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  396206ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  398211ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  398211ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  398213ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  400218ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  400218ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  400221ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  402226ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  402226ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  402228ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  404233ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  404233ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  404236ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  406241ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  406241ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  406244ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  408249ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  408249ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  408251ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  410256ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  410256ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  410259ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  412264ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  412264ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  412266ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  414270ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  414270ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  414272ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  416277ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  416277ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  416279ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  418285ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  418285ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  418287ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  420292ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  420292ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  420295ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  422299ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  422299ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  422301ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  424306ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  424306ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  424308ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  426314ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  426314ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  426316ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  428322ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  428322ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  428324ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  430329ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  430329ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  430331ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  432336ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  432337ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  432339ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  434344ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  434345ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  434347ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  436352ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  436352ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  436356ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  438361ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  438361ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  438364ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  440368ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  440368ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  440370ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  442375ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  442376ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  442377ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  444382ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  444382ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  444385ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  446389ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  446389ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  446393ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  448398ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  448398ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  448400ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  450408ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  450408ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  450409ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  452417ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  452417ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  452419ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0
+[  454425ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/health:0
+[  454426ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8532/static/js/index.D2ZqaFuW.js:16
+[  454430ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8532/_stcore/host-config:0

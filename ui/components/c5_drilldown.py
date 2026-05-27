@@ -1307,23 +1307,26 @@ def _render_reference_datasets_section(payload: dict) -> None:
     """RD2 — the "Reference datasets" sub-section in C5.
 
     Hansen + ODIAC cards (RD1), rendered after the scored Nature deep-dive
-    and before C6. Both cards always render (RD12) — the missing-data state
+    and before C6. Presented as a **collapsed expander**, consistent with the
+    three pillar drill-down panels above, so it reads as a peer item rather
+    than an always-open block; the §4.3 disclaimer caption is the first thing
+    shown on expand. Both cards always render (RD12) — the missing-data state
     lives inside each card so the examiner knows the dataset was queried.
     Two-column on desktop, stacks on narrow viewports (RD §5.2). The
     structure is reusable for future reference datasets (RD14): add a field
     helper + a card column.
     """
     st.divider()
-    st.markdown("### Reference datasets")
-    st.caption(_REFERENCE_SECTION_HEADER_COPY)
-    col_hansen, col_odiac = st.columns(2)
-    with col_hansen:
-        _render_reference_card(_hansen_card_fields(payload))
-    with col_odiac:
-        _render_reference_card(_odiac_card_fields(payload))
-    # RD11 / Q-A6-1 — single sub-section-level explainer.
-    with st.expander("Why reference data?", expanded=False):
-        st.markdown(_WHY_REFERENCE_DATA_COPY)
+    with st.expander("Reference datasets", expanded=False):
+        st.caption(_REFERENCE_SECTION_HEADER_COPY)
+        col_hansen, col_odiac = st.columns(2)
+        with col_hansen:
+            _render_reference_card(_hansen_card_fields(payload))
+        with col_odiac:
+            _render_reference_card(_odiac_card_fields(payload))
+        # RD11 / Q-A6-1 — single sub-section-level explainer.
+        with st.expander("Why reference data?", expanded=False):
+            st.markdown(_WHY_REFERENCE_DATA_COPY)
 
 
 # ---------------------------------------------------------------------------
