@@ -15,13 +15,13 @@ from pathlib import Path
 
 import pytest
 
+from ui.components.c4a_indicator_map import _RENDERERS
 from ui.components.c4b_kpi_grid import (
     MAP_ANCHOR_ID,
     _MIN_SNAPSHOT_TILES,
     _TILES,
     _headline_value,
     _is_failed,
-    _map_link_html,
     _resolve_failure_reason,
     _severity_badge_html,
     _snapshot_partition,
@@ -278,10 +278,20 @@ def test_severity_badge_contains_word(severity, word):
     assert word in _severity_badge_html(severity)
 
 
-def test_map_link_targets_anchor():
-    """SR5 — every tile's map link points at the placeholder anchor."""
-    assert f"#{MAP_ANCHOR_ID}" in _map_link_html()
-    assert "View on map" in _map_link_html()
+def test_map_anchor_id_is_shared():
+    """SR5 — the anchor id is still importable from c4b (re-exported from
+    multi_map_state after M-UI-A5) so the host and tiles share one id."""
+    from ui.components.multi_map_state import MAP_ANCHOR_ID as canonical
+    assert MAP_ANCHOR_ID == canonical
+
+
+def test_every_tile_select_key_has_a_map_renderer():
+    """MV8/MV16 — clicking any C4b tile's "View on map →" sets that tile's
+    ``select_key`` as the active indicator, so every tile must dispatch to a
+    registered renderer (otherwise the click would land on the
+    not-implemented fallback)."""
+    for tile in _TILES:
+        assert tile.select_key in _RENDERERS, tile.select_key
 
 
 # ---------------------------------------------------------------------------

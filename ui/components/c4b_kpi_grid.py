@@ -42,6 +42,11 @@ from typing import Literal
 import streamlit as st
 
 from ui.components.indicator_info import render_indicator_name_with_info
+from ui.components.multi_map_state import (
+    MAP_ANCHOR_ID,
+    request_scroll,
+    set_active_indicator,
+)
 from ui.components.severity import (
     Severity,
     is_critical,
@@ -56,12 +61,10 @@ from ui.components.traffic_light import confidence_glyph
 
 Grammar = Literal["zscore", "categorical", "distance"]
 
-# HTML id of the placeholder where M-UI-A5 (2.3b) will land the
-# multi-indicator map. Every tile's "View on map →" link targets it
-# (SR5, Behaviour A — scroll to a placeholder anchor). Kept here so the
-# anchor renderer (render_multi_indicator_map_anchor) and the per-tile
-# links can't drift.
-MAP_ANCHOR_ID: str = "multi-indicator-map-anchor"
+# ``MAP_ANCHOR_ID`` now lives in ``ui.components.multi_map_state`` (M-UI-A5):
+# the multi-indicator map host renders the anchor and the C4b tiles scroll to
+# it, so the shared id can't drift. Re-imported above; kept importable from
+# here for backward compatibility.
 
 # Minimum tiles shown in the default (critical) snapshot (SR9).
 _MIN_SNAPSHOT_TILES: int = 3
@@ -440,6 +443,18 @@ def _inject_tile_header_css() -> None:
         "[class*='st-key-c4btile_'] [data-testid='stHorizontalBlock']"
         "{flex-wrap:nowrap !important;align-items:center !important;"
         "min-height:0 !important;max-height:1.9rem !important;overflow:visible !important;}"
+        # M-UI-A5 — the "View on map →" affordance is now an st.button (it has
+        # to set session state; an <a> link can't). Strip the button chrome so
+        # it reads like the prior blue text link (MV16: unchanged appearance).
+        # Scoped to the per-tile button key so it can't touch other buttons.
+        "[class*='st-key-viewmap_'] button"
+        "{background:none !important;border:none !important;box-shadow:none !important;"
+        "padding:0 !important;min-height:0 !important;height:auto !important;"
+        "color:#2563eb !important;font-weight:400 !important;}"
+        "[class*='st-key-viewmap_'] button:hover"
+        "{text-decoration:underline !important;color:#1d4ed8 !important;}"
+        "[class*='st-key-viewmap_'] button p"
+        "{font-size:0.8em !important;margin:0 !important;}"
         "</style>",
         unsafe_allow_html=True,
     )
@@ -496,19 +511,30 @@ def _severity_badge_html(severity: Severity) -> str:
     )
 
 
-def _map_link_html() -> str:
-    """The 'View on map →' affordance (SR5, Behaviour A — scroll to anchor).
+def _render_view_on_map(tile: _TileSpec) -> None:
+    """The 'View on map →' affordance (SR5 / MV8 / MV16).
 
-    A same-page hash link to the multi-indicator map placeholder. Until
-    M-UI-A5 (2.3b) lands a real map there, the anchor target is a stub
-    container (render_multi_indicator_map_anchor). Streamlit in-page hash
-    scrolling is best-effort (recon A.6 / R4); the link is honest about
-    where it points.
+    M-UI-A5: converted from an HTML hash-link to an ``st.button``. The old
+    ``<a href='#anchor'>`` could scroll but couldn't set Streamlit session
+    state (no round-trip), so it can't drive the multi-indicator map's active
+    indicator — recon A.5 / R2. The button sets ``active_map_indicator`` to
+    this tile's canonical ``select_key`` (which is exactly the map renderer
+    key), requests a scroll to the map anchor, and reruns; the map host picks
+    up the new active indicator on the next render. Styled to read like the
+    prior text link via scoped CSS in ``_inject_tile_header_css`` so the
+    visible affordance text and position are unchanged (MV16).
+
+    Rendered with a per-tile key so the styling CSS can scope to it and so
+    the (up to 14) buttons don't collide.
     """
-    return (
-        f"<a href='#{MAP_ANCHOR_ID}' style='font-size:0.8em;color:#2563eb;"
-        f"text-decoration:none;'>View on map →</a>"
-    )
+    if st.button(
+        "View on map →",
+        key=f"viewmap_{tile.pillar}_{tile.indicator}",
+        type="tertiary",
+    ):
+        set_active_indicator(tile.select_key)
+        request_scroll()
+        st.rerun()
 
 
 def _confidence_line_html(confidence: float | None) -> str:
@@ -565,7 +591,7 @@ def _render_zscore_tile(tile: _TileSpec, payload: dict) -> None:
 
         st.markdown(_secondary_line_html(tile, payload), unsafe_allow_html=True)
         st.markdown(_confidence_line_html(confidence), unsafe_allow_html=True)
-        st.markdown(_map_link_html(), unsafe_allow_html=True)
+        _render_view_on_map(tile)
 
 
 def _secondary_line_html(tile: _TileSpec, payload: dict) -> str:
@@ -619,7 +645,7 @@ def _render_natural_metric_tile(tile: _TileSpec, payload: dict) -> None:
                 unsafe_allow_html=True,
             )
         st.markdown(_confidence_line_html(confidence), unsafe_allow_html=True)
-        st.markdown(_map_link_html(), unsafe_allow_html=True)
+        _render_view_on_map(tile)
 
 
 def _natural_metric_centre_and_secondary(
@@ -685,20 +711,4 @@ def _render_failed_tile(tile: _TileSpec, payload: dict) -> None:
         )
         with st.expander("Why?"):
             st.caption(reason)
-        st.markdown(_map_link_html(), unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------------------------
-# Multi-indicator map placeholder anchor (SR5 / Step G) — 2.3b lands here.
-# ---------------------------------------------------------------------------
-
-def render_multi_indicator_map_anchor() -> None:
-    """Render the placeholder where M-UI-A5 (2.3b) will land the
-    multi-indicator map. Hosts the HTML id every tile's "View on map →"
-    link targets. Until 2.3b ships, it's an honest stub (SR5)."""
-    st.markdown(
-        f"<div id='{MAP_ANCHOR_ID}'></div>",
-        unsafe_allow_html=True,
-    )
-    with st.container(border=True):
-        st.caption("🗺️ Multi-indicator map view — landing in the next release (item 2.3b).")
+        _render_view_on_map(tile)

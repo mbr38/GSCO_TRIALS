@@ -1946,3 +1946,99 @@
 [ 1125322ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
 [ 1125322ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
 [ 1125351ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1127330ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1127330ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1127330ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1127356ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1129334ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1129334ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1129334ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1129362ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1131340ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1131340ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1131340ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1131375ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1133346ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1133346ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1133346ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1133375ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1135359ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1135359ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1135359ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1135383ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1137372ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1137372ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1137373ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1137402ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1139380ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1139380ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1139380ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1139405ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1141398ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1141398ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1141398ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1141426ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1143404ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1143404ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1143404ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1143427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1145409ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1145409ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1145409ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1145459ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1147427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1147427ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1147427ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1147427ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1149437ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1149437ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/host-config @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1149437ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1149474ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1151446ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1151446ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1151446ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1151476ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1153457ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1153457ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1153458ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1153486ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1155463ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1155463ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1155463ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1155485ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1157509ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1157509ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1157509ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1157536ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1159515ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1159515ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1159515ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1159539ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1161521ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1161521ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1161521ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1161544ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1163528ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1163528ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1163528ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1163576ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1165588ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1165589ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1165589ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1165638ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1167596ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1167596ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1167597ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1167618ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1169603ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1169604ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1169604ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1169625ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1171608ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1171608ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1171608ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1171632ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0
+[ 1173643ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/health:0
+[ 1173644ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8538/static/js/index.D2ZqaFuW.js:16
+[ 1173644ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8538/static/js/index.D2ZqaFuW.js:21
+[ 1173644ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8538/_stcore/host-config:0

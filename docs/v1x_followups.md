@@ -558,38 +558,33 @@ results accepted as-is).
 
 ---
 
-## Indicator map coverage — extend the C4a registry (deferred M-UI-E.6)
+## Indicator map coverage — extend the C4a registry (deferred M-UI-E.6 → **mostly closed M-UI-A5**)
 
-M-UI-E.6 ships three indicator-map renderers as a proof-of-pattern:
-`air.no2.score`, `nature.kba.proximity_score`, `nature.dw.trees_pct`.
-Each demonstrates one of three visualisation grammars: continuous
-z-raster, vector polygons, categorical raster. Remaining indicators
-all fall into one of those three grammars; adding them is a matter of
-registering a new entry in
-`ui/components/c4a_indicator_map.py::_RENDERERS`.
+**Status: the 14 scored tiles are done (M-UI-A5, item 2.3b).** The registry
+now covers all 9 Air pollutants (one parametric builder reading
+`AIR_POLLUTANT_CONFIG[slug]`; AOD adds the MAIAC QA-mask preprocess), CH₄,
+VIIRS, KBA, DW, and NDVI. M-UI-A5 also lifted the C4a renderers into the
+multi-indicator P-05 map (C4c). See `docs/M-UI-A5_closed_entry.md`.
 
-**Outstanding indicators by grammar.**
+M-UI-E.6 had shipped three renderers as a proof-of-pattern
+(`air.no2.score`, `nature.kba.proximity_score`, `nature.dw.trees_pct`),
+one per grammar (continuous z-raster, vector polygons, categorical
+raster). Adding the rest was a matter of registering entries in
+`ui/components/c4a_indicator_map.py::_RENDERERS` — now done for the scored set.
 
-*Continuous z-raster (follow the NO₂ pattern).*
-- `air.so2.score`, `air.co.score`, `air.hcho.score`, `air.o3.score`,
-  `air.aai.score`, `air.aod.score`, `air.pm25.score`, `air.pm10.score`
-  — all 8 use `AIR_POLLUTANT_CONFIG[slug]` for asset + band.
-- `ghg.ch4.score` (Sentinel-5P CH₄), `ghg.viirs.score` (VIIRS nightlights),
-  `ghg.co2.score` (ODIAC CO₂ — note coverage_window = 2020-2023).
-- `nature.ndvi.score` (MODIS MOD13Q1).
+**Still outstanding (reference datasets + specialised — picked up later).**
 
-*Vector polygons.* KBA is the only vector indicator in v1; no others
-pending.
-
-*Categorical / specialised.*
+- `ghg.co2.score` (ODIAC CO₂, coverage_window = 2020-2023) — reference
+  dataset, deliberately off the map per M-UI-A5 Decision MV10; candidate for
+  an M-UI-A6 "open on map" affordance from the C5 reference cards.
+- `nature.forest_loss.ha` (Hansen `lossyear`) — likewise a reference
+  dataset held back under MV10 / M-UI-A6.
 - `nature.habitat.natural_loss_ha` — before/after DW composite,
-  highlighting natural→non-natural transitions.
-- `nature.forest_loss.ha` — Hansen `lossyear` band, single-class binary
-  raster filtered to the screening window.
-- `nature.water.area_now_ha` — DW water class composite, similar to the
-  DW renderer but filtered to a single class.
+  highlighting natural→non-natural transitions (not a headline tile).
+- `nature.water.area_now_ha` — DW water-class composite, single-class
+  variant of the DW renderer (not a headline tile).
 
-Each renderer is independent — pick up in **v1.x** as demand warrants.
+Each remaining renderer is independent — pick up in **v1.x** as demand warrants.
 
 ---
 
