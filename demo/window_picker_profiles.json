@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "authored": "2026-05-27",
+    "purpose": "M-UI-A3 analysis-window-picker configuration. One profile per use-case (screening today, trend in future item 1.4). Component reads this fixture at module-load via demo.window_picker_profiles.load_profile.",
+    "coefficient_calibration_note": "compute_estimate_coefficients are PLACEHOLDER values calibrated against the rule-of-thumb comments in pages/05_Screening_Results.py:188 ('~30-60 seconds') and pages/99_engine_scratch.py:192 ('60-180 seconds'), not against real benchmark logs. Recalibrate when timing instrumentation lands."
+  },
+
+  "screening": {
+    "label": "Screening window",
+    "default_preset": "90d",
+    "presets": [
+      {"key": "30d",    "label": "30 d",  "days": 30},
+      {"key": "90d",    "label": "90 d",  "days": 90},
+      {"key": "6mo",    "label": "6 mo",  "days": 180},
+      {"key": "12mo",   "label": "12 mo", "days": 365}
+    ],
+    "min_days": 30,
+    "max_days": 365,
+    "validation_messages": {
+      "below_min":      "Window must be at least 30 days for stable measurements.",
+      "above_max":      "For trend analysis over longer periods, use the Trend page (coming soon).",
+      "end_in_future":  "End date cannot be in the future.",
+      "start_after_end": "Start date must be before end date.",
+      "start_too_early": "Data not available before {earliest_date}; the earliest valid start is {earliest_date}."
+    },
+    "compute_estimate_coefficients": {
+      "base_overhead_s":              15,
+      "per_day_coef_s":               0.5,
+      "complexity_small_max_km":      15,
+      "complexity_medium_max_km":     30,
+      "complexity_factor_small":      1.0,
+      "complexity_factor_medium":     1.5,
+      "complexity_factor_large":      2.0,
+      "long_window_threshold_days":   90,
+      "long_window_penalty_s":        30,
+      "soft_warning_threshold_s":     300,
+      "long_window_warning":          "Long windows may take several minutes. Consider running a shorter window first."
+    }
+  }
+}

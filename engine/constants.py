@@ -528,3 +528,27 @@ NDVI_NEGATIVE_TREND_THRESHOLD: float = -0.01
 # Water_or_FloodedVegetation_Exposure saturation point: 20% combined
 # aquatic/wetland cover = score 1.0.
 WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
+
+
+# ---------------------------------------------------------------------------
+# Analysis window — user-configurable per M-UI-A3
+# ---------------------------------------------------------------------------
+# Default screening window length. Previously hard-coded at the UI layer
+# (p04_form.py _SCREENING_WINDOW_DAYS and a stray literal in p07_form.py
+# _commit_and_navigate) — centralised here so the picker fixture
+# (demo/window_picker_profiles.json) and any future caller share a
+# single source of truth. M-UI-A3 wires the window picker on top of
+# this default; users override per-screening via the picker.
+SCREENING_WINDOW_DAYS_DEFAULT: int = 90
+
+# Earliest valid start date for screening. ODIAC CO₂ has the most
+# restrictive coverage window (2020-01-01 to 2023-12-31, per
+# engine.ghg coverage_window) but it routinely silent-skips with
+# skipped_reason='out_of_coverage' for screening windows that fall
+# outside its vintage — so we don't let it set the floor. The
+# second-most-restrictive dataset is Sentinel-5P TROPOMI, which
+# powers most of the air pillar (NO₂, SO₂, CO, HCHO, O₃, AAI) and
+# the GHG CH₄ indicator. S5P became operational in late 2018; CH₄
+# specifically stabilised in early 2019. The 2019-01-01 floor below
+# is the safe "all S5P products available" date.
+EARLIEST_SCREENING_DATE: str = "2019-01-01"

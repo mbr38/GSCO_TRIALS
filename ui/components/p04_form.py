@@ -15,6 +15,10 @@ from datetime import date, timedelta
 
 import streamlit as st
 
+from ui.components.analysis_window_picker import (  # M-UI-A3
+    WindowSelection,
+    render_analysis_window_picker,
+)
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
     INDICATORS_BY_PILLAR,
@@ -25,10 +29,10 @@ from ui.components.p04_indicator_registry import (
 # Fixed radius stops per Wireframes §P-04 C5 (resolved design choice 3).
 _RADIUS_STOPS_KM: tuple[int, ...] = (1, 5, 10, 25, 50, 100)
 
-# 90-day window per Wireframes §P-04 C7 + Indicators_Computation §0.5.
-# Time-range UI lands with P-06; for screening we always use the latest
-# valid 90-day composite.
-_SCREENING_WINDOW_DAYS: int = 90
+# M-UI-A3: the 90-day default lives in engine/constants.py
+# (SCREENING_WINDOW_DAYS_DEFAULT) and is consumed via the picker's
+# profile fixture. The picker overrides this default per-screening
+# when the user changes the window.
 
 
 # ---------------------------------------------------------------------------
@@ -438,7 +442,13 @@ def _render_run_section(
     radius_km:  int,
     indicators: set[str],
 ) -> None:
-    """Summary line + validation + the two run buttons."""
+    """Summary line + validation + window picker + run buttons.
+
+    M-UI-A3: the analysis-window picker renders inside this section so
+    every scope-aware form (no-scope / supply-chain / region) gets it
+    automatically. Run is disabled if the picker reports validation
+    errors (returns None).
+    """
     with st.container(border=True):
         st.markdown("### Run")
 
@@ -452,12 +462,26 @@ def _render_run_section(
                 f" &nbsp;&nbsp; **Indicators.** {n_indicators}"
             )
 
-        can_run = centre is not None and n_indicators >= 1
         if centre is not None and n_indicators == 0:
             st.warning(
                 "At least one indicator must be selected. Use the "
                 "**Reset to all** button above to restore the default."
             )
+
+        # M-UI-A3 — user-configurable analysis window.
+        window = render_analysis_window_picker(
+            profile_name="screening",
+            key_prefix="p04_window",
+            aoi_buffer_km=float(radius_km) if centre is not None else None,
+            saved_window=_pre_filled_saved_window(),
+        )
+
+        # Run is enabled only when centre / indicators / window are all OK.
+        can_run = (
+            centre is not None
+            and n_indicators >= 1
+            and window is not None
+        )
 
         col_screening, col_trend = st.columns(2)
         with col_screening:
@@ -467,7 +491,7 @@ def _render_run_section(
                 disabled=not can_run,
                 use_container_width=True,
             ):
-                _commit_and_navigate(centre, radius_km, indicators)
+                _commit_and_navigate(centre, radius_km, indicators, window)
         with col_trend:
             st.button(
                 "Run Trend",
@@ -478,6 +502,24 @@ def _render_run_section(
                     "Until then, screening is the only mode."
                 ),
             )
+
+
+def _pre_filled_saved_window() -> tuple[str, str] | None:
+    """WP11: when the user landed on P-04 after loading a saved analysis
+    (which writes ``screening_setup`` into session state), surface that
+    saved analysis's window in the picker so the user sees what was
+    originally run and can decide whether to keep it or change.
+
+    Returns None on first visit (no prior setup) so the picker uses its
+    profile default.
+    """
+    setup = st.session_state.get("screening_setup")
+    if not isinstance(setup, dict):
+        return None
+    tr = setup.get("time_range")
+    if not (isinstance(tr, (list, tuple)) and len(tr) == 2):
+        return None
+    return (str(tr[0]), str(tr[1]))
 
 
 # ---------------------------------------------------------------------------
@@ -671,6 +713,7 @@ def _commit_and_navigate(
     centre:     dict,
     radius_km:  int,
     indicators: set[str],
+    window:     WindowSelection,
 ) -> None:
     """Write ``screening_setup`` in the shape P-05 reads, then navigate.
 
@@ -679,9 +722,9 @@ def _commit_and_navigate(
     name/country) thread into ``centre_metadata`` so the save-name
     builder can produce human-readable names. The ``centre`` field
     itself stays clean as ``{lat, lon}``.
+    M-UI-A3: ``time_range`` now comes from the user's window picker
+    selection rather than a hard-coded 90-day window.
     """
-    today = date.today()
-    start = today - timedelta(days=_SCREENING_WINDOW_DAYS)
     scope = st.session_state.get("scope")
     source = _source_for_scope(scope)
 
@@ -697,13 +740,14 @@ def _commit_and_navigate(
             centre_metadata["region_name"] = region.name
             centre_metadata["country"]     = region.country
 
+    start_iso, end_iso = window.as_iso_tuple()
     st.session_state["screening_setup"] = {
         # Strip auxiliary fields from centre so it stays {lat, lon} —
         # downstream code (P-05 C1 header, engine ScreeningRun) keys on
         # the clean shape.
         "centre":          {"lat": centre["lat"], "lon": centre["lon"]},
         "radius_km":       radius_km,
-        "time_range":      [start.isoformat(), today.isoformat()],
+        "time_range":      [start_iso, end_iso],
         "indicators":      sorted(indicators),
         "mode":            "screening",
         "centre_metadata": centre_metadata,

@@ -102,9 +102,10 @@ def _format_row_caption(save: dict) -> str:
     )
     n_indicators = len(setup.get("indicators", []))
     date_str = (save.get("date_saved") or "")[:10] or "—"
+    window_str = _format_window_segment(setup.get("time_range"))  # M-UI-A3
     return (
         f"Centre: {coord_str} · Buffer: {radius_km} km · "
-        f"Indicators: {n_indicators} · Saved: {date_str}"
+        f"Indicators: {n_indicators} · {window_str} · Saved: {date_str}"
     )
 
 
@@ -116,10 +117,30 @@ def _format_prioritisation_caption(save: dict) -> str:
     n_total = summary.get("n_total", 0)
     radius  = setup.get("radius_km", "—")
     date_str = (save.get("date_saved") or "")[:10] or "—"
+    window_str = _format_window_segment(setup.get("time_range"))  # M-UI-A3
     return (
         f"Prioritisation · {n_total} suppliers · "
-        f"{radius} km buffer · {date_str}"
+        f"{radius} km buffer · {window_str} · {date_str}"
     )
+
+
+# M-UI-A3
+def _format_window_segment(time_range) -> str:
+    """Format ``time_range`` for the per-row caption.
+
+    Returns ``"Window: N days (start → end)"`` when both ends parse,
+    or ``"Window: —"`` when missing / malformed (covers older saves
+    written before the picker existed). Pure helper for testability.
+    """
+    if not (isinstance(time_range, (list, tuple)) and len(time_range) == 2):
+        return "Window: —"
+    start_s, end_s = str(time_range[0]), str(time_range[1])
+    try:
+        from datetime import date
+        days = (date.fromisoformat(end_s) - date.fromisoformat(start_s)).days
+    except (ValueError, TypeError):
+        return "Window: —"
+    return f"Window: {days} d ({start_s} → {end_s})"
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,10 @@ from datetime import date, timedelta
 
 import streamlit as st
 
+from ui.components.analysis_window_picker import (  # M-UI-A3
+    WindowSelection,
+    render_analysis_window_picker,
+)
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
     INDICATORS_BY_PILLAR,
@@ -362,21 +366,27 @@ def _render_pillar_indicators_p07(
 def _render_run_section(
     suppliers: list[Supplier], radius_km: int, indicators: set[str],
 ) -> None:
-    """Final summary + Run button. Validates and warns."""
+    """Final summary + window picker + Run button. Validates and warns.
+
+    M-UI-A3: the analysis-window picker renders here with
+    ``n_suppliers`` so the compute estimate aggregates across the batch
+    (spec §12 Q-A3-1 resolution: aggregate batch estimate, not per-
+    supplier). The prior rough "n_suppliers × 1 minute" heuristic is
+    superseded by the picker's formula.
+    """
     with st.container(border=True):
         st.markdown("### Run")
         n_suppliers   = len(suppliers)
         n_indicators  = len(indicators)
-        estimated_min = n_suppliers * 1  # ~1 min/supplier rough estimate
 
         st.markdown(
             f"**Suppliers.** {n_suppliers} "
             f"&nbsp;&nbsp; **Buffer.** {radius_km} km "
-            f"&nbsp;&nbsp; **Indicators.** {n_indicators} "
-            f"&nbsp;&nbsp; **Est. time.** ~{estimated_min} min"
+            f"&nbsp;&nbsp; **Indicators.** {n_indicators}"
         )
 
-        # Validation.
+        # Validation of supplier / indicator selection (window validation
+        # is owned by the picker below).
         errors: list[str] = []
         if n_suppliers == 0:
             errors.append("Pick at least one supplier above.")
@@ -391,29 +401,53 @@ def _render_run_section(
         for err in errors:
             st.warning(err)
 
-        if n_suppliers >= 10:
-            st.info(
-                f"⏱️ Batch screening runs sequentially — expect ~"
-                f"{estimated_min} minutes for this batch. You can "
-                f"leave the tab and come back; the run continues."
-            )
+        # M-UI-A3 — window picker (aggregate batch estimate). Render even
+        # when other validation fails so the user can shape the window
+        # while fixing supplier / indicator issues.
+        window = render_analysis_window_picker(
+            profile_name="screening",
+            key_prefix="p07_window",
+            aoi_buffer_km=float(radius_km),
+            n_suppliers=max(1, n_suppliers),
+            saved_window=_pre_filled_saved_window(),
+        )
 
-        can_run = not errors
+        can_run = not errors and window is not None
         if st.button(
             "Run Prioritisation",
             type="primary",
             disabled=not can_run,
             use_container_width=True,
         ):
-            _commit_and_navigate(suppliers, radius_km, indicators)
+            _commit_and_navigate(suppliers, radius_km, indicators, window)
+
+
+def _pre_filled_saved_window() -> tuple[str, str] | None:
+    """WP11: pre-fill picker from a saved prioritisation if loaded.
+
+    Mirrors P-04's helper but keyed on ``prioritisation_setup``.
+    """
+    setup = st.session_state.get("prioritisation_setup")
+    if not isinstance(setup, dict):
+        return None
+    tr = setup.get("time_range")
+    if not (isinstance(tr, (list, tuple)) and len(tr) == 2):
+        return None
+    return (str(tr[0]), str(tr[1]))
 
 
 def _commit_and_navigate(
-    suppliers: list[Supplier], radius_km: int, indicators: set[str],
+    suppliers:  list[Supplier],
+    radius_km:  int,
+    indicators: set[str],
+    window:     WindowSelection,
 ) -> None:
-    """Write prioritisation_setup and navigate to P-08."""
-    today = date.today()
-    start = today - timedelta(days=90)
+    """Write prioritisation_setup and navigate to P-08.
+
+    M-UI-A3: ``time_range`` now comes from the user's window picker
+    selection rather than the hard-coded 90-day window.
+    """
+    start_iso, end_iso = window.as_iso_tuple()
     st.session_state["prioritisation_setup"] = {
         "suppliers":  [
             {
@@ -423,7 +457,7 @@ def _commit_and_navigate(
             for s in suppliers
         ],
         "radius_km":  radius_km,
-        "time_range": [start.isoformat(), today.isoformat()],
+        "time_range": [start_iso, end_iso],
         "indicators": sorted(indicators),
         "mode":       "prioritisation",
     }
