@@ -172,6 +172,65 @@ footer {{ visibility: hidden; }}
 }}
 
 /* ---------------------------------------------------------------- */
+/* Popover trigger — name-as-affordance pattern (M-UI-A2)           */
+/* ---------------------------------------------------------------- */
+/* The M-UI-A2 indicator-info popovers use the indicator name itself
+   as the click trigger: ``st.popover(label=display_name, ...)``. The
+   CSS below strips Streamlit's default button chrome from the popover
+   trigger so the name reads as bold body text, with cursor + colour
+   + underline shifts on hover to signal clickability.
+
+   Scoped to ``[data-testid="stPopover"] button`` (the stable container
+   selector) — covers Streamlit's various button-naming conventions
+   across 1.32-1.57. ``st.button`` / ``st.download_button`` are outside
+   any stPopover container and keep their primary gradient styling.
+   The popover body content (rendered inside a separate
+   ``[data-testid="stPopoverContent"]`` element elsewhere in the DOM)
+   is unaffected. */
+[data-testid="stPopover"] button {{
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    box-shadow: none !important;
+    font-family: {body_font['family']} !important;
+    font-weight: 700 !important;
+    color: {COLORS['text_primary']} !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    cursor: pointer !important;
+    border-radius: 0 !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+}}
+[data-testid="stPopover"] button:hover,
+[data-testid="stPopover"] button:focus,
+[data-testid="stPopover"] button:active {{
+    color: {COLORS['accent_green']} !important;
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+    transform: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+}}
+/* Hide the dropdown chevron (and any other icon Streamlit ships
+   inside the popover button — emotion class names are hash-based and
+   unstable, so we target by role: anything that's not the markdown
+   label container gets hidden). The label normally lives in a
+   stMarkdownContainer; everything else inside the button is chrome. */
+[data-testid="stPopover"] button svg,
+[data-testid="stPopover"] button [data-testid="stIconMaterial"],
+[data-testid="stPopover"] button [class*="iconContainer"],
+[data-testid="stPopover"] button [data-baseweb*="icon"] {{
+    display: none !important;
+}}
+
+/* ---------------------------------------------------------------- */
 /* Misc — subtle horizontal rule, muted captions                    */
 /* ---------------------------------------------------------------- */
 hr {{

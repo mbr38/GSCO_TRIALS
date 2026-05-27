@@ -24,6 +24,7 @@ from typing import Literal
 
 import streamlit as st
 
+from ui.components.indicator_info import render_indicator_name_with_info
 from ui.components.traffic_light import confidence_glyph
 
 
@@ -271,10 +272,15 @@ def _render_value_tile(tile: _TileSpec, payload: dict) -> None:
     )
 
     with st.container(border=True):
-        st.markdown(
-            f"**{tile.display_name}**"
-            f"<span style='float:right;font-size:1.1em;'>{glyph}</span>",
-            unsafe_allow_html=True,
+        # M-UI-A2 (name-as-trigger): the indicator name itself is the
+        # popover trigger. The confidence glyph rides along in the
+        # trailing slot to preserve the original "name left, glyph right"
+        # tile header layout.
+        render_indicator_name_with_info(
+            display_name=tile.display_name,
+            indicator_id=tile.score_key,
+            key_prefix="c4b",
+            trailing_html=glyph,
         )
         arrow_span = (
             f"<span style='color:{arrow_colour};font-size:1.1em;"
@@ -297,13 +303,21 @@ def _render_value_tile(tile: _TileSpec, payload: dict) -> None:
 def _render_failed_tile(tile: _TileSpec, payload: dict) -> None:
     """Failure path — name + "Failed" badge, em-dash, expandable reason."""
     reason = _resolve_failure_reason(tile, payload)
+    failed_badge = (
+        "<span style='font-size:0.75em;color:#9ca3af;"
+        "background:#f3f4f6;padding:2px 6px;border-radius:3px;"
+        "white-space:nowrap;display:inline-block;'>"
+        "Failed</span>"
+    )
     with st.container(border=True):
-        st.markdown(
-            f"**{tile.display_name}**"
-            f"<span style='float:right;font-size:0.75em;color:#9ca3af;"
-            f"background:#f3f4f6;padding:2px 6px;border-radius:3px;'>"
-            f"Failed</span>",
-            unsafe_allow_html=True,
+        # M-UI-A2 (name-as-trigger): same affordance as the value tile.
+        # The "Failed" badge takes the trailing slot in place of the
+        # confidence glyph.
+        render_indicator_name_with_info(
+            display_name=tile.display_name,
+            indicator_id=tile.score_key,
+            key_prefix="c4b_failed",
+            trailing_html=failed_badge,
         )
         st.markdown(
             "<div style='font-size:1.4em;font-weight:600;margin:4px 0;"

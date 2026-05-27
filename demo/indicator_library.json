@@ -193,7 +193,8 @@
     "definition": "Headline Air pillar score. Weighted sum of four sub-aggregates: pollution proxy (0.35) + spatiotemporal anomaly (0.30) + trend (0.20, screening = 0) + attribution confidence (0.15). Tertile-banded red / amber / green per Appendix C.",
     "decision_relevance": "The top-line Air signal used in P-05's chip summary, P-08's ranking table, and any saved-report audit table. Drives which suppliers surface in top-N triage.",
     "limitations": "Strict-None propagation (M-FOLLOWUP-FALLBACK): if any sub-aggregate is None, the priority is None and the chip renders as 'No data' rather than a band-coloured score. The trend term is hardcoded to 0.0 in screening mode pending M-TREND-ENGINE.",
-    "esg_alignment": "Composite — aligns with WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive"
+    "esg_alignment": "Composite — aligns with WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive",
+    "tooltip_summary": "**Air Pollution Audit Priority.** A single score that combines this supplier's air-pollutant levels, anomalies versus the surrounding area, and data quality into one number. It tells you how strongly the air pillar suggests the site warrants further audit, useful for ranking suppliers."
   },
   "ghg.audit_followup_priority": {
     "sub_section": "aggregate",
@@ -201,7 +202,8 @@
     "definition": "Headline GHG pillar score. Weighted sum of four sub-aggregates: core audit support (0.40) + spatiotemporal anomaly (0.25) + trend (0.20, screening = 0) + data-quality attribution (0.15). Same tertile-banded display as Air.",
     "decision_relevance": "Top-line GHG signal for ranking suppliers by emissions-related audit priority. Combines present-day flux (CH₄ + combustion + activity) with anomaly-detection — a composite that's more actionable than any one indicator alone.",
     "limitations": "Same strict-None propagation as Air. Excludes CO₂ (ODIAC inventory) from the live signal per M5.5b — ODIAC's 2+ year vintage lag would mute present-day variation.",
-    "esg_alignment": "Composite — aligns with GHG Protocol Corporate Standard Scope 1/3; Global Methane Pledge (2021); UNFCCC GHG inventory"
+    "esg_alignment": "Composite — aligns with GHG Protocol Corporate Standard Scope 1/3; Global Methane Pledge (2021); UNFCCC GHG inventory",
+    "tooltip_summary": "**Greenhouse-Gas Audit Priority.** A single score that combines this supplier's methane and combustion signals, anomalies versus the surrounding area, and data quality into one number. It tells you how strongly the greenhouse-gas pillar suggests the site warrants further audit, useful for ranking suppliers."
   },
   "nature.followup_priority": {
     "sub_section": "aggregate",
@@ -209,7 +211,8 @@
     "definition": "Headline Nature pillar score. Weighted sum of four sub-aggregates: biodiversity exposure (0.30) + habitat conversion (0.30) + vegetation condition (0.25) + quality attribution (0.15). Same tertile-banded display as Air and GHG.",
     "decision_relevance": "Top-line Nature signal — useful for TNFD-style nature-related due diligence, EUDR commodity-chain triage, and CBD biodiversity exposure flagging in one number.",
     "limitations": "Strict-None propagation. Vegetation-condition's known-zero substitution (M-FOLLOWUP-FALLBACK) means the aggregate is computable in v1 but mildly under-weighted on temporal deterioration until trend.py lands.",
-    "esg_alignment": "Composite — aligns with CBD post-2020 framework; TNFD; EU Deforestation Regulation (EUDR, 2025); UN SDG 15"
+    "esg_alignment": "Composite — aligns with CBD post-2020 framework; TNFD; EU Deforestation Regulation (EUDR, 2025); UN SDG 15",
+    "tooltip_summary": "**Nature and Land Audit Priority.** A single score that combines this supplier's biodiversity exposure, habitat conversion, vegetation condition, and data quality into one number. It tells you how strongly the nature pillar suggests the site warrants further audit, useful for ranking suppliers."
   },
 
   "composite.overall_screening": {
@@ -219,7 +222,8 @@
     "definition": "Cross-pillar audit priority score. Equal-weighted mean (1/3 per pillar) of the three follow-up priorities: Air + GHG + Nature. The single headline number displayed at the top of P-05 and used to colour-code points on P-08's risk matrix.",
     "decision_relevance": "Top-line signal for ranking suppliers across all three environmental dimensions in one number. Used by P-08's Composite rank-by option and the matrix's point colour.",
     "limitations": "Equal-weighted by design — different sectors may legitimately weight pillars differently (commodity suppliers care more about Nature; combustion-heavy industries care more about Air). v1.x: consider sector-aware weighting.\n\nStrict-None propagation (M-FOLLOWUP-FALLBACK): if any pillar's priority is None, the composite is None. The earlier survivor-mean behaviour produced misleading composites when a pillar failed entirely (e.g. Rio coastal screening showing composite = nature.quality_attribution).",
-    "esg_alignment": "Synthesises Air, GHG, and Nature signals — aligns at the level of each contributing pillar's frameworks. No single ESG standard maps cleanly to a cross-pillar composite."
+    "esg_alignment": "Synthesises Air, GHG, and Nature signals — aligns at the level of each contributing pillar's frameworks. No single ESG standard maps cleanly to a cross-pillar composite.",
+    "tooltip_summary": "**Overall Screening Score.** This is the headline risk score combining air pollution, greenhouse gas, and nature signals into a single 0-1 number. It tells you how high a priority this supplier is for further audit, with higher values indicating more concerning combined evidence."
   },
 
 
@@ -229,7 +233,8 @@
     "definition":   "Sentinel-5P TROPOMI tropospheric column NO₂ — a primary pollutant emitted by combustion (vehicle exhaust, power plants, industrial flares). Strongly correlated with local emission sources.",
     "decision_relevance": "High-priority indicator for sites flagged as combustion-heavy. Elevated NO₂ around a supplier indicates active combustion sources — useful for verifying whether reported emissions controls are functioning.",
     "limitations": "Sentinel-5P has ~1 km native L3 grid but a true retrieval footprint of ~3.5 × 5.5 km; not suitable for buffers smaller than ~5 km. Tropospheric column conflates ground-level concentration with vertical mixing — can over-state surface pollution under stable atmospheric conditions.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 11.6.2"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 11.6.2",
+    "tooltip_summary": "**Nitrogen Dioxide (NO₂).** A pollutant gas released mainly by vehicle exhaust, power plants, and industrial combustion, measured from satellite as the amount of NO₂ above the site. It helps flag suppliers whose surrounding air shows elevated combustion activity relative to the local background."
   },
 
   "air.so2.score": {
@@ -238,7 +243,8 @@
     "definition":   "Sentinel-5P TROPOMI tropospheric column SO₂ — a marker of coal combustion, smelting, and oil refining. Strongly localised around point sources; useful for detecting unreported flaring.",
     "decision_relevance": "Flag for fossil-fuel processing facilities, metal smelters, and refineries. Persistent SO₂ anomalies indicate active combustion outside reported emissions inventories.",
     "limitations": "Retrieval has high noise floor; reliable detection typically requires concentrated point sources. Background-level SO₂ over rural / clean-air regions returns near the noise floor and shouldn't be over-interpreted.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Industrial Emissions Directive; UN SDG 3.9.1"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Industrial Emissions Directive; UN SDG 3.9.1",
+    "tooltip_summary": "**Sulphur Dioxide (SO₂).** A pollutant gas released mainly by coal combustion, oil refining, and metal smelting, measured from satellite as the amount of SO₂ above the site. It helps flag suppliers running fossil-fuel processing or smelting where elevated levels can indicate unreported combustion."
   },
 
   "air.co.score": {
@@ -247,7 +253,8 @@
     "definition":   "Sentinel-5P TROPOMI total-column CO — a marker of incomplete combustion (biomass burning, vehicle exhaust, residential heating). Long atmospheric lifetime (weeks) means CO signals can be transported hundreds of km from source, so the column is dominated by regional / global background and supplier-level attribution at fenceline is loose (audit §1.5 / IC_v4 §1.5). Best read as a regional combustion-context proxy, not as a supplier-specific emission measurement.",
     "decision_relevance": "Useful for biomass-burning regions and supply chains exposed to seasonal fire risk. Elevated CO without local industrial source often indicates transported smoke or wildfire impact rather than the supplier itself.",
     "limitations": "Total-column rather than tropospheric — includes stratospheric background. Long atmospheric lifetime makes source attribution within the AOI buffer weak. Provenance carries column_to_surface_uncertainty = 'weak'.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 3.9.1"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 3.9.1",
+    "tooltip_summary": "**Carbon Monoxide (CO).** A gas produced by incomplete combustion from vehicles, biomass burning, and residential heating, measured from satellite as the total amount in the air column. It is best read as a regional combustion-context signal, since CO travels far from its source and is hard to attribute to a single supplier."
   },
 
   "air.hcho.score": {
@@ -256,7 +263,8 @@
     "definition":   "Sentinel-5P TROPOMI tropospheric column formaldehyde — a secondary pollutant produced by VOC photochemistry. Indicator of upstream VOC emissions from petrochemicals, biomass burning, and biogenic sources.",
     "decision_relevance": "Tier-2 supply-chain risk indicator for petrochemical and refining nodes. Elevated HCHO indicates active VOC chemistry, even when direct VOC measurements aren't available.",
     "limitations": "Secondary pollutant — spatial peak displaced from emission source by atmospheric transport. Biogenic background (isoprene from forests) can be high in tropical regions and isn't an anthropogenic signal.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Industrial Emissions Directive"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Industrial Emissions Directive",
+    "tooltip_summary": "**Formaldehyde (HCHO).** A pollutant formed in the atmosphere from chemical reactions involving emissions from petrochemicals, refineries, and biomass burning, measured from satellite as the amount above the site. It helps flag suppliers exposed to active industrial chemistry, especially in refining and petrochemical regions."
   },
 
   "air.pm25.score": {
@@ -265,7 +273,8 @@
     "definition":   "CAMS atmospheric reanalysis of fine particulate matter (≤2.5 μm). Combination of primary emissions and secondary aerosols from atmospheric chemistry.",
     "decision_relevance": "Tracked by most national air quality regulations; primary driver of supply-chain ESG scoring on health impact. Elevated PM₂.₅ around a supplier is among the strongest community-health signals available.",
     "limitations": "CAMS coarse resolution (~9 km); only meaningful for buffers ≥ 25 km. Model output, not direct observation — quality depends on the model's emissions inventory.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 3.9.1"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 3.9.1",
+    "tooltip_summary": "**Fine Particulate Matter (PM₂.₅).** Tiny airborne particles small enough to penetrate deep into the lungs, produced by combustion, dust, and atmospheric chemistry, estimated from a modelled satellite-and-ground reanalysis. It is the strongest community-health pollution signal in the catalogue and is tracked by most national air-quality regulations."
   },
 
   "air.pm10.score": {
@@ -274,7 +283,8 @@
     "definition":   "CAMS atmospheric reanalysis of coarse particulate matter (≤10 μm). Includes primary emissions, secondary aerosols, mineral dust, and re-suspended road dust.",
     "decision_relevance": "Relevant for mining, quarrying, cement, and unpaved-road operations. Often dominant over PM₂.₅ around extractive supply chains.",
     "limitations": "Same CAMS coarse-resolution caveats as PM₂.₅ — buffers ≥ 25 km only. Mineral-dust background varies seasonally and can mask anthropogenic signal in arid regions.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 3.9.1"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); EU Ambient Air Quality Directive; UN SDG 3.9.1",
+    "tooltip_summary": "**Coarse Particulate Matter (PM₁₀).** Larger airborne particles including dust, road grit, and industrial emissions, estimated from a modelled satellite-and-ground reanalysis. It is particularly relevant for mining, quarrying, cement, and unpaved-road operations where dust dominates the local pollution signal."
   },
 
   "air.o3.score": {
@@ -283,7 +293,8 @@
     "definition":   "Sentinel-5P TROPOMI total-column ozone in Dobson Units. Tropospheric ozone is a secondary pollutant from NOx + VOC photochemistry; the column total is dominated by the stratospheric reservoir.",
     "decision_relevance": "Contextual indicator — capped score reflects that total-column O₃ is a weak proxy for ground-level pollution. Useful for cross-validating NO₂ and HCHO photochemistry signals.",
     "limitations": "Total column conflates stratospheric ozone (the dominant signal) with the small tropospheric fraction relevant to surface air quality. Score is intentionally capped to prevent over-interpretation.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 11.6.2"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 11.6.2",
+    "tooltip_summary": "**Ozone (O₃).** A reactive gas formed in the atmosphere when sunlight acts on combustion pollutants, measured from satellite as the total amount in the air column. It is a contextual signal — most of the measured column sits high in the stratosphere rather than at ground level, so it is best read alongside the combustion pollutants."
   },
 
   "air.aai.score": {
@@ -292,7 +303,8 @@
     "definition":   "Sentinel-5P TROPOMI UV Aerosol Index — detects UV-absorbing aerosols (black carbon, mineral dust, smoke). Sensitive to elevated absorbing layers.",
     "decision_relevance": "Marker for biomass-burning, dust storms, and heavy combustion smoke around a supplier. Particularly useful in regions where PM₂.₅ retrievals are sparse.",
     "limitations": "Sensitive to elevated aerosol layers; less reliable for boundary-layer pollution. Sign convention: positive values indicate absorbing aerosols, near-zero values indicate clean or non-absorbing aerosols.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021)"
+    "esg_alignment": "WHO Air Quality Guidelines (2021)",
+    "tooltip_summary": "**Aerosol Absorbing Index (AAI).** A satellite measure of airborne particles that absorb ultraviolet light, especially smoke, soot, and mineral dust. It helps flag suppliers exposed to biomass burning, dust storms, or heavy combustion smoke, particularly where fine-particle measurements are sparse."
   },
 
   "air.aod.score": {
@@ -301,7 +313,8 @@
     "definition":   "MODIS MAIAC retrieval of column-integrated aerosol optical depth at 550 nm. General-purpose aerosol-loading metric covering all aerosol species.",
     "decision_relevance": "Cross-validates PM₂.₅ / PM₁₀ estimates. Useful for monitoring atmospheric loading trends around large industrial complexes and urban supply-chain nodes.",
     "limitations": "Column-integrated — doesn't distinguish elevated transported aerosols from surface pollution. Cloud screening can produce gaps in persistent overcast regions.",
-    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 11.6.2"
+    "esg_alignment": "WHO Air Quality Guidelines (2021); UN SDG 11.6.2",
+    "tooltip_summary": "**Aerosol Optical Depth (AOD).** A satellite measure of how much sunlight is blocked by airborne particles, covering all aerosol types. It helps cross-check fine-particulate-matter estimates and track atmospheric loading around large industrial complexes and urban supply-chain nodes."
   },
 
   "ghg.ch4.score": {
@@ -310,7 +323,8 @@
     "definition":   "Sentinel-5P TROPOMI methane column. High-priority short-lived climate pollutant — methane has ~28× the global warming potential of CO₂ over 100 years. The value is a total atmospheric column, NOT a surface concentration; the column-to-surface mapping for CH₄ is weak (audit §1.5 / IC_v4 §1.5) because the gas is well-mixed with a ~decade lifetime. The score's anomaly form (Z over Site_Buffer vs Background_Ring) is what carries the supplier signal.",
     "decision_relevance": "Critical for fossil-fuel supply chains, livestock-heavy sectors, and waste-handling facilities. Elevated CH₄ indicates fugitive emissions or biogenic sources — the most actionable GHG signal in the engine. Read as supplier-vs-background context, not as a quantitative emission claim.",
     "limitations": "Sentinel-5P CH₄ retrieval requires cloud-free, sunlit conditions — fails over persistent cloud (tropics during monsoon). Retrieval less reliable over water and snow. Provenance carries column_to_surface_uncertainty = 'weak'.",
-    "esg_alignment": "Global Methane Pledge (2021); IPCC AR6 short-lived climate pollutants; UNFCCC GHG inventory; GHG Protocol Scope 1/3"
+    "esg_alignment": "Global Methane Pledge (2021); IPCC AR6 short-lived climate pollutants; UNFCCC GHG inventory; GHG Protocol Scope 1/3",
+    "tooltip_summary": "**Methane (CH₄).** A potent greenhouse gas emitted by oil and gas operations, landfills, livestock, and coal mines, measured from satellite as the amount of CH₄ in the air column. It helps identify suppliers where methane levels are elevated above the surrounding region, suggesting a possible local source."
   },
 
   "ghg.co2.score": {
@@ -326,7 +340,8 @@
       "ghg.co2.relative_intensity",
       "ghg.co2.trend",
       "ghg.co2.confidence"
-    ]
+    ],
+    "tooltip_summary": "**Carbon Dioxide (CO₂) Standing Exposure.** An estimate of the long-term carbon-dioxide emissions intensity of the area around the supplier, built from a fossil-fuel inventory rather than direct satellite observation. It describes the ambient emissions context for the site rather than present-day flux, useful for tier-2 supplier risk classification."
   },
 
   "ghg.viirs.score": {
@@ -335,7 +350,8 @@
     "definition":   "NASA VIIRS Day/Night Band gap-filled nighttime radiance. Proxy for human activity intensity and combustion-driven night-time emissions.",
     "decision_relevance": "Activity-density proxy for industrial supply-chain nodes. Useful for distinguishing active operations from idle sites and for detecting flaring (gas burn-off).",
     "limitations": "Proxy only — doesn't measure GHG directly. Bright lights from non-emitting sources (street lighting, sports stadiums) confound the signal. Cloud-cleared composites smooth out night-to-night flaring detection.",
-    "esg_alignment": "GHG Protocol Scope 3 (indicative activity proxy)"
+    "esg_alignment": "GHG Protocol Scope 3 (indicative activity proxy)",
+    "tooltip_summary": "**Nighttime Lights (VIIRS).** A satellite measure of how brightly an area is lit at night, used as a proxy for the intensity of human activity and combustion-related operations. It helps distinguish active industrial sites from idle ones and can flag gas flaring around oil-and-gas suppliers."
   },
 
   "nature.kba.proximity_score": {
@@ -344,7 +360,8 @@
     "definition":   "Distance from AOI centre to nearest KBA boundary, combined with proportion of AOI buffer overlapping any KBA polygon. KBAs are scientifically-identified sites of global biodiversity importance.",
     "decision_relevance": "Direct indicator of biodiversity-impact risk for any site. Proximity ≤ 10 km or buffer overlap > 5% flags the site for deeper environmental due diligence.",
     "limitations": "KBA boundaries are static (updated annually by the KBA Partnership). Proximity alone doesn't measure actual impact — a supplier 1 km from a KBA may have no biodiversity footprint; one 50 km away may divert water from it.",
-    "esg_alignment": "CBD post-2020 Global Biodiversity Framework; TNFD; UN SDG 15.1; CSRD ESRS E4"
+    "esg_alignment": "CBD post-2020 Global Biodiversity Framework; TNFD; UN SDG 15.1; CSRD ESRS E4",
+    "tooltip_summary": "**Key Biodiversity Area (KBA) proximity.** Measures how close the supplier is to internationally recognised biodiversity hotspots and whether the supplier's site overlaps any of them. It flags suppliers operating in or near ecologically sensitive areas where land disturbance carries higher reputational and ecological risk."
   },
 
   "nature.dw.trees_pct": {
@@ -353,7 +370,8 @@
     "definition":   "Google / WRI Dynamic World V1 — per-class fractional cover (trees, crops, built area, water, etc.) from ML-classified Sentinel-2 imagery. The trees_pct headline reports the canopy-cover fraction inside the AOI buffer.",
     "decision_relevance": "Baseline land-cover snapshot for any site. Tree-cover fraction is the primary anchor for forest-related risk; cross-references against forest-loss for change attribution.",
     "limitations": "ML-classified, not direct observation — class boundaries can shift between composites. 10 m native resolution requires accumulated cloud-free observations; sparse coverage in persistently cloudy regions.",
-    "esg_alignment": "CBD post-2020 framework; TNFD; UN SDG 15.1; EU Deforestation Regulation (EUDR, 2025)"
+    "esg_alignment": "CBD post-2020 framework; TNFD; UN SDG 15.1; EU Deforestation Regulation (EUDR, 2025)",
+    "tooltip_summary": "**Land Cover Composition (Dynamic World).** A satellite-derived snapshot of how the land around the supplier is split among trees, crops, built-up area, water, and other classes. It anchors any land-related risk assessment by showing what is actually on the ground inside the analysis buffer."
   },
 
   "nature.habitat.natural_loss_ha": {
@@ -362,7 +380,8 @@
     "definition":   "Annualised hectares of natural land cover converted to non-natural classes (built, crop, bare) inside the AOI buffer. Derived from before/after Dynamic World composites.",
     "decision_relevance": "Quantifies active land-use change around a supplier — the strongest deforestation-adjacent signal beyond Hansen for newer disturbance. Critical for commodities supply chains.",
     "limitations": "Inherits Dynamic World class-boundary uncertainty — some apparent conversion is reclassification noise rather than true land-use change. Baseline / current composite windows fixed.",
-    "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2"
+    "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2",
+    "tooltip_summary": "**Habitat Conversion.** A measure of how much natural land cover around the supplier has recently been converted to built-up area, cropland, or bare ground, derived from before-and-after satellite composites. It is the primary signal for active land-use change near a supplier and is critical for commodities supply chains."
   },
 
   "nature.forest_loss.ha": {
@@ -371,7 +390,8 @@
     "definition":   "Hansen Global Forest Change v1.11 annual forest cover loss inside the AOI buffer. Detects tree-cover loss ≥ 50% canopy density. Authoritative for year-by-year deforestation tracking.",
     "decision_relevance": "Direct evidence of deforestation around a supplier — critical for commodities supply chains (soy, beef, palm oil, cocoa) under EUDR. The most-cited deforestation dataset for ESG reporting. Shown as a standing-exposure reference layer and also feeds the regional_loss_evidence confidence term inside Nature_Quality_Attribution.",
     "limitations": "Hansen detects loss not regrowth; doesn't distinguish natural disturbance (fire, storm) from human clearance. Updated annually with ~1-year lag; recent loss not surfaced until the next annual release. As of M-V1x-RECONCILE (audit §9.3 v1.4), Hansen has been removed from the live Habitat_Conversion composite — its cumulative-since-2000 framing is incompatible with the Dynamic-World-based live-window terms. Habitat_Conversion now uses DW signals only; Hansen survives as this reference layer and as input to regional_loss_evidence.",
-    "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2"
+    "esg_alignment": "EU Deforestation Regulation (EUDR, 2025); CBD post-2020 framework target 1; TNFD; UN SDG 15.2",
+    "tooltip_summary": "**Forest Loss.** Annual hectares of tree cover lost around the supplier, drawn from the most-cited global deforestation dataset. It provides authoritative year-by-year evidence of deforestation around the site, critical for commodities supply chains exposed to forest-related regulation."
   },
 
   "nature.ndvi.score": {
@@ -380,7 +400,8 @@
     "definition":   "MODIS MOD13Q1 Normalized Difference Vegetation Index — a measure of photosynthetic activity. Used as a vegetation-health and water-availability proxy.",
     "decision_relevance": "Vegetation-stress signal for agricultural supply chains. Declining NDVI relative to background can indicate drought, pest damage, or land-cover loss. Cross-references with forest-loss for attribution.",
     "limitations": "Coarse resolution (250 m). Saturates over dense canopies (rainforest). Negatively-signed direction — lower NDVI is worse — inverted from most other indicators in the catalogue.",
-    "esg_alignment": "TNFD; UN SDG 15.3 (land degradation neutrality)"
+    "esg_alignment": "TNFD; UN SDG 15.3 (land degradation neutrality)",
+    "tooltip_summary": "**NDVI vegetation condition.** A satellite measure of plant health and density around the supplier's site, based on how green and vigorous the vegetation looks compared to typical conditions. It helps detect signs of vegetation stress, removal, or recovery in the area surrounding the supplier."
   },
 
   "nature.water.area_now_ha": {
@@ -389,7 +410,8 @@
     "definition":   "Dynamic World water and flooded-vegetation class extent inside the AOI buffer. Combined open-water + seasonally inundated vegetation area.",
     "decision_relevance": "Water-resource exposure for any site — useful for flagging suppliers near sensitive wetlands, riparian zones, or seasonal floodplains. Cross-references TNFD water-related dependencies.",
     "limitations": "Snapshot at the current screening window — doesn't capture long-term hydrological change. Conflates permanent water with seasonal flooding without a temporal split (v1.x: JRC Global Surface Water for long-term water).",
-    "esg_alignment": "TNFD water dependencies; CBD post-2020 target 2 (degraded ecosystems); UN SDG 6.6 (water-related ecosystems)"
+    "esg_alignment": "TNFD water dependencies; CBD post-2020 target 2 (degraded ecosystems); UN SDG 6.6 (water-related ecosystems)",
+    "tooltip_summary": "**Water and Flooded Vegetation.** The area of open water and seasonally flooded vegetation inside the analysis buffer around the supplier, derived from satellite imagery. It flags suppliers near wetlands, riparian zones, or floodplains where water-related dependencies and risks are likely to matter."
   },
 
   "nature.recovery.score": {
@@ -398,6 +420,7 @@
     "definition":   "Composite recovery signal — NDVI-trend improvement, natural-cover gain, and bare-area reduction. Detects active restoration or natural regrowth around an AOI.",
     "decision_relevance": "Positive ESG signal for sites with active restoration commitments or natural regrowth. The only positive-trend indicator in the catalogue — useful for contrasting against forest-loss to characterise net land-cover dynamics.",
     "limitations": "Multi-component composite — each sub-signal carries its own uncertainty. NDVI improvement can reflect transient greening (rains) rather than durable cover gain.",
-    "esg_alignment": "CBD post-2020 framework target 2 (restoration); TNFD; UN SDG 15.3"
+    "esg_alignment": "CBD post-2020 framework target 2 (restoration); TNFD; UN SDG 15.3",
+    "tooltip_summary": "**Vegetation Recovery.** A combined signal of active restoration or natural regrowth around the supplier, drawing on greening trends, gains in natural land cover, and reductions in bare ground. It is the only positive-trend indicator in the catalogue, useful for contrasting against deforestation signals to characterise net land-cover change."
   }
 }

@@ -66,6 +66,11 @@ class IndicatorCardContent:
     # M-P09-COMPOSITES v2: component scores show a conceptual inputs
     # list (no exact weights) until M-COMPONENT-WEIGHTS lands.
     inputs:             list[str] | None  = None
+    # M-UI-A2: two-sentence summary surfaced via the P-05 indicator-name
+    # info popover. None when no copy has been written yet (HS12: silent
+    # missing fallback — the popover is omitted rather than rendering a
+    # placeholder).
+    tooltip_summary:    str       | None  = None
 
 
 # Canonical-ID → engine-config-key map per pillar. Air and GHG follow
@@ -146,6 +151,7 @@ def _build_raw_card(indicator_id: str, manifest: dict) -> IndicatorCardContent:
         data_source=tech_meta["data_source"],
         temporal_frequency=_describe_frequency(tech_meta["asset_id"]),
         kind="raw",
+        tooltip_summary=entry.get("tooltip_summary"),
     )
 
 
@@ -181,6 +187,7 @@ def _build_derived_card(
         # Only component scores carry this; aggregates / composite use
         # the live-sourced formula/weights instead.
         inputs=entry.get("inputs"),
+        tooltip_summary=entry.get("tooltip_summary"),
     )
 
 
@@ -236,6 +243,23 @@ def _resolve_live_formula(indicator_id: str) -> dict | None:
 def get_esg_caveat() -> str:
     """Top-level caveat for the ESG field. Rendered once at page top."""
     return _load_manifest().get("_meta", {}).get("esg_caveat", "")
+
+
+# M-UI-A2
+def tooltip_summary_for(indicator_id: str) -> str | None:
+    """Return the two-sentence summary for an indicator, or None.
+
+    Used by the P-05 indicator-name info popover. Lookup is direct on
+    the library's canonical IDs (e.g. ``air.no2.score``,
+    ``nature.kba.proximity_score``). Unknown IDs and IDs without a
+    written summary both return None — the popover helper treats both
+    cases as "silent missing" per spec HS12 and omits the popover
+    entirely rather than rendering a placeholder.
+    """
+    card = load_library().get(indicator_id)
+    if card is None:
+        return None
+    return card.tooltip_summary
 
 
 # ──────────────────────────────────────────────────────────────────

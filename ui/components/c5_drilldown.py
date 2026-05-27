@@ -32,6 +32,7 @@ from engine.constants import (
     GHG_FOLLOWUP_WEIGHTS,
     NATURE_FOLLOWUP_WEIGHTS,
 )
+from ui.components.indicator_info import render_indicator_name_with_info
 from ui.components.traffic_light import (
     band_colour,
     band_for_score,
@@ -209,13 +210,34 @@ def _render_uniform_row(
     confidence:   float | None,
     score:        float | None,
     value_spec:   str = ".3g",
+    *,
+    indicator_id: str | None = None,
+    key_prefix:   str        = "c5_row",
 ) -> None:
-    """Render one indicator row in the uniform 6-column schema."""
+    """Render one indicator row in the uniform 6-column schema.
+
+    M-UI-A2: when ``indicator_id`` is provided, the name column hosts the
+    indicator-info popover. Default ``None`` keeps the function callable
+    from any future site that doesn't need the popover (degrades to plain
+    bold name).
+    """
     band   = band_for_score(score)
     colour = band_colour(band)
 
     col_n, col_v, col_a, col_z, col_c, col_s = st.columns([2, 2, 2, 1, 1, 1])
-    col_n.markdown(f"**{display_name}**")
+    with col_n:
+        if indicator_id:
+            # M-UI-A2 (name-as-trigger): the bold name itself opens the
+            # popover. No separate ⓘ element to drift to the bottom of
+            # the row, which was the failure mode of the earlier stacked
+            # layout.
+            render_indicator_name_with_info(
+                display_name=display_name,
+                indicator_id=indicator_id,
+                key_prefix=key_prefix,
+            )
+        else:
+            st.markdown(f"**{display_name}**")
     col_v.markdown(_fmt(value, value_spec))
     col_a.markdown(_fmt(anomaly, "+.3g"))
     col_z.markdown(_fmt(z, ".2f"))
@@ -275,6 +297,8 @@ def _render_air_panel(payload: dict) -> None:
                 confidence=payload.get(f"air.{row.indicator}.confidence"),
                 score=payload.get(f"air.{row.indicator}.score"),
                 value_spec=row.value_spec,
+                indicator_id=f"air.{row.indicator}.score",
+                key_prefix="c5_air",
             )
             _render_confidence_terms_expander(
                 payload, "air", row.indicator, row.display_name,
@@ -322,6 +346,8 @@ def _render_ghg_panel(payload: dict) -> None:
                 z=payload.get(f"ghg.{row.indicator}.z"),
                 confidence=payload.get(f"ghg.{row.indicator}.confidence"),
                 score=payload.get(f"ghg.{row.indicator}.score"),
+                indicator_id=f"ghg.{row.indicator}.score",
+                key_prefix="c5_ghg",
             )
             _render_confidence_terms_expander(
                 payload, "ghg", row.indicator, row.display_name,
@@ -365,7 +391,12 @@ def _render_nature_panel(payload: dict) -> None:
         # alongside. st.divider() separates each sub-section from the
         # previous block (the formula breakdown / preceding sub-section).
         st.divider()
-        st.markdown("**Biodiversity exposure**")
+        # M-UI-A2: family-level info popover routes to the KBA card.
+        render_indicator_name_with_info(
+            display_name="Biodiversity exposure",
+            indicator_id="nature.kba.proximity_score",
+            key_prefix="c5_nature_biodiversity",
+        )
         col_metric, col_context = st.columns([1, 2])
         with col_metric:
             st.metric(
@@ -386,7 +417,12 @@ def _render_nature_panel(payload: dict) -> None:
 
         # M-UI-E.4 polish — habitat conversion metric + caption.
         st.divider()
-        st.markdown("**Habitat conversion**")
+        # M-UI-A2: family-level info popover routes to the habitat card.
+        render_indicator_name_with_info(
+            display_name="Habitat conversion",
+            indicator_id="nature.habitat.natural_loss_ha",
+            key_prefix="c5_nature_habitat",
+        )
         col_metric, col_context = st.columns([1, 2])
         with col_metric:
             st.metric(
@@ -422,7 +458,12 @@ def _render_nature_panel(payload: dict) -> None:
         # in the engine yet). Show the score as a secondary metric so the
         # gap is honest, not hidden.
         st.divider()
-        st.markdown("**Vegetation condition**")
+        # M-UI-A2: family-level info popover routes to the NDVI card.
+        render_indicator_name_with_info(
+            display_name="Vegetation condition",
+            indicator_id="nature.ndvi.score",
+            key_prefix="c5_nature_vegetation",
+        )
         col_metric_a, col_metric_b, col_context = st.columns([1, 1, 2])
         with col_metric_a:
             st.metric(
@@ -451,7 +492,12 @@ def _render_nature_panel(payload: dict) -> None:
         # M-UI-E.4 polish — dominant land cover as a metric with the
         # class-confidence percentage as the delta caption.
         st.divider()
-        st.markdown("**Land cover composition (Dynamic World)**")
+        # M-UI-A2: family-level info popover routes to the DW card.
+        render_indicator_name_with_info(
+            display_name="Land cover composition (Dynamic World)",
+            indicator_id="nature.dw.trees_pct",
+            key_prefix="c5_nature_dw",
+        )
         col_metric, col_context = st.columns([1, 2])
         with col_metric:
             dominant_class   = payload.get("nature.dw.dominant_class") or "—"

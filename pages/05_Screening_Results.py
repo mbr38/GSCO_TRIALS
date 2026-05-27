@@ -56,6 +56,7 @@ from ui.components.c8_action_bar import render_c8_action_bar
 from ui.components.c9_partial_banner import render_c9_partial_banner
 from ui.components.c_partial_caveat import render_partial_caveat  # M-PARTIAL-CAVEAT
 from ui.components.indicator_detail import render_indicator_detail
+from ui.components.indicator_info import render_indicator_dialog_if_requested  # M-UI-A2
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS  # M-HIDE-SUMMARY
 from ui.components.persistent_nav import render_persistent_nav
 from ui.page_state import PageState, classify_result, detect_e1_reason  # M-RING-UX
@@ -360,6 +361,12 @@ def _render_e1_all_failed(state: PageState) -> None:
 # M-P0103 — shared nav replaces the per-page helper.
 render_persistent_nav()
 st.divider()
+
+# M-UI-A2 — open the indicator-detail dialog if a Learn-more button was
+# clicked on the previous render. Pops the session-state flag so the
+# dialog fires once per click; subsequent reruns (e.g. user expanding an
+# accordion inside the modal) don't re-trigger it.
+render_indicator_dialog_if_requested()
 
 state = _get_or_init_state()
 if state is None:
