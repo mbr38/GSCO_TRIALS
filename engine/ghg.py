@@ -979,12 +979,24 @@ def run_pillar(
     for ind_key in sorted(indicator_keys):
         cfg = GHG_INDICATOR_CONFIG[ind_key]
 
-        # M5.5c — skip silently when out of coverage. CO₂ via ODIAC is the
-        # only v1 indicator with a coverage_window (2020-2023). Present-day
-        # runs hit this path; the indicator's keys are None-filled and the
-        # pillar score computes from the other indicators. No `_failures`
-        # entry — out-of-coverage is an expected case, not a failure.
-        if not _time_range_in_coverage(time_range, cfg.coverage_window):
+        # M-V1x-STANDING-WINDOW — a coverage_window marks a standing-exposure
+        # indicator (ODIAC is the only one in v1). Such indicators read their
+        # latest available year independent of the user's analysis window
+        # (audit §9.3 / M5.5b standing-exposure intent), so present-day runs
+        # surface the 2023 value rather than skipping. Live-window indicators
+        # (CH₄, VIIRS) have no coverage_window → effective == user window.
+        effective_time_range = (
+            _latest_coverage_year_window(cfg.coverage_window)
+            if cfg.coverage_window is not None
+            else time_range
+        )
+
+        # M5.5c — skip silently when out of coverage. Retained as a safety
+        # net for any future windowed indicator whose latest year still
+        # can't satisfy the check; ODIAC's fixed latest-year window is always
+        # in coverage, so it no longer hits this path. No `_failures` entry —
+        # out-of-coverage is an expected case, not a failure.
+        if not _time_range_in_coverage(effective_time_range, cfg.coverage_window):
             for measurement in cfg.emitted_measurements:
                 payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
             # M5.6 — canonical provenance even on the skip path. The
@@ -1000,7 +1012,7 @@ def run_pillar(
                 data_type=cfg.data_type,
                 data_source=cfg.data_source,
                 native_scale_m=cfg.scale_m,
-                time_range=time_range,
+                time_range=effective_time_range,
                 coverage_window=cfg.coverage_window,
                 skipped_reason="out_of_coverage",
                 observations={"count": 0, "unit": "monthly_grids"},
@@ -1017,7 +1029,7 @@ def run_pillar(
             if ind_key == "co2":
                 snapshot = compute_co2_snapshot(
                     aoi=aoi,
-                    time_range=time_range,
+                    time_range=effective_time_range,    # fixed latest ODIAC year
                     mode=mode,
                     ee_client=ee_client,
                 )
@@ -1310,6 +1322,20 @@ def _time_range_in_coverage(
     user_start, user_end = time_range
     cov_start, cov_end = coverage_window
     return user_start <= cov_end and cov_start <= user_end
+
+
+def _latest_coverage_year_window(
+    coverage_window: tuple[str, str],
+) -> tuple[str, str]:
+    """Full-year window for the latest year of a coverage window.
+
+    M-V1x-STANDING-WINDOW. Standing-exposure indicators (ODIAC) read their
+    latest available year regardless of the user's analysis window — the
+    audit §9.3 / M5.5b standing-exposure intent. e.g.
+    ``("2020-01-01", "2023-12-31")`` → ``("2023-01-01", "2023-12-31")``.
+    """
+    latest_year = int(coverage_window[1][:4])
+    return (f"{latest_year}-01-01", f"{latest_year}-12-31")
 
 
 def _ghg_indicator_keys_from_selected(selected: set[str]) -> set[str]:

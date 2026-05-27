@@ -930,14 +930,25 @@ def _class_pct(hist: dict[str, int]) -> dict[str, float]:
 
 def compute_forest_loss(
     aoi: dict,
-    time_range: tuple[str, str],
+    time_range: tuple[str, str],                        # noqa: ARG001 — see docstring
     ee_client,                                          # noqa: ARG001 — parity
 ) -> dict:
     """Hansen Global Forest Change loss within Site_Buffer (Schema_v2 §4.4).
 
-    Returns hectares lost and percentage of buffer affected, restricted to
-    Hansen lossyear values that fall in `time_range`. Hansen's lossyear band
-    encodes year as years-since-2000 (so 23 = 2023).
+    Returns hectares lost and percentage of buffer affected as **cumulative
+    loss over the most recent ``HANSEN_LOOKBACK_YEARS`` Hansen loss years**.
+
+    M-V1x-STANDING-WINDOW (audit §9.3 lines 982/1002): Hansen is a
+    standing-exposure reference dataset (`temporal_mode = "standing_exposure"`),
+    so its value is read from a **fixed** window — the latest available Hansen
+    years — **independent of the user's analysis `time_range`**. The
+    `time_range` argument is therefore intentionally ignored (kept for
+    dispatch parity with the other nature indicators). Reading the user's
+    window instead would report 0 for any present-day window, because the
+    latest Hansen `lossyear` is 2023 and a 2026 window masks to a year with
+    no data. This mirrors `compute_regional_loss_evidence`, which already
+    uses the same fixed lookback. Hansen's `lossyear` band encodes year as
+    years-since-2000 (so 23 = 2023).
     """
     cfg = NATURE_INDICATOR_CONFIG["forest_loss"]
     centre = aoi["centre"]
@@ -945,11 +956,14 @@ def compute_forest_loss(
     geom = site_buffer(centre, radius_km)
     buffer_ha = _buffer_area_ha(radius_km)
 
-    start_yr_offset = int(time_range[0][:4]) - 2000
-    end_yr_offset = int(time_range[1][:4]) - 2000
+    lookback_start_offset = _HANSEN_MAX_LOSS_YEAR - HANSEN_LOOKBACK_YEARS + 1
+    hansen_window = (
+        f"{2000 + lookback_start_offset}-01-01",
+        f"{2000 + _HANSEN_MAX_LOSS_YEAR}-12-31",
+    )
 
     image = ee.Image(cfg.asset_id).select("lossyear")
-    loss_mask = image.gte(start_yr_offset).And(image.lte(end_yr_offset))
+    loss_mask = image.gte(lookback_start_offset).And(image.lte(_HANSEN_MAX_LOSS_YEAR))
 
     # M-ADAPTIVE-SCALE: pick reduction scale based on AOI size.
     scale_m = adaptive_scale_m(geom, cfg.scale_m)
@@ -974,11 +988,13 @@ def compute_forest_loss(
         return _emit_skipped_nature_result(
             "forest_loss",
             band="lossyear",
-            time_range=time_range,
+            time_range=hansen_window,
             skipped_reason="no_hansen_pixels",
             method_note=(
-                "Hansen lossyear band; pixels with lossyear in time_range "
-                "weighted by ee.Image.pixelArea(); "
+                f"Hansen lossyear band; cumulative loss over the most recent "
+                f"{HANSEN_LOOKBACK_YEARS} Hansen loss years "
+                f"({hansen_window[0][:4]}-{hansen_window[1][:4]}) weighted by "
+                "ee.Image.pixelArea(); "
                 f"{method_note_fragment(scale_m, cfg.scale_m)}; "
                 "skipped (no usable Hansen pixels in AOI)"
             ),
@@ -1004,10 +1020,12 @@ def compute_forest_loss(
             data_type=cfg.data_type,
             data_source=cfg.data_source,
             native_scale_m=cfg.scale_m,
-            time_range=time_range,
+            time_range=hansen_window,
             method_note=(
-                "Hansen lossyear band; pixels with lossyear in time_range "
-                "weighted by ee.Image.pixelArea(); "
+                f"Hansen lossyear band; cumulative loss over the most recent "
+                f"{HANSEN_LOOKBACK_YEARS} Hansen loss years "
+                f"({hansen_window[0][:4]}-{hansen_window[1][:4]}) weighted by "
+                "ee.Image.pixelArea(); "
                 f"{method_note_fragment(scale_m, cfg.scale_m)}"
             ),
             observations={"count": 1, "unit": "annual_rasters"},

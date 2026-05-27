@@ -34,6 +34,7 @@ from typing import Literal
 
 from engine.constants import (
     DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD,
+    HANSEN_VERBAL_MENTION_THRESHOLD,
     TRAFFIC_LIGHT_THRESHOLDS,
 )
 
@@ -907,6 +908,71 @@ def _render_pillar(pillar: Pillar, payload: dict) -> tuple[str, str, Bucket]:
 
 
 # ---------------------------------------------------------------------------
+# M-UI-A6 §6 — Hansen reference-dataset clause (appended to the Nature
+# paragraph, conditional on cumulative loss vs the live nature signal)
+# ---------------------------------------------------------------------------
+
+# §6.1 — corroboration: Hansen loss is non-trivial AND the live nature
+# signal also points to concern. {dominant_live_indicator} is the dominant
+# live nature contributor's display name.
+_HANSEN_CORROBORATION_TEMPLATE: str = (
+    "The Hansen reference dataset shows {loss_pct:.1f}% cumulative loss in "
+    "the buffer area, consistent with the live nature signals from "
+    "{dominant_live_indicator}. This suggests sustained pressure on the "
+    "area over the cumulative window."
+)
+
+# §6.2 — divergence: Hansen loss is non-trivial but the live nature signal
+# is quiet.
+_HANSEN_DIVERGENCE_TEMPLATE: str = (
+    "The Hansen reference dataset shows {loss_pct:.1f}% cumulative loss in "
+    "the buffer area over the past 5 years, while current live nature "
+    "indicators are quiet. The historical and current signals diverge — "
+    "examination of the screening window may not reflect longer-term "
+    "pressure visible in Hansen."
+)
+
+# Fallback phrase when no single live nature term dominates (§6.1's
+# {dominant_live_indicator} slot still needs filling for natural prose).
+_HANSEN_DOMINANT_FALLBACK: str = "the live nature signals"
+
+
+def _hansen_reference_clause(
+    payload: dict,
+    nature_bucket: Bucket,
+) -> str | None:
+    """M-UI-A6 §6 — optional Hansen reference sentence for the Nature paragraph.
+
+    Returns the sentence to append, or None to add nothing:
+
+      - loss ≥ ``HANSEN_VERBAL_MENTION_THRESHOLD`` AND the live nature signal
+        points to concern (pillar bucket high/moderate) → corroboration (§6.1)
+      - loss ≥ threshold AND the live nature signal is quiet (bucket low)
+        → divergence (§6.2)
+      - loss < threshold, or no Hansen value → None (§6.3 quiet: no mention)
+
+    The §6.1 examples (KBA Concern/High, DW Built/Bare, NDVI deviation) are
+    operationalised here via the Nature pillar priority bucket — the same
+    high/moderate/low reading the rest of this module uses — so the engine
+    stays self-contained and doesn't import the UI severity grammar.
+
+    ODIAC is deliberately never referenced here (§6.4): its inventory
+    framing needs regional contextualisation this milestone doesn't supply.
+    """
+    loss_pct = payload.get("nature.forest_loss.pct")
+    if loss_pct is None or loss_pct < HANSEN_VERBAL_MENTION_THRESHOLD:
+        return None
+    if nature_bucket in ("high", "moderate"):
+        dominant = _resolve_dominant(payload, _NATURE_DOMINANT_CANDIDATES)
+        dominant_display = dominant[1] if dominant else _HANSEN_DOMINANT_FALLBACK
+        return _HANSEN_CORROBORATION_TEMPLATE.format(
+            loss_pct=loss_pct,
+            dominant_live_indicator=dominant_display,
+        )
+    return _HANSEN_DIVERGENCE_TEMPLATE.format(loss_pct=loss_pct)
+
+
+# ---------------------------------------------------------------------------
 # Public entry point  (doc §8)
 # ---------------------------------------------------------------------------
 
@@ -926,6 +992,12 @@ def generate_verbal_summary(payload: dict) -> VerbalSummary:
     air, air_template_id, air_bucket = _render_pillar("air", payload)
     ghg, ghg_template_id, ghg_bucket = _render_pillar("ghg", payload)
     nature, nat_template_id, nature_bucket = _render_pillar("nature", payload)
+
+    # M-UI-A6 §6 — append the Hansen reference clause when it corroborates
+    # or diverges from the live nature signal; silent below threshold.
+    hansen_clause = _hansen_reference_clause(payload, nature_bucket)
+    if hansen_clause:
+        nature = f"{nature} {hansen_clause}"
 
     pillar_priority: dict[Pillar, Bucket | None] = {
         "air":    air_bucket,

@@ -617,6 +617,7 @@ stateDiagram-v2
 | C5a | Air Pollution drill-down panel | S2_Results, S2_Partial |
 | C5b | GHG drill-down panel | S2_Results, S2_Partial |
 | C5c | Nature/Land drill-down panel | S2_Results, S2_Partial |
+| C5d | **Reference datasets** sub-section (M-UI-A6) — rendered after the Nature/Land deep-dive, before C6. A short header disclaimer ("shown for context, not part of the composite score"), then two muted reference cards side-by-side (Hansen forest loss; ODIAC CO₂) and a single "Why reference data?" expander. Each card: indicator name (with the P-09 info affordance) → "Reference dataset — not used in composite score" badge → headline value + unit → vintage line → source line → one-sentence interpretation → italic audit footnote. Cards carry **no severity badge and no confidence dot** (they are context, not a verdict); missing data renders "Data not available for this AOI" rather than omitting the card. | S2_Results, S2_Partial |
 | C6 | Confidence panel: three pillar confidence scores with limiting-factor explanations | S2_Results, S2_Partial |
 | C7 | Verbal summary paragraph (server-generated) | S2_Results, S2_Partial |
 | C8 | Action bar: Save as report, Switch to Trend | S2_Results, S2_Partial |

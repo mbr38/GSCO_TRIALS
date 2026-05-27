@@ -238,6 +238,19 @@ class TestComputeForestLossDefensive:
         assert result["nature.forest_loss.ha"] == 0.0
         assert result["_provenance.nature.forest_loss"]["skipped_reason"] is None
 
+    def test_window_is_fixed_hansen_lookback_not_user_window(self, stub_ee):
+        """M-V1x-STANDING-WINDOW — Hansen reads its own fixed lookback window
+        (most recent HANSEN_LOOKBACK_YEARS), ignoring the user's analysis
+        window. `_TIME_RANGE` is a present-day 2026 window; the provenance must
+        still report the 2019-2023 Hansen window (not the user's 2026 one,
+        which would mask to a year with no Hansen data and report 0)."""
+        stub_ee.getInfo.return_value = {"lossyear": 12345.0}
+        result = compute_forest_loss(
+            aoi=_AOI, time_range=_TIME_RANGE, ee_client=None,
+        )
+        prov = result["_provenance.nature.forest_loss"]
+        assert tuple(prov["time_range"]) == ("2019-01-01", "2023-12-31")
+
 
 # ---------------------------------------------------------------------------
 # compute_water_exposure — DW water + flooded_veg

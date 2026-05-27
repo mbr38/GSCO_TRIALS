@@ -293,6 +293,31 @@ Nature templates use "exposure" instead of "elevation", "concern" instead of "dr
 | (nature, moderate, moderate, fallback) | Nature/Land shows moderate exposure across multiple aspects at this location. Confidence is mixed — {limiting_factor} is a limiting factor. |
 | (nature, moderate, low, fallback) | A moderate Nature/Land exposure is present across multiple aspects at this location, but data quality is poor — {limiting_factor} limits the reliability of this read. |
 
+### 6.7 Nature/Land — Hansen reference clause (M-UI-A6)
+
+A single optional sentence appended to the **rendered Nature paragraph**
+(not a new template-grid cell). It surfaces the Hansen forest-loss reference
+dataset only when it is informative relative to the live nature signal, per
+M-UI-A6 §6. Hansen is a reference dataset, not a scored term — this clause is
+the one place the verbal summary references it.
+
+Gating uses the cumulative Hansen loss `nature.forest_loss.pct` against
+`HANSEN_VERBAL_MENTION_THRESHOLD` (= 1.0%) and the Nature pillar priority
+bucket:
+
+| Condition | Clause |
+|---|---|
+| loss ≥ 1% **and** Nature bucket ∈ {high, moderate} (corroboration) | The Hansen reference dataset shows {loss_pct:.1f}% cumulative loss in the buffer area, consistent with the live nature signals from {dominant_live_indicator}. This suggests sustained pressure on the area over the cumulative window. |
+| loss ≥ 1% **and** Nature bucket = low (divergence) | The Hansen reference dataset shows {loss_pct:.1f}% cumulative loss in the buffer area over the past 5 years, while current live nature indicators are quiet. The historical and current signals diverge — examination of the screening window may not reflect longer-term pressure visible in Hansen. |
+| loss < 1%, or no Hansen value (quiet) | *(no clause — the C5 reference card remains visible to anyone investigating)* |
+
+`{dominant_live_indicator}` reuses the §3.3 Nature dominant-contributor
+lookup (fallback phrase "the live nature signals" when no term dominates).
+**ODIAC is deliberately never referenced by this clause** (M-UI-A6 §6.4): its
+inventory framing needs regional contextualisation this version doesn't
+supply. Note the GHG paragraph may still name ODIAC as a live-pillar driver
+(§3.2) — that is a separate, pre-existing surface.
+
 ---
 
 ## 7. The 15 overview templates

@@ -1,5 +1,5 @@
 {
-  "date_saved": "2026-05-26T22:00:56.129865+00:00",
+  "date_saved": "2026-05-27T15:06:26.688347+00:00",
   "id": "62141346-d3bc-4e18-a951-1768135477ba",
   "name": "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso",
   "payload": {
@@ -30,7 +30,7 @@
         "node_name": "Sapezal Plantation (demo)",
         "source": "P-04 supply-chain scope · Soy & Cattle — Pará / Mato Grosso"
       },
-      "computed_at": "2026-05-26T22:00:56.128477+00:00",
+      "computed_at": "2026-05-27T15:06:26.688240+00:00",
       "mode": "screening",
       "pillars_run": [
         "air",
@@ -211,7 +211,7 @@
           "qa": 0.9,
           "spatial_context": 1.0
         },
-        "granule_count": 1053,
+        "granule_count": 1060,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
         "n_valid_dates": 84,
@@ -341,20 +341,29 @@
       ],
       "data_source": "ODIAC / NIES Japan",
       "data_type": "emissions_inventory_allocation",
-      "extra": {},
+      "extra": {
+        "c_to_co2_factor": 3.6666666666666665,
+        "confidence_terms": {
+          "anomaly_strength": 1.0,
+          "column_to_surface_uncertainty": "n_a",
+          "n_valid": 1.0,
+          "qa": 1.0,
+          "spatial_context": 1.0
+        }
+      },
       "indicator_id": "ghg.co2",
-      "method_note": null,
+      "method_note": "monthly t C → annual t CO₂ via ×(12/n_months)·(44/12); national totals × CARMA point sources + VIIRS nightlights → 1 km grid",
       "native_scale_m": 1000.0,
       "observations": {
-        "count": 0,
+        "count": 12,
         "unit": "monthly_grids"
       },
       "sector_signal_anomaly": null,
-      "skipped_reason": "out_of_coverage",
+      "skipped_reason": null,
       "temporal_mode": "standing_exposure",
       "time_range": [
-        "2026-02-22",
-        "2026-05-23"
+        "2023-01-01",
+        "2023-12-31"
       ]
     },
     "_provenance.ghg.viirs": {
@@ -368,14 +377,14 @@
         "confidence_terms": {
           "anomaly_strength": 0.0,
           "column_to_surface_uncertainty": "n_a",
-          "n_valid": 0.7333333333333333,
+          "n_valid": 0.7444444444444445,
           "qa": 0.85,
           "spatial_context": 1.0
         },
         "granule_count": 84,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
-        "n_valid_dates": 66,
+        "n_valid_dates": 67,
         "ring_land_fraction": 0.9998697868461736
       },
       "indicator_id": "ghg.viirs",
@@ -436,7 +445,7 @@
         }
       },
       "indicator_id": "nature.forest_loss",
-      "method_note": "Hansen lossyear band; pixels with lossyear in time_range weighted by ee.Image.pixelArea(); scale=31m (native)",
+      "method_note": "Hansen lossyear band; cumulative loss over the most recent 5 Hansen loss years (2019-2023) weighted by ee.Image.pixelArea(); scale=31m (native)",
       "native_scale_m": 30.92,
       "observations": {
         "count": 1,
@@ -446,8 +455,8 @@
       "skipped_reason": null,
       "temporal_mode": "standing_exposure",
       "time_range": [
-        "2026-02-22",
-        "2026-05-23"
+        "2019-01-01",
+        "2023-12-31"
       ]
     },
     "_provenance.nature.habitat": {
@@ -738,11 +747,11 @@
     "air.spatiotemporal_anomaly_score": 0.07820758034388124,
     "air.trend_score": 0.0,
     "air.voc_photochemical": 0.21975323297714022,
-    "composite.confidence": 0.6846939531441852,
-    "composite.overall_screening": 0.1754264459333493,
-    "ghg.activity_adjusted_co2": null,
-    "ghg.activity_score": 0.2809428285199767,
-    "ghg.audit_followup_priority": 0.11394180611242685,
+    "composite.confidence": 0.6988214285714286,
+    "composite.overall_screening": 0.19239678473205013,
+    "ghg.activity_adjusted_co2": 0.3689741696727956,
+    "ghg.activity_score": 0.28000056885319713,
+    "ghg.audit_followup_priority": 0.1648528225085294,
     "ghg.ch4.anomaly": -7.674581586284376,
     "ghg.ch4.background": 1908.8389169152522,
     "ghg.ch4.confidence": 0.27241931637507827,
@@ -754,30 +763,31 @@
     "ghg.ch4.z": -0.4953629802540363,
     "ghg.ch4_context_adjusted": 0.0,
     "ghg.ch4_hotspot_signal": 0.0,
-    "ghg.co2.confidence": null,
-    "ghg.co2.mean": null,
-    "ghg.co2.relative_intensity": null,
-    "ghg.co2.score": null,
-    "ghg.co2.total": null,
+    "ghg.co2.confidence": 1.0,
+    "ghg.co2.mean": 48.23246081470693,
+    "ghg.co2.relative_intensity": 2.553322738729045,
+    "ghg.co2.score": 0.40710571288119496,
+    "ghg.co2.total": 3855.381367788907,
     "ghg.co2.trend": null,
     "ghg.co2.trend_p": null,
-    "ghg.co2_context": null,
+    "ghg.co2_context": 0.40710571288119496,
     "ghg.combustion_proxy": 0.0,
-    "ghg.core_audit_support": 0.028094282851997672,
-    "ghg.data_quality_attribution": 0.6846939531441852,
+    "ghg.core_audit_support": 0.028000056885319716,
+    "ghg.data_quality_attribution": 0.7910181909850124,
     "ghg.fire_or_regional_transport_risk": 0.0,
-    "ghg.fossil_combustion_score": null,
+    "ghg.fossil_combustion_score": 0.2595529702112369,
     "ghg.nearby_source_isolation": 1.0,
-    "ghg.retrieval_inventory_quality": 0.85,
-    "ghg.spatial_resolution_suitability": 0.7110064108220853,
-    "ghg.spatiotemporal_anomaly": 0.0,
-    "ghg.temporal_coverage": 0.4037037037037037,
+    "ghg.retrieval_inventory_quality": 0.9,
+    "ghg.spatial_resolution_suitability": 0.8073376072147235,
+    "ghg.spatiotemporal_anomaly": 0.14000028442659856,
+    "ghg.temporal_coverage": 0.6061728395061728,
     "ghg.trend": 0.0,
-    "ghg.viirs.anomaly": 3.416333547932226,
-    "ghg.viirs.confidence": 0.625,
-    "ghg.viirs.score": 0.2809428285199767,
-    "ghg.viirs.site": 3.5635915151299327,
+    "ghg.viirs.anomaly": 3.40556993330062,
+    "ghg.viirs.confidence": 0.6283333333333333,
+    "ghg.viirs.score": 0.28000056885319713,
+    "ghg.viirs.site": 3.5521299489313236,
     "ghg.viirs.trend": null,
+    "ghg.viirs.z": 0.8400017065595914,
     "nature.biodiversity_exposure": 0.37570547611564115,
     "nature.cloud_observation_quality": 0.8,
     "nature.dw.bare_ha": 3.1,
@@ -805,8 +815,8 @@
     "nature.flooded_veg.area_now_ha": 0.0,
     "nature.followup_priority": 0.25661446063048177,
     "nature.forest_loss.confidence": 1.0,
-    "nature.forest_loss.ha": 0.0,
-    "nature.forest_loss.pct": 0.0,
+    "nature.forest_loss.ha": 9.955352974422679,
+    "nature.forest_loss.pct": 0.12675549088831778,
     "nature.habitat.annualised_rate": 0.0,
     "nature.habitat.annualised_rate_score": 0.0,
     "nature.habitat.bare_expansion_ha": 0.0,

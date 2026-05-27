@@ -87,6 +87,30 @@ class TestTimeRangeCoverage:
 
 
 # ---------------------------------------------------------------------------
+# 0b. _latest_coverage_year_window + standing-exposure dispatch (M-V1x-STANDING-WINDOW)
+# ---------------------------------------------------------------------------
+
+class TestStandingWindow:
+    def test_latest_coverage_year_window(self) -> None:
+        from engine.ghg import _latest_coverage_year_window
+        assert _latest_coverage_year_window(
+            ("2020-01-01", "2023-12-31")
+        ) == ("2023-01-01", "2023-12-31")
+
+    def test_odiac_latest_window_is_always_in_coverage(self) -> None:
+        """ODIAC's fixed latest-year window is always inside its own
+        coverage, so present-day runs no longer skip it as out-of-coverage."""
+        from engine.ghg import (
+            GHG_INDICATOR_CONFIG,
+            _latest_coverage_year_window,
+            _time_range_in_coverage,
+        )
+        cov = GHG_INDICATOR_CONFIG["co2"].coverage_window
+        effective = _latest_coverage_year_window(cov)
+        assert _time_range_in_coverage(effective, cov) is True
+
+
+# ---------------------------------------------------------------------------
 # 1. GHG_INDICATOR_CONFIG integrity
 # ---------------------------------------------------------------------------
 
@@ -839,16 +863,28 @@ class TestRunPillar:
         )
 
 
-class TestPresentDayScreeningSkipsOdiac:
-    """M5.5c — verify that present-day screening (time range outside
-    ODIAC's 2020-2023 coverage) skips CO₂ silently, with no failure
-    entry, and the live composite still computes from the surviving
-    indicators. Replaces the M5.5b-era variant that asserted
-    IndicatorComputeError; the coverage_window check moved the skip
-    decision upstream so compute_co2_snapshot is never even called.
+class TestPresentDayScreeningDispatchesOdiac:
+    """M-V1x-STANDING-WINDOW — present-day screening (time range outside
+    ODIAC's 2020-2023 coverage) now **dispatches** ODIAC over its fixed
+    latest-available year (2023) rather than skipping it. ODIAC is a
+    standing-exposure reference dataset whose value is window-independent
+    (audit §9.3 / M5.5b). Supersedes the M5.5c skip behaviour, which left
+    the reference card permanently empty for any present-day window.
     """
 
-    def test_present_day_skips_co2_without_failure(self, monkeypatch) -> None:
+    def _fake_co2_snapshot_payload(self) -> dict:
+        return {
+            "ghg.co2.mean": 12345.0,
+            "ghg.co2.total": 1.0,
+            "ghg.co2.relative_intensity": 1.0,
+            "ghg.co2.trend": None,
+            "ghg.co2.trend_p": None,
+            "ghg.co2.confidence": 0.9,
+            "ghg.co2.score": 0.5,
+            "_provenance.ghg.co2": {"skipped_reason": None},
+        }
+
+    def test_present_day_dispatches_co2_over_latest_year(self, monkeypatch) -> None:
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
@@ -856,12 +892,11 @@ class TestPresentDayScreeningSkipsOdiac:
                 return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
 
-        # If the spy fires, M5.5c didn't skip ODIAC — that's the bug.
-        spy_called: list[tuple] = []
+        captured: list[tuple] = []
 
         def fake_co2_snapshot(aoi, time_range, mode, ee_client):
-            spy_called.append((time_range,))
-            return {}
+            captured.append(time_range)
+            return self._fake_co2_snapshot_payload()
 
         monkeypatch.setattr(
             "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
@@ -870,7 +905,7 @@ class TestPresentDayScreeningSkipsOdiac:
 
         result = run_pillar(
             aoi=_AOI,
-            time_range=("2026-02-10", "2026-05-11"),  # outside ODIAC coverage
+            time_range=("2026-02-10", "2026-05-11"),  # present-day, outside coverage
             mode="screening",
             selected_indicators={
                 "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
@@ -878,24 +913,13 @@ class TestPresentDayScreeningSkipsOdiac:
             ee_client=None,
         )
 
-        # Critical: compute_co2_snapshot was NOT called.
-        assert spy_called == [], (
-            "compute_co2_snapshot should not be called when time_range "
-            "is outside ODIAC's coverage_window"
-        )
+        # Critical: compute_co2_snapshot WAS called, over the fixed 2023 window
+        # — not skipped, and not the user's 2026 window.
+        assert captured == [("2023-01-01", "2023-12-31")]
 
-        # CO₂ keys are None-filled (so downstream null-propagation works).
-        for measurement in (
-            "mean", "total", "relative_intensity",
-            "trend", "trend_p", "confidence", "score",
-        ):
-            assert result[f"ghg.co2.{measurement}"] is None
-
-        # Provenance flags the skip reason.
-        prov = result["_provenance.ghg.co2"]
-        assert prov["skipped_reason"] == "out_of_coverage"
-        assert prov["coverage_window"] == ("2020-01-01", "2023-12-31")
-        assert prov["data_type"] == "emissions_inventory_allocation"
+        # CO₂ keys are populated from the snapshot (not None-filled).
+        assert result["ghg.co2.mean"] == 12345.0
+        assert result["_provenance.ghg.co2"].get("skipped_reason") is None
 
         # No CO₂ entry in _failures.
         # `_failures` is a flat list at the GHG-pillar level (the
@@ -1177,34 +1201,46 @@ class TestProvenanceShape:
         # M5.5b's role_in_pillar field was dropped in M5.6.
         assert "role_in_pillar" not in prov
 
-    def test_co2_skip_path_provenance_shape(self, monkeypatch) -> None:
-        # The out-of-coverage skip path also uses build_provenance.
+    def test_co2_present_day_dispatched_not_skipped(self, monkeypatch) -> None:
+        # M-V1x-STANDING-WINDOW — the out-of-coverage skip path is no longer
+        # reachable for ODIAC via run_pillar (its fixed latest-year window is
+        # always in coverage). A present-day window dispatches ODIAC over 2023
+        # rather than emitting a skipped_reason="out_of_coverage" provenance.
+        # The skip-path build_provenance shape itself is still covered in
+        # tests/test_provenance.py.
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
             if indicator == "viirs":
                 return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
+
+        captured: list[tuple] = []
+
+        def fake_co2_snapshot(aoi, time_range, mode, ee_client):
+            captured.append(time_range)
+            return {
+                "ghg.co2.mean": 1.0,
+                "ghg.co2.score": 0.5,
+                "_provenance.ghg.co2": {"skipped_reason": None},
+            }
+
         monkeypatch.setattr(
             "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
         )
+        monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
 
         result = run_pillar(
             aoi=_AOI,
-            time_range=("2026-02-10", "2026-05-11"),  # outside ODIAC
+            time_range=("2026-02-10", "2026-05-11"),  # present-day
             mode="screening",
             selected_indicators={
                 "ghg.ch4.score", "ghg.viirs.score", "ghg.co2.score",
             },
             ee_client=None,
         )
-        prov = result["_provenance.ghg.co2"]
-        assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
-        assert prov["skipped_reason"] == "out_of_coverage"
-        assert prov["observations"]["count"] == 0
-        assert prov["observations"]["unit"] == "monthly_grids"
-        assert prov["data_type"] == "emissions_inventory_allocation"
-        assert prov["data_source"] == "ODIAC / NIES Japan"
+        assert captured == [("2023-01-01", "2023-12-31")]
+        assert result["_provenance.ghg.co2"].get("skipped_reason") is None
 
     def test_ch4_format_result_emits_canonical_provenance(self) -> None:
         # CH₄ goes through compute_ghg_indicator_snapshot → _format_result,

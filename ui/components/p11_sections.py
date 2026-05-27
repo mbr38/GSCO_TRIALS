@@ -366,6 +366,85 @@ def _render_prioritisation_supplier_breakdown(src) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────
+# Reference datasets (M-UI-A6 RD10)
+# ──────────────────────────────────────────────────────────────────
+
+# RD10 — disclaimer mirrors the in-app C5 sub-section framing (§4.3) so the
+# print report carries the same "context, not scoring" signpost.
+_REFERENCE_DATASETS_DISCLAIMER: str = (
+    "Reference data context — not part of the composite score. These values "
+    "are cumulative or inventory-allocated rather than drawn from the "
+    "current screening window."
+)
+
+# Audit footnotes — same copy as the C5 cards (RD8 + §4.2), simplified for
+# print (the C5 strings live in ui.components.c5_drilldown; kept aligned by
+# intent, not import, to avoid an engine/UI cross-dependency in the report
+# layer).
+_REFERENCE_DATASETS_FOOTNOTE: str = (
+    "Hansen contributes to the regional_loss_evidence binary flag in "
+    "External Driver Screening but is not part of the composite score. "
+    "ODIAC is an inventory-allocated dataset, not an atmospheric "
+    "measurement, and is not used in the composite score."
+)
+
+
+def _render_reference_dataset_block(payload) -> str:
+    """One reference-dataset table for a single screening payload.
+
+    Mirrors the C5 cards' headline metrics (Hansen cumulative loss %, ODIAC
+    annual emissions intensity), with the same RD12 "Data not available"
+    fallback when a value is missing.
+    """
+    loss_pct = payload.get("nature.forest_loss.pct")
+    co2_mean = payload.get("ghg.co2.mean")
+    hansen_val = (
+        f"{loss_pct:.2f}% of buffer area lost (5-year cumulative)"
+        if loss_pct is not None else "Data not available for this AOI"
+    )
+    odiac_val = (
+        f"{co2_mean:,.0f} t CO₂ yr⁻¹ per pixel "
+        "(annual emissions intensity)"
+        if co2_mean is not None else "Data not available for this AOI"
+    )
+    return "\n".join([
+        "<table>",
+        "<tr><th>Reference dataset</th><th>Value</th><th>Source</th></tr>",
+        f"<tr><td>Hansen forest loss</td><td>{html.escape(hansen_val)}</td>"
+        "<td>Hansen Global Forest Change (University of Maryland)</td></tr>",
+        f"<tr><td>ODIAC CO₂</td><td>{html.escape(odiac_val)}</td>"
+        "<td>ODIAC fossil-fuel CO₂ (NIES, Japan)</td></tr>",
+        "</table>",
+        f"<p><em>{html.escape(_REFERENCE_DATASETS_FOOTNOTE)}</em></p>",
+    ])
+
+
+def _render_reference_datasets(state, sources) -> str:
+    """RD10 — reference-dataset context section for the PDF report.
+
+    Appears after the scored-indicators section. Renders the Hansen + ODIAC
+    reference values per screening source, marked clearly as context rather
+    than scoring. Returns "" (section omitted) when no screening source is
+    present — e.g. a pure-prioritisation report carries no per-AOI payload.
+    """
+    screening_sources = [s for s in sources if s.get("type") == "screening"]
+    if not screening_sources:
+        return ""
+    blocks = [
+        "<section class='chapter-break'>",
+        "<h2>Reference datasets</h2>",
+        f"<p><em>{html.escape(_REFERENCE_DATASETS_DISCLAIMER)}</em></p>",
+    ]
+    for src in screening_sources:
+        name = html.escape(src.get("name", "Untitled"))
+        payload = src.get("payload") or {}
+        blocks.append(f"<h3>{name}</h3>")
+        blocks.append(_render_reference_dataset_block(payload))
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+# ──────────────────────────────────────────────────────────────────
 # Provenance appendix
 # ──────────────────────────────────────────────────────────────────
 
@@ -628,5 +707,6 @@ _SECTION_REGISTRY: dict[str, Callable] = {
     "priority_findings":     _render_priority_findings,
     "indicator_detail":      _render_indicator_detail,
     "per_supplier_detail":   _render_per_supplier_detail,
+    "reference_datasets":    _render_reference_datasets,
     "provenance_appendix":   _render_provenance_appendix,
 }

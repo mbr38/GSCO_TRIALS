@@ -21,6 +21,7 @@ here.
 # M-UI-E.4
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 import streamlit as st
@@ -454,17 +455,18 @@ def _render_nature_panel(payload: dict) -> None:
             loss_pct       = payload.get("nature.habitat.natural_loss_pct")
             nat_to_built   = payload.get("nature.habitat.nat_to_built_ha")
             annualised     = payload.get("nature.habitat.annualised_rate")
-            forest_loss_ha = payload.get("nature.forest_loss.ha")
+            # M-UI-A6: the Hansen forest-loss line was removed from this
+            # caption — Hansen now lives in the dedicated "Reference
+            # datasets" sub-section below so the same dataset doesn't read
+            # twice in C5. The habitat sub-breakdowns remain (DW-based,
+            # scored). regional_loss_evidence confidence still surfaces
+            # below this caption.
             lines = [
                 f"Natural cover lost: **{_fmt(loss_ha, '.1f')} ha** "
                 f"({_fmt(loss_pct, '.2f')}% of buffer)",
                 f"Natural → built: **{_fmt(nat_to_built, '.1f')} ha**",
                 f"Annualised rate: **{_fmt(annualised, '.1f')} ha/yr**",
             ]
-            if forest_loss_ha is not None:
-                lines.append(
-                    f"Hansen forest loss: **{_fmt(forest_loss_ha, '.1f')} ha**"
-                )
             st.caption(" · ".join(lines))
         _render_nature_confidence_row(payload, "nature.habitat.confidence",        label="habitat")
         _render_nature_confidence_row(payload, "nature.forest_loss.confidence",    label="forest loss")
@@ -1047,13 +1049,295 @@ def _format_provenance_extra_lines(extra) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# M-UI-A6 — Reference datasets (Hansen forest loss + ODIAC CO₂) in C5
+# ---------------------------------------------------------------------------
+#
+# Hansen and ODIAC were demoted out of the live composite (audit §9.3 v1.4 /
+# M5.5b) and removed from the C4b headline grid (M-UI-A4 v1.1). They survive
+# in C5 as *reference* context: cumulative / inventory-allocated values that
+# complement the live screening window without being scored. This sub-section
+# renders them with deliberately muted chrome (no severity badge, no
+# confidence dot — RD3/RD4) so they read as context, not as a finding.
+#
+# Vintage is derived in the UI (no engine change, per Step B decision):
+# ODIAC from its provenance coverage_window; Hansen from the year embedded in
+# its provenance asset_id, falling back to a constant kept in lockstep with
+# engine.nature._HANSEN_MAX_LOSS_YEAR.
+
+# RD5 — canonical badge text. Single phrasing, no per-indicator variation.
+_REFERENCE_BADGE_TEXT: str = "Reference dataset — not used in composite score"
+
+# §4.1 Hansen interpretation bands. UI-presentation thresholds (the engine
+# computes the value; the UI buckets it into prose), so they live here next
+# to the rendering — same pattern as the coastal-handling thresholds above,
+# not engine.constants. The 1% "moderate" boundary is intentionally aligned
+# with engine.constants.HANSEN_VERBAL_MENTION_THRESHOLD (the C7 mention gate).
+_HANSEN_SUBSTANTIAL_LOSS_PCT: float = 5.0
+_HANSEN_MODERATE_LOSS_PCT:    float = 1.0
+
+# Fallback Hansen vintage when the provenance asset_id can't be parsed.
+# Mirrors engine.nature._HANSEN_MAX_LOSS_YEAR (23 → 2023); bump in lockstep
+# when the Hansen asset vintage advances.
+_HANSEN_VINTAGE_FALLBACK_YEAR: int = 2023
+
+# §4 source lines.
+_HANSEN_SOURCE_LINE: str = "Hansen Global Forest Change (University of Maryland)"
+_ODIAC_SOURCE_LINE:  str = "ODIAC fossil-fuel CO₂ (NIES, Japan)"
+
+# §4.1 / RD8 — Hansen audit footnote (what Hansen *does* feed).
+_HANSEN_AUDIT_FOOTNOTE: str = (
+    "Hansen contributes to the regional_loss_evidence binary flag in "
+    "External Driver Screening when ring-vs-buffer loss differs "
+    "significantly, but is not part of the composite score."
+)
+# §4.2 — ODIAC audit footnote.
+_ODIAC_AUDIT_FOOTNOTE: str = (
+    "ODIAC is an inventory-allocated dataset, not an atmospheric "
+    "measurement, and is not used in the composite score."
+)
+
+# §4.2 — ODIAC interpretation. No high/low conditional copy in v1.x (the
+# metric needs regional contextualisation this milestone doesn't supply).
+_ODIAC_INTERPRETATION: str = (
+    "Inventory-allocated estimate of fossil-fuel CO₂ emissions density in "
+    "the AOI."
+)
+_ODIAC_UNAVAILABLE_INTERPRETATION: str = (
+    "ODIAC data is not available for the requested year range."
+)
+
+# RD12 — common missing-data headline replacement.
+_DATA_UNAVAILABLE_TEXT: str = "Data not available for this AOI"
+
+# §4.3 — sub-section header disclaimer (the most important defensive copy).
+_REFERENCE_SECTION_HEADER_COPY: str = (
+    "The following data are shown for context and are not part of the "
+    "composite score. They reflect cumulative or inventory-allocated "
+    "values rather than the current screening window."
+)
+
+# §5.3 / RD11 — "Why reference data?" explainer (sub-section-level per the
+# Step B decision on Q-A6-1).
+_WHY_REFERENCE_DATA_COPY: str = (
+    "Hansen forest loss and ODIAC CO₂ aren't included in the composite "
+    "score because they measure different things from the live indicators. "
+    "Hansen is a cumulative tally of forest cover loss over a multi-year "
+    "window; ODIAC is an annual inventory of estimated fossil-fuel "
+    "emissions allocated to grid cells. Both are shown here as **context** — "
+    "useful background that complements the live screening signals without "
+    "competing with them on the same scale."
+)
+
+
+def _parse_year_from_asset_id(asset_id: str | None) -> int | None:
+    """Extract a 4-digit vintage year from a provenance ``asset_id``.
+
+    Hansen embeds its release year in the asset path
+    (``UMD/hansen/global_forest_change_2023_v1_11`` → 2023). Returns the
+    last 19xx/20xx run in the string, or None if none is present.
+    """
+    if not asset_id:
+        return None
+    matches = re.findall(r"(?:19|20)\d{2}", asset_id)
+    return int(matches[-1]) if matches else None
+
+
+def _hansen_vintage_year(payload: dict) -> int:
+    """Hansen vintage — parsed from the forest_loss provenance asset_id,
+    falling back to the module constant when provenance is absent."""
+    provenance = payload.get("_provenance.nature.forest_loss") or {}
+    year = _parse_year_from_asset_id(provenance.get("asset_id"))
+    return year if year is not None else _HANSEN_VINTAGE_FALLBACK_YEAR
+
+
+def _odiac_vintage_year(payload: dict) -> int | None:
+    """ODIAC vintage — the latest year of the CO₂ provenance coverage_window
+    (e.g. ``["2020-01-01", "2023-12-31"]`` → 2023). None when absent."""
+    provenance = payload.get("_provenance.ghg.co2") or {}
+    window = provenance.get("coverage_window")
+    if not window or len(window) < 2 or not window[1]:
+        return None
+    try:
+        return int(str(window[1])[:4])
+    except (ValueError, TypeError):
+        return None
+
+
+def _hansen_interpretation(loss_pct: float | None) -> str:
+    """§4.1 — one-sentence interpretation keyed to the cumulative loss band."""
+    if loss_pct is None:
+        return "Hansen data is not available for this AOI."
+    if loss_pct >= _HANSEN_SUBSTANTIAL_LOSS_PCT:
+        return (
+            "Substantial cumulative loss in the buffer area; consider how "
+            "recent deforestation may relate to this supplier."
+        )
+    if loss_pct >= _HANSEN_MODERATE_LOSS_PCT:
+        return "Moderate cumulative loss in the buffer area."
+    return "Minimal cumulative loss in the buffer area."
+
+
+@dataclass(frozen=True)
+class _ReferenceCardFields:
+    """Resolved, render-ready content for one reference card (RD7 order).
+
+    Pure data — built by the per-indicator field helpers and consumed by
+    ``_render_reference_card``. ``value_str is None`` is the RD12
+    missing-data signal (card still renders; headline shows the
+    data-unavailable message).
+    """
+
+    display_name:   str
+    indicator_id:   str        # P-09 library key for the M-UI-A2 affordance
+    key_prefix:     str
+    value_str:      str | None
+    unit_line:      str
+    vintage_line:   str
+    source_line:    str
+    interpretation: str
+    audit_footnote: str
+
+
+def _hansen_card_fields(payload: dict) -> _ReferenceCardFields:
+    """§4.1 — resolve the Hansen reference card content from the payload."""
+    loss_pct = payload.get("nature.forest_loss.pct")
+    value_str = None if loss_pct is None else f"{loss_pct:.2f}%"
+    vintage = _hansen_vintage_year(payload)
+    return _ReferenceCardFields(
+        display_name="Hansen forest loss",
+        indicator_id="nature.forest_loss.ha",   # P-09 card key (A.4)
+        key_prefix="c5_ref_hansen",
+        value_str=value_str,
+        unit_line="of buffer area lost (5-year cumulative)",
+        vintage_line=f"Latest Hansen data: {vintage}",
+        source_line=_HANSEN_SOURCE_LINE,
+        interpretation=_hansen_interpretation(loss_pct),
+        audit_footnote=_HANSEN_AUDIT_FOOTNOTE,
+    )
+
+
+def _odiac_card_fields(payload: dict) -> _ReferenceCardFields:
+    """§4.2 — resolve the ODIAC reference card content from the payload."""
+    co2_mean = payload.get("ghg.co2.mean")
+    value_str = (
+        None if co2_mean is None else f"{co2_mean:,.0f} t CO₂ yr⁻¹ per pixel"
+    )
+    vintage = _odiac_vintage_year(payload)
+    vintage_line = (
+        f"Latest ODIAC year: {vintage}" if vintage is not None
+        else "Latest ODIAC year: —"
+    )
+    interpretation = (
+        _ODIAC_INTERPRETATION if co2_mean is not None
+        else _ODIAC_UNAVAILABLE_INTERPRETATION
+    )
+    return _ReferenceCardFields(
+        display_name="CO₂ (ODIAC)",
+        indicator_id="ghg.co2.score",            # P-09 card key (A.4)
+        key_prefix="c5_ref_odiac",
+        value_str=value_str,
+        unit_line="annual emissions intensity",
+        vintage_line=vintage_line,
+        source_line=_ODIAC_SOURCE_LINE,
+        interpretation=interpretation,
+        audit_footnote=_ODIAC_AUDIT_FOOTNOTE,
+    )
+
+
+def _render_reference_card(fields: _ReferenceCardFields) -> None:
+    """Render one reference card per the RD7 standardised structure.
+
+    Visual chrome is deliberately muted (RD6): the name uses the M-UI-A2
+    popover affordance (which carries the "Learn more →" P-09 link — Step B
+    decision: no separate bottom link), a subtle small-caps badge, a
+    smaller-than-verdict headline (1.6em), muted greys, and an italic audit
+    footnote. No severity badge and no confidence dot (RD3/RD4).
+    """
+    with st.container(border=True):
+        # RD7 #1 — name + M-UI-A2 affordance (popover → "Learn more →" P-09).
+        render_indicator_name_with_info(
+            display_name=fields.display_name,
+            indicator_id=fields.indicator_id,
+            key_prefix=fields.key_prefix,
+        )
+        # RD7 #2 / RD5 — badge. Small-caps, muted background, no severity hue.
+        st.markdown(
+            "<span style='display:inline-block;font-size:0.72em;"
+            "font-variant:small-caps;letter-spacing:0.03em;"
+            "background:rgba(255,255,255,0.06);color:#9ca3af;"
+            "border:1px solid rgba(255,255,255,0.14);padding:1px 8px;"
+            f"border-radius:3px;'>{_REFERENCE_BADGE_TEXT}</span>",
+            unsafe_allow_html=True,
+        )
+        # RD7 #3 — headline value + unit, or the RD12 unavailable message.
+        if fields.value_str is None:
+            st.markdown(
+                "<div style='font-size:1.1em;color:#9ca3af;margin-top:8px;'>"
+                f"{_DATA_UNAVAILABLE_TEXT}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='font-size:1.6em;font-weight:600;margin-top:8px;"
+                f"color:#e5e7eb;'>{fields.value_str}</div>"
+                "<div style='font-size:0.85em;color:#9ca3af;'>"
+                f"{fields.unit_line}</div>",
+                unsafe_allow_html=True,
+            )
+        # RD7 #4/#5 — vintage + source.
+        st.markdown(
+            "<div style='font-size:0.9em;color:#9ca3af;margin-top:10px;'>"
+            f"{fields.vintage_line}<br>Source: {fields.source_line}</div>",
+            unsafe_allow_html=True,
+        )
+        # RD7 #6 — one-sentence interpretation.
+        st.markdown(
+            f"<div style='margin-top:10px;'>{fields.interpretation}</div>",
+            unsafe_allow_html=True,
+        )
+        # §5.4 — italic audit footnote.
+        st.markdown(
+            "<div style='font-size:0.85em;color:#9ca3af;font-style:italic;"
+            f"margin-top:4px;'>{fields.audit_footnote}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_reference_datasets_section(payload: dict) -> None:
+    """RD2 — the "Reference datasets" sub-section in C5.
+
+    Hansen + ODIAC cards (RD1), rendered after the scored Nature deep-dive
+    and before C6. Both cards always render (RD12) — the missing-data state
+    lives inside each card so the examiner knows the dataset was queried.
+    Two-column on desktop, stacks on narrow viewports (RD §5.2). The
+    structure is reusable for future reference datasets (RD14): add a field
+    helper + a card column.
+    """
+    st.divider()
+    st.markdown("### Reference datasets")
+    st.caption(_REFERENCE_SECTION_HEADER_COPY)
+    col_hansen, col_odiac = st.columns(2)
+    with col_hansen:
+        _render_reference_card(_hansen_card_fields(payload))
+    with col_odiac:
+        _render_reference_card(_odiac_card_fields(payload))
+    # RD11 / Q-A6-1 — single sub-section-level explainer.
+    with st.expander("Why reference data?", expanded=False):
+        st.markdown(_WHY_REFERENCE_DATA_COPY)
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 def render_c5_drilldowns(payload: dict) -> None:
-    """Render the three C5 pillar drill-down panels."""
+    """Render the three C5 pillar drill-down panels + the reference-dataset
+    sub-section (M-UI-A6)."""
     with st.container():
         st.markdown("### Drill-down by pillar")
         _render_air_panel(payload)
         _render_ghg_panel(payload)
         _render_nature_panel(payload)
+        # M-UI-A6 (RD2) — reference datasets after the scored Nature
+        # deep-dive, before C6.
+        _render_reference_datasets_section(payload)

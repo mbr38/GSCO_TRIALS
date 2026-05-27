@@ -240,6 +240,14 @@ HABITAT_CONVERSION_WEIGHTS: dict[str, float] = {
 HANSEN_LOOKBACK_YEARS: int = 5
 HANSEN_LOSS_RATIO_THRESHOLD: float = 2.0
 
+# M-UI-A6 §6 — cumulative Hansen loss (%) at or above which the C7 verbal
+# summary may mention Hansen as reference context (corroboration or
+# divergence vs the live nature signal). Below this, Hansen is omitted from
+# the prose to avoid noise (§6.3). Hansen remains visible as a C5 reference
+# card regardless. Shares the card's "moderate" boundary in
+# ui.components.c5_drilldown (kept numerically aligned by intent).
+HANSEN_VERBAL_MENTION_THRESHOLD: float = 1.0
+
 # IC_v4 §3.2 + §7.4 — Vegetation_Condition_v1 (EVI removed). The negative
 # weight on recovery is intentional: positive recovery signal subtracts
 # from concern.
