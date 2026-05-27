@@ -112,10 +112,11 @@ class TestConfigIntegrity:
             "trend", "trend_p", "confidence", "score",
         )
 
-    def test_viirs_emits_reduced_five_measurement_set(self) -> None:
-        # Per Schema_v2 §3.1: VIIRS NTL omits background, z, hf, trend_p.
+    def test_viirs_emits_reduced_six_measurement_set(self) -> None:
+        # Per Schema_v2 §3.1 (M-UI-A4 update): VIIRS NTL surfaces `.z` for the
+        # C4b z-score severity grammar but still omits background, hf, trend_p.
         assert GHG_INDICATOR_CONFIG["viirs"].emitted_measurements == (
-            "site", "anomaly", "trend", "confidence", "score",
+            "site", "anomaly", "z", "trend", "confidence", "score",
         )
 
     def test_co2_emits_seven_measurement_set(self) -> None:
@@ -585,6 +586,7 @@ def _fake_viirs_snapshot() -> dict:
     return {
         "ghg.viirs.site":       25.0,
         "ghg.viirs.anomaly":    10.0,
+        "ghg.viirs.z":          1.4,                # M-UI-A4: VIIRS now surfaces z
         "ghg.viirs.trend":      None,
         "ghg.viirs.confidence": 0.685,              # M-TIER-A1 Step E: n_a × 0.685
         "ghg.viirs.score":      0.50,
@@ -621,13 +623,14 @@ class TestRunPillar:
             ee_client=None,
         )
 
-        # CH₄ full nine-measurement set + VIIRS reduced five-measurement set.
+        # CH₄ full nine-measurement set + VIIRS reduced six-measurement set
+        # (M-UI-A4 added `.z` to VIIRS for the severity grammar).
         for measurement in (
             "site", "background", "anomaly", "z", "hf",
             "trend", "trend_p", "confidence", "score",
         ):
             assert f"ghg.ch4.{measurement}" in result
-        for measurement in ("site", "anomaly", "trend", "confidence", "score"):
+        for measurement in ("site", "anomaly", "z", "trend", "confidence", "score"):
             assert f"ghg.viirs.{measurement}" in result
 
         # Five computable sub-aggregates non-None (borrow chain worked).
@@ -736,8 +739,9 @@ class TestRunPillar:
 
         err = excinfo.value
         assert err.pillar == "ghg"
-        # CH₄ contributes 9 measurement IDs, VIIRS contributes 5. 14 total.
-        assert len(err.indicator_ids) == 9 + 5
+        # CH₄ contributes 9 measurement IDs, VIIRS contributes 6
+        # (M-UI-A4 added `.z`). 15 total.
+        assert len(err.indicator_ids) == 9 + 6
         # Spot-check.
         assert "ghg.ch4.score" in err.indicator_ids
         assert "ghg.viirs.confidence" in err.indicator_ids

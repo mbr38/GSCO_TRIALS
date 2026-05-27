@@ -48,7 +48,10 @@ require_earth_engine()
 from engine.orchestrator import ScreeningRun
 from ui.components.c3_summary import render_c3_summary
 from ui.components.c4a_indicator_map import render_c4a_indicator_map
-from ui.components.c4b_kpi_grid import render_c4b_kpi_grid
+from ui.components.c4b_kpi_grid import (
+    render_c4b_kpi_grid,
+    render_multi_indicator_map_anchor,  # M-UI-A4 Step G
+)
 from ui.components.c5_drilldown import render_c5_drilldowns
 from ui.components.c6_confidence_panel import render_c6_confidence_panel
 from ui.components.c7_verbal_summary import render_c7_verbal_summary
@@ -241,6 +244,10 @@ def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     render_partial_caveat(selected)  # M-PARTIAL-CAVEAT
     render_c3_summary(result)
     render_c4b_kpi_grid(result, selected)
+    # M-UI-A4 Step G — placeholder anchor for the multi-indicator map
+    # (item 2.3b / M-UI-A5). Sits between the snapshot (C4b) and the
+    # drill-down (C5); every C4b "View on map →" link scrolls here (Q-A4-4).
+    render_multi_indicator_map_anchor()
     render_c5_drilldowns(result)
     render_c6_confidence_panel(result)
     # M-HIDE-SUMMARY: only render C7 when the user ran the full canonical

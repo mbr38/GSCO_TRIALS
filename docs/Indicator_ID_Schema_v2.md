@@ -123,9 +123,11 @@ Every pollutant below produces the full measurement set: `.site`, `.background`,
 |---|---|---|---|
 | `ghg.ch4` | Sentinel-5P `CH4_column_volume_mixing_ratio_dry_air` | ppb | `.site`, `.background`, `.anomaly`, `.z`, `.hf`, `.trend`, `.trend_p`, `.confidence`, `.score` |
 | `ghg.co2` | ODIAC (uploaded asset) | kg CO₂ m⁻² yr⁻¹ (flux); t CO₂ yr⁻¹ (total) | `.mean`, `.total`, `.relative_intensity`, `.trend`, `.confidence`, `.score` |
-| `ghg.viirs` | VIIRS Black Marble NTL | nW cm⁻² sr⁻¹ | `.site`, `.anomaly`, `.trend`, `.confidence`, `.score` |
+| `ghg.viirs` | VIIRS Black Marble NTL | nW cm⁻² sr⁻¹ | `.site`, `.anomaly`, `.z`, `.trend`, `.confidence`, `.score` |
 
 CO₂ uses `.mean` and `.total` (annual flux mean and annual area-integrated total) instead of `.site` because ODIAC is an emissions inventory, not a column density.
+
+**Footnote (M-UI-A4, 27 May 2026).** `ghg.viirs.z` was added to the VIIRS emitted set. The spatiotemporal-anomaly z-score is computed by the repeatable core for every six-step indicator (`z = anomaly / bg_std`); for VIIRS it was previously filtered out of the result payload. The C4b indicator-snapshot redesign (M-UI-A4) reads it to place VIIRS on the z-score severity grammar alongside CH₄. VIIRS still omits `.background`, `.hf`, and `.trend_p` — only the z consumed by the severity grammar was surfaced; no new value is computed.
 
 **Footnote (v2.1 patch 3).** `ghg.co2.anomaly` was renamed to `ghg.co2.relative_intensity` to reflect the engine-canonical measurement name introduced in M5.5b. The renamed measurement is the ratio of site flux to background flux, clamped at 10× as a CARMA-overlap proxy (see IC_v4 §2.1). The `.anomaly` form is no longer emitted; consumers (Indicator Library, Reports, CSV/JSON exports) must use `.relative_intensity`. The audit doc §1.4 flagged this drift between v2.0 of this schema and `engine/ghg.py`.
 

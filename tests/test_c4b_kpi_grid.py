@@ -1,269 +1,352 @@
-"""Tests for ui.components.c4b_kpi_grid (M-UI-E.3).
+"""Tests for ui.components.c4b_kpi_grid — the M-UI-A4 indicator snapshot.
 
-Pure-Python — no Streamlit. Tests the helpers individually because the
-``render_*`` functions write to Streamlit and can't be asserted on
-directly. Plus an end-to-end pass on a synthetic São Paulo payload to
-exercise the success / per-indicator-failure / silent-skip paths
-together.
+Pure-Python — no Streamlit. The ``render_*`` functions write to Streamlit
+and can't be asserted on directly, so we test the pure helpers (tile
+registry, severity dispatch, failure detection, snapshot partition, HTML
+builders) plus end-to-end passes over the seeded demo screening payloads
+(Sapezal + Brasília golden fixtures, spec §7.4).
 """
 
-# M-UI-E.3
+# M-UI-A4
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import pytest
 
 from ui.components.c4b_kpi_grid import (
-    _FLAT_ANOMALY_EPS,
+    MAP_ANCHOR_ID,
+    _MIN_SNAPSHOT_TILES,
     _TILES,
-    _anomaly_direction,
-    _arrow_glyph,
+    _headline_value,
     _is_failed,
+    _map_link_html,
     _resolve_failure_reason,
+    _severity_badge_html,
+    _snapshot_partition,
+    _tile_severity,
+    _visible_tiles,
 )
+from ui.components.severity import is_critical
+
+
+def _tile(indicator: str):
+    return next(t for t in _TILES if t.indicator == indicator)
 
 
 # ---------------------------------------------------------------------------
-# _is_failed
+# Tile registry integrity (SR4, SR6, SR7)
 # ---------------------------------------------------------------------------
 
-def test_is_failed_true_when_score_is_none():
-    tile = next(t for t in _TILES if t.indicator == "pm10")
-    assert _is_failed(tile, {"air.pm10.score": None}) is True
+def test_tile_count_is_fourteen():
+    # Spec v1.1: 9 air + 2 ghg + 3 nature (Hansen + ODIAC removed).
+    assert len(_TILES) == 14
 
 
-def test_is_failed_false_when_score_is_a_number():
-    tile = next(t for t in _TILES if t.indicator == "no2")
-    assert _is_failed(tile, {"air.no2.score": 0.42}) is False
+def test_pillar_split():
+    counts = {p: sum(1 for t in _TILES if t.pillar == p) for p in ("air", "ghg", "nature")}
+    assert counts == {"air": 9, "ghg": 2, "nature": 3}
 
 
-def test_is_failed_true_on_empty_payload():
-    """Missing key behaves like None — the tile is failed."""
-    tile = next(t for t in _TILES if t.indicator == "co")
-    assert _is_failed(tile, {}) is True
+def test_nature_tiles_present_in_headline_registry():
+    """SR4 (v1.1) — KBA, DW, NDVI get headline tiles; Hansen is excluded."""
+    nature = {t.indicator for t in _TILES if t.pillar == "nature"}
+    assert nature == {"kba", "dw", "ndvi"}
+
+
+def test_three_grammars_used():
+    """SR7 (v1.1) — three grammars; loss_fraction removed."""
+    grammars = {t.grammar for t in _TILES}
+    assert grammars == {"zscore", "categorical", "distance"}
+
+
+def test_hansen_and_odiac_not_in_headline_grid():
+    """SR4 (v1.1) / §8.6 regression — reference datasets must not re-appear as
+    tiles. Hansen (nature.forest_loss) and ODIAC (ghg.co2) live in C5."""
+    indicators = {(t.pillar, t.indicator) for t in _TILES}
+    assert ("nature", "forest_loss") not in indicators
+    assert ("ghg", "co2") not in indicators
+    # Also by select-key, since that's what selection/rendering keys on.
+    select_keys = {t.select_key for t in _TILES}
+    assert "nature.forest_loss.ha" not in select_keys
+    assert "ghg.co2.score" not in select_keys
+
+
+def test_every_tile_has_select_key_and_confidence_key():
+    for t in _TILES:
+        assert t.select_key, t.indicator
+        # All current tiles carry a confidence key; the field is optional
+        # for forward-compat but should be populated today.
+        assert t.confidence_key, t.indicator
+
+
+def test_zscore_tiles_have_z_key():
+    for t in _TILES:
+        if t.grammar == "zscore":
+            assert t.z_key is not None, t.indicator
+
+
+def test_provenance_key_shape():
+    assert _tile("no2").provenance_key == "_provenance.air.no2"
+    assert _tile("kba").provenance_key == "_provenance.nature.kba"
+
+
+def test_no_engine_critical_field_dependency():
+    """SR3 — severity is local; no tile reads an engine 'critical' flag."""
+    for t in _TILES:
+        for field in (t.select_key, t.z_key, t.category_key, t.dist_km_key,
+                      t.confidence_key):
+            if field:
+                assert "critical" not in field
 
 
 # ---------------------------------------------------------------------------
-# _anomaly_direction / _arrow_glyph
+# _is_failed / _headline_value (grammar-value-based)
 # ---------------------------------------------------------------------------
 
-def test_anomaly_direction_positive():
-    assert _anomaly_direction(42.0) == "up"
+def test_is_failed_when_zscore_headline_none():
+    assert _is_failed(_tile("no2"), {"air.no2.z": None}) is True
 
 
-def test_anomaly_direction_negative():
-    assert _anomaly_direction(-3.1) == "down"
+def test_is_failed_false_when_zscore_present():
+    assert _is_failed(_tile("no2"), {"air.no2.z": 1.2}) is False
 
 
-def test_anomaly_direction_zero_is_flat():
-    assert _anomaly_direction(0.0) == "flat"
+def test_ndvi_not_failed_when_score_none_but_z_present():
+    """Regression: nature.ndvi.score is routinely None in v1; the NDVI tile
+    keys failure on its z, not its score, so it doesn't read as failed."""
+    payload = {"nature.ndvi.score": None, "nature.ndvi.z": -1.4}
+    assert _is_failed(_tile("ndvi"), payload) is False
 
 
-def test_anomaly_direction_none():
-    assert _anomaly_direction(None) == "none"
+def test_is_failed_distance_needs_both_none():
+    assert _is_failed(_tile("kba"), {"nature.kba.dist_km": None,
+                                     "nature.kba.overlap_pct": None}) is True
+    assert _is_failed(_tile("kba"), {"nature.kba.dist_km": 5.0,
+                                     "nature.kba.overlap_pct": None}) is False
 
 
-def test_anomaly_direction_below_epsilon_is_flat():
-    """Values within ±EPS of zero collapse to flat."""
-    assert _anomaly_direction(_FLAT_ANOMALY_EPS / 2) == "flat"
-    assert _anomaly_direction(-_FLAT_ANOMALY_EPS / 2) == "flat"
+def test_is_failed_on_empty_payload():
+    assert _is_failed(_tile("co"), {}) is True
 
 
-def test_arrow_glyph_covers_every_direction():
-    assert _arrow_glyph("up")   == "↑"
-    assert _arrow_glyph("down") == "↓"
-    assert _arrow_glyph("flat") == "→"
-    assert _arrow_glyph("none") == ""
+def test_headline_value_distance_prefers_distance():
+    assert _headline_value(_tile("kba"),
+                           {"nature.kba.dist_km": 3.0, "nature.kba.overlap_pct": 1.0}) == 3.0
 
 
 # ---------------------------------------------------------------------------
-# _resolve_failure_reason
+# _resolve_failure_reason (SR12)
 # ---------------------------------------------------------------------------
 
 def test_resolve_reason_from_failures_list():
-    """When _failures has a matching indicator_id, its reason wins."""
-    tile = next(t for t in _TILES if t.indicator == "pm10")
     payload = {
-        "air.pm10.score": None,
-        "_failures": {
-            "air": [
-                {
-                    "indicator_id": "air.pm10",
-                    "reason": "site buffer (5 km) smaller than pm10 native pixel (44.5 km)",
-                },
-            ],
-        },
+        "air.pm10.z": None,
+        "_failures": {"air": [
+            {"indicator_id": "air.pm10", "reason": "buffer smaller than native pixel"},
+        ]},
     }
-    assert "buffer" in _resolve_failure_reason(tile, payload)
+    assert "buffer" in _resolve_failure_reason(_tile("pm10"), payload)
 
 
-def test_resolve_reason_from_provenance_skipped():
-    """coverage_window silent-skip path — reason from provenance."""
-    tile = next(t for t in _TILES if t.indicator == "co2")
-    payload = {
-        "ghg.co2.score": None,
-        "_provenance.ghg.co2": {"skipped_reason": "out_of_coverage"},
-    }
-    reason = _resolve_failure_reason(tile, payload)
-    assert "coverage window" in reason.lower()
-
-
-def test_resolve_reason_unknown_skipped_code_passes_through():
-    """An unrecognised skipped_reason returns the raw code (no crash)."""
-    tile = next(t for t in _TILES if t.indicator == "ch4")
-    payload = {
-        "ghg.ch4.score": None,
-        "_provenance.ghg.ch4": {"skipped_reason": "some_future_code"},
-    }
-    assert _resolve_failure_reason(tile, payload) == "some_future_code"
+def test_resolve_reason_from_provenance_skipped_translates():
+    # DW skip translates via _SKIPPED_REASON_TRANSLATIONS (forest_loss tile
+    # was removed in v1.1, so exercise the path on a still-present tile).
+    payload = {"nature.dw.dominant_class": None,
+               "_provenance.nature.dw": {"skipped_reason": "no_dw_pixels"}}
+    assert "Dynamic World" in _resolve_failure_reason(_tile("dw"), payload)
 
 
 def test_resolve_reason_generic_fallback():
-    """Nothing in _failures or provenance → generic fallback."""
-    tile = next(t for t in _TILES if t.indicator == "aod")
-    reason = _resolve_failure_reason(tile, {"air.aod.score": None})
-    assert reason == "Indicator did not return a value."
-
-
-def test_resolve_reason_failures_entry_without_reason_falls_through():
-    """An entry in _failures with no `reason` key falls through to the
-    generic fallback rather than returning None."""
-    tile = next(t for t in _TILES if t.indicator == "so2")
-    payload = {
-        "air.so2.score": None,
-        "_failures": {"air": [{"indicator_id": "air.so2"}]},
-    }
-    assert _resolve_failure_reason(tile, payload) == (
+    assert _resolve_failure_reason(_tile("aod"), {"air.aod.z": None}) == (
         "Indicator did not return a value."
     )
 
 
 # ---------------------------------------------------------------------------
-# Tile-spec integrity
+# _tile_severity dispatch (one per grammar)
 # ---------------------------------------------------------------------------
 
-def test_tile_count_is_twelve():
-    assert len(_TILES) == 12
+def test_severity_zscore_dispatch():
+    payload = {"air.no2.z": 2.4, "air.no2.confidence": 0.9}
+    assert _tile_severity(_tile("no2"), payload) == "High"
 
 
-def test_tile_pillar_split_is_nine_air_three_ghg():
-    air_count = sum(1 for t in _TILES if t.pillar == "air")
-    ghg_count = sum(1 for t in _TILES if t.pillar == "ghg")
-    assert air_count == 9
-    assert ghg_count == 3
+def test_severity_distance_dispatch():
+    payload = {"nature.kba.dist_km": 0.5, "nature.kba.overlap_pct": 0.0,
+               "nature.kba.confidence": 0.9}
+    assert _tile_severity(_tile("kba"), payload) == "High"
 
 
-def test_every_tile_score_key_ends_in_score():
-    for tile in _TILES:
-        assert tile.score_key.endswith(".score"), tile.indicator
+def test_severity_categorical_dw_dispatch():
+    payload = {"nature.dw.dominant_class": "built", "nature.dw.confidence": 0.9}
+    assert _tile_severity(_tile("dw"), payload) == "Concern"
 
 
-def test_every_tile_confidence_key_ends_in_confidence():
-    for tile in _TILES:
-        assert tile.confidence_key.endswith(".confidence"), tile.indicator
-
-
-def test_co2_has_no_anomaly_key():
-    """ODIAC CO₂ is inventory-allocated — there's no anomaly concept."""
-    co2 = next(t for t in _TILES if t.indicator == "co2")
-    assert co2.anomaly_key is None
-
-
-def test_every_non_co2_tile_has_an_anomaly_key():
-    for tile in _TILES:
-        if tile.indicator == "co2":
-            continue
-        assert tile.anomaly_key is not None, tile.indicator
+def test_failed_tile_reports_sparse_for_filter():
+    """SR12 — a failed tile is non-critical (Sparse) for the snapshot."""
+    assert _tile_severity(_tile("pm10"), {"air.pm10.z": None}) == "Sparse"
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: São Paulo-shaped payload
+# _visible_tiles — selection-aware (M-P04)
 # ---------------------------------------------------------------------------
 
-def _sao_paulo_payload() -> dict:
-    """Synthetic payload mimicking the keys C4b reads on a São Paulo run.
+def test_visible_tiles_keeps_only_selected():
+    selected = {"air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score"}
+    visible = {t.indicator for t in _visible_tiles(selected)}
+    assert visible == {"no2", "ch4", "kba"}
 
-    PM10/PM25 fail (5 km buffer < 44.5 km native pixel). CO₂ silently
-    skipped (May 2026 outside ODIAC's 2020-2023 coverage). The other
-    10 tiles return a real numeric value.
-    """
-    payload: dict = {
-        # 7 successful air tiles.
-        "air.no2.score":  0.55, "air.no2.site":  41.0, "air.no2.anomaly":  +12.0, "air.no2.confidence":  0.20,
-        "air.so2.score":  0.10, "air.so2.site":  20.0, "air.so2.anomaly":  -71.0, "air.so2.confidence":  0.20,
-        "air.co.score":   0.30, "air.co.site":   30.0, "air.co.anomaly":   +1.5,  "air.co.confidence":   0.20,
-        "air.hcho.score": 0.45, "air.hcho.site": 90.0, "air.hcho.anomaly": +6.0,  "air.hcho.confidence": 0.20,
-        "air.o3.score":   0.20, "air.o3.site":  280.0, "air.o3.anomaly":   -2.0,  "air.o3.confidence":   0.20,
-        "air.aai.score":  0.40, "air.aai.site":   0.5, "air.aai.anomaly":  +0.2,  "air.aai.confidence":  0.20,
-        "air.aod.score":  0.30, "air.aod.site":   0.4, "air.aod.anomaly":  +0.1,  "air.aod.confidence":  0.20,
-        # PM10/PM25 failed.
-        "air.pm10.score": None, "air.pm10.site": None, "air.pm10.anomaly": None, "air.pm10.confidence": None,
-        "air.pm25.score": None, "air.pm25.site": None, "air.pm25.anomaly": None, "air.pm25.confidence": None,
-        # 2 successful GHG tiles.
-        "ghg.ch4.score":   0.40, "ghg.ch4.site":   1875.0, "ghg.ch4.anomaly":  +15.0, "ghg.ch4.confidence":   0.70,
-        "ghg.viirs.score": 0.85, "ghg.viirs.site":   58.4, "ghg.viirs.anomaly": +12.1, "ghg.viirs.confidence": 0.88,
-        # CO₂ silently skipped.
-        "ghg.co2.score":   None, "ghg.co2.mean":      None, "ghg.co2.confidence":   None,
-        "_failures": {
-            "air": [
-                {"indicator_id": "air.pm10", "reason": "site buffer (5 km) smaller than pm10 native pixel (44.5 km)"},
-                {"indicator_id": "air.pm25", "reason": "site buffer (5 km) smaller than pm25 native pixel (44.5 km)"},
-            ],
-        },
-        "_provenance.ghg.co2": {"skipped_reason": "out_of_coverage"},
+
+def test_visible_tiles_nature_select_keys_resolve():
+    """The Nature tiles use the registry's selectable IDs, not '.score'.
+
+    Selecting nature.forest_loss.ha yields no tile (Hansen is a reference
+    dataset in C5, not a headline tile, per spec v1.1)."""
+    selected = {"nature.dw.trees_pct", "nature.forest_loss.ha", "nature.ndvi.score"}
+    visible = {t.indicator for t in _visible_tiles(selected)}
+    assert visible == {"dw", "ndvi"}
+
+
+def test_visible_tiles_empty_selection():
+    assert _visible_tiles(set()) == []
+
+
+# ---------------------------------------------------------------------------
+# _snapshot_partition — SR2, SR9, SR5.4
+# ---------------------------------------------------------------------------
+
+def test_snapshot_shows_only_critical_when_many_fire():
+    payload = {
+        "air.no2.z": 3.0, "air.no2.confidence": 0.9,   # High
+        "air.so2.z": 1.5, "air.so2.confidence": 0.9,   # Concern
+        "air.co.z": 2.2, "air.co.confidence": 0.9,     # High
+        "air.hcho.z": 0.1, "air.hcho.confidence": 0.9, # Normal
     }
-    return payload
+    selected = {"air.no2.score", "air.so2.score", "air.co.score", "air.hcho.score"}
+    snapshot, rest, sev = _snapshot_partition(_visible_tiles(selected), payload)
+    snap_inds = {t.indicator for t in snapshot}
+    assert snap_inds == {"no2", "so2", "co"}        # 3 critical
+    assert {t.indicator for t in rest} == {"hcho"}  # the Normal one
+    assert all(is_critical(sev[t.select_key]) for t in snapshot)
 
 
-def test_e2e_sao_paulo_failed_tiles_are_pm10_pm25_and_co2():
-    payload = _sao_paulo_payload()
-    failed = [t.indicator for t in _TILES if _is_failed(t, payload)]
-    assert set(failed) == {"pm10", "pm25", "co2"}
+def test_snapshot_min_three_topup_when_few_critical():
+    """SR9 — fewer than 3 critical → top up with highest-severity Normals."""
+    payload = {
+        "air.no2.z": 3.0, "air.no2.confidence": 0.9,   # High (1 critical)
+        "air.so2.z": 0.2, "air.so2.confidence": 0.9,   # Normal
+        "air.co.z": 0.8, "air.co.confidence": 0.9,     # Normal (higher |z|)
+        "air.hcho.z": 0.1, "air.hcho.confidence": 0.9, # Normal
+    }
+    selected = {"air.no2.score", "air.so2.score", "air.co.score", "air.hcho.score"}
+    snapshot, rest, _ = _snapshot_partition(_visible_tiles(selected), payload)
+    assert len(snapshot) == _MIN_SNAPSHOT_TILES
+    assert _tile("no2") in snapshot                 # the critical one is kept
 
 
-def test_e2e_sao_paulo_pm10_reason_mentions_buffer():
-    """The per-indicator failure path surfaces the engine's message."""
-    payload = _sao_paulo_payload()
-    pm10 = next(t for t in _TILES if t.indicator == "pm10")
-    assert "buffer" in _resolve_failure_reason(pm10, payload)
+def test_snapshot_topup_below_min_returns_all_when_too_few():
+    payload = {"air.no2.z": 0.1, "air.no2.confidence": 0.9,
+               "air.so2.z": 0.2, "air.so2.confidence": 0.9}
+    selected = {"air.no2.score", "air.so2.score"}
+    snapshot, rest, _ = _snapshot_partition(_visible_tiles(selected), payload)
+    # Only 2 tiles exist; snapshot can't exceed what's available.
+    assert len(snapshot) == 2
+    assert rest == []
 
 
-def test_e2e_sao_paulo_co2_reason_is_coverage_window():
-    """The silent-skip path translates the provenance code."""
-    payload = _sao_paulo_payload()
-    co2 = next(t for t in _TILES if t.indicator == "co2")
-    assert "coverage window" in _resolve_failure_reason(co2, payload).lower()
-
-
-def test_e2e_sao_paulo_nine_tiles_succeed():
-    payload = _sao_paulo_payload()
-    successes = [t.indicator for t in _TILES if not _is_failed(t, payload)]
-    assert len(successes) == 9
-    assert "pm10" not in successes and "pm25" not in successes and "co2" not in successes
+def test_snapshot_critical_sorted_high_before_concern():
+    payload = {
+        "air.no2.z": 1.2, "air.no2.confidence": 0.9,   # Concern
+        "air.so2.z": 3.0, "air.so2.confidence": 0.9,   # High
+    }
+    selected = {"air.no2.score", "air.so2.score"}
+    snapshot, _, _ = _snapshot_partition(_visible_tiles(selected), payload)
+    assert [t.indicator for t in snapshot] == ["so2", "no2"]
 
 
 # ---------------------------------------------------------------------------
-# M-P04 polish — render-time selection filter
+# HTML builders (SR1, SR5)
 # ---------------------------------------------------------------------------
-# The render fn itself writes to Streamlit and can't be asserted on
-# directly, but the filter is a one-liner against ``_TILES``; we test
-# the equivalent list comprehension here to lock the expected
-# behaviour.
 
-def test_visible_tiles_filter_keeps_only_selected():
-    """Only tiles whose score_key is in the selected set survive."""
-    selected = {"air.no2.score", "ghg.ch4.score"}
-    visible = [t for t in _TILES if t.score_key in selected]
-    assert {t.indicator for t in visible} == {"no2", "ch4"}
+@pytest.mark.parametrize("severity,word", [
+    ("High", "High"), ("Concern", "Concern"),
+    ("Normal", "Normal"), ("Sparse", "Sparse data"),
+])
+def test_severity_badge_contains_word(severity, word):
+    assert word in _severity_badge_html(severity)
 
 
-def test_visible_tiles_filter_returns_empty_on_no_selection():
-    """Empty selection → no tiles to render (renderer no-ops)."""
-    visible = [t for t in _TILES if t.score_key in set()]
-    assert visible == []
+def test_map_link_targets_anchor():
+    """SR5 — every tile's map link points at the placeholder anchor."""
+    assert f"#{MAP_ANCHOR_ID}" in _map_link_html()
+    assert "View on map" in _map_link_html()
 
 
-def test_visible_tiles_filter_returns_empty_on_pure_nature_selection():
-    """User picked only nature.* indicators → no C4b tiles to render."""
-    selected = {"nature.kba.proximity_score", "nature.ndvi.score"}
-    visible = [t for t in _TILES if t.score_key in selected]
-    assert visible == []
+# ---------------------------------------------------------------------------
+# Integration — seeded demo golden payloads (spec §7.4)
+# ---------------------------------------------------------------------------
+
+_SAVES = Path(__file__).resolve().parent.parent / "demo" / "saved_analyses"
+
+
+def _load_payload(name: str) -> dict:
+    return json.loads((_SAVES / name).read_text())["payload"]
+
+
+@pytest.fixture
+def sapezal_payload() -> dict:
+    return _load_payload("high_priority_amazon.json")
+
+
+@pytest.fixture
+def brasilia_payload() -> dict:
+    return _load_payload("low_priority_brasilia.json")
+
+
+_ALL_SELECTED = {t.select_key for t in _TILES}
+
+
+def test_sapezal_all_tiles_classify_without_crash(sapezal_payload):
+    for t in _TILES:
+        sev = _tile_severity(t, sapezal_payload)
+        assert sev in ("High", "Concern", "Normal", "Sparse")
+
+
+def test_sapezal_kba_is_concern(sapezal_payload):
+    # dist 7.33 km, no overlap → 1.0 ≤ d < 10.0 → Concern.
+    assert _tile_severity(_tile("kba"), sapezal_payload) == "Concern"
+
+
+def test_sapezal_snapshot_respects_min_three(sapezal_payload):
+    """R1/SR9 — Sapezal is mostly Normal; the floor keeps the section full."""
+    snapshot, _, _ = _snapshot_partition(_visible_tiles(_ALL_SELECTED), sapezal_payload)
+    assert len(snapshot) >= _MIN_SNAPSHOT_TILES
+
+
+def test_sapezal_viirs_fails_gracefully(sapezal_payload):
+    # The seeded save predates the VIIRS-z change so ghg.viirs.z is None →
+    # the VIIRS tile reads as failed (Sparse for the filter), not a crash.
+    # (ODIAC is no longer a tile in spec v1.1, so it's not asserted here.)
+    assert _is_failed(_tile("viirs"), sapezal_payload) is True
+    assert _tile_severity(_tile("viirs"), sapezal_payload) == "Sparse"
+
+
+def test_brasilia_kba_overlap_fires_high(brasilia_payload):
+    # overlap 11.3% > 0 → High.
+    assert _tile_severity(_tile("kba"), brasilia_payload) == "High"
+
+
+def test_brasilia_has_critical_tiles(brasilia_payload):
+    snapshot, _, sev = _snapshot_partition(_visible_tiles(_ALL_SELECTED), brasilia_payload)
+    criticals = [k for k, s in sev.items() if is_critical(s)]
+    assert criticals  # at least KBA fires
+
+
+def test_selection_aware_air_only_hides_nature(sapezal_payload):
+    """Only-Air selection → no Nature tiles render (SR/integration)."""
+    air_only = {t.select_key for t in _TILES if t.pillar == "air"}
+    visible = _visible_tiles(air_only)
+    assert all(t.pillar == "air" for t in visible)
+    assert not any(t.pillar == "nature" for t in visible)

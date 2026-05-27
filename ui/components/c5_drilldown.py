@@ -377,8 +377,28 @@ _DW_CLASSES: tuple[tuple[str, str], ...] = (
 
 
 def _render_nature_panel(payload: dict) -> None:
-    """C5c — Nature/Land drill-down. Four sub-sections + DW composition."""
-    with st.expander("Nature/Land — drill-down"):
+    """C5c — Nature/Land details (deep-dive). Four sub-sections + DW composition.
+
+    M-UI-A4 (SR13, spec v1.1): the scored Nature *headline* metrics — KBA
+    proximity, Dynamic World dominant class, NDVI deviation — now lead the
+    C4b indicator snapshot as severity tiles. This panel was restructured
+    into the "Nature details" deep-dive: it keeps the pillar Follow-Up
+    Priority + formula and the non-tileable supporting detail (KBA
+    overlap/ha, habitat sub-breakdowns, the 9-class DW composition table,
+    recovery, water area, regional-loss evidence, and the per-indicator
+    confidence-term breakdowns).
+
+    Hansen forest loss and ODIAC CO₂ stay in C5 as reference datasets (they
+    are NOT snapshot tiles per spec v1.1); their reference-dataset visual
+    treatment is M-UI-A6's job, not this milestone's.
+    """
+    with st.expander("Nature/Land — details (deep-dive)"):
+        st.caption(
+            "Scored headline Nature indicators (biodiversity proximity, land "
+            "cover, vegetation) now lead the Indicator snapshot above. This "
+            "section provides the full supporting detail; reference datasets "
+            "(e.g. Hansen forest loss) remain here."
+        )
         _render_headline(
             "nature.followup_priority",
             "nature.quality_attribution",

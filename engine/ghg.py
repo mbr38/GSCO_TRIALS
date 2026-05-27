@@ -193,8 +193,13 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         scale_m=463.83,
         display_unit="nW/cm²/sr",
         # Schema_v2 §3.1 — VIIRS NTL emits a reduced measurement set.
+        # M-UI-A4: `.z` added so the C4b z-score-grammar severity tile can
+        # read VIIRS's spatiotemporal anomaly magnitude. `z` was always
+        # computed by six_step (z = anomaly / bg_std); it was previously
+        # filtered out here. VIIRS still omits `.background`/`.hf`/`.trend_p`
+        # — only the z used by the severity grammar is surfaced.
         emitted_measurements=(
-            "site", "anomaly", "trend", "confidence", "score",
+            "site", "anomaly", "z", "trend", "confidence", "score",
         ),
         data_source="NASA / NOAA (VIIRS VNP46A2)",
         skipped_reason_no_data="no_viirs_pixels",  # M-AIR-GHG-DEFENSIVE
