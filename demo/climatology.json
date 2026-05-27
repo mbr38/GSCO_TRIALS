@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "schema": "gsco.climatology.v1",
+    "vintage": "2026",
+    "source_window": "2023-01-01/2025-12-31",
+    "granularity": "per_country",
+    "country_asset": "FAO/GAUL/2015/level0",
+    "country_key": "ADM0_NAME",
+    "indicators": [
+      "air.no2", "air.so2", "air.co", "air.hcho", "air.o3",
+      "air.aai", "air.pm25", "air.pm10", "air.aod",
+      "ghg.ch4", "ghg.viirs"
+    ],
+    "units": {
+      "air.no2": "umol/m2", "air.so2": "umol/m2", "air.co": "mmol/m2",
+      "air.hcho": "umol/m2", "air.o3": "DU", "air.aai": "dimensionless",
+      "air.pm25": "ug/m3", "air.pm10": "ug/m3", "air.aod": "dimensionless",
+      "ghg.ch4": "ppb", "ghg.viirs": "nW/cm2/sr"
+    },
+    "stats": "Per-country area-weighted median and standard deviation over the source window.",
+    "generated_by": "tools/regen_climatology_fixtures.py",
+    "is_placeholder": true,
+    "placeholder_note": "STARTER fixture: representative regional baselines for the demo-relevant countries only, in the engine's display units. The authoritative full (~200-country) fixture is produced by running tools/regen_climatology_fixtures.py against Earth Engine (a one-off, ~hours of EE quota, refreshed annually). These values are order-of-magnitude representative, NOT EE-computed measurements — do not cite them. Replace before any audit-facing use."
+  },
+  "countries": {
+    "Brazil": {
+      "air.no2":   {"median": 38.0,  "std": 26.0},
+      "air.so2":   {"median": 75.0,  "std": 60.0},
+      "air.co":    {"median": 28.0,  "std": 6.0},
+      "air.hcho":  {"median": 120.0, "std": 50.0},
+      "air.o3":    {"median": 262.0, "std": 14.0},
+      "air.aai":   {"median": 0.35,  "std": 0.55},
+      "air.pm25":  {"median": 12.0,  "std": 8.0},
+      "air.pm10":  {"median": 24.0,  "std": 15.0},
+      "air.aod":   {"median": 0.18,  "std": 0.12},
+      "ghg.ch4":   {"median": 1865.0, "std": 28.0},
+      "ghg.viirs": {"median": 1.4,   "std": 3.2}
+    },
+    "India": {
+      "air.no2":   {"median": 92.0,  "std": 52.0},
+      "air.so2":   {"median": 150.0, "std": 100.0},
+      "air.co":    {"median": 38.0,  "std": 9.0},
+      "air.hcho":  {"median": 140.0, "std": 60.0},
+      "air.o3":    {"median": 276.0, "std": 18.0},
+      "air.aai":   {"median": 0.55,  "std": 0.70},
+      "air.pm25":  {"median": 46.0,  "std": 30.0},
+      "air.pm10":  {"median": 82.0,  "std": 50.0},
+      "air.aod":   {"median": 0.45,  "std": 0.25},
+      "ghg.ch4":   {"median": 1890.0, "std": 32.0},
+      "ghg.viirs": {"median": 2.1,   "std": 4.0}
+    },
+    "United States of America": {
+      "air.no2":   {"median": 45.0,  "std": 30.0},
+      "air.so2":   {"median": 70.0,  "std": 55.0},
+      "air.co":    {"median": 24.0,  "std": 5.0},
+      "air.hcho":  {"median": 95.0,  "std": 45.0},
+      "air.o3":    {"median": 300.0, "std": 22.0},
+      "air.aai":   {"median": 0.20,  "std": 0.50},
+      "air.pm25":  {"median": 9.0,   "std": 6.0},
+      "air.pm10":  {"median": 18.0,  "std": 11.0},
+      "air.aod":   {"median": 0.12,  "std": 0.09},
+      "ghg.ch4":   {"median": 1875.0, "std": 26.0},
+      "ghg.viirs": {"median": 3.0,   "std": 6.0}
+    },
+    "China": {
+      "air.no2":   {"median": 110.0, "std": 65.0},
+      "air.so2":   {"median": 160.0, "std": 110.0},
+      "air.co":    {"median": 36.0,  "std": 9.0},
+      "air.hcho":  {"median": 130.0, "std": 58.0},
+      "air.o3":    {"median": 290.0, "std": 20.0},
+      "air.aai":   {"median": 0.50,  "std": 0.68},
+      "air.pm25":  {"median": 38.0,  "std": 26.0},
+      "air.pm10":  {"median": 72.0,  "std": 46.0},
+      "air.aod":   {"median": 0.42,  "std": 0.24},
+      "ghg.ch4":   {"median": 1895.0, "std": 34.0},
+      "ghg.viirs": {"median": 2.4,   "std": 4.5}
+    },
+    "Indonesia": {
+      "air.no2":   {"median": 30.0,  "std": 22.0},
+      "air.so2":   {"median": 65.0,  "std": 55.0},
+      "air.co":    {"median": 30.0,  "std": 7.0},
+      "air.hcho":  {"median": 135.0, "std": 55.0},
+      "air.o3":    {"median": 258.0, "std": 13.0},
+      "air.aai":   {"median": 0.45,  "std": 0.62},
+      "air.pm25":  {"median": 16.0,  "std": 11.0},
+      "air.pm10":  {"median": 30.0,  "std": 19.0},
+      "air.aod":   {"median": 0.22,  "std": 0.15},
+      "ghg.ch4":   {"median": 1880.0, "std": 30.0},
+      "ghg.viirs": {"median": 1.1,   "std": 2.6}
+    }
+  }
+}

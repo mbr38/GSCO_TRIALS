@@ -41,6 +41,13 @@ from typing import Literal
 
 import streamlit as st
 
+from ui.components.fallback_retry import (  # M-FALLBACK-A1 §5.3
+    STRATEGY_SLIDING,
+    STRATEGY_SPPY,
+    apply_retry,
+    is_retryable,
+    reason_is_retryable,
+)
 from ui.components.indicator_info import render_indicator_name_with_info
 from ui.components.multi_map_state import (
     MAP_ANCHOR_ID,
@@ -711,4 +718,40 @@ def _render_failed_tile(tile: _TileSpec, payload: dict) -> None:
         )
         with st.expander("Why?"):
             st.caption(reason)
+            _render_retry_buttons(tile, payload)
         _render_view_on_map(tile)
+
+
+def _render_retry_buttons(tile: _TileSpec, payload: dict) -> None:
+    """M-FALLBACK-A1 §5.3 — fallback retry buttons on a failed tile.
+
+    Shown only for a fallback-eligible indicator (six_step) whose failure is
+    a sparse-coverage skip the fallback could plausibly recover. Each button
+    triggers a patched re-screening of just this indicator, then reruns the
+    page so the grid reflects the recovered value.
+    """
+    base_id = f"{tile.pillar}.{tile.indicator}"
+    if not is_retryable(base_id):
+        return
+    provenance = payload.get(tile.provenance_key, {}) or {}
+    if not reason_is_retryable(provenance.get("skipped_reason")):
+        return
+
+    st.caption("Try recovering this indicator with a fallback:")
+    col_sppy, col_slide = st.columns(2)
+    with col_sppy:
+        if st.button(
+            "Same-period-previous-year",
+            key=f"c4b_retry_sppy_{base_id}",
+            use_container_width=True,
+        ):
+            if apply_retry(base_id, STRATEGY_SPPY):
+                st.rerun()
+    with col_slide:
+        if st.button(
+            "Sliding lookback",
+            key=f"c4b_retry_slide_{base_id}",
+            use_container_width=True,
+        ):
+            if apply_retry(base_id, STRATEGY_SLIDING):
+                st.rerun()

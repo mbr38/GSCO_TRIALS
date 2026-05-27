@@ -64,6 +64,7 @@ from engine.constants import (
     VOC_PHOTOCHEMICAL_WEIGHTS,
 )
 from engine.core import build_provenance, six_step
+from engine.core.fallback import FallbackContext
 from engine.exceptions import (
     BackgroundRingNoDataError,
     IndicatorComputeError,
@@ -227,6 +228,7 @@ def compute_pollutant_snapshot(
     time_range: tuple[str, str],
     mode: str,
     ee_client,
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Run the IC_v4 §0.2 six-step pipeline for one air-pollution single-value indicator.
 
@@ -271,6 +273,7 @@ def compute_pollutant_snapshot(
         direction=cfg.direction,
         indicator_id=make_id(PILLAR_AIR, pollutant),
         scale=cfg.scale_m,
+        fallback=fallback,
     )
 
     return _format_result(pollutant, cfg, raw, time_range)
@@ -373,6 +376,12 @@ def _format_result(
     ring_land_mask_asset = raw.get("ring_land_mask_asset")
     if ring_land_mask_asset is not None:
         extra["land_mask_asset"] = ring_land_mask_asset
+    # M-FALLBACK-A1 §4.7 — merge the additive fallback fields (aoi_scale_class
+    # always present; the temporal_/climatology_ pair set when a fallback
+    # fired). Absent for non-six_step paths; consumers handle absence.
+    fallback_extra = raw.get("fallback_extra")
+    if fallback_extra is not None:
+        extra.update(fallback_extra)
 
     result[f"_provenance.air.{pollutant}"] = build_provenance(
         indicator_id=f"air.{pollutant}",
@@ -751,6 +760,7 @@ def run_pillar(
     ee_client,
     *,
     accumulated_payload: dict | None = None,  # noqa: ARG001 — Air has no cross-pillar borrows
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Compute every selected Air indicator + sub-aggregates + pillar aggregates.
 
@@ -784,6 +794,7 @@ def run_pillar(
                 time_range=time_range,
                 mode=mode,
                 ee_client=ee_client,
+                fallback=fallback,
             )
         # M-OCEAN-RING: ring-over-water is a silent-skip path, not a
         # failure — surfaces in C9 / C4b with an actionable explanation
@@ -836,6 +847,26 @@ def run_pillar(
             reason="all selected air pollutants failed to compute",
         )
 
+    recompute_air_aggregates(payload, selected_indicators, mode)
+
+    if failures:
+        payload["_failures"] = failures
+
+    return payload
+
+
+def recompute_air_aggregates(
+    payload: dict,
+    selected_indicators: set[str],
+    mode: str,
+) -> dict:
+    """Recompute Air's sub-aggregates + pillar aggregates in place on `payload`.
+
+    Pure function of the payload (no EE) — extracted from `run_pillar` so the
+    M-FALLBACK-A1 patch path (`engine.orchestrator.patch_indicators`) can
+    refresh the aggregates after splicing a recomputed single indicator,
+    without re-fetching the other indicators.
+    """
     # Sub-aggregates — pm_or_aerosol first because three others depend on it.
     payload.update(compute_pm_or_aerosol(payload))
     payload.update(compute_industrial_combustion_proxy(payload))
@@ -856,8 +887,4 @@ def run_pillar(
     payload.update(compute_trend_score(payload, augmented_selected, mode))
     payload.update(compute_attribution_confidence_score(payload, augmented_selected))
     payload.update(compute_air_audit_followup_priority(payload, mode))
-
-    if failures:
-        payload["_failures"] = failures
-
     return payload

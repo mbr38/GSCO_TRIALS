@@ -579,7 +579,7 @@ def _fake_snapshot(
 
 class TestRunPillar:
     def test_full_payload_with_three_pollutants(self, monkeypatch) -> None:
-        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client, fallback=None):
             return _fake_snapshot(pollutant)
         monkeypatch.setattr("engine.air.compute_pollutant_snapshot", fake_compute)
 
@@ -617,7 +617,7 @@ class TestRunPillar:
         assert "_failures" not in result
 
     def test_single_pollutant_failure_degrades_gracefully(self, monkeypatch) -> None:
-        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client, fallback=None):
             if pollutant == "so2":
                 raise IndicatorComputeError(
                     indicator_id="air.so2",
@@ -654,7 +654,7 @@ class TestRunPillar:
         assert result["air.audit_followup_priority"] is not None
 
     def test_all_pollutants_failing_raises_pillar_compute_error(self, monkeypatch) -> None:
-        def fake_compute(aoi, pollutant, time_range, mode, ee_client):
+        def fake_compute(aoi, pollutant, time_range, mode, ee_client, fallback=None):
             raise IndicatorComputeError(
                 indicator_id=f"air.{pollutant}",
                 reason="no valid pixels",

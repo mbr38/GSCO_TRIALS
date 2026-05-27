@@ -201,7 +201,7 @@ class TestAirRunPillarRoutesSkip:
         """
         from engine import air
 
-        def fake_snapshot(aoi, pollutant, time_range, mode, ee_client):
+        def fake_snapshot(aoi, pollutant, time_range, mode, ee_client, fallback=None):
             raise BackgroundRingNoDataError(
                 indicator_id=f"air.{pollutant}",
                 reason="background ring has no valid pixels — over water",
@@ -236,7 +236,7 @@ class TestAirRunPillarRoutesSkip:
         """
         from engine import air
 
-        def fake_snapshot(aoi, pollutant, time_range, mode, ee_client):
+        def fake_snapshot(aoi, pollutant, time_range, mode, ee_client, fallback=None):
             raise IndicatorComputeError(
                 indicator_id=f"air.{pollutant}",
                 reason="some other failure mode",
@@ -267,7 +267,7 @@ class TestGhgRunPillarRoutesSkip:
     def test_ring_failure_skips_instead_of_failing(self, monkeypatch):
         from engine import ghg
 
-        def fake_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             raise BackgroundRingNoDataError(
                 indicator_id=f"ghg.{indicator}",
                 reason="background ring has no valid pixels — over water",

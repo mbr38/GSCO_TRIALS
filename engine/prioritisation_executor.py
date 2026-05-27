@@ -51,6 +51,9 @@ def run_batch(
     radius_km   = setup["radius_km"]
     time_range  = tuple(setup["time_range"])
     indicators  = set(setup["indicators"])
+    # M-FALLBACK-A1 §5.1 — P-07 "Strict audit mode" toggle. Absent in
+    # pre-milestone / legacy setups → defaults False (fallbacks ON, FB16).
+    strict_audit_mode = bool(setup.get("strict_audit_mode", False))
 
     state.total_count = len(suppliers)
 
@@ -92,6 +95,7 @@ def run_batch(
                 time_range=time_range,
                 ee_client=None,
                 centre_metadata=centre_metadata,
+                strict_audit_mode=strict_audit_mode,
             ).run()
             # M-E1-INDICATOR-AWARE: thread the user's selection so a
             # subset run with real per-indicator data doesn't get

@@ -98,6 +98,7 @@ from engine.core import (
     six_step,
 )
 from engine.core.buffers import background_ring, site_buffer
+from engine.core.fallback import FallbackContext
 from engine.exceptions import (
     BackgroundRingNoDataError,
     IndicatorComputeError,
@@ -287,6 +288,7 @@ def compute_ghg_indicator_snapshot(
     time_range: tuple[str, str],
     mode: str,
     ee_client,
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Run the IC_v4 §0.2 six-step pipeline for one GHG single-value indicator.
 
@@ -330,6 +332,7 @@ def compute_ghg_indicator_snapshot(
         direction=cfg.direction,
         indicator_id=make_id(PILLAR_GHG, indicator),
         scale=cfg.scale_m,
+        fallback=fallback,
     )
 
     return _format_result(indicator, cfg, raw, time_range)
@@ -951,6 +954,7 @@ def run_pillar(
     ee_client,
     *,
     accumulated_payload: dict | None = None,
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Compute every selected GHG indicator + sub-aggregates + pillar aggregates.
 
@@ -1040,6 +1044,7 @@ def run_pillar(
                     time_range=time_range,
                     mode=mode,
                     ee_client=ee_client,
+                    fallback=fallback,
                 )
         # M-OCEAN-RING: silent-skip when the §0.2 ring lands over water /
         # outside asset coverage. CH₄ flows through six_step so it can
@@ -1101,6 +1106,34 @@ def run_pillar(
                 payload[key] = value
                 injected_keys.add(key)
 
+    recompute_ghg_aggregates(payload, selected_indicators, mode, aoi)
+
+    # Strip the cross-pillar-injected keys — the orchestrator already has
+    # Air's payload; GHG returns only its own pillar output.
+    for key in injected_keys:
+        payload.pop(key, None)
+
+    if failures:
+        payload["_failures"] = failures
+
+    return payload
+
+
+def recompute_ghg_aggregates(
+    payload: dict,
+    selected_indicators: set[str],
+    mode: str,
+    aoi: dict,
+) -> dict:
+    """Recompute GHG's quality sub-scores, sub-aggregates, and pillar
+    aggregates in place on `payload` (pure, no EE).
+
+    Extracted from `run_pillar` so the M-FALLBACK-A1 patch path can refresh
+    the aggregates after splicing a recomputed single indicator. The Air
+    cross-pillar borrows (`air.industrial_combustion_proxy`,
+    `air.smoke_dust_regional_transport`) must already be present in `payload`
+    — in a full screening payload they always are (Air runs first).
+    """
     # Quality sub-scores — three derived from per-indicator A1 confidence
     # terms (in provenance.extra.confidence_terms); nearby_source_isolation
     # stays an independent §7.2 spatial proxy (placeholder pending wiring).
@@ -1142,15 +1175,6 @@ def run_pillar(
     payload.update(compute_ghg_trend(payload, augmented_selected, mode))
     payload.update(compute_ghg_data_quality_attribution(payload))
     payload.update(compute_ghg_audit_followup_priority(payload, mode))
-
-    # Strip the cross-pillar-injected keys — the orchestrator already has
-    # Air's payload; GHG returns only its own pillar output.
-    for key in injected_keys:
-        payload.pop(key, None)
-
-    if failures:
-        payload["_failures"] = failures
-
     return payload
 
 
@@ -1216,6 +1240,11 @@ def _format_result(
     ring_land_mask_asset = raw.get("ring_land_mask_asset")
     if ring_land_mask_asset is not None:
         extra["land_mask_asset"] = ring_land_mask_asset
+    # M-FALLBACK-A1 §4.7 — merge the additive fallback fields (aoi_scale_class
+    # always; temporal_/climatology_ pair when a fallback fired).
+    fallback_extra = raw.get("fallback_extra")
+    if fallback_extra is not None:
+        extra.update(fallback_extra)
 
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
         indicator_id=f"ghg.{indicator}",

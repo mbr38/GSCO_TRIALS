@@ -79,6 +79,7 @@ from engine.core import (
     six_step,
 )
 from engine.core.buffers import background_ring, site_buffer
+from engine.core.fallback import FallbackContext
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 from engine.ids import DW_CLASS_TO_ID_SLUG, PILLAR_NATURE
 
@@ -1180,6 +1181,7 @@ def compute_ndvi_condition(
     time_range: tuple[str, str],
     mode: str,                                          # noqa: ARG001 — parity
     ee_client,
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """NDVI six-step pipeline on MOD13Q1 (IC §3.1, Schema_v2 §4.5).
 
@@ -1230,6 +1232,7 @@ def compute_ndvi_condition(
         direction=cfg.direction,
         indicator_id="nature.ndvi",
         scale=scale_m,
+        fallback=fallback,
     )
 
     inverted_anomaly = _ndvi_inverted_anomaly(raw)
@@ -1775,6 +1778,7 @@ def run_pillar(
     ee_client,
     *,
     accumulated_payload: dict | None = None,  # noqa: ARG001 — Nature has no cross-pillar borrows
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Compute every selected Nature indicator + sub-aggregates + pillar aggregates.
 
@@ -1805,7 +1809,7 @@ def run_pillar(
         "dw":          lambda: compute_current_land_cover(aoi, time_range, ee_client),
         "habitat":     lambda: compute_habitat_conversion(aoi, time_range, ee_client),
         "forest_loss": lambda: compute_forest_loss(aoi, time_range, ee_client),
-        "ndvi":        lambda: compute_ndvi_condition(aoi, time_range, mode, ee_client),
+        "ndvi":        lambda: compute_ndvi_condition(aoi, time_range, mode, ee_client, fallback=fallback),
         "water":       lambda: compute_water_exposure(aoi, time_range, ee_client),
         "recovery":    lambda: compute_recovery_signal(aoi, time_range, ee_client),
     }
@@ -1834,20 +1838,12 @@ def run_pillar(
             reason="all selected Nature indicators failed to compute",
         )
 
-    # Augment habitat payload with the four pct_norm derived keys, plus
-    # annualised_rate_score, that HABITAT_CONVERSION_WEIGHTS reads.
-    buffer_ha = _buffer_area_ha(aoi["radius_km"])
-    payload.update(_augment_habitat_pct_norms(payload, buffer_ha))
-
-    # Sub-aggregates — all three exposure-side scores that feed the pillar.
-    payload.update(compute_biodiversity_exposure(payload))
-    payload.update(compute_habitat_conversion_score(payload))
-    payload.update(compute_vegetation_condition(payload))
-
     # External driver screening — single Hansen reduceRegion pair, cheap.
     # Always runs when Nature runs; replaces the v1 constant-1.0 placeholder
     # that compute_nature_quality_sub_scores used to emit. Audit §9.3 /
-    # IC_v4 §7.5.
+    # IC_v4 §7.5. Runs before the pure aggregates (it's independent of them
+    # and its output feeds the quality sub-scores) so the rest can live in
+    # `recompute_nature_aggregates`, reusable by the M-FALLBACK-A1 patch path.
     if indicator_keys:
         try:
             payload.update(compute_regional_loss_evidence(aoi, time_range, ee_client))
@@ -1859,13 +1855,36 @@ def run_pillar(
                 "reason":       err.reason,
             })
 
+    recompute_nature_aggregates(payload, aoi, mode)
+
+    if failures:
+        payload["_failures"] = failures
+
+    return payload
+
+
+def recompute_nature_aggregates(payload: dict, aoi: dict, mode: str) -> dict:
+    """Recompute Nature's habitat-derived keys, sub-aggregates, quality
+    sub-scores, and pillar aggregates in place on `payload` (pure, no EE).
+
+    Extracted from `run_pillar` so the M-FALLBACK-A1 patch path can refresh
+    the aggregates after splicing a recomputed single indicator. Does NOT
+    re-run `compute_regional_loss_evidence` (an EE call) — it preserves the
+    existing `nature.external_driver_screening` value from the screening.
+    """
+    # Augment habitat payload with the four pct_norm derived keys, plus
+    # annualised_rate_score, that HABITAT_CONVERSION_WEIGHTS reads.
+    buffer_ha = _buffer_area_ha(aoi["radius_km"])
+    payload.update(_augment_habitat_pct_norms(payload, buffer_ha))
+
+    # Sub-aggregates — all three exposure-side scores that feed the pillar.
+    payload.update(compute_biodiversity_exposure(payload))
+    payload.update(compute_habitat_conversion_score(payload))
+    payload.update(compute_vegetation_condition(payload))
+
     # Quality sub-scores + pillar aggregates.
     payload.update(compute_nature_quality_sub_scores(payload, aoi))
     payload.update(compute_nature_quality_attribution(payload))
     payload.update(compute_nature_spatiotemporal_anomaly(payload))
     payload.update(compute_nature_followup_priority(payload, mode))
-
-    if failures:
-        payload["_failures"] = failures
-
     return payload

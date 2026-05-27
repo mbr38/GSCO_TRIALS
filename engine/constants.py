@@ -549,6 +549,55 @@ WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
 # this default; users override per-screening via the picker.
 SCREENING_WINDOW_DAYS_DEFAULT: int = 90
 
+# ---------------------------------------------------------------------------
+# Cloudy-period & climatology fallbacks  (M-FALLBACK-A1)
+# ---------------------------------------------------------------------------
+# Two coordinated fallbacks for sparse-coverage AOIs (spec §4):
+#   1.1 SPPY  — when the SITE buffer has zero usable pixels, substitute the
+#               same calendar period of the previous year. Confidence ×0.60.
+#   1.2 CLIM  — when the BACKGROUND ring is unavailable (water-only post
+#               land-mask, or empty), substitute per-country climatology
+#               (median ± σ) for the ring baseline. Confidence ×0.75.
+# Both compose multiplicatively with the M-TIER-A1 COLUMN_TO_SURFACE chain
+# (engine/core/confidence.compute_indicator_confidence). Each defaults to
+# 1.0 when its condition didn't fire — see spec §4.6.
+#
+# FB4 (locked 28 May 2026): the SPPY trigger is the engine's *existing*
+# zero-pixel failure (SiteBufferNoDataError), NOT a new coverage-fraction
+# threshold — the engine has no such fraction today. "Sparse-but-nonzero"
+# coverage still computes normally and is surfaced via the N_valid
+# confidence term; only true zero-coverage triggers a fallback.
+TEMPORAL_FALLBACK_MULTIPLIER: float = 0.60      # FB8 — SPPY (year-old data)
+CLIMATOLOGY_FALLBACK_MULTIPLIER: float = 0.75   # FB11 — regional baseline
+
+# Sliding-lookback retry (FB5, single-supplier only): step backward from the
+# window start in fixed increments, taking the first window with coverage.
+SLIDING_LOOKBACK_STEP_DAYS: int = 90
+SLIDING_LOOKBACK_MAX_STEPS: int = 8   # ~2 years of 90-day steps before giving up
+
+# AOI scale class (FB19 / §4.7) — derived from the site-buffer radius and
+# stamped into provenance.extra.aoi_scale_class. The >100 km / >200 km
+# cutoffs also drive the Mode-3 large-AOI setup warning (P-04/P-07). The
+# thresholds are deliberately loose (Q-FB-4) — tune on demo experience.
+AOI_SCALE_CLASS_SITE_MAX_KM: float = 25.0       # ≤25 km  → "site"
+AOI_SCALE_CLASS_REGIONAL_MAX_KM: float = 100.0  # 25–100 km → "regional"; >100 km → "biome"
+
+# Climatology fixture (1.2). Lives alongside the other demo fixtures
+# (demo/climatology.json); the loader is engine/core/climatology.py. The
+# 11 in-scope indicators (FB10): 9 Air + CH₄ + VIIRS. KBA/DW/Hansen/ODIAC/
+# NDVI are out of 1.2's scope by construction (no background ring / weak
+# per-country median).
+CLIMATOLOGY_INDICATORS: tuple[str, ...] = (
+    "air.no2", "air.so2", "air.co", "air.hcho", "air.o3",
+    "air.aai", "air.pm25", "air.pm10", "air.aod",
+    "ghg.ch4", "ghg.viirs",
+)
+# Country-boundary asset for centroid→country lookup (A.4 recon: reuse the
+# asset already in the repo for consistency — demo/regions.py uses GAUL
+# level1; level0 is its country-polygon parent). Resolves Q-FB-1 toward
+# consistency.
+CLIMATOLOGY_COUNTRY_ASSET: str = "FAO/GAUL/2015/level0"
+
 # Earliest valid start date for screening. ODIAC CO₂ has the most
 # restrictive coverage window (2020-01-01 to 2023-12-31, per
 # engine.ghg coverage_window) but it routinely silent-skips with

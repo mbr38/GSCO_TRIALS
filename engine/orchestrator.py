@@ -25,7 +25,8 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from engine import air, ghg, nature
-from engine.exceptions import PillarComputeError
+from engine.core.fallback import FallbackContext
+from engine.exceptions import IndicatorComputeError, PillarComputeError
 
 
 # Mapping of pillar name → run_pillar callable. Iteration order = execution
@@ -73,12 +74,26 @@ class ScreeningRun:
         time_range: tuple[str, str],
         ee_client,
         centre_metadata: dict,
+        *,
+        strict_audit_mode: bool = False,
+        climatology_fixture: dict | None = None,
+        temporal_fallback_strategy: str = "sppy",
     ) -> None:
         self.aoi = aoi
         self.selected_indicators = selected_indicators
         self.time_range = time_range
         self.ee_client = ee_client
         self.centre_metadata = centre_metadata
+        # M-FALLBACK-A1 — fallbacks are ON by default (FB6); the P-07 "Strict
+        # audit mode" toggle flips `strict_audit_mode`, which makes the
+        # context inert (six_step takes its no-fallback path). The context is
+        # threaded to every pillar's run_pillar.
+        self.strict_audit_mode = strict_audit_mode
+        self.fallback = FallbackContext(
+            strict_audit_mode=strict_audit_mode,
+            temporal_fallback_strategy=temporal_fallback_strategy,
+            climatology_fixture=climatology_fixture,
+        )
         self.payload: dict = {}
         # Per-pillar `_failures` lists, captured as each pillar returns.
         # Kept separate from `self.payload` because pillars all write to
@@ -129,6 +144,7 @@ class ScreeningRun:
                 selected_indicators=self._pillar_selection(pillar),
                 ee_client=self.ee_client,
                 accumulated_payload=self.payload,
+                fallback=self.fallback,
             )
         except PillarComputeError as err:
             self.pillar_wide_failures[pillar] = {
@@ -157,11 +173,9 @@ class ScreeningRun:
         because Air and GHG priorities were None and the mean was
         computed over the one survivor).
         """
-        values = [self.payload.get(k) for k in _PILLAR_PRIORITY_IDS]
-        if any(v is None for v in values):
-            self.payload["composite.overall_screening"] = None
-            return
-        self.payload["composite.overall_screening"] = sum(values) / len(values)
+        self.payload["composite.overall_screening"] = compute_composite_overall(
+            self.payload,
+        )
 
     def _compute_composite_confidence(self) -> None:
         """IC_v4 §4 — minimum of the per-pillar confidence aggregates.
@@ -172,11 +186,9 @@ class ScreeningRun:
         "survivor min" behaviour propagated a single pillar's confidence
         as the composite, which is misleading when the others failed.
         """
-        values = [self.payload.get(k) for k in _PILLAR_CONFIDENCE_IDS]
-        if any(v is None for v in values):
-            self.payload["composite.confidence"] = None
-            return
-        self.payload["composite.confidence"] = min(values)
+        self.payload["composite.confidence"] = compute_composite_confidence(
+            self.payload,
+        )
 
     def _consolidate_failures(self) -> None:
         """Re-key per-pillar `_failures` lists into one namespaced structure.
@@ -215,3 +227,131 @@ class ScreeningRun:
                 "pillars_run":         list(_PILLARS.keys()),
             },
         }
+
+
+# ---------------------------------------------------------------------------
+# Composite helpers (IC_v4 §4) — module-level so the patch path reuses them
+# ---------------------------------------------------------------------------
+
+def compute_composite_overall(payload: dict) -> float | None:
+    """Equal-weighted mean of the per-pillar follow-up priorities, or None
+    if any pillar's priority is missing (strict-None, M-FOLLOWUP-FALLBACK)."""
+    values = [payload.get(k) for k in _PILLAR_PRIORITY_IDS]
+    if any(v is None for v in values):
+        return None
+    return sum(values) / len(values)
+
+
+def compute_composite_confidence(payload: dict) -> float | None:
+    """Minimum of the per-pillar confidence aggregates, or None if any is
+    missing (strict-None, M-FOLLOWUP-FALLBACK)."""
+    values = [payload.get(k) for k in _PILLAR_CONFIDENCE_IDS]
+    if any(v is None for v in values):
+        return None
+    return min(values)
+
+
+# ---------------------------------------------------------------------------
+# M-FALLBACK-A1 §5.3 / FB18 — patch-on-existing single-indicator re-screening
+# ---------------------------------------------------------------------------
+
+# Indicators that flow through six_step and can therefore be retried with a
+# fallback (FB10 climatology scope + the SPPY-eligible NDVI). co2 (ODIAC) and
+# the static Nature reference indicators don't use six_step → no fallback.
+_PATCHABLE_GHG: frozenset[str] = frozenset({"ghg.ch4", "ghg.viirs"})
+_PATCHABLE_NATURE: frozenset[str] = frozenset({"nature.ndvi"})
+
+
+def _pillar_subset(selected: set[str], pillar: str) -> set[str]:
+    prefix = f"{pillar}."
+    return {i for i in selected if i.startswith(prefix)}
+
+
+def _recompute_one_indicator(
+    indicator_id: str,
+    *,
+    aoi: dict,
+    time_range: tuple[str, str],
+    ee_client,
+    fallback: FallbackContext,
+) -> dict | None:
+    """Recompute one fallback-eligible indicator's snapshot, or None if it's
+    not patchable / still fails even with the fallback."""
+    parts = indicator_id.split(".")
+    if len(parts) < 2:
+        return None
+    pillar, name = parts[0], parts[1]
+    try:
+        if pillar == "air" and name in air.AIR_POLLUTANT_CONFIG:
+            return air.compute_pollutant_snapshot(
+                aoi, name, time_range, "screening", ee_client, fallback=fallback,
+            )
+        if indicator_id in _PATCHABLE_GHG:
+            return ghg.compute_ghg_indicator_snapshot(
+                aoi, name, time_range, "screening", ee_client, fallback=fallback,
+            )
+        if indicator_id in _PATCHABLE_NATURE:
+            return nature.compute_ndvi_condition(
+                aoi, time_range, "screening", ee_client, fallback=fallback,
+            )
+    except (IndicatorComputeError,):
+        # Still no data even with the fallback — leave the existing (None)
+        # entries untouched; the tile stays failed.
+        return None
+    return None
+
+
+def patch_indicators(
+    payload: dict,
+    *,
+    aoi: dict,
+    indicator_ids: set[str],
+    selected_indicators: set[str],
+    time_range: tuple[str, str],
+    ee_client,
+    strategy: str = "sppy",
+) -> dict:
+    """Re-screen only `indicator_ids` on an existing `payload` with a forced
+    fallback strategy, preserving every other entry (FB18 patch-on-existing).
+
+    Recomputes each target indicator's snapshot (with the SPPY or
+    sliding-lookback fallback forced on), splices it into a copy of the
+    payload, then refreshes the affected pillars' aggregates and the
+    cross-pillar composite so the screening stays internally consistent (R7).
+    Indicators that still fail even with the fallback are left as-is.
+
+    `indicator_ids` are base ids (e.g. ``"air.no2"``). `strategy` is
+    ``"sppy"`` or ``"sliding_lookback"``. Returns the patched payload (the
+    input is not mutated).
+    """
+    result = dict(payload)
+    fallback = FallbackContext(
+        strict_audit_mode=False, temporal_fallback_strategy=strategy,
+    )
+
+    affected_pillars: set[str] = set()
+    for ind_id in indicator_ids:
+        snapshot = _recompute_one_indicator(
+            ind_id, aoi=aoi, time_range=time_range,
+            ee_client=ee_client, fallback=fallback,
+        )
+        if snapshot is not None:
+            result.update(snapshot)
+            affected_pillars.add(ind_id.split(".")[0])
+
+    # Refresh the affected pillars' aggregates (pure — no re-fetch of the
+    # other indicators), then the composite.
+    if "air" in affected_pillars:
+        air.recompute_air_aggregates(
+            result, _pillar_subset(selected_indicators, "air"), "screening",
+        )
+    if "ghg" in affected_pillars:
+        ghg.recompute_ghg_aggregates(
+            result, _pillar_subset(selected_indicators, "ghg"), "screening", aoi,
+        )
+    if "nature" in affected_pillars:
+        nature.recompute_nature_aggregates(result, aoi, "screening")
+
+    result["composite.overall_screening"] = compute_composite_overall(result)
+    result["composite.confidence"] = compute_composite_confidence(result)
+    return result

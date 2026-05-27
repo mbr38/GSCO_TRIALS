@@ -503,6 +503,12 @@ def _render_provenance_for_payload(payload) -> str:
     coastal_html = _render_coastal_handling_appendix(prov_blocks)
     if coastal_html:
         blocks.append(coastal_html)
+    # M-FALLBACK-A1 §5.5 — "Fallback applied" sub-block. Renders only when
+    # at least one indicator used the SPPY or climatology fallback; omitted
+    # entirely otherwise (§7.11).
+    fallback_html = _render_fallback_appendix(prov_blocks)
+    if fallback_html:
+        blocks.append(fallback_html)
     return "\n".join(blocks)
 
 
@@ -572,6 +578,76 @@ def _render_coastal_handling_appendix(
             "<p><em>At least one indicator's comparison area is mostly "
             "water; the baseline is computed from a small land area and "
             "should be interpreted with care.</em></p>"
+        )
+    return "\n".join(parts)
+
+
+# M-FALLBACK-A1 §5.5 — PDF audit-transparency "Fallback applied" sub-block.
+# Surfaces the same fallback facts the in-app C5 expander shows, persisted in
+# the auditor's exportable artefact.
+_FALLBACK_APPENDIX_HEADER: str = "Fallback methodology applied"
+_FALLBACK_APPENDIX_INTRO: str = (
+    "One or more indicators in this report could not be computed from "
+    "current-window satellite data and used a documented fallback. Each "
+    "substitution carries a reduced confidence score (year-old data ×0.60; "
+    "regional baseline ×0.75). The substitutions are listed below for audit "
+    "transparency."
+)
+
+
+def _render_fallback_appendix(prov_blocks: list[tuple[str, dict]]) -> str:
+    """Render the §5.5 fallback sub-block, or "" when no fallback fired.
+
+    Lists per-indicator temporal (SPPY / sliding-lookback) and climatology
+    substitutions, plus the AOI scale class when it's larger than site-scale.
+    """
+    temporal_rows: list[str] = []
+    climatology_rows: list[str] = []
+    scale_class: str | None = None
+
+    for ind_id, prov in sorted(prov_blocks):
+        extra = prov.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        if scale_class is None:
+            sc = extra.get("aoi_scale_class")
+            if sc in ("regional", "biome"):
+                scale_class = sc
+        if extra.get("temporal_fallback_used"):
+            strategy = extra.get("temporal_fallback_strategy")
+            window = extra.get("temporal_fallback_source_window") or "an earlier period"
+            window = window.replace("/", " to ")
+            label = (
+                "earlier-window data"
+                if strategy == "sliding_lookback"
+                else "same-period-previous-year data"
+            )
+            temporal_rows.append(
+                f"<li><strong>{html.escape(ind_id)}</strong> — {label} "
+                f"({html.escape(window)}) due to sparse current-window coverage</li>"
+            )
+        if extra.get("climatology_fallback_used"):
+            vintage = html.escape(str(extra.get("climatology_fallback_vintage") or "latest"))
+            climatology_rows.append(
+                f"<li><strong>{html.escape(ind_id)}</strong> — regional baseline "
+                f"(country median, {vintage} vintage) due to sparse ring coverage</li>"
+            )
+
+    if not temporal_rows and not climatology_rows:
+        return ""
+
+    parts = [
+        f"<h4>{_FALLBACK_APPENDIX_HEADER}</h4>",
+        f"<p>{_FALLBACK_APPENDIX_INTRO}</p>",
+        "<ul class='provenance-extras'>",
+        *temporal_rows,
+        *climatology_rows,
+        "</ul>",
+    ]
+    if scale_class is not None:
+        parts.append(
+            f"<p>AOI scale class: <strong>{html.escape(scale_class)}</strong> "
+            f"— background comparisons reflect regional-scale context.</p>"
         )
     return "\n".join(parts)
 

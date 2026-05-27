@@ -77,6 +77,29 @@ def sync_cache(store: dict, run_id: str) -> dict:
     return store[CACHE_KEY]
 
 
+def invalidate_indicator(store: dict, indicator_id: str) -> int:
+    """Drop cached map tiles for a single indicator (M-FALLBACK-A1 / FB18).
+
+    The patch-on-existing retry recomputes one indicator while preserving the
+    rest of the screening, so only that indicator's map tile is stale — not
+    the whole cache (Q-FB-3). Prefix-matches on the base id so both the base
+    (``air.no2``) and any measurement variant (``air.no2.score``) clear.
+    Returns the number of cache entries removed. No-op when the cache is
+    empty / not yet built.
+    """
+    cache = store.get(CACHE_KEY)
+    if not isinstance(cache, dict):
+        return 0
+    base = indicator_id
+    doomed = [
+        k for k in cache
+        if k == base or str(k).startswith(base + ".")
+    ]
+    for key in doomed:
+        cache.pop(key, None)
+    return len(doomed)
+
+
 def cached_tile_url(
     store: dict,
     run_id: str,

@@ -803,6 +803,7 @@ def _render_confidence_terms_expander(
     ):
         _render_confidence_terms(terms)
         _render_coastal_handling_section(extra)
+        _render_fallback_section(extra)
 
 
 # ---------------------------------------------------------------------------
@@ -882,6 +883,81 @@ def _render_coastal_handling_section(extra: dict | None) -> None:
     ))
     if land_fraction < _COASTAL_HANDLING_WARNING_THRESHOLD:
         st.warning(_COASTAL_HANDLING_WARNING)
+
+
+# ---------------------------------------------------------------------------
+# M-FALLBACK-A1 §5.2 — "Fallback applied" sub-sections inside the C5 expander
+# ---------------------------------------------------------------------------
+# Extends the M-TIER-A3 coastal-handling pattern: each sub-section is
+# conditionally rendered from the corresponding provenance.extra flag
+# (temporal_fallback_used / climatology_fallback_used).
+
+_TEMPORAL_FALLBACK_HEADER: str = "**Fallback applied**"
+
+_TEMPORAL_FALLBACK_SPPY_BODY: str = (
+    "This indicator used **same-period-previous-year** data ({window}) "
+    "because current-window observations were too sparse to compute a "
+    "reliable value. Confidence is reduced to reflect that year-old data is "
+    "degraded evidence."
+)
+
+_TEMPORAL_FALLBACK_SLIDING_BODY: str = (
+    "This indicator used data from an **earlier window with adequate "
+    "coverage** ({window}) because the current window's observations were "
+    "too sparse. Confidence is reduced to reflect that the data is not from "
+    "the requested period."
+)
+
+_CLIMATOLOGY_FALLBACK_HEADER: str = "**Regional baseline**"
+
+_CLIMATOLOGY_FALLBACK_BODY: str = (
+    "The background comparison uses the **country-level regional baseline** "
+    "({vintage} vintage) because the area around the site had insufficient "
+    "satellite coverage to build a local comparison ring. Confidence is "
+    "reduced to reflect the coarser, regional-scale baseline."
+)
+
+
+def _format_fallback_window(source_window: str | None) -> str:
+    """Turn the stored ``"<start>/<end>"`` provenance string into prose.
+
+    Returns ``"<start> to <end>"`` or a neutral fallback phrase if the
+    field is missing / malformed.
+    """
+    if not source_window or "/" not in source_window:
+        return "an earlier period"
+    start, _, end = source_window.partition("/")
+    return f"{start} to {end}"
+
+
+def _render_fallback_section(extra: dict | None) -> None:
+    """Render the §5.2 fallback sub-sections, or no-op when none fired.
+
+    Two independent, conditionally-rendered blocks:
+      - temporal (1.1 SPPY / sliding-lookback) when ``temporal_fallback_used``
+      - climatology (1.2 regional baseline) when ``climatology_fallback_used``
+    Both can render together (the compound-fallback case).
+    """
+    if not isinstance(extra, dict):
+        return
+
+    if extra.get("temporal_fallback_used"):
+        strategy = extra.get("temporal_fallback_strategy")
+        window = _format_fallback_window(extra.get("temporal_fallback_source_window"))
+        body = (
+            _TEMPORAL_FALLBACK_SLIDING_BODY
+            if strategy == "sliding_lookback"
+            else _TEMPORAL_FALLBACK_SPPY_BODY
+        )
+        st.divider()
+        st.markdown(_TEMPORAL_FALLBACK_HEADER)
+        st.markdown(body.format(window=window))
+
+    if extra.get("climatology_fallback_used"):
+        vintage = extra.get("climatology_fallback_vintage") or "latest"
+        st.divider()
+        st.markdown(_CLIMATOLOGY_FALLBACK_HEADER)
+        st.markdown(_CLIMATOLOGY_FALLBACK_BODY.format(vintage=vintage))
 
 
 def _render_dw_composition_table(payload: dict) -> None:

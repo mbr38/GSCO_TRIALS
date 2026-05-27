@@ -762,7 +762,7 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             },
         }
 
-    def fake_ndvi(aoi, time_range, mode, ee_client):
+    def fake_ndvi(aoi, time_range, mode, ee_client, fallback=None):
         _maybe_fail("ndvi")
         return {
             "nature.ndvi.mean":             0.55,

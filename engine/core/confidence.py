@@ -29,6 +29,7 @@ from __future__ import annotations
 import math
 
 from engine.constants import (
+    CLIMATOLOGY_FALLBACK_MULTIPLIER,
     COLUMN_TO_SURFACE_MULTIPLIER,
     CONFIDENCE_FORMULA_WEIGHTS,
     EXPECTED_N_PER_WINDOW_DAY,
@@ -36,6 +37,7 @@ from engine.constants import (
     QA_PER_INDICATOR,
     SINGLE_SNAPSHOT_INDICATORS,
     SPATIAL_CONTEXT_THRESHOLD,
+    TEMPORAL_FALLBACK_MULTIPLIER,
 )
 
 
@@ -182,13 +184,26 @@ def compute_indicator_confidence(
     anomaly_strength: float | None,
     spatial_context: float | None,
     column_to_surface_uncertainty: str,
+    temporal_fallback_applied: bool = False,
+    climatology_fallback_applied: bool = False,
 ) -> float | None:
-    """Universal 4-term additive formula × column-to-surface multiplier.
+    """Universal 4-term additive formula × column-to-surface × fallback chain.
 
     Strict-None at the indicator level — any None term collapses the
     indicator's confidence to None. The pillar rollup
     (`compute_pillar_confidence`) then survives the dropout via
     weight renormalisation.
+
+    M-FALLBACK-A1 §4.6 — the two fallback multipliers compose
+    multiplicatively *after* the column-to-surface multiplier, each
+    defaulting to a no-op (1.0) when its flag is False:
+
+        c_final = c_raw · COLUMN_TO_SURFACE · TEMPORAL? · CLIMATOLOGY?
+
+    Maximum compound degradation is 0.60 · 0.75 = 0.45 — by design that
+    sits just above the M-UI-A4 Sparse threshold (0.40) so heavily
+    fallback'd indicators visibly fire Sparse (FB21). The flags default
+    False so every pre-milestone call site is unchanged.
 
     Raises:
         KeyError: `column_to_surface_uncertainty` not in
@@ -212,6 +227,10 @@ def compute_indicator_confidence(
         + w["spatial_context"]  * spatial_context
     )
     multiplier = COLUMN_TO_SURFACE_MULTIPLIER[column_to_surface_uncertainty]
+    if temporal_fallback_applied:
+        multiplier *= TEMPORAL_FALLBACK_MULTIPLIER
+    if climatology_fallback_applied:
+        multiplier *= CLIMATOLOGY_FALLBACK_MULTIPLIER
     return _clamp01(c_raw * multiplier)
 
 

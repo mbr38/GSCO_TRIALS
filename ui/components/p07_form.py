@@ -17,6 +17,7 @@ from ui.components.analysis_window_picker import (  # M-UI-A3
     WindowSelection,
     render_analysis_window_picker,
 )
+from ui.components.aoi_scale import render_large_aoi_warning  # M-FALLBACK-A1 §5.4
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
     INDICATORS_BY_PILLAR,
@@ -254,12 +255,17 @@ def _render_radius_section() -> int:
             "buffers for individual sites, larger for districts or "
             "industrial clusters."
         )
-        return st.select_slider(
+        radius_km = st.select_slider(
             "Radius (km)",
             options=_RADIUS_STOPS_KM,
             value=5,
             key="p07_radius",
         )
+        # M-FALLBACK-A1 §5.4 — soft large-AOI alert. The fixed stops top out
+        # at 100 km so this won't fire today, but it future-proofs the page
+        # and keeps the warning consistent with P-04's region mode.
+        render_large_aoi_warning(radius_km)
+        return radius_km
 
 
 def _render_indicator_section() -> set[str]:
@@ -412,6 +418,24 @@ def _render_run_section(
             saved_window=_pre_filled_saved_window(),
         )
 
+        # M-FALLBACK-A1 §5.1 / FB16 — strict-audit toggle. Default unchecked
+        # (fallbacks ON). When checked, the engine skips both the SPPY and
+        # regional-climatology fallbacks, so sparse-coverage indicators fail
+        # rather than substitute — for audit-defensible rankings where every
+        # value must be a current-period measurement.
+        strict_audit = st.checkbox(
+            "Strict audit mode (disable fallback)",
+            value=False,
+            key="p07_strict_audit_mode",
+        )
+        st.caption(
+            "When enabled, suppliers with sparse satellite coverage in their "
+            "indicators show as failed rather than substituting with "
+            "same-period-previous-year or regional climatology data. Use this "
+            "for audit-defensible rankings where every value must be a "
+            "current-period measurement."
+        )
+
         can_run = not errors and window is not None
         if st.button(
             "Run Prioritisation",
@@ -419,7 +443,9 @@ def _render_run_section(
             disabled=not can_run,
             use_container_width=True,
         ):
-            _commit_and_navigate(suppliers, radius_km, indicators, window)
+            _commit_and_navigate(
+                suppliers, radius_km, indicators, window, strict_audit,
+            )
 
 
 def _pre_filled_saved_window() -> tuple[str, str] | None:
@@ -441,11 +467,14 @@ def _commit_and_navigate(
     radius_km:  int,
     indicators: set[str],
     window:     WindowSelection,
+    strict_audit_mode: bool = False,
 ) -> None:
     """Write prioritisation_setup and navigate to P-08.
 
     M-UI-A3: ``time_range`` now comes from the user's window picker
     selection rather than the hard-coded 90-day window.
+    M-FALLBACK-A1 §5.1: ``strict_audit_mode`` carries the P-07 toggle
+    through to the batch executor → ScreeningRun.
     """
     start_iso, end_iso = window.as_iso_tuple()
     st.session_state["prioritisation_setup"] = {
@@ -460,6 +489,7 @@ def _commit_and_navigate(
         "time_range": [start_iso, end_iso],
         "indicators": sorted(indicators),
         "mode":       "prioritisation",
+        "strict_audit_mode": strict_audit_mode,
     }
     # Clear any prior P-08 state.
     st.session_state.pop("prioritisation_state", None)

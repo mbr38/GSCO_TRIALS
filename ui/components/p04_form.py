@@ -19,6 +19,7 @@ from ui.components.analysis_window_picker import (  # M-UI-A3
     WindowSelection,
     render_analysis_window_picker,
 )
+from ui.components.aoi_scale import render_large_aoi_warning  # M-FALLBACK-A1 §5.4
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
     INDICATORS_BY_PILLAR,
@@ -663,6 +664,9 @@ def _render_locked_region_aoi(region) -> None:
                 "The buffer is sized to match the region's area; "
                 "screening covers the whole region."
             )
+        # M-FALLBACK-A1 §5.4 — soft large-AOI alert (region radii can reach
+        # the 400 km GAUL cap; the fixed MNC stops top out at 100 km).
+        render_large_aoi_warning(region.radius_km)
 
 
 def _render_ad_hoc_link(centre: dict) -> None:

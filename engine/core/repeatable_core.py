@@ -26,18 +26,29 @@ from engine.constants import (
     ANOMALY_Z_THRESHOLD,
     BACKGROUND_RING_MAX_KM,
     BACKGROUND_RING_RADIUS_MULTIPLE,
+    CLIMATOLOGY_INDICATORS,
     LAND_MASK_FRACTION_MIN_THRESHOLD,
     NORMALISATION_K,
     SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
     SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR,
 )
 from engine.core.buffers import background_ring, site_buffer
+from engine.core.climatology import climatology_baseline, country_for_centroid
 from engine.core.confidence import (
     compute_anomaly_strength_term,
     compute_indicator_confidence,
     compute_n_valid_term,
     compute_qa_term,
     compute_spatial_context_term,
+)
+from engine.core.fallback import (
+    NO_FALLBACK,
+    FallbackContext,
+    FallbackOutcome,
+    build_fallback_extra,
+    resolve_fallback_plan,
+    sliding_lookback_windows,
+    sppy_window,
 )
 from engine.core.normalisation import to_score
 from engine.core.provenance import _COLUMN_TO_SURFACE_UNCERTAINTY
@@ -630,11 +641,27 @@ def six_step(
     z_threshold: float = ANOMALY_Z_THRESHOLD,
     k: float = NORMALISATION_K,
     scale: float | None = None,
+    fallback: FallbackContext | None = None,
 ) -> dict:
     """Run the full IC_v4 §0.2 pipeline and return the standard result dict.
 
     Raises `IndicatorComputeError` if the site or background reduction yields
-    no valid pixels for `band` in `time_range`.
+    no valid pixels for `band` in `time_range` (and no fallback recovers it).
+
+    M-FALLBACK-A1 — when `fallback` is a `FallbackContext` (and not strict
+    audit mode), zero-coverage failures are recovered where possible:
+
+    - **1.1 SPPY** — a zero-pixel SITE buffer is retried over the
+      same-period-previous-year window (or, for the sliding-lookback
+      strategy, the first earlier window with coverage). Confidence ×0.60.
+    - **1.2 climatology** — an unavailable BACKGROUND ring (water-only or
+      empty) is replaced by the per-country climatology baseline, for the
+      11 in-scope indicators. Confidence ×0.75.
+
+    The composition follows the §4.5 decision table (`resolve_fallback_plan`).
+    `fallback=None` (the default) is the pre-milestone path — no fallbacks,
+    identical behaviour — which keeps every direct-call test unchanged.
+    `aoi_scale_class` is emitted in the returned `fallback_extra` regardless.
     """
     # v1x followup #13 — filterBounds to the analysis envelope (= circle at
     # r_background_km, which encloses both site_buffer and background_ring).
@@ -676,10 +703,32 @@ def six_step(
     # into `provenance.extra` (spec §3.6).
     ring = background_ring(aoi["centre"], aoi["radius_km"])
 
-    site = site_value(aoi, ic_window, band, scale=scale)
-    bg_median, bg_std = background_value(
-        aoi, ic_window, band, seasonal=seasonal, scale=scale, ring=ring,
-    )
+    if fallback is None or fallback.strict_audit_mode:
+        # Pre-milestone path (and strict audit mode, FB16): no fallbacks —
+        # identical to the M-TIER-A3 behaviour. Any zero-coverage failure
+        # propagates so the pillar dispatcher emits its skipped payload.
+        site = site_value(aoi, ic_window, band, scale=scale)
+        bg_median, bg_std = background_value(
+            aoi, ic_window, band, seasonal=seasonal, scale=scale, ring=ring,
+        )
+        fb_outcome = NO_FALLBACK
+        hf_ic, hf_time_range = ic_window, time_range
+    else:
+        (
+            site, bg_median, bg_std, fb_outcome, hf_ic, hf_time_range,
+        ) = _resolve_with_fallback(
+            aoi=aoi,
+            image_collection=image_collection,
+            envelope=analysis_envelope,
+            ic_window=ic_window,
+            band=band,
+            time_range=time_range,
+            ring=ring,
+            seasonal=seasonal,
+            scale=scale,
+            indicator_id=indicator_id,
+            fallback=fallback,
+        )
 
     # M-TIER-A1 Step 8 — server-side N_valid + HF. Replaces the
     # client-side `_per_date_site_series` + `anomaly_z_hf(series)` path
@@ -689,9 +738,14 @@ def six_step(
     # anomaly + z from the steady-state values; HF is overwritten with
     # the server-side count below.
     azhf = anomaly_z_hf(site, bg_median, bg_std, [], z_threshold=z_threshold)
+    # HF + N_valid use the *effective* window — when SPPY recovered the site,
+    # that's the previous-year window where data actually exists; otherwise
+    # it's the current window. Without this, an SPPY-recovered site would
+    # still draw N_valid=0 from the empty current window and strict-None the
+    # whole confidence, defeating the 0.60 fallback penalty.
     hf_result = _server_side_hf(
-        aoi, ic_window, band, bg_median, bg_std, z_threshold, scale,
-        time_range=time_range,
+        aoi, hf_ic, band, bg_median, bg_std, z_threshold, scale,
+        time_range=hf_time_range,
         indicator_id=indicator_id,
     )
     azhf["hf"] = hf_result.hf
@@ -714,7 +768,7 @@ def six_step(
     confidence_terms = _confidence_terms_from_six_step_state(
         indicator_id=indicator_id,
         aoi=aoi,
-        time_range=time_range,
+        time_range=hf_time_range,
         n_observations=hf_result.n_valid_dates,
         hf=azhf["hf"],
     )
@@ -723,6 +777,8 @@ def six_step(
         column_to_surface_uncertainty=_COLUMN_TO_SURFACE_UNCERTAINTY.get(
             indicator_id or "", "n_a",
         ),
+        temporal_fallback_applied=fb_outcome.temporal_used,
+        climatology_fallback_applied=fb_outcome.climatology_used,
         **confidence_terms,
     )
 
@@ -759,7 +815,222 @@ def six_step(
         "ring_land_fraction":  ring["land_fraction"],
         "ring_land_mask_applied": ring["land_mask_applied"],
         "ring_land_mask_asset":   ring["land_mask_asset"],
+        # M-FALLBACK-A1 §4.7 — additive provenance.extra fields recording
+        # which fallback fired (or none). aoi_scale_class is always present.
+        # Pillar `_format_result` functions merge this into provenance.extra.
+        "fallback_extra": build_fallback_extra(
+            radius_km=aoi["radius_km"],
+            temporal_fallback_used=fb_outcome.temporal_used,
+            temporal_fallback_strategy=fb_outcome.temporal_strategy,
+            temporal_fallback_source_window=fb_outcome.temporal_window,
+            climatology_fallback_used=fb_outcome.climatology_used,
+            climatology_fallback_vintage=fb_outcome.climatology_vintage,
+        ),
     }
+
+
+# ---------------------------------------------------------------------------
+# M-FALLBACK-A1 — site/background resolution with the two fallbacks
+# ---------------------------------------------------------------------------
+
+def _window_ic(image_collection, envelope, window: tuple[str, str]):
+    """Filter `image_collection` to `window` and the analysis envelope.
+
+    Mirrors the inline construction in `six_step` so an SPPY / sliding
+    window reduces over exactly the same spatial envelope as the current
+    window — only the date range differs.
+    """
+    return (
+        image_collection
+        .filterDate(window[0], window[1])
+        .filterBounds(envelope.bounds())
+    )
+
+
+def _recover_site(
+    aoi, image_collection, envelope, band, time_range, scale, strategy,
+) -> tuple[float | None, tuple[str, str] | None]:
+    """Try to recover the site value over a previous window (1.1).
+
+    For ``"sppy"`` there is one candidate (same period, previous year). For
+    ``"sliding_lookback"`` the candidates step backward until one has
+    coverage. Returns ``(value, window_used)`` or ``(None, None)`` if none
+    of the candidates yields valid pixels.
+    """
+    if strategy == "sliding_lookback":
+        candidates = sliding_lookback_windows(time_range)
+    else:
+        candidates = [sppy_window(time_range)]
+    for window in candidates:
+        ic = _window_ic(image_collection, envelope, window)
+        try:
+            return site_value(aoi, ic, band, scale=scale), window
+        except SiteBufferNoDataError:
+            continue
+    return None, None
+
+
+def _recover_ring(
+    aoi, image_collection, envelope, band, window, seasonal, scale, ring,
+) -> tuple[float, float] | None:
+    """Try to recover the background ring over `window` (Mode C SPPY ring).
+
+    Returns ``(median, std)`` or ``None`` if the ring is still empty.
+    """
+    ic = _window_ic(image_collection, envelope, window)
+    try:
+        return background_value(
+            aoi, ic, band, seasonal=seasonal, scale=scale, ring=ring,
+        )
+    except BackgroundRingNoDataError:
+        return None
+
+
+def _try_climatology(aoi, indicator_id, fallback):
+    """Look up the per-country climatology baseline for this indicator (1.2).
+
+    Returns a ``ClimatologyBaseline`` or ``None`` when the indicator is out
+    of the climatology scope (FB10), the centroid can't be resolved to a
+    country, or no fixture entry exists.
+    """
+    if not indicator_id or indicator_id not in CLIMATOLOGY_INDICATORS:
+        return None
+    centre = aoi["centre"]
+    country = country_for_centroid(centre["lat"], centre["lon"])
+    return climatology_baseline(
+        country, indicator_id, fixture=fallback.climatology_fixture,
+    )
+
+
+def _resolve_with_fallback(
+    *,
+    aoi,
+    image_collection,
+    envelope,
+    ic_window,
+    band,
+    time_range,
+    ring,
+    seasonal,
+    scale,
+    indicator_id,
+    fallback: FallbackContext,
+):
+    """Site + background resolution with the §4.5 fallback composition.
+
+    Returns ``(site, bg_median, bg_std, FallbackOutcome, hf_ic,
+    hf_time_range)``. ``hf_ic`` / ``hf_time_range`` are the window the SITE
+    value came from, so the downstream HF + N_valid computation reflects
+    where data actually exists. Re-raises the original
+    ``SiteBufferNoDataError`` / ``BackgroundRingNoDataError`` when no
+    fallback can recover the indicator — the pillar dispatcher then emits
+    its skipped payload exactly as in the no-fallback path.
+    """
+    # --- current-window attempts (capture outcomes; do not raise yet) ---
+    try:
+        site = site_value(aoi, ic_window, band, scale=scale)
+        site_ok, site_err = True, None
+    except SiteBufferNoDataError as err:
+        site, site_ok, site_err = None, False, err
+
+    # Mode 1 — a structurally-water ring (land fraction below the mask
+    # threshold) is detected from the ring dict directly; SPPY can't recover
+    # a permanently-ocean ring, so we skip the current reduction and let
+    # climatology fire.
+    ring_is_water = bool(ring.get("land_mask_applied")) and (
+        ring.get("land_fraction", 1.0) < LAND_MASK_FRACTION_MIN_THRESHOLD
+    )
+
+    bg_median = bg_std = None
+    ring_err = None
+    if ring_is_water:
+        ring_ok = False
+    else:
+        try:
+            bg_median, bg_std = background_value(
+                aoi, ic_window, band, seasonal=seasonal, scale=scale, ring=ring,
+            )
+            ring_ok = True
+        except BackgroundRingNoDataError as err:
+            ring_ok, ring_err = False, err
+
+    plan = resolve_fallback_plan(
+        site_current_ok=site_ok,
+        ring_current_ok=ring_ok,
+        ring_is_water=ring_is_water,
+        strict_audit_mode=False,  # strict mode never reaches this resolver
+    )
+
+    temporal_used = False
+    temporal_strategy: str | None = None
+    temporal_window: tuple[str, str] | None = None
+    site_window = time_range  # the window the SITE value comes from
+
+    # --- 1.1 SPPY — recover the site ---
+    if not site_ok and plan.attempt_sppy_site:
+        recovered, window_used = _recover_site(
+            aoi, image_collection, envelope, band, time_range, scale,
+            fallback.temporal_fallback_strategy,
+        )
+        if recovered is not None:
+            site, site_ok = recovered, True
+            temporal_used = True
+            temporal_strategy = fallback.temporal_fallback_strategy
+            temporal_window = window_used
+            site_window = window_used
+
+    if not site_ok:
+        # Mode A / C with SPPY also empty → the indicator genuinely fails.
+        raise site_err or SiteBufferNoDataError(
+            indicator_id=band,
+            reason="site buffer empty and SPPY fallback found no pixels either",
+        )
+
+    # --- ring recovery: SPPY ring (Mode C) then climatology (1.2) ---
+    climatology_used = False
+    climatology_vintage: str | None = None
+    if not ring_ok:
+        if plan.attempt_sppy_ring:
+            sppy_w = temporal_window or sppy_window(time_range)
+            recovered_ring = _recover_ring(
+                aoi, image_collection, envelope, band, sppy_w,
+                seasonal, scale, ring,
+            )
+            if recovered_ring is not None:
+                bg_median, bg_std = recovered_ring
+                ring_ok = True
+                temporal_used = True
+                temporal_strategy = fallback.temporal_fallback_strategy
+                temporal_window = sppy_w
+        if not ring_ok and plan.use_climatology:
+            baseline = _try_climatology(aoi, indicator_id, fallback)
+            if baseline is not None:
+                bg_median, bg_std = baseline.median, baseline.std
+                ring_ok = True
+                climatology_used = True
+                climatology_vintage = baseline.vintage
+
+    if not ring_ok:
+        raise ring_err or BackgroundRingNoDataError(
+            indicator_id=band,
+            reason=(
+                "background ring unavailable; no SPPY ring and no "
+                "climatology baseline for this country/indicator"
+            ),
+        )
+
+    outcome = FallbackOutcome(
+        temporal_used=temporal_used,
+        temporal_strategy=temporal_strategy,
+        temporal_window=temporal_window,
+        climatology_used=climatology_used,
+        climatology_vintage=climatology_vintage,
+    )
+    if site_window == time_range:
+        hf_ic = ic_window
+    else:
+        hf_ic = _window_ic(image_collection, envelope, site_window)
+    return site, bg_median, bg_std, outcome, hf_ic, site_window
 
 
 def _confidence_terms_from_six_step_state(

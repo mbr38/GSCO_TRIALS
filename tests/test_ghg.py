@@ -631,7 +631,7 @@ class TestRunPillar:
     def test_full_payload_with_air_keys_injected(self, monkeypatch) -> None:
         # The mock's CH₄ snapshot carries Air keys so the cross-pillar
         # borrow chain has data to work with.
-        def fake_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
             if indicator == "viirs":
@@ -685,7 +685,7 @@ class TestRunPillar:
         # Sanity check on the cross-pillar dependency: without Air keys in
         # the snapshot mock, the borrow yields None and ch4_context_adjusted
         # also null-propagates.
-        def fake_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=False)
             if indicator == "viirs":
@@ -705,7 +705,7 @@ class TestRunPillar:
         assert result["ghg.ch4_context_adjusted"] is None
 
     def test_single_indicator_failure_degrades_gracefully(self, monkeypatch) -> None:
-        def fake_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 raise IndicatorComputeError(
                     indicator_id="ghg.ch4",
@@ -745,7 +745,7 @@ class TestRunPillar:
     def test_all_indicators_failing_raises_pillar_compute_error(
         self, monkeypatch,
     ) -> None:
-        def fake_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             raise IndicatorComputeError(
                 indicator_id=f"ghg.{indicator}",
                 reason="no valid pixels",
@@ -802,7 +802,7 @@ class TestRunPillar:
                 },
             }
 
-        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
             if indicator == "viirs":
@@ -885,7 +885,7 @@ class TestPresentDayScreeningDispatchesOdiac:
         }
 
     def test_present_day_dispatches_co2_over_latest_year(self, monkeypatch) -> None:
-        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
             if indicator == "viirs":
@@ -1208,7 +1208,7 @@ class TestProvenanceShape:
         # rather than emitting a skipped_reason="out_of_coverage" provenance.
         # The skip-path build_provenance shape itself is still covered in
         # tests/test_provenance.py.
-        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client):
+        def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
             if indicator == "viirs":
