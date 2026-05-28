@@ -569,6 +569,70 @@ HABITAT_SPATIAL_LINK_MOD_KM: float = 3.0
 
 
 # ---------------------------------------------------------------------------
+# Wind attributability — M-WIND-A1 v2.0 (28 May 2026)
+# ---------------------------------------------------------------------------
+# Air-pillar attributability surface, parallel to the M-ATTRIB-A1 habitat
+# layer (AT19 shared bucket grammar). Categorical only — does NOT enter the
+# M-TIER-A1 confidence chain or any composite score (locked decision WA1).
+#
+# Per spec §5.2, the category depends on BOTH the mean wind speed and the
+# upwind/downwind background-ring asymmetry ratio during anomaly days:
+#
+#   high      mean_wind_speed < WIND_SPEED_HIGH_MAX_MS   (< 2.0 m/s)
+#             AND mean_asymmetry_ratio < WIND_ASYMMETRY_HIGH_MAX (< 1.5)
+#   moderate  mean_wind_speed in [HIGH_MAX, LOW_MIN)  or
+#             mean_asymmetry_ratio in [HIGH_MAX, LOW_MIN)
+#   low       mean_wind_speed >= WIND_SPEED_LOW_MIN_MS  (>= 5.0 m/s)
+#             OR mean_asymmetry_ratio >= WIND_ASYMMETRY_LOW_MIN (>= 2.5)
+#   sparse    n_anomaly_days < WIND_N_MIN_ANOMALY_DAYS — too few anomaly
+#             days to assess; no arrow rendered.
+#
+# The 2 m/s breakpoint aligns with the Pasquill calm-to-light wind threshold
+# (WA8). The 5 m/s breakpoint matches the Pasquill light-to-moderate wind
+# transition. Asymmetry breakpoints (1.5, 2.5) are first-pass intuitions
+# flagged for calibration sweep alongside M-ATTRIB-A1's habitat thresholds
+# (Q-WA-1 / Q-AT-1, joint sweep after first demo runs).
+WIND_SPEED_HIGH_MAX_MS: float = 2.0
+WIND_SPEED_LOW_MIN_MS:  float = 5.0
+WIND_ASYMMETRY_HIGH_MAX: float = 1.5
+WIND_ASYMMETRY_LOW_MIN:  float = 2.5
+
+# WA9 — days where mean wind speed is below this threshold are excluded
+# from the direction / asymmetry calculation (no meaningful direction at
+# calm), but still count toward the speed mean and the anomaly-day total.
+WIND_CALM_THRESHOLD_MS: float = 1.0
+
+# WA10 — minimum anomaly-day sample size. Below this, attributability is
+# "sparse" and no arrow renders on the M-UI-A5 map.
+WIND_N_MIN_ANOMALY_DAYS: int = 5
+
+# WA2 — five in-scope Air-pillar indicators. Wind attribution is computed
+# only for these; out-of-scope indicators emit no wind fields in
+# provenance.extra. Frozenset so the membership check is O(1) and the
+# constant is hashable / immutable.
+WIND_ATTRIBUTABILITY_INDICATORS: frozenset[str] = frozenset({
+    "air.no2",
+    "air.so2",
+    "air.hcho",
+    "air.aai",
+    "air.aod",
+})
+
+# ERA5 hourly reanalysis — wind components at 10 m. Spec §5.1 sampling.
+# Asset choice locked by docs/v1x_followups.md correction (24 May 2026):
+# the v1.0 spec pointed at ERA5_LAND/HOURLY but that asset lacks the
+# boundary-layer-height band; ECMWF/ERA5/HOURLY is the right asset for the
+# shared ERA5 helper (also serves the deferred Tier C2 BLH work). Surface-
+# resolution: ~28 km grid (single cell carries the supplier point cleanly).
+ERA5_HOURLY_ASSET:    str = "ECMWF/ERA5/HOURLY"
+ERA5_WIND_U_BAND:     str = "u_component_of_wind_10m"
+ERA5_WIND_V_BAND:     str = "v_component_of_wind_10m"
+# ERA5_LAND_HOURLY_ASSET retained for reference — works for wind-only but
+# lacks boundary_layer_height for the Tier C2 follow-on.
+ERA5_LAND_HOURLY_ASSET: str = "ECMWF/ERA5_LAND/HOURLY"
+
+
+# ---------------------------------------------------------------------------
 # Analysis window — user-configurable per M-UI-A3
 # ---------------------------------------------------------------------------
 # Default screening window length. Previously hard-coded at the UI layer

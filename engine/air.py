@@ -390,6 +390,13 @@ def _format_result(
     fallback_extra = raw.get("fallback_extra")
     if fallback_extra is not None:
         extra.update(fallback_extra)
+    # M-WIND-A1 v2.0 §5.4 — merge the additive wind attributability fields
+    # (wind_attributability_state always present for the five in-scope
+    # indicators; metric fields populated when state != "sparse"). None for
+    # out-of-scope pollutants (co, o3, pm25, pm10) so the merge no-ops.
+    wind_extra = raw.get("wind_extra")
+    if wind_extra is not None:
+        extra.update(wind_extra)
 
     result[f"_provenance.air.{pollutant}"] = build_provenance(
         indicator_id=f"air.{pollutant}",

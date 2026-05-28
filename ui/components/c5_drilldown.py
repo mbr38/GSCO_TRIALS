@@ -901,10 +901,12 @@ def _render_confidence_terms_expander(
     is panel-expander → this expander, same depth as the existing
     "Datasets used" sub-expander (verified working in Streamlit 1.57).
 
-    M-TIER-A3 Step H2 — when the background ring is partly over water
-    (``ring_land_fraction < 1.0``), append a "Coastal handling"
-    sub-section explaining how the land mask shaped the baseline.
-    Fully inland AOIs see no change to the expander (sub-section omitted).
+    Sub-sections (all conditionally rendered from ``provenance.extra``):
+      - M-TIER-A3 coastal handling — when background ring partly over water
+      - M-FALLBACK-A1 fallback applied — when SPPY/climatology fired
+      - M-WIND-A1 v2.0 wind attribution — when Low for in-scope Air
+        indicators (NO₂, SO₂, HCHO, AAI, AOD); High/Moderate surface only
+        on the map per WA14/WA15.
     """
     provenance = payload.get(f"_provenance.{pillar}.{slug}") or {}
     extra      = provenance.get("extra") or {}
@@ -916,6 +918,7 @@ def _render_confidence_terms_expander(
         _render_confidence_terms(terms)
         _render_coastal_handling_section(extra)
         _render_fallback_section(extra)
+        _render_wind_attribution_section(extra)
 
 
 # ---------------------------------------------------------------------------
@@ -1070,6 +1073,99 @@ def _render_fallback_section(extra: dict | None) -> None:
         st.divider()
         st.markdown(_CLIMATOLOGY_FALLBACK_HEADER)
         st.markdown(_CLIMATOLOGY_FALLBACK_BODY.format(vintage=vintage))
+
+
+# ---------------------------------------------------------------------------
+# M-WIND-A1 v2.0 §6.3 — "Wind attribution context" sub-section (Low only)
+# ---------------------------------------------------------------------------
+# Extends the M-TIER-A3 / M-FALLBACK-A1 conditional sub-section pattern. Fires
+# only when ``wind_attributability_state == "low"`` (WA14); High and Moderate
+# surface on the map only (WA15/WA16) so the C5 expander stays uncluttered for
+# the non-concerning cases.
+
+_WIND_ATTRIB_HEADER: str = "**Wind attribution context**"
+
+_WIND_ATTRIB_BODY_LEAD: str = (
+    "Low attribution confidence — wind conditions suggest external sources "
+    "may have contributed to this signal during the anomaly days."
+)
+
+_WIND_ATTRIB_RATIO_BULLETS: str = (
+    "- Mean wind speed: **{speed:.1f} m/s** across {n_days} anomaly days\n"
+    "- Asymmetry ratio (upwind / downwind background): **{ratio:.2f}**\n"
+    "- Wind data from: **{window}**"
+)
+
+_WIND_ATTRIB_NO_RATIO_BULLETS: str = (
+    "- Mean wind speed: **{speed:.1f} m/s** across {n_days} anomaly days\n"
+    "- All anomaly days were calm — no asymmetry ratio available\n"
+    "- Wind data from: **{window}**"
+)
+
+_WIND_ATTRIB_DIRECTION_PROSE: str = (
+    "Wind direction during anomaly days was predominantly from the **{compass}** "
+    "({from_deg:.0f}°). Strong winds combined with elevated upwind background "
+    "values suggest the observed anomaly may reflect transported pollution "
+    "from upwind sources rather than (or in addition to) the supplier itself."
+)
+
+
+_COMPASS_POINTS_8: tuple[str, ...] = (
+    "N", "NE", "E", "SE", "S", "SW", "W", "NW",
+)
+
+
+def _compass_from_bearing(bearing_deg: float) -> str:
+    """8-point compass code for ``bearing_deg`` (0 = North, clockwise)."""
+    idx = int((bearing_deg + 22.5) % 360.0 // 45.0)
+    return _COMPASS_POINTS_8[idx]
+
+
+def _render_wind_attribution_section(extra: dict | None) -> None:
+    """Render the spec §6.3 Low-only wind attribution sub-section, or no-op.
+
+    Visibility rules (WA14/WA15/WA16):
+      - Omit entirely unless ``wind_attributability_state == "low"``.
+      - All-calm case (``wind_mean_asymmetry_ratio is None``) replaces the
+        ratio bullet with a "no asymmetry available" line and omits the
+        direction prose (no meaningful "wind from" direction at zero speed).
+    """
+    if not isinstance(extra, dict):
+        return
+    state = extra.get("wind_attributability_state")
+    if state != "low":
+        return
+    speed = extra.get("wind_mean_speed_ms")
+    ratio = extra.get("wind_mean_asymmetry_ratio")
+    direction = extra.get("wind_mean_direction_deg")
+    n_days = extra.get("wind_n_anomaly_days") or 0
+    window = _format_fallback_window(extra.get("wind_data_window"))
+
+    st.divider()
+    st.markdown(_WIND_ATTRIB_HEADER)
+    st.markdown(_WIND_ATTRIB_BODY_LEAD)
+    if ratio is None:
+        st.markdown(_WIND_ATTRIB_NO_RATIO_BULLETS.format(
+            speed=speed if speed is not None else 0.0,
+            n_days=n_days,
+            window=window,
+        ))
+    else:
+        st.markdown(_WIND_ATTRIB_RATIO_BULLETS.format(
+            speed=speed if speed is not None else 0.0,
+            ratio=ratio,
+            n_days=n_days,
+            window=window,
+        ))
+    if direction is not None:
+        # Wind "from" direction is the wind-to direction + 180° (meteorological
+        # convention used in the prose, matching how a reader thinks of wind
+        # source). The engine stores wind-to direction in wind_mean_direction_deg.
+        from_deg = (direction + 180.0) % 360.0
+        st.markdown(_WIND_ATTRIB_DIRECTION_PROSE.format(
+            compass=_compass_from_bearing(from_deg),
+            from_deg=from_deg,
+        ))
 
 
 def _render_dw_composition_table(payload: dict) -> None:

@@ -514,6 +514,12 @@ def _render_provenance_for_payload(payload) -> str:
     habitat_attrib_html = _render_habitat_attribution_appendix(prov_blocks)
     if habitat_attrib_html:
         blocks.append(habitat_attrib_html)
+    # M-WIND-A1 v2.0 §6.4 — wind attribution context. Low-only (WA20);
+    # supplier with no Low-wind indicators gets no section. Lists each
+    # affected indicator with its mean wind speed and asymmetry ratio.
+    wind_attrib_html = _render_wind_attribution_appendix(prov_blocks)
+    if wind_attrib_html:
+        blocks.append(wind_attrib_html)
     return "\n".join(blocks)
 
 
@@ -701,6 +707,76 @@ def _render_habitat_attribution_appendix(
             "</ul>",
         ])
     return ""
+
+
+# M-WIND-A1 v2.0 §6.4 — PDF "Wind attribution context" sub-block. Low-only,
+# parallel to coastal / fallback / habitat-attribution sub-blocks. Lists each
+# in-scope Air indicator whose wind attributability fired Low so auditors see
+# exactly which signals carry an upwind-transport caveat.
+_WIND_ATTRIB_APPENDIX_HEADER: str = "Wind attribution context"
+
+_WIND_ATTRIB_APPENDIX_INTRO: str = (
+    "This supplier shows <strong>Low</strong> attribution confidence on the "
+    "following indicators due to wind conditions during anomaly days. Strong "
+    "winds and asymmetric upwind/downwind background values suggest the "
+    "observed anomalies may reflect transported pollution from external "
+    "sources rather than (or in addition to) the supplier itself."
+)
+
+
+def _render_wind_attribution_appendix(
+    prov_blocks: list[tuple[str, dict]],
+) -> str:
+    """Render the §6.4 wind-attribution sub-block, or "" when no Low fired.
+
+    Iterates the report's provenance blocks once. For each in-scope Air
+    indicator (NO₂, SO₂, HCHO, AAI, AOD) whose
+    ``extra.wind_attributability_state == "low"``, surface a row with the
+    mean wind speed, asymmetry ratio, and the wind data window. Moderate
+    and High indicators surface visually on the map (not in the PDF, per
+    WA20); supplier with no Low-wind indicators gets no section at all.
+    """
+    rows: list[str] = []
+    for ind_id, prov in sorted(prov_blocks):
+        extra = prov.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        if extra.get("wind_attributability_state") != "low":
+            continue
+        speed = extra.get("wind_mean_speed_ms")
+        ratio = extra.get("wind_mean_asymmetry_ratio")
+        window = extra.get("wind_data_window") or ""
+        window_str = (
+            window.replace("/", " to ") if isinstance(window, str) and "/" in window
+            else "—"
+        )
+        if isinstance(ratio, (int, float)):
+            metrics_str = (
+                f"Mean wind <strong>{speed:.1f} m/s</strong>, asymmetry ratio "
+                f"<strong>{ratio:.2f}</strong>"
+            ) if isinstance(speed, (int, float)) else (
+                f"Asymmetry ratio <strong>{ratio:.2f}</strong>"
+            )
+        else:
+            metrics_str = (
+                f"Mean wind <strong>{speed:.1f} m/s</strong> (all anomaly days calm)"
+                if isinstance(speed, (int, float)) else "wind metrics unavailable"
+            )
+        rows.append(
+            f"<li><strong>{html.escape(ind_id)}</strong> — {metrics_str} "
+            f"({html.escape(window_str)})<br/>"
+            f"<em>Low attribution confidence — wind conditions suggest "
+            f"external sources may have contributed.</em></li>"
+        )
+    if not rows:
+        return ""
+    return "\n".join([
+        f"<h4>{_WIND_ATTRIB_APPENDIX_HEADER}</h4>",
+        f"<p>{_WIND_ATTRIB_APPENDIX_INTRO}</p>",
+        "<ul class='provenance-extras'>",
+        "\n".join(rows),
+        "</ul>",
+    ])
 
 
 # M-UI-A1-SURFACE Sub-milestone 3 polish (24 May 2026): the PDF

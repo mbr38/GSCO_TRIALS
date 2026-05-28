@@ -624,6 +624,190 @@ def _render_habitat_attributability_map(setup: dict, result: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# M-WIND-A1 v2.0 — wind attributability overlay (§6.1/§6.2)
+# ---------------------------------------------------------------------------
+
+# The five in-scope indicators (WA2): NO₂, SO₂, HCHO, AAI, AOD. Keyed by the
+# canonical map indicator id (the .score variant) so dispatch can match the
+# registry key directly. The base ID (e.g. "air.no2") is the provenance key.
+_WIND_ATTRIBUTABILITY_MAP_KEYS: dict[str, str] = {
+    "air.no2.score":  "air.no2",
+    "air.so2.score":  "air.so2",
+    "air.hcho.score": "air.hcho",
+    "air.aai.score":  "air.aai",
+    "air.aod.score":  "air.aod",
+}
+
+# WA12 — arrow colour scheme. Green / amber / red, matching the M-UI-A4 and
+# M-ATTRIB-A1 severity grammar so the user reads "green = attribution OK,
+# amber = caution, red = wind suggests external source".
+_WIND_ARROW_HEX: dict[str, str] = {
+    "high":     "#16a34a",
+    "moderate": "#f59e0b",
+    "low":      "#dc2626",
+}
+
+# WA17–WA19 — per-category hover copy. ``{speed}``, ``{ratio}``, ``{n_days}``
+# get interpolated against the provenance numbers; the all-calm variant
+# replaces the ratio line entirely.
+_WIND_TOOLTIP_TEMPLATE_BY_STATE: dict[str, str] = {
+    "high":     "High attribution confidence — calm wind ({speed:.1f} m/s), symmetric background (ratio {ratio:.2f}). N = {n_days} anomaly days.",
+    "moderate": "Moderate attribution confidence — some wind influence on this signal. Wind {speed:.1f} m/s, asymmetry ratio {ratio:.2f}. N = {n_days} anomaly days.",
+    "low":      "Low attribution confidence — wind conditions suggest external sources may have contributed. Wind {speed:.1f} m/s, asymmetry ratio {ratio:.2f}. N = {n_days} anomaly days.",
+}
+_WIND_TOOLTIP_ALL_CALM_TEMPLATE_BY_STATE: dict[str, str] = {
+    "high":     "High attribution confidence — all anomaly days calm (mean {speed:.1f} m/s). N = {n_days} anomaly days.",
+    "moderate": "Moderate attribution confidence — mostly calm anomaly days. Wind {speed:.1f} m/s. N = {n_days} anomaly days.",
+    "low":      "Low attribution confidence — wind conditions suggest external sources may have contributed. Wind {speed:.1f} m/s. N = {n_days} anomaly days.",
+}
+
+# Arrow length in kilometres, derived from the AOI buffer radius so the
+# arrow always extends a little past the outline at any zoom level.
+# Spec WA11 says "fixed visual length ~30 pixels at base zoom" — we keep
+# this AOI-scaled so the user sees the arrow regardless of buffer size.
+_WIND_ARROW_LENGTH_MULTIPLE: float = 2.0
+_WIND_ARROW_MIN_LENGTH_KM:   float = 8.0
+
+
+def _wind_overlay_provenance_extra(
+    result: dict, indicator_id: str,
+) -> dict | None:
+    """Return the wind ``provenance.extra`` dict for ``indicator_id`` or None.
+
+    Reads the canonical ``_provenance.air.{pollutant}`` block, drills into
+    its ``extra`` field, and returns it. Returns None when the indicator is
+    out of scope, the provenance block is missing, or the wind fields
+    aren't present (e.g. a six_step bypass for a skipped pollutant).
+    """
+    base_id = _WIND_ATTRIBUTABILITY_MAP_KEYS.get(indicator_id)
+    if base_id is None:
+        return None
+    prov = result.get(f"_provenance.{base_id}")
+    if not isinstance(prov, dict):
+        return None
+    extra = prov.get("extra")
+    if not isinstance(extra, dict):
+        return None
+    if "wind_attributability_state" not in extra:
+        return None
+    return extra
+
+
+def _haversine_destination(
+    centre: dict, bearing_deg: float, distance_km: float,
+) -> tuple[float, float]:
+    """Return ``(lat, lon)`` ``distance_km`` from ``centre`` along ``bearing_deg``."""
+    earth_radius_km = 6371.0088
+    lat0 = math.radians(centre["lat"])
+    lon0 = math.radians(centre["lon"])
+    angular_distance = distance_km / earth_radius_km
+    bearing = math.radians(bearing_deg)
+    lat = math.asin(
+        math.sin(lat0) * math.cos(angular_distance)
+        + math.cos(lat0) * math.sin(angular_distance) * math.cos(bearing)
+    )
+    lon = lon0 + math.atan2(
+        math.sin(bearing) * math.sin(angular_distance) * math.cos(lat0),
+        math.cos(angular_distance) - math.sin(lat0) * math.sin(lat),
+    )
+    return math.degrees(lat), math.degrees(lon)
+
+
+def _format_wind_tooltip(extra: dict) -> str:
+    """Build the hover-tooltip string from the wind ``provenance.extra`` dict."""
+    state = extra.get("wind_attributability_state")
+    speed = extra.get("wind_mean_speed_ms")
+    ratio = extra.get("wind_mean_asymmetry_ratio")
+    n_days = extra.get("wind_n_anomaly_days") or 0
+    if state not in _WIND_ARROW_HEX:
+        return ""
+    if ratio is None:
+        template = _WIND_TOOLTIP_ALL_CALM_TEMPLATE_BY_STATE[state]
+        return template.format(
+            speed=speed if speed is not None else 0.0, n_days=n_days,
+        )
+    template = _WIND_TOOLTIP_TEMPLATE_BY_STATE[state]
+    return template.format(
+        speed=speed if speed is not None else 0.0,
+        ratio=ratio,
+        n_days=n_days,
+    )
+
+
+def _wind_arrow_div_icon(colour_hex: str, bearing_deg: float):
+    """SVG arrowhead marker rotated to ``bearing_deg`` (compass degrees).
+
+    Used at the tip of the wind PolyLine. The marker is anchored at its
+    centre so it sits exactly on the polyline endpoint when rotated.
+    Bearing is converted to CSS-rotation degrees (CSS 0° points up = North,
+    matches compass convention) — no conversion needed.
+    """
+    svg = (
+        f"<div style=\"transform: rotate({bearing_deg}deg); transform-origin: 50% 50%;"
+        f"width: 18px; height: 18px; line-height: 18px; text-align: center;\">"
+        f"<svg width=\"18\" height=\"18\" viewBox=\"0 0 18 18\""
+        f" xmlns=\"http://www.w3.org/2000/svg\">"
+        f"<polygon points=\"9,0 16,16 9,12 2,16\" fill=\"{colour_hex}\""
+        f" stroke=\"white\" stroke-width=\"1\" />"
+        f"</svg></div>"
+    )
+    return folium.DivIcon(
+        html=svg,
+        icon_size=(18, 18),
+        icon_anchor=(9, 9),
+    )
+
+
+def _wind_overlay_elements(setup: dict, result: dict, indicator_id: str) -> list:
+    """Build the folium elements for the wind attributability overlay.
+
+    Returns a ``folium.PolyLine`` shaft and a ``folium.Marker`` with a
+    rotated SVG arrowhead, both colour-coded by ``wind_attributability_state``
+    (WA11/WA12). Returns ``[]`` when the indicator is out of scope, the
+    state is sparse, or wind direction is unavailable (all-calm anomaly
+    days — spec §6.1 says "no arrow rendered" in the sparse case; for the
+    all-calm-but-high case the wind has no direction so we skip the arrow
+    too, surfacing the High state via the absence of an amber/red arrow
+    per WA16).
+    """
+    extra = _wind_overlay_provenance_extra(result, indicator_id)
+    if extra is None:
+        return []
+    state = extra.get("wind_attributability_state")
+    if state not in _WIND_ARROW_HEX:        # high / moderate / low — sparse skipped
+        return []
+    bearing = extra.get("wind_mean_direction_deg")
+    if bearing is None:
+        # All-calm: no direction → no arrow. Hover tooltip on the C5
+        # expander still surfaces the state; visual layer has nothing
+        # meaningful to render.
+        return []
+
+    centre = setup["centre"]
+    arrow_length_km = max(
+        setup.get("radius_km", 0.0) * _WIND_ARROW_LENGTH_MULTIPLE,
+        _WIND_ARROW_MIN_LENGTH_KM,
+    )
+    tip_lat, tip_lon = _haversine_destination(centre, bearing, arrow_length_km)
+    tooltip = _format_wind_tooltip(extra)
+    colour = _WIND_ARROW_HEX[state]
+
+    shaft = folium.PolyLine(
+        locations=[[centre["lat"], centre["lon"]], [tip_lat, tip_lon]],
+        color=colour,
+        weight=4,
+        opacity=0.9,
+        tooltip=tooltip,
+    )
+    head = folium.Marker(
+        location=[tip_lat, tip_lon],
+        icon=_wind_arrow_div_icon(colour, bearing),
+        tooltip=tooltip,
+    )
+    return [shaft, head]
+
+
+# ---------------------------------------------------------------------------
 # Registry — 14 scored tiles (MV9). Keys == C4b tile select_keys, so the
 # "View on map →" affordance can dispatch by the value it sets verbatim.
 # Hansen + ODIAC are reference datasets and deliberately absent (MV10).
@@ -682,9 +866,22 @@ def _current_run_id() -> str:
 
 
 def _render_layer_spec(
-    spec: _LayerSpec, setup: dict, indicator_id: str, run_id: str,
+    spec: _LayerSpec,
+    setup: dict,
+    indicator_id: str,
+    run_id: str,
+    *,
+    result: dict | None = None,
+    apply_overlays: bool = False,
 ) -> None:
-    """Render prose + legend + base map + the (cached) indicator tile layer."""
+    """Render prose + legend + base map + the (cached) indicator tile layer.
+
+    M-WIND-A1 v2.0 — when ``apply_overlays=True`` (the multi-indicator path
+    only; single-indicator inspection stays unchanged per WA25), the wind
+    arrow overlay is added on top of the tile layer for the five in-scope
+    indicators. ``result`` is required when ``apply_overlays`` is True so
+    the wind ``provenance.extra`` block can be read.
+    """
     st.markdown(spec.prose)
     for line in spec.extra_lines:
         st.markdown(line, unsafe_allow_html=True)
@@ -705,15 +902,30 @@ def _render_layer_spec(
         control=True,
         max_zoom=24,
     ).add_to(m)
+    if apply_overlays and result is not None:
+        for element in _wind_overlay_elements(setup, result, indicator_id):
+            element.add_to(m)
     m.to_streamlit(height=500)
 
 
-def _dispatch(indicator_id: str, setup: dict, result: dict, run_id: str) -> None:
+def _dispatch(
+    indicator_id: str,
+    setup: dict,
+    result: dict,
+    run_id: str,
+    *,
+    apply_overlays: bool = False,
+) -> None:
     """Look up + render the layer for ``indicator_id``.
 
     Unknown indicators surface the "not yet implemented" fallback; renderer
     exceptions are caught and surfaced as ``st.error`` (the EE round-trip is
     the likely failure mode) so the rest of the page keeps rendering.
+
+    M-WIND-A1 v2.0 — ``apply_overlays`` is True only on the multi-indicator
+    map path (``render_multi_indicator_map``). The single-indicator
+    inspection view (``render_c4a_indicator_map``) leaves it False so its
+    behaviour is unchanged (WA25).
     """
     # M-ATTRIB-A1 (§5.1): habitat conversion has no raster layer — route it to
     # the attributability overlay (centroid marker + supplier→centroid line +
@@ -731,7 +943,10 @@ def _dispatch(indicator_id: str, setup: dict, result: dict, run_id: str) -> None
         return
     try:
         spec = builder(setup, result)
-        _render_layer_spec(spec, setup, indicator_id, run_id)
+        _render_layer_spec(
+            spec, setup, indicator_id, run_id,
+            result=result, apply_overlays=apply_overlays,
+        )
     except Exception as exc:  # noqa: BLE001
         st.error(f"Map render failed: {exc}")
 
@@ -782,7 +997,9 @@ def render_multi_indicator_map(setup: dict, result: dict) -> None:
         if active is None:
             _render_empty_state(setup)
             return
-        _dispatch(active, setup, result, run_id)
+        # M-WIND-A1 v2.0 — multi-indicator path opts into wind overlay for the
+        # five in-scope indicators. Single-indicator inspection stays off (WA25).
+        _dispatch(active, setup, result, run_id, apply_overlays=True)
         _render_cache_caption()
 
     # One-shot scroll-to-map after a tile click set the active indicator.

@@ -18,6 +18,7 @@ and leaves their outputs as None with a TODO.
 from __future__ import annotations
 
 import concurrent.futures
+from datetime import date as _date, timedelta as _td
 from typing import Iterable, NamedTuple
 
 import ee
@@ -31,6 +32,7 @@ from engine.constants import (
     NORMALISATION_K,
     SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
     SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR,
+    WIND_ATTRIBUTABILITY_INDICATORS,
 )
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.climatology import climatology_baseline, country_for_centroid
@@ -507,7 +509,7 @@ def _server_side_hf(
       are union'd into client-side Python sets across chunks.
 
     Returns:
-        A ``ServerSideHfResult`` named tuple with three fields:
+        A ``ServerSideHfResult`` named tuple with four fields:
 
         n_valid_dates: count of distinct UTC days (across the full
                  `time_range`) with at least one granule whose buffer
@@ -649,14 +651,27 @@ def _server_side_hf(
     n_valid_dates = len(valid_days_seen)
     n_hot         = len(hot_days_seen)
 
+    # M-WIND-A1 v2.0 — sorted ISO UTC dates of the hot/anomaly days. Sorted
+    # so downstream consumers (engine.core.wind) see a deterministic order
+    # for per-day ERA5 sampling and for the audit-friendly ``wind_data_window``
+    # provenance field.
+    anomaly_dates_utc = (
+        sorted(_day_bucket_to_iso(d) for d in hot_days_seen)
+        if hot_days_seen else []
+    )
+
     if n_valid_dates == 0:
-        return ServerSideHfResult(0, None, granule_count_total)
+        return ServerSideHfResult(0, None, granule_count_total, None)
     if bg_std_degenerate:
-        return ServerSideHfResult(n_valid_dates, None, granule_count_total)
+        # HF is undefined, but anomaly_dates_utc was computed against a
+        # degenerate baseline so the set is meaningless — return empty
+        # rather than the unreliable list.
+        return ServerSideHfResult(n_valid_dates, None, granule_count_total, [])
     return ServerSideHfResult(
         n_valid_dates,
         n_hot / n_valid_dates,
         granule_count_total,
+        anomaly_dates_utc,
     )
 
 
@@ -670,11 +685,36 @@ class ServerSideHfResult(NamedTuple):
     downstream. The named tuple lets every caller pick the field by
     name; positional unpacking (``n, h, g = _server_side_hf(...)``)
     still works for callers that want it.
+
+    M-WIND-A1 v2.0 (28 May 2026) — added ``anomaly_dates_utc`` so the
+    wind-attribution module (engine.core.wind) can sample ERA5 wind on
+    exactly the dates where the indicator crossed the anomaly z-threshold.
+    Before this, ``hot_days_seen`` was computed inside ``_server_side_hf``
+    and then discarded once the HF ratio was returned. The field is None
+    when no anomaly days were observed (n_valid_dates == 0 path) and an
+    empty list when the bg_std-degenerate path fires (HF undefined). For
+    indicators outside the wind-attribution scope the field rides through
+    unread, which preserves the strict-None semantics elsewhere.
     """
 
-    n_valid_dates: int
-    hf:            float | None
-    granule_count: int
+    n_valid_dates:     int
+    hf:                float | None
+    granule_count:     int
+    # Default to None so test fixtures and smoke tools that pre-date
+    # M-WIND-A1 v2.0 keep constructing the tuple as a 3-arg call without
+    # breakage. In-engine constructions (the three return paths above) pass
+    # the field explicitly so production behaviour is unaffected.
+    anomaly_dates_utc: list[str] | None = None
+
+
+# Day-bucket → ISO UTC date. ``day_bucket`` is the integer EE writes when
+# we floor ``system:time_start`` (ms since UTC epoch) by one UTC day, so
+# adding it as a day-delta to 1970-01-01 reverses the operation.
+_UTC_EPOCH: _date = _date(1970, 1, 1)
+
+
+def _day_bucket_to_iso(day_bucket: int) -> str:
+    return (_UTC_EPOCH + _td(days=int(day_bucket))).isoformat()
 
 
 # ---------------------------------------------------------------------------
@@ -862,6 +902,57 @@ def six_step(
         **confidence_terms,
     )
 
+    # M-WIND-A1 v2.0 — compute the wind-attribution provenance block for
+    # in-scope indicators (NO₂, SO₂, HCHO, AAI, AOD). Wind attribution is
+    # categorical (high / moderate / low / sparse) and lives in
+    # provenance.extra; it does NOT feed `confidence` above (WA1). The
+    # block uses the *effective* window (`hf_time_range`) so SPPY-recovered
+    # indicators get wind sampled from the same period the indicator data
+    # came from (WA23, Step B reconciliation #3 — collapses the planned
+    # Step E composition pass to a window pass-through). Sparse-on-failure:
+    # any EE exception during wind sampling is caught and degraded to a
+    # sparse block rather than disrupting the main indicator payload.
+    wind_extra: dict | None = None
+    if indicator_id in WIND_ATTRIBUTABILITY_INDICATORS:
+        from engine.core.wind import (  # local import — wind→repeatable_core would be circular if reversed
+            compute_wind_attribution_extra,
+            sparse_provenance_extra,
+        )
+        try:
+            wind_extra = compute_wind_attribution_extra(
+                centre=aoi["centre"],
+                r_site_km=aoi["radius_km"],
+                r_background_km=min(
+                    BACKGROUND_RING_RADIUS_MULTIPLE * aoi["radius_km"],
+                    BACKGROUND_RING_MAX_KM,
+                ),
+                image_collection=hf_ic,
+                band=band,
+                scale=scale,
+                anomaly_dates_utc=hf_result.anomaly_dates_utc,
+                wind_data_window=hf_time_range,
+                ring_land_fraction=ring.get("land_fraction"),
+            )
+        except Exception as exc:  # noqa: BLE001 — wind is informational; never crash the indicator
+            # Emit a warning so dev / regen runs surface the silent-degrade
+            # path. Production UI still gets the graceful sparse fallback
+            # (WA1: wind never crashes the indicator). The original M-WIND-A1
+            # v2.0 demo regen silently degraded every indicator to sparse
+            # because an ee.Geometry kwarg-routing bug raised inside the
+            # batched .getInfo() and nothing was logged — that class of
+            # regression should be loud, not invisible.
+            import warnings as _warnings
+            _warnings.warn(
+                f"wind attribution degraded to sparse for {indicator_id!r}: "
+                f"{type(exc).__name__}: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            wind_extra = sparse_provenance_extra(
+                n_anomaly_days=len(hf_result.anomaly_dates_utc or []),
+                wind_data_window=hf_time_range,
+            )
+
     return {
         "site":       site,
         "background": bg_median,
@@ -886,6 +977,12 @@ def six_step(
         # never enters score arithmetic. See ServerSideHfResult.
         "n_valid_dates": hf_result.n_valid_dates,
         "granule_count": hf_result.granule_count,
+        # M-WIND-A1 v2.0 — the dates (sorted ISO UTC) on which the indicator
+        # crossed the anomaly z-threshold within the effective window.
+        # Consumed by engine.core.wind to sample ERA5 wind on exactly those
+        # dates; pillar `_format_result` threads it through provenance.extra
+        # as audit transparency. None / empty list when no anomaly days exist.
+        "anomaly_dates_utc": hf_result.anomaly_dates_utc,
         # M-TIER-A3 Step E — three new provenance.extra fields per spec §3.6.
         # Geometric land share of the background ring; whether the mask
         # was applied to the reduction; and the asset ID for vintage
@@ -906,6 +1003,11 @@ def six_step(
             climatology_fallback_used=fb_outcome.climatology_used,
             climatology_fallback_vintage=fb_outcome.climatology_vintage,
         ),
+        # M-WIND-A1 v2.0 §5.4 — additive provenance.extra fields recording
+        # the wind attributability state and the underlying numbers. None for
+        # out-of-scope indicators (so pillar `_format_result` can skip the
+        # merge for non-wind pollutants without further branching).
+        "wind_extra": wind_extra,
     }
 
 
