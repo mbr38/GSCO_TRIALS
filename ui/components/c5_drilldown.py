@@ -1492,30 +1492,35 @@ def _render_reference_card(fields: _ReferenceCardFields) -> None:
             indicator_id=fields.indicator_id,
             key_prefix=fields.key_prefix,
         )
-        # RD7 #2 / RD5 — badge. Small-caps, muted background, no severity hue.
+        # RD7 #2 / RD5 + RD7 #3 — badge AND headline value in a single
+        # st.markdown so Streamlit doesn't inject per-element vertical
+        # padding between them. The badge wrapper has a fixed min-height so
+        # the value div lands at the same y across the Hansen + ODIAC cards
+        # regardless of what render_indicator_name_with_info emitted above
+        # (popover vs. plain markdown — different intrinsic heights).
+        if fields.value_str is None:
+            value_html = (
+                "<div style='font-size:1.1em;color:#9ca3af;margin-top:8px;'>"
+                f"{_DATA_UNAVAILABLE_TEXT}</div>"
+            )
+        else:
+            value_html = (
+                "<div style='font-size:1.6em;font-weight:600;margin-top:8px;"
+                f"color:#e5e7eb;line-height:1.25;'>{fields.value_str}</div>"
+                "<div style='font-size:0.85em;color:#9ca3af;'>"
+                f"{fields.unit_line}</div>"
+            )
         st.markdown(
+            "<div style='min-height:32px;display:flex;align-items:flex-start;'>"
             "<span style='display:inline-block;font-size:0.72em;"
             "font-variant:small-caps;letter-spacing:0.03em;"
             "background:rgba(255,255,255,0.06);color:#9ca3af;"
             "border:1px solid rgba(255,255,255,0.14);padding:1px 8px;"
-            f"border-radius:3px;'>{_REFERENCE_BADGE_TEXT}</span>",
+            f"border-radius:3px;'>{_REFERENCE_BADGE_TEXT}</span>"
+            "</div>"
+            f"{value_html}",
             unsafe_allow_html=True,
         )
-        # RD7 #3 — headline value + unit, or the RD12 unavailable message.
-        if fields.value_str is None:
-            st.markdown(
-                "<div style='font-size:1.1em;color:#9ca3af;margin-top:8px;'>"
-                f"{_DATA_UNAVAILABLE_TEXT}</div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                "<div style='font-size:1.6em;font-weight:600;margin-top:8px;"
-                f"color:#e5e7eb;'>{fields.value_str}</div>"
-                "<div style='font-size:0.85em;color:#9ca3af;'>"
-                f"{fields.unit_line}</div>",
-                unsafe_allow_html=True,
-            )
         # RD7 #4/#5 — vintage + source.
         st.markdown(
             "<div style='font-size:0.9em;color:#9ca3af;margin-top:10px;'>"
@@ -1559,6 +1564,32 @@ def _render_reference_datasets_section(payload: dict) -> None:
     st.divider()
     with st.expander("Reference datasets", expanded=False):
         st.caption(_REFERENCE_SECTION_HEADER_COPY)
+        # M-ATTRIB-A1 alignment fix: the two reference cards live in a
+        # `flex` row that stretches both columns to equal height. The
+        # Hansen card has more content (the regional-context line) than
+        # ODIAC, so Streamlit's flex layout distributes the leftover
+        # height in the ODIAC column to its first child (the name+popover
+        # wrapper) — pushing the bold headline value ~150 px lower than
+        # Hansen's. The CSS below pins each card's first stLayoutWrapper
+        # (the name+popover wrapper) to natural height inside *this*
+        # expander only, so the headline values land at the same y.
+        st.markdown(
+            """
+            <style>
+            /* Target the first stLayoutWrapper inside each reference-card
+               body block; descendant selectors (not child >) make the rule
+               robust to extra Streamlit-internal wrappers along the path. */
+            div[data-testid="stExpander"]
+              div[data-testid="stColumn"]
+              div[data-testid="stVerticalBlock"]
+              > div[data-testid="stLayoutWrapper"]:first-child {
+                flex: 0 0 auto !important;
+                height: auto !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
         col_hansen, col_odiac = st.columns(2)
         with col_hansen:
             _render_reference_card(_hansen_card_fields(payload))

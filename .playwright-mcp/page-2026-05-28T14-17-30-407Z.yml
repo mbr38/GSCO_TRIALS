@@ -1,0 +1,116 @@
+- generic [ref=e2]:
+  - generic [ref=e9]:
+    - button "keyboard_double_arrow_left" [ref=e356] [cursor=pointer]:
+      - generic [ref=e358]: keyboard_double_arrow_left
+    - list [ref=e12]:
+      - generic [ref=e13]:
+        - paragraph [ref=e17] [cursor=pointer]: Main
+        - listitem [ref=e18]:
+          - link "Landing" [ref=e20] [cursor=pointer]:
+            - /url: http://localhost:8511/
+            - generic [ref=e23]: 🏠
+            - paragraph [ref=e26]: Landing
+        - listitem [ref=e27]:
+          - link "Scope Setup" [ref=e29] [cursor=pointer]:
+            - /url: http://localhost:8511/Scope_Setup
+            - generic [ref=e32]: 🌍
+            - paragraph [ref=e35]: Scope Setup
+        - listitem [ref=e36]:
+          - link "Workflow Hub" [ref=e38] [cursor=pointer]:
+            - /url: http://localhost:8511/Workflow_Hub
+            - generic [ref=e41]: 🔀
+            - paragraph [ref=e44]: Workflow Hub
+        - listitem [ref=e45]:
+          - link "Inspect — Setup" [ref=e47] [cursor=pointer]:
+            - /url: http://localhost:8511/Inspect_Setup
+            - generic [ref=e50]: 🔍
+            - paragraph [ref=e53]: Inspect — Setup
+        - listitem [ref=e54]:
+          - link "Inspect — Results" [ref=e56] [cursor=pointer]:
+            - /url: http://localhost:8511/Screening_Results
+            - generic [ref=e59]: 📊
+            - paragraph [ref=e62]: Inspect — Results
+        - listitem [ref=e63]:
+          - link "Prioritisation — Setup" [ref=e65] [cursor=pointer]:
+            - /url: http://localhost:8511/Prioritisation_Setup
+            - generic [ref=e68]: 📋
+            - paragraph [ref=e71]: Prioritisation — Setup
+        - listitem [ref=e72]:
+          - link "Prioritisation — Results" [ref=e74] [cursor=pointer]:
+            - /url: http://localhost:8511/Prioritisation_Results
+            - generic [ref=e77]: 📈
+            - paragraph [ref=e80]: Prioritisation — Results
+        - listitem [ref=e81]:
+          - link "Indicator Library" [ref=e83] [cursor=pointer]:
+            - /url: http://localhost:8511/Indicator_Library
+            - generic [ref=e86]: 📚
+            - paragraph [ref=e89]: Indicator Library
+        - listitem [ref=e90]:
+          - link "Saved Analyses" [active] [ref=e92] [cursor=pointer]:
+            - /url: http://localhost:8511/Saved_Analyses
+            - generic [ref=e95]: 💾
+            - paragraph [ref=e98]: Saved Analyses
+        - listitem [ref=e99]:
+          - link "Reports" [ref=e101] [cursor=pointer]:
+            - /url: http://localhost:8511/Reports
+            - generic [ref=e104]: 📄
+            - paragraph [ref=e107]: Reports
+      - generic [ref=e108]:
+        - paragraph [ref=e112] [cursor=pointer]: Developer
+        - listitem [ref=e113]:
+          - link "Engine Scratch (dev)" [ref=e115] [cursor=pointer]:
+            - /url: http://localhost:8511/engine_scratch
+            - generic [ref=e118]: 🧪
+            - paragraph [ref=e121]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e4]
+    - generic [ref=e125]:
+      - generic [ref=e360]:
+        - generic [ref=e365]:
+          - button "Fullscreen" [ref=e370] [cursor=pointer]:
+            - img [ref=e371]
+          - img "0" [ref=e376]
+        - paragraph [ref=e383]:
+          - text: Signed in as
+          - strong [ref=e384]: Policy Maker
+          - text: · Session
+          - code [ref=e385]: 40d07a04
+        - generic [ref=e389]:
+          - paragraph [ref=e396]: "Scope: not set"
+          - button "Pick scope" [ref=e401] [cursor=pointer]:
+            - paragraph [ref=e405]: Pick scope
+        - button "Sign out" [ref=e410] [cursor=pointer]:
+          - paragraph [ref=e414]: Sign out
+      - separator [ref=e419]
+      - heading "Saved Analyses" [level=1] [ref=e424]:
+        - text: Saved Analyses
+        - generic [ref=e425]:
+          - link "Link to heading":
+            - /url: "#saved-analyses"
+            - img
+      - paragraph [ref=e430]: 2 saved analyses. Saves persist for the duration of your session — use Export JSON to keep a permanent copy.
+      - separator [ref=e435]
+      - generic [ref=e439]:
+        - generic [ref=e441]:
+          - paragraph [ref=e446]:
+            - strong [ref=e447]: Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso
+          - paragraph [ref=e452]: "Centre: -13.5417, -58.7642 · Buffer: 5 km · Indicators: 19 · Window: 90 d (2026-02-22 → 2026-05-23) · Saved: 2026-05-28"
+        - generic [ref=e456]:
+          - button "Open" [ref=e461] [cursor=pointer]:
+            - paragraph [ref=e465]: Open
+          - button "Delete" [ref=e470] [cursor=pointer]:
+            - paragraph [ref=e474]: Delete
+          - button "Export JSON" [ref=e479] [cursor=pointer]:
+            - paragraph [ref=e483]: Export JSON
+      - generic [ref=e487]:
+        - generic [ref=e489]:
+          - paragraph [ref=e494]:
+            - strong [ref=e495]: Distrito Federal, Brazil — Region screening
+          - paragraph [ref=e500]: "Centre: -15.7808, -47.7968 · Buffer: 43.1 km · Indicators: 19 · Window: 90 d (2026-02-22 → 2026-05-23) · Saved: 2026-05-27"
+        - generic [ref=e504]:
+          - button "Open" [ref=e509] [cursor=pointer]:
+            - paragraph [ref=e513]: Open
+          - button "Delete" [ref=e518] [cursor=pointer]:
+            - paragraph [ref=e522]: Delete
+          - button "Export JSON" [ref=e527] [cursor=pointer]:
+            - paragraph [ref=e531]: Export JSON

@@ -114,22 +114,41 @@ def _scaled_mean_image(indicator_key: str, window: tuple[str, str]):
     return ic.mean(), band
 
 
-def _country_fc(only: list[str] | None, simplify_m: float, bbox_inset: float):
+# GAUL countries excluded by default. Antarctica's polygon wraps around the
+# south pole; when reduceRegions transforms its edge into the image's planar
+# pixel grid, an edge vertex maps to a row off the bottom of the world raster
+# (the y=-402 pixel-coord that the May 2026 batch ran into). The other
+# entries are tiny disputed-territory placeholders without operational
+# suppliers — easier to skip than to special-case.
+_DEFAULT_EXCLUDED_COUNTRIES: tuple[str, ...] = (
+    "Antarctica",
+)
+
+
+def _country_fc(only: list[str] | None, simplify_m: float, bbox_inset: float,
+                excluded: list[str] | None):
     """GAUL level0 FeatureCollection, made safe for global reduceRegions.
 
-    Each country geometry is clipped to a slightly-inset world rectangle
-    (default 0.01° from ±180°/±90°) so no vertex lands exactly on the
-    antimeridian — that's the trigger for the "Unable to transform edge"
-    error EE raises during ``reduceRegions`` for countries like Russia,
-    USA (Aleutians), Fiji, Kiribati and Antarctica.
+    Three guards against "Unable to transform edge" errors:
+
+    1. **Exclude Antarctica** (and any other configured country) — its
+       polar-wrapping polygon trips reduceRegions even with a generous bbox
+       inset, because the polygon WRAPS the pole rather than just nearing it.
+    2. **Clip to a poleward-inset world rectangle** (default 1°) — keeps
+       countries with polar-adjacent geometry (e.g. Greenland) safely inside
+       the image's valid pixel extent.
+    3. **Antimeridian-inset** of the same world rectangle — avoids the
+       Russia / USA-Aleutians / Fiji / Kiribati edge-on-±180° trigger.
 
     Simplify is opt-in (off by default): aggressive simplification can
-    *create* the antimeridian-vertex pathology that this guard exists to
-    prevent. Use it only if you hit memory limits.
+    *create* the antimeridian-vertex pathology this guard exists to prevent.
     """
     import ee
 
     fc = ee.FeatureCollection(CLIMATOLOGY_COUNTRY_ASSET)
+    skip = list(excluded if excluded is not None else _DEFAULT_EXCLUDED_COUNTRIES)
+    if skip:
+        fc = fc.filter(ee.Filter.inList(_COUNTRY_KEY, skip).Not())
     if only:
         fc = fc.filter(ee.Filter.inList(_COUNTRY_KEY, only))
     if bbox_inset > 0:
@@ -242,7 +261,7 @@ def _run_getinfo(args, window) -> None:
         except (json.JSONDecodeError, OSError) as err:
             print(f"Could not read --out for resume ({err}); starting fresh.")
 
-    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset)
+    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset, args.exclude_countries)
 
     for ind in CLIMATOLOGY_INDICATORS:
         if ind in done:
@@ -278,7 +297,7 @@ def _run_getinfo(args, window) -> None:
 def _run_export(args, window) -> None:
     import ee
 
-    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset)
+    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset, args.exclude_countries)
     tasks = []
     for ind in CLIMATOLOGY_INDICATORS:
         stats, _band = _stats_fc(ind, window, fc, args.scale_m, args.tile_scale)
@@ -361,9 +380,15 @@ def main() -> None:
              "that crash reduceRegions.",
     )
     parser.add_argument(
-        "--bbox-inset", type=float, default=0.01,
+        "--bbox-inset", type=float, default=1.0,
         help="Clip country geometries to a world rectangle inset this many "
-             "degrees from ±180°/±90° (avoids antimeridian-edge errors).",
+             "degrees from ±180°/±90°. 1° leaves Greenland / extreme-north "
+             "land intact while clipping polar-wrapping geometry safely.",
+    )
+    parser.add_argument(
+        "--exclude-countries", nargs="*", default=None,
+        help=f"GAUL ADM0_NAME values to skip. Default: "
+             f"{list(_DEFAULT_EXCLUDED_COUNTRIES)}",
     )
     parser.add_argument(
         "--countries", nargs="*", default=None,
