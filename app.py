@@ -149,19 +149,28 @@ if not logger.handlers:
     h.setFormatter(logging.Formatter("[ee_timing] %(message)s"))
     logger.addHandler(h)
 
-_original_getInfo = ee.ComputedObject.getInfo
+# Streamlit re-executes this script on every user interaction. Without the
+# guard below, each rerun would re-wrap the (already-wrapped) getInfo and the
+# wrapper would nest N deep — producing N duplicate log lines per real EE
+# call (no extra EE round-trip, but noisy + small CPU cost). The marker
+# attribute lets us detect "already patched" idempotently.
+_GSCO_WRAPPED = "_gsco_ee_timing_wrapped"
 
-def _timed_getInfo(self, *args, **kwargs):
-    label = type(self).__name__
-    t0 = time.perf_counter()
-    try:
-        result = _original_getInfo(self, *args, **kwargs)
-        elapsed = time.perf_counter() - t0
-        logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  OK")
-        return result
-    except Exception as exc:
-        elapsed = time.perf_counter() - t0
-        logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  FAILED: {exc}")
-        raise
+if not getattr(ee.ComputedObject.getInfo, _GSCO_WRAPPED, False):
+    _original_getInfo = ee.ComputedObject.getInfo
 
-ee.ComputedObject.getInfo = _timed_getInfo
+    def _timed_getInfo(self, *args, **kwargs):
+        label = type(self).__name__
+        t0 = time.perf_counter()
+        try:
+            result = _original_getInfo(self, *args, **kwargs)
+            elapsed = time.perf_counter() - t0
+            logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  OK")
+            return result
+        except Exception as exc:
+            elapsed = time.perf_counter() - t0
+            logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  FAILED: {exc}")
+            raise
+
+    setattr(_timed_getInfo, _GSCO_WRAPPED, True)
+    ee.ComputedObject.getInfo = _timed_getInfo

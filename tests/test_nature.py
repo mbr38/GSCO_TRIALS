@@ -1267,10 +1267,15 @@ class TestSupplierSpatialLink:
         assert out["nature.supplier_spatial_link.centroid_lon"] is None
         assert out["nature.supplier_spatial_link.n_change_pixels"] == 3
 
-    def test_sparse_when_dw_window_empty(self, monkeypatch) -> None:
+    def test_sparse_when_count_reducer_returns_zero(self, monkeypatch) -> None:
+        # M-ATTRIB-A1 perf cause-#2: we removed the two redundant
+        # .size().getInfo() guards (saved ~2-6s per screening). Empty DW
+        # windows now surface implicitly via the count reducer returning 0
+        # (no transition pixels) rather than via an explicit IC.size()
+        # check. This test pins the new behaviour — n_change=0 → sparse.
         _install_spatial_link_fakes(
             monkeypatch, current_size=0, baseline_size=5,
-            n_change=50, centroid_lon=0.005, centroid_lat=0.0,
+            n_change=0, centroid_lon=0.005, centroid_lat=0.0,
         )
         out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
         assert out["nature.habitat.attributability_state"] == "sparse"

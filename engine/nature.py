@@ -1259,47 +1259,50 @@ def compute_supplier_spatial_link(
     centroid_offset_km: float | None = None
     centroid_lat: float | None = None
     centroid_lon: float | None = None
-    n_change_pixels = 0
 
-    # Empty DW windows ⇒ no transition layer ⇒ sparse (mirrors the
-    # M-NATURE-DEFENSIVE no_dw_pixels guard in compute_habitat_conversion).
-    if (current_ic.size().getInfo() or 0) > 0 and (baseline_ic.size().getInfo() or 0) > 0:
-        current_label = current_ic.select("label").mode()
-        baseline_label = baseline_ic.select("label").mode()
+    # Perf (M-ATTRIB-A1 / cause-#2): the two .size().getInfo() guards that
+    # previously gated this block were redundant. compute_habitat_conversion
+    # runs before us in run_pillar against the same time_range + AOI, so the
+    # empty-window case is already exercised upstream via M-NATURE-DEFENSIVE.
+    # The count reducer below is itself an implicit existence check (returns
+    # 0 if the transition mask has no pixels), so removing the guards saves
+    # 2 round-trips per screening (~2-6 s) without loss of safety.
+    current_label = current_ic.select("label").mode()
+    baseline_label = baseline_ic.select("label").mode()
 
-        baseline_natural = baseline_label.remap(
-            _NATURAL_DW_INDICES, [1] * len(_NATURAL_DW_INDICES), 0,
-        )
-        current_non_natural = current_label.remap(
-            _NON_NATURAL_DW_INDICES, [1] * len(_NON_NATURAL_DW_INDICES), 0,
-        )
-        transition = baseline_natural.And(current_non_natural).rename("change").selfMask()
+    baseline_natural = baseline_label.remap(
+        _NATURAL_DW_INDICES, [1] * len(_NATURAL_DW_INDICES), 0,
+    )
+    current_non_natural = current_label.remap(
+        _NON_NATURAL_DW_INDICES, [1] * len(_NON_NATURAL_DW_INDICES), 0,
+    )
+    transition = baseline_natural.And(current_non_natural).rename("change").selfMask()
 
-        n_change_pixels = int(
-            (transition.reduceRegion(
-                reducer=ee.Reducer.count(),
-                geometry=geom,
-                scale=scale_m,
-                bestEffort=True,
-                maxPixels=int(1e9),
-            ).getInfo() or {}).get("change") or 0
-        )
+    n_change_pixels = int(
+        (transition.reduceRegion(
+            reducer=ee.Reducer.count(),
+            geometry=geom,
+            scale=scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).getInfo() or {}).get("change") or 0
+    )
 
-        if n_change_pixels >= n_min_pixels:
-            lonlat = ee.Image.pixelLonLat().updateMask(transition)
-            centroid = lonlat.reduceRegion(
-                reducer=ee.Reducer.mean(),
-                geometry=geom,
-                scale=scale_m,
-                bestEffort=True,
-                maxPixels=int(1e9),
-            ).getInfo() or {}
-            centroid_lon = centroid.get("longitude")
-            centroid_lat = centroid.get("latitude")
-            if centroid_lat is not None and centroid_lon is not None:
-                centroid_offset_km = haversine_km(
-                    centre["lat"], centre["lon"], centroid_lat, centroid_lon,
-                )
+    if n_change_pixels >= n_min_pixels:
+        lonlat = ee.Image.pixelLonLat().updateMask(transition)
+        centroid = lonlat.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=geom,
+            scale=scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ).getInfo() or {}
+        centroid_lon = centroid.get("longitude")
+        centroid_lat = centroid.get("latitude")
+        if centroid_lat is not None and centroid_lon is not None:
+            centroid_offset_km = haversine_km(
+                centre["lat"], centre["lon"], centroid_lat, centroid_lon,
+            )
 
     state = compute_habitat_attributability(centroid_offset_km, n_change_pixels)
     # Compass bearing supplier→centroid for the C5 expander + PDF prose
