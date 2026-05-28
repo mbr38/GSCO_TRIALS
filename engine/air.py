@@ -531,7 +531,8 @@ _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "proxy":      "air.pollution_proxy_score",
     "anomaly":    "air.spatiotemporal_anomaly_score",
     "trend":      "air.trend_score",
-    "confidence": "air.attribution_confidence_score",
+    # M-ATTRIB-A1 (AT16): points at the renamed measurement-quality ID.
+    "confidence": "air.measurement_quality_score",
 }
 
 
@@ -702,11 +703,25 @@ def compute_trend_score(
     return {"air.trend_score": sum(trends) / len(trends)}
 
 
-def compute_attribution_confidence_score(
+def compute_measurement_quality_score(
     payload: dict,
     selected: set[str],
 ) -> dict:
-    """IC_v4 §1.3 — mean of per-pollutant confidence across `selected`."""
+    """IC_v4 §1.3 — mean of per-pollutant confidence across `selected`.
+
+    M-ATTRIB-A1 (AT16): renamed from `compute_attribution_confidence_score`.
+    This computes *measurement quality* — the mean per-pollutant M-TIER-A1
+    confidence — not attributability. The old name conflated the two; the
+    new name is honest. Attributability (wind asymmetry per M-WIND-A1 v2.0)
+    is a separate categorical surface that does NOT enter this value.
+
+    Dual-emit (AT16 / Q-AT-3, 1-milestone window): emits the new canonical
+    ID `air.measurement_quality_score` AND the legacy
+    `air.attribution_confidence_score` with the identical value, so any
+    out-of-repo consumer still reading the old key keeps working for one
+    milestone. Remove the legacy key (and the module alias below) next
+    milestone — see M-ATTRIB-A1 spec §4.6.
+    """
     contributions: list[float] = []
     for pol in _SINGLE_VALUE_POLLUTANTS:
         if make_id(PILLAR_AIR, pol, "score") not in selected:
@@ -715,11 +730,18 @@ def compute_attribution_confidence_score(
         if conf is None:
             continue
         contributions.append(conf)
-    if not contributions:
-        return {"air.attribution_confidence_score": None}
+    value = sum(contributions) / len(contributions) if contributions else None
     return {
-        "air.attribution_confidence_score": sum(contributions) / len(contributions),
+        "air.measurement_quality_score": value,
+        # M-ATTRIB-A1 deprecation shim — legacy alias, remove next milestone.
+        "air.attribution_confidence_score": value,
     }
+
+
+# M-ATTRIB-A1 — legacy function-name alias for the deprecation window.
+# Importers of the old name (e.g. test_formula_keys_match_engine) keep
+# working; remove alongside the legacy ID emit next milestone.
+compute_attribution_confidence_score = compute_measurement_quality_score
 
 
 def compute_air_audit_followup_priority(
@@ -885,6 +907,6 @@ def recompute_air_aggregates(
     payload.update(compute_air_pollution_proxy_score(payload, augmented_selected))
     payload.update(compute_spatiotemporal_anomaly_score(payload, augmented_selected))
     payload.update(compute_trend_score(payload, augmented_selected, mode))
-    payload.update(compute_attribution_confidence_score(payload, augmented_selected))
+    payload.update(compute_measurement_quality_score(payload, augmented_selected))
     payload.update(compute_air_audit_followup_priority(payload, mode))
     return payload

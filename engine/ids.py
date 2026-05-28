@@ -84,6 +84,10 @@ AIR_AGGREGATES: tuple[str, ...] = (
     "air.pollution_proxy_score",
     "air.spatiotemporal_anomaly_score",
     "air.trend_score",
+    # M-ATTRIB-A1 (AT16): renamed measurement-quality ID. The legacy
+    # `air.attribution_confidence_score` is kept valid for the 1-milestone
+    # dual-emit window (remove it next milestone, per spec §4.6).
+    "air.measurement_quality_score",
     "air.attribution_confidence_score",
     "air.audit_followup_priority",
 )
@@ -119,14 +123,17 @@ GHG_AGGREGATES: tuple[str, ...] = (
     "ghg.audit_followup_priority",
 )
 
-# §3.4 — GHG quality sub-scores (v1). The four terms that compose
-# `ghg.data_quality_attribution` per IC_v4 §2.3 (weights 0.33 / 0.27 / 0.27 / 0.13).
-# Promoted from v1.x reserved namespace in schema v2 (Bug 1 fix).
+# §3.4 — GHG quality sub-scores (v1). The first three compose
+# `ghg.data_quality_attribution` per IC_v4 §2.3 (M-ATTRIB-A1 renormalised
+# weights 0.34 / 0.33 / 0.33). `ghg.nearby_source_isolation` remains a valid
+# emitted ID but, as of M-ATTRIB-A1 (AT15), no longer enters the aggregate —
+# it is reserved for a future attributability surface. Promoted from v1.x
+# reserved namespace in schema v2 (Bug 1 fix).
 GHG_QUALITY_SUB_SCORES: tuple[str, ...] = (
     "ghg.temporal_coverage",
     "ghg.spatial_resolution_suitability",
     "ghg.retrieval_inventory_quality",
-    "ghg.nearby_source_isolation",
+    "ghg.nearby_source_isolation",  # M-ATTRIB-A1: emitted but not in aggregate
 )
 
 
@@ -222,13 +229,32 @@ NATURE_RECOVERY: tuple[str, ...] = (
 # intentionally cross-listed: it appears here in its quality-attribution role
 # (§4.8) and in NATURE_DW_OTHER in its DW-output role (§4.2) — same pattern
 # as `nature.habitat.conversion_score` (NATURE_HABITAT + NATURE_SUB_AGGREGATES).
+# M-ATTRIB-A1 (AT13 / AT14): the four measurement-quality sub-scores.
+# `nature.supplier_spatial_link` (now categorical attributability — see
+# NATURE_ATTRIBUTABILITY below) and `nature.external_driver_screening`
+# (now reference data — see NATURE_REFERENCE below) were removed.
 NATURE_QUALITY: tuple[str, ...] = (
     "nature.valid_pixel_coverage",
     "nature.cloud_observation_quality",
     "nature.dw.class_confidence",
     "nature.seasonal_comparability",
-    "nature.supplier_spatial_link",
-    "nature.external_driver_screening",
+)
+
+# M-ATTRIB-A1 (AT5 / AT7): reference-data + categorical-attributability IDs
+# that replaced the two removed quality sub-scores. These are emitted by the
+# Nature pillar (regional_loss_evidence reframe + supplier_spatial_link
+# centroid offset) but do NOT enter any composite or measurement-quality
+# aggregate. Registered here so `is_valid_id` accepts them.
+NATURE_REFERENCE: tuple[str, ...] = (
+    "nature.regional_loss_evidence.ratio",
+    "nature.regional_loss_evidence.window",
+)
+NATURE_ATTRIBUTABILITY: tuple[str, ...] = (
+    "nature.supplier_spatial_link.centroid_offset_km",
+    "nature.supplier_spatial_link.centroid_lat",
+    "nature.supplier_spatial_link.centroid_lon",
+    "nature.supplier_spatial_link.n_change_pixels",
+    "nature.habitat.attributability_state",
 )
 
 # §4.9 — Sub-aggregate scores. The three *exposure-side* terms that feed
@@ -243,8 +269,9 @@ NATURE_SUB_AGGREGATES: tuple[str, ...] = (
 )
 
 # §4.10 — Pillar aggregates.
+# M-ATTRIB-A1 (AT13): nature.quality_attribution → nature.measurement_quality.
 NATURE_AGGREGATES: tuple[str, ...] = (
-    "nature.quality_attribution",
+    "nature.measurement_quality",
     "nature.followup_priority",
 )
 
@@ -313,6 +340,8 @@ def _build_all_indicator_ids() -> frozenset[str]:
     ids.update(NATURE_EXPOSURE)
     ids.update(NATURE_RECOVERY)
     ids.update(NATURE_QUALITY)
+    ids.update(NATURE_REFERENCE)          # M-ATTRIB-A1 (AT5)
+    ids.update(NATURE_ATTRIBUTABILITY)    # M-ATTRIB-A1 (AT7)
     ids.update(NATURE_SUB_AGGREGATES)
     ids.update(NATURE_AGGREGATES)
 

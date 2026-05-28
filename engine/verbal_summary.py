@@ -85,9 +85,10 @@ _PRIORITY_KEY: dict[Pillar, str] = {
     "nature": "nature.followup_priority",
 }
 _CONFIDENCE_KEY: dict[Pillar, str] = {
-    "air":    "air.attribution_confidence_score",
+    # M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
+    "air":    "air.measurement_quality_score",
     "ghg":    "ghg.data_quality_attribution",
-    "nature": "nature.quality_attribution",
+    "nature": "nature.measurement_quality",
 }
 
 # Per-pillar display names — used in the overview templates. Doc §7.2.
@@ -422,7 +423,9 @@ _GHG_LIMITING_FACTOR_PROSE: dict[str, str] = {
     "ghg.temporal_coverage":              "sparse temporal coverage over the analysis window",
     "ghg.spatial_resolution_suitability": "the coarse spatial resolution of methane retrievals relative to the buffer",
     "ghg.retrieval_inventory_quality":    "weak retrieval quality flags",
-    "ghg.nearby_source_isolation":        "background contamination from nearby industrial activity",
+    # M-ATTRIB-A1 (AT15): nearby_source_isolation removed — it's no longer a
+    # measurement-quality sub-score, so it can't be a measurement-quality
+    # limiting factor. (Reserved for a future attributability surface.)
 }
 
 # Doc §5.3 — Nature quality sub-scores.
@@ -431,8 +434,10 @@ _NATURE_LIMITING_FACTOR_PROSE: dict[str, str] = {
     "nature.cloud_observation_quality": "high cloud contamination in Sentinel-2 observations",
     "nature.dw.class_confidence":       "ambiguous land-cover classification (no dominant class)",
     "nature.seasonal_comparability":    "seasonal mismatch between the baseline and current composites",
-    "nature.supplier_spatial_link":     "the observed change is not concentrated near the supplier point",
-    "nature.external_driver_screening": "an external driver (fire, drought, or regional loss) appears to explain the change",
+    # M-ATTRIB-A1 (AT13/AT14): supplier_spatial_link (now categorical
+    # attributability) and external_driver_screening (now reference data)
+    # are no longer measurement-quality sub-scores, so neither can be a
+    # measurement-quality limiting factor.
 }
 
 

@@ -262,7 +262,7 @@ class TestDerivedEntries:
             "air.pollution_proxy_score",
             "air.spatiotemporal_anomaly_score",
             "air.trend_score",
-            "air.attribution_confidence_score",
+            "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             "ghg.core_audit_support",
             "ghg.spatiotemporal_anomaly",
             "ghg.trend",
@@ -270,7 +270,7 @@ class TestDerivedEntries:
             "nature.biodiversity_exposure",
             "nature.habitat.conversion_score",
             "nature.vegetation_condition",
-            "nature.quality_attribution",
+            "nature.measurement_quality",  # M-ATTRIB-A1 (AT13)
         ]
         for indicator_id in component_ids:
             card = lib[indicator_id]
@@ -307,7 +307,7 @@ class TestDerivedEntries:
             CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
             GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
             HABITAT_CONVERSION_WEIGHTS,
-            NATURE_QUALITY_ATTRIBUTION_WEIGHTS,
+            NATURE_MEASUREMENT_QUALITY_WEIGHTS,
             VEGETATION_CONDITION_WEIGHTS,
         )
         from engine.ids import ALL_INDICATOR_IDS as CANONICAL_IDS
@@ -320,7 +320,7 @@ class TestDerivedEntries:
             BIODIVERSITY_EXPOSURE_WEIGHTS,
             HABITAT_CONVERSION_WEIGHTS,
             VEGETATION_CONDITION_WEIGHTS,
-            NATURE_QUALITY_ATTRIBUTION_WEIGHTS,
+            NATURE_MEASUREMENT_QUALITY_WEIGHTS,
         ):
             known.update(weight_dict.keys())
 

@@ -53,10 +53,14 @@ def test_ghg_data_quality_attribution_weights_sum_to_one() -> None:
 
 
 def test_ghg_data_quality_attribution_weight_keys_match_v1_quality_ids() -> None:
-    # The dict keys must be exactly the four canonical v1 quality IDs.
-    assert set(constants.GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS.keys()) == set(
-        ids.GHG_QUALITY_SUB_SCORES
+    # M-ATTRIB-A1 (AT15): the aggregate is now the three measurement-quality
+    # IDs — exactly GHG_QUALITY_SUB_SCORES minus the reserved
+    # `ghg.nearby_source_isolation` (still a valid emitted ID, but no longer
+    # a member of the data-quality aggregate).
+    assert set(constants.GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS.keys()) == (
+        set(ids.GHG_QUALITY_SUB_SCORES) - {"ghg.nearby_source_isolation"}
     )
+    assert "ghg.nearby_source_isolation" not in constants.GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS
 
 
 def test_air_pollutant_weights_alias_matches_canonical_dict() -> None:

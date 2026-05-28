@@ -39,7 +39,7 @@ _AIR_CONFIG = (
         "proxy":      "air.pollution_proxy_score",
         "anomaly":    "air.spatiotemporal_anomaly_score",
         "trend":      "air.trend_score",
-        "confidence": "air.attribution_confidence_score",
+        "confidence": "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
     },
     "air.audit_followup_priority",
 )
@@ -63,7 +63,7 @@ _NATURE_CONFIG = (
         "biodiversity_exposure": "nature.biodiversity_exposure",
         "habitat_conversion":    "nature.habitat.conversion_score",
         "vegetation_condition":  "nature.vegetation_condition",
-        "quality_attribution":   "nature.quality_attribution",
+        "quality_attribution":   "nature.measurement_quality",  # M-ATTRIB-A1
     },
     "nature.followup_priority",
 )
@@ -238,18 +238,18 @@ class TestCompositeStrictNone:
 
     def test_composite_confidence_is_none_when_any_pillar_none(self):
         run = self._stub_run({
-            "air.attribution_confidence_score": 0.7,
-            "ghg.data_quality_attribution":      None,
-            "nature.quality_attribution":        0.8,
+            "air.measurement_quality_score": 0.7,  # M-ATTRIB-A1 (AT16)
+            "ghg.data_quality_attribution":   None,
+            "nature.measurement_quality":     0.8,  # M-ATTRIB-A1 (AT13)
         })
         run._compute_composite_confidence()
         assert run.payload["composite.confidence"] is None
 
     def test_composite_confidence_min_when_all_three_populated(self):
         run = self._stub_run({
-            "air.attribution_confidence_score": 0.7,
-            "ghg.data_quality_attribution":      0.6,
-            "nature.quality_attribution":        0.8,
+            "air.measurement_quality_score": 0.7,  # M-ATTRIB-A1 (AT16)
+            "ghg.data_quality_attribution":   0.6,
+            "nature.measurement_quality":     0.8,  # M-ATTRIB-A1 (AT13)
         })
         run._compute_composite_confidence()
         assert run.payload["composite.confidence"] == pytest.approx(0.6)

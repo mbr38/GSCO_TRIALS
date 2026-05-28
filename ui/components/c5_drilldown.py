@@ -31,6 +31,7 @@ from engine.constants import (
     COLUMN_TO_SURFACE_MULTIPLIER,
     CONFIDENCE_FORMULA_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
+    HABITAT_SPATIAL_LINK_MOD_KM,
     NATURE_FOLLOWUP_WEIGHTS,
 )
 from ui.components.indicator_info import render_indicator_name_with_info
@@ -70,7 +71,8 @@ _AIR_TERMS: dict[str, tuple[str, str]] = {
     "proxy":      ("Pollution proxy score",   "air.pollution_proxy_score"),
     "anomaly":    ("Spatiotemporal anomaly",  "air.spatiotemporal_anomaly_score"),
     "trend":      ("Trend (screening = 0)",   "air.trend_score"),
-    "confidence": ("Attribution confidence",  "air.attribution_confidence_score"),
+    # M-ATTRIB-A1 (AT16): renamed — measurement quality, not attribution.
+    "confidence": ("Measurement quality",     "air.measurement_quality_score"),
 }
 _GHG_TERMS: dict[str, tuple[str, str]] = {
     "core_support": ("Core audit support",          "ghg.core_audit_support"),
@@ -82,7 +84,8 @@ _NATURE_TERMS: dict[str, tuple[str, str]] = {
     "biodiversity_exposure": ("Biodiversity exposure",  "nature.biodiversity_exposure"),
     "habitat_conversion":    ("Habitat conversion",     "nature.habitat.conversion_score"),
     "vegetation_condition":  ("Vegetation condition",   "nature.vegetation_condition"),
-    "quality_attribution":   ("Quality attribution",    "nature.quality_attribution"),
+    # M-ATTRIB-A1 (AT13): renamed — measurement quality, not attribution.
+    "quality_attribution":   ("Measurement quality",    "nature.measurement_quality"),
 }
 
 
@@ -280,7 +283,7 @@ def _render_air_panel(payload: dict) -> None:
     with st.expander("Air Pollution — drill-down"):
         _render_headline(
             "air.audit_followup_priority",
-            "air.attribution_confidence_score",
+            "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             _AIR_FORMULA,
             payload,
         )
@@ -402,7 +405,7 @@ def _render_nature_panel(payload: dict) -> None:
         )
         _render_headline(
             "nature.followup_priority",
-            "nature.quality_attribution",
+            "nature.measurement_quality",  # M-ATTRIB-A1 (AT13)
             _NATURE_FORMULA,
             payload,
         )
@@ -459,8 +462,7 @@ def _render_nature_panel(payload: dict) -> None:
             # caption — Hansen now lives in the dedicated "Reference
             # datasets" sub-section below so the same dataset doesn't read
             # twice in C5. The habitat sub-breakdowns remain (DW-based,
-            # scored). regional_loss_evidence confidence still surfaces
-            # below this caption.
+            # scored).
             lines = [
                 f"Natural cover lost: **{_fmt(loss_ha, '.1f')} ha** "
                 f"({_fmt(loss_pct, '.2f')}% of buffer)",
@@ -468,12 +470,11 @@ def _render_nature_panel(payload: dict) -> None:
                 f"Annualised rate: **{_fmt(annualised, '.1f')} ha/yr**",
             ]
             st.caption(" · ".join(lines))
-        _render_nature_confidence_row(payload, "nature.habitat.confidence",        label="habitat")
-        _render_nature_confidence_row(payload, "nature.forest_loss.confidence",    label="forest loss")
-        _render_nature_confidence_row(payload, "nature.regional_loss_evidence.confidence", label="regional loss evidence")
-        _render_confidence_terms_expander(payload, "nature", "habitat",                 "habitat")
-        _render_confidence_terms_expander(payload, "nature", "forest_loss",             "forest loss")
-        _render_confidence_terms_expander(payload, "nature", "regional_loss_evidence",  "regional loss evidence")
+        # M-ATTRIB-A1 (§5.4): measurement quality + categorical attributability,
+        # replacing the old per-indicator confidence rows. The forest_loss and
+        # regional_loss_evidence confidence rows are gone — both are reference
+        # data, surfaced in the "Reference datasets" sub-section, not here.
+        _render_habitat_attributability(payload)
 
         # M-UI-E.4 polish — NDVI mean leads instead of the score, because
         # the score is often None in v1 (depends on trend.py which isn't
@@ -573,6 +574,92 @@ def _render_nature_confidence_row(
     """Render the per-indicator confidence caption inside a Nature card."""
     confidence = payload.get(confidence_key)
     st.caption(_format_nature_confidence_line(confidence, label=label))
+
+
+# ---------------------------------------------------------------------------
+# M-ATTRIB-A1 — habitat-conversion attributability (C5 §5.3 / §5.4)
+# ---------------------------------------------------------------------------
+
+# Badge colours shared with the M-UI-A5 map overlay (AT9) and the bucket
+# grammar shared with M-WIND-A1 v2.0 (AT19).
+_ATTRIBUTABILITY_COLOURS: dict[str, str] = {
+    "high":     "#16a34a",
+    "moderate": "#f59e0b",
+    "low":      "#dc2626",
+}
+_ATTRIBUTABILITY_LABELS: dict[str, str] = {
+    "high": "High", "moderate": "Moderate", "low": "Low", "sparse": "Sparse",
+}
+
+
+def _spatial_link_terms(payload: dict) -> dict:
+    """Pull the M-ATTRIB-A1 spatial-link terms out of provenance.extra."""
+    prov = payload.get("_provenance.nature.supplier_spatial_link") or {}
+    return (prov.get("extra") or {}).get("spatial_link_terms") or {}
+
+
+def _render_habitat_attributability(payload: dict) -> None:
+    """M-ATTRIB-A1 (§5.4 / §5.3) — the measurement-quality + attributability
+    rows for the habitat-conversion panel, plus the Low-only C5 expander.
+
+    Measurement quality and attributability are separate (AT1): the former
+    is the habitat indicator's M-TIER-A1 confidence; the latter is the
+    categorical supplier→change-centroid offset (does not enter any score).
+    """
+    # Measurement quality — the habitat indicator's M-TIER-A1 confidence.
+    mq = payload.get("nature.habitat.confidence")
+    st.caption(f"Measurement quality: {confidence_glyph(mq)} {_fmt(mq, '.3f')}")
+
+    state = payload.get("nature.habitat.attributability_state")
+    offset = payload.get("nature.supplier_spatial_link.centroid_offset_km")
+    n_change = payload.get("nature.supplier_spatial_link.n_change_pixels")
+
+    if state in _ATTRIBUTABILITY_COLOURS:  # high / moderate / low
+        colour = _ATTRIBUTABILITY_COLOURS[state]
+        label = _ATTRIBUTABILITY_LABELS[state]
+        centred = (
+            f" &nbsp;(centred {offset:.1f} km from supplier)"
+            if offset is not None else ""
+        )
+        st.markdown(
+            f"Attributability: <span style='color:{colour}'>⬤</span> "
+            f"**{label}**{centred}",
+            unsafe_allow_html=True,
+        )
+    elif state == "sparse":
+        st.caption(
+            "Attributability: Sparse — too few habitat-change pixels "
+            f"(N = {n_change or 0}) to locate a change centroid."
+        )
+    # state absent (habitat not run) → render nothing.
+
+    # C5 expander — Low-only sub-section (§5.3 / AT11), parallel to the
+    # coastal-handling and fallback sub-sections.
+    if state == "low":
+        terms = _spatial_link_terms(payload)
+        direction = terms.get("direction") or "—"
+        dist = offset if offset is not None else 0.0
+        with st.expander("What's behind this attributability?", expanded=False):
+            st.markdown("**Habitat attributability context**")
+            st.markdown(
+                f"Low attribution confidence — habitat changes occurred away "
+                f"from the supplier coordinate (**{dist:.1f} km** from supplier)."
+            )
+            st.markdown(
+                f"- Centroid of habitat changes: **{dist:.1f} km** from supplier\n"
+                f"- Direction: **{direction}**\n"
+                f"- Change pixels: **{n_change or 0}**"
+            )
+            st.caption(
+                "The detected habitat changes are spatially concentrated more "
+                f"than {HABITAT_SPATIAL_LINK_MOD_KM:.0f} km from the supplier "
+                "coordinate, suggesting they may reflect activities at distant "
+                "operations or different actors within the AOI rather than the "
+                "supplier itself."
+            )
+
+    # Habitat measurement-quality breakdown ("What's behind this measurement?").
+    _render_confidence_terms_expander(payload, "nature", "habitat", "habitat")
 
 
 # ---------------------------------------------------------------------------
@@ -1277,6 +1364,43 @@ class _ReferenceCardFields:
     source_line:    str
     interpretation: str
     audit_footnote: str
+    # M-ATTRIB-A1 (AT6/AT22): optional regional-context line (Hansen only).
+    regional_context: str | None = None
+
+
+def _regional_context_line(payload: dict) -> str | None:
+    """M-ATTRIB-A1 (§5.5 / AT6) — the Hansen-card regional-context line.
+
+    Reads the reference-data ring-vs-buffer ratio + window from the
+    regional_loss_evidence reframe (Step F) and pairs the headline ratio
+    line with a one-sentence interpretation keyed to the ratio band.
+    Returns None when the ratio is unavailable (line is then omitted).
+    """
+    ratio = payload.get("nature.regional_loss_evidence.ratio")
+    window = payload.get("nature.regional_loss_evidence.window")
+    if ratio is None or window is None:
+        return None
+    if ratio < 0.5:
+        interp = (
+            "Forest loss in the surrounding ring is lower than within the "
+            "buffer — the supplier's buffer area was a relatively active "
+            "deforestation pocket."
+        )
+    elif ratio <= 2.0:
+        interp = (
+            "Forest loss in the ring and buffer are similar — no strong "
+            "regional vs local pattern."
+        )
+    else:
+        interp = (
+            "Forest loss in the surrounding ring is higher than within the "
+            "buffer — the supplier's buffer was relatively quiet within a "
+            "broader regional deforestation pattern."
+        )
+    return (
+        f"Regional context: ring loss is {ratio:.1f}× buffer loss over "
+        f"{window}. {interp}"
+    )
 
 
 def _hansen_card_fields(payload: dict) -> _ReferenceCardFields:
@@ -1294,6 +1418,7 @@ def _hansen_card_fields(payload: dict) -> _ReferenceCardFields:
         source_line=_HANSEN_SOURCE_LINE,
         interpretation=_hansen_interpretation(loss_pct),
         audit_footnote=_HANSEN_AUDIT_FOOTNOTE,
+        regional_context=_regional_context_line(payload),  # M-ATTRIB-A1 (AT22)
     )
 
 
@@ -1371,6 +1496,14 @@ def _render_reference_card(fields: _ReferenceCardFields) -> None:
             f"{fields.vintage_line}<br>Source: {fields.source_line}</div>",
             unsafe_allow_html=True,
         )
+        # M-ATTRIB-A1 (§5.5 / AT6/AT22) — regional-context line (Hansen only),
+        # between source and interpretation.
+        if fields.regional_context is not None:
+            st.markdown(
+                "<div style='font-size:0.9em;color:#9ca3af;margin-top:8px;'>"
+                f"{fields.regional_context}</div>",
+                unsafe_allow_html=True,
+            )
         # RD7 #6 — one-sentence interpretation.
         st.markdown(
             f"<div style='margin-top:10px;'>{fields.interpretation}</div>",

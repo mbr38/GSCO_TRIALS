@@ -20,7 +20,7 @@ from engine.constants import (
     HABITAT_CONVERSION_WEIGHTS,
     KBA_DISTANCE_DECAY_KM,
     NATURE_FOLLOWUP_WEIGHTS,
-    NATURE_QUALITY_ATTRIBUTION_WEIGHTS,
+    NATURE_MEASUREMENT_QUALITY_WEIGHTS,
     NDVI_NEGATIVE_TREND_THRESHOLD,
     VEGETATION_CONDITION_WEIGHTS,
     WATER_FLOODED_VEG_SATURATION_PCT,
@@ -39,8 +39,9 @@ from engine.nature import (
     compute_habitat_conversion,
     compute_habitat_conversion_score,
     compute_nature_followup_priority,
-    compute_nature_quality_attribution,
+    compute_nature_measurement_quality,
     compute_nature_spatiotemporal_anomaly,
+    compute_supplier_spatial_link,
     compute_vegetation_condition,
     run_pillar,
 )
@@ -99,7 +100,7 @@ class TestConfigIntegrity:
 @pytest.mark.parametrize("name,weights,expected_sum", [
     ("BIODIVERSITY_EXPOSURE_WEIGHTS",     BIODIVERSITY_EXPOSURE_WEIGHTS,     1.0),
     ("HABITAT_CONVERSION_WEIGHTS",        HABITAT_CONVERSION_WEIGHTS,        1.0),
-    ("NATURE_QUALITY_ATTRIBUTION_WEIGHTS", NATURE_QUALITY_ATTRIBUTION_WEIGHTS, 1.0),
+    ("NATURE_MEASUREMENT_QUALITY_WEIGHTS", NATURE_MEASUREMENT_QUALITY_WEIGHTS, 1.0),
     ("NATURE_FOLLOWUP_WEIGHTS",           NATURE_FOLLOWUP_WEIGHTS,           1.0),
 ])
 def test_weights_sum_to_one(name: str, weights: dict, expected_sum: float) -> None:
@@ -554,16 +555,17 @@ class TestVegetationCondition:
 # 8. Pillar aggregates — renormalisation
 # ---------------------------------------------------------------------------
 
-class TestNatureQualityAttribution:
+class TestNatureMeasurementQuality:
     def test_renormalises_over_present_terms(self) -> None:
-        # Only three of the six terms have values.
+        # M-ATTRIB-A1 (AT13/AT14): three of the four measurement-quality
+        # terms have values; renormalise over the survivors.
         payload = {
             "nature.valid_pixel_coverage":      0.8,
             "nature.cloud_observation_quality": 0.9,
             "nature.seasonal_comparability":    1.0,
         }
-        out = compute_nature_quality_attribution(payload)
-        w = NATURE_QUALITY_ATTRIBUTION_WEIGHTS
+        out = compute_nature_measurement_quality(payload)
+        w = NATURE_MEASUREMENT_QUALITY_WEIGHTS
         denom = (
             w["nature.valid_pixel_coverage"]
             + w["nature.cloud_observation_quality"]
@@ -574,11 +576,18 @@ class TestNatureQualityAttribution:
             + w["nature.cloud_observation_quality"] * 0.9
             + w["nature.seasonal_comparability"]    * 1.0
         ) / denom
-        assert out["nature.quality_attribution"] == pytest.approx(expected)
+        assert out["nature.measurement_quality"] == pytest.approx(expected)
 
     def test_returns_none_when_all_terms_missing(self) -> None:
-        out = compute_nature_quality_attribution({})
-        assert out["nature.quality_attribution"] is None
+        out = compute_nature_measurement_quality({})
+        assert out["nature.measurement_quality"] is None
+
+    def test_attribution_signals_not_in_aggregate(self) -> None:
+        # M-ATTRIB-A1 (AT14) regression: supplier_spatial_link and
+        # external_driver_screening must not influence the aggregate.
+        assert "nature.supplier_spatial_link" not in NATURE_MEASUREMENT_QUALITY_WEIGHTS
+        assert "nature.external_driver_screening" not in NATURE_MEASUREMENT_QUALITY_WEIGHTS
+        assert len(NATURE_MEASUREMENT_QUALITY_WEIGHTS) == 4
 
 
 class TestNatureFollowupPriority:
@@ -587,7 +596,7 @@ class TestNatureFollowupPriority:
             "nature.biodiversity_exposure":      0.7,
             "nature.habitat.conversion_score":   0.6,
             "nature.vegetation_condition":       0.5,
-            "nature.quality_attribution":        0.8,
+            "nature.measurement_quality":        0.8,  # M-ATTRIB-A1 (AT13)
         }
         out = compute_nature_followup_priority(payload, mode="screening")
         w = NATURE_FOLLOWUP_WEIGHTS
@@ -829,11 +838,11 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
         }
 
     def fake_regional_loss_evidence(aoi, time_range, ee_client):
-        # M-V1x-RECONCILE: run_pillar now calls this unconditionally when the
-        # Nature pillar runs. Tests stub it out so they don't need EE.
+        # M-ATTRIB-A1 (AT5): reference data — emits ratio + window, not the
+        # old external_driver_screening sub-score. Stubbed so tests skip EE.
         return {
-            "nature.external_driver_screening":         0.0,
-            "nature.regional_loss_evidence.confidence": expected_confidence,
+            "nature.regional_loss_evidence.ratio":  1.4,
+            "nature.regional_loss_evidence.window": "2019–2023",
             "_provenance.nature.regional_loss_evidence": {
                 "asset_id":       "UMD/hansen/global_forest_change_2023_v1_11",
                 "band":           "lossyear",
@@ -842,7 +851,7 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
                 "native_scale_m": 30.92,
                 "time_range":     ("2019-01-01", "2023-12-31"),
                 "observations":   {"count": 5, "unit": "annual_rasters"},
-                "extra":          {"confidence_terms": confidence_terms},
+                "extra":          {"ratio": 1.4, "regional_loss_evidence_raw": 0.0},
             },
         }
 
@@ -856,6 +865,26 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
     monkeypatch.setattr(
         "engine.nature.compute_regional_loss_evidence",
         fake_regional_loss_evidence,
+    )
+
+    def fake_supplier_spatial_link(aoi, time_range, ee_client, **_kw):
+        # M-ATTRIB-A1 (AT7): habitat-conversion attributability surface.
+        # Stubbed so run_pillar tests skip the centroid EE pipeline.
+        return {
+            "nature.supplier_spatial_link.centroid_offset_km": 0.8,
+            "nature.supplier_spatial_link.centroid_lat":       0.001,
+            "nature.supplier_spatial_link.centroid_lon":       0.002,
+            "nature.supplier_spatial_link.n_change_pixels":    37,
+            "nature.habitat.attributability_state":            "high",
+            "_provenance.nature.supplier_spatial_link": {
+                "indicator_id": "nature.supplier_spatial_link",
+                "extra": {"spatial_link_terms": {"attributability_state": "high"}},
+            },
+        }
+
+    monkeypatch.setattr(
+        "engine.nature.compute_supplier_spatial_link",
+        fake_supplier_spatial_link,
     )
 
 
@@ -896,7 +925,7 @@ class TestRunPillarHappyPath:
         assert result["nature.vegetation_condition"] is not None
 
         # Pillar aggregates.
-        assert result["nature.quality_attribution"] is not None
+        assert result["nature.measurement_quality"] is not None  # M-ATTRIB-A1
         assert result["nature.followup_priority"] is not None
         assert result["nature.spatiotemporal_anomaly_score"] is not None
 
@@ -1068,3 +1097,199 @@ class TestProvenanceShape:
         cfg = NATURE_INDICATOR_CONFIG[indicator]
         assert cfg.data_type == expected_type
         assert expected_source_substring in cfg.data_source
+
+
+# ---------------------------------------------------------------------------
+# compute_supplier_spatial_link — centroid offset (M-ATTRIB-A1 §7.2)
+# ---------------------------------------------------------------------------
+
+class _LinkGetInfo:
+    def __init__(self, value):
+        self._value = value
+    def getInfo(self):
+        return self._value
+
+
+class _FakeTransition:
+    """Stands in for the transition mask image after .rename().selfMask().
+
+    reduceRegion(count) → {"change": n_change}.
+    """
+    def __init__(self, n_change: int):
+        self._n_change = n_change
+    def rename(self, *_):
+        return self
+    def selfMask(self):                                 # noqa: N802
+        return self
+    def And(self, _other):                              # noqa: N802
+        return self
+    def reduceRegion(self, **_kw):                      # noqa: N802
+        return _LinkGetInfo({"change": self._n_change})
+
+
+class _FakeMaskImage:
+    """Result of label.mode().remap(...) — supports .And(...)."""
+    def __init__(self, transition: _FakeTransition):
+        self._transition = transition
+    def And(self, _other):                              # noqa: N802
+        return self._transition
+
+
+class _FakeModeImage:
+    def __init__(self, transition: _FakeTransition):
+        self._transition = transition
+    def remap(self, *_a, **_kw):
+        return _FakeMaskImage(self._transition)
+
+
+class _FakeLabelImage:
+    def __init__(self, transition: _FakeTransition):
+        self._transition = transition
+    def mode(self):
+        return _FakeModeImage(self._transition)
+
+
+class _FakeCollection:
+    def __init__(self, size: int, transition: _FakeTransition):
+        self._size = size
+        self._transition = transition
+    def filterDate(self, *_a, **_kw):                   # noqa: N802
+        return self
+    def filterBounds(self, *_a, **_kw):                 # noqa: N802
+        return self
+    def size(self):
+        return _LinkGetInfo(self._size)
+    def select(self, *_a, **_kw):
+        return _FakeLabelImage(self._transition)
+
+
+class _FakeLonLatMasked:
+    def __init__(self, lon, lat):
+        self._lon, self._lat = lon, lat
+    def reduceRegion(self, **_kw):                      # noqa: N802
+        return _LinkGetInfo({"longitude": self._lon, "latitude": self._lat})
+
+
+class _FakeLonLat:
+    def __init__(self, lon, lat):
+        self._lon, self._lat = lon, lat
+    def updateMask(self, _t):                           # noqa: N802
+        return _FakeLonLatMasked(self._lon, self._lat)
+
+
+def _install_spatial_link_fakes(
+    monkeypatch, *, current_size, baseline_size, n_change, centroid_lon, centroid_lat,
+):
+    transition = _FakeTransition(n_change)
+    sizes = iter([current_size, baseline_size])
+
+    def _fake_collection(_asset_id):
+        return _FakeCollection(next(sizes), transition)
+
+    monkeypatch.setattr("engine.nature.site_buffer", lambda *_a, **_kw: object())
+    monkeypatch.setattr(
+        "engine.nature.adaptive_scale_m", lambda _g, native: native,
+    )
+    monkeypatch.setattr("engine.nature.ee.ImageCollection", _fake_collection)
+
+    class _FakeImage:
+        @staticmethod
+        def pixelLonLat():                              # noqa: N802
+            return _FakeLonLat(centroid_lon, centroid_lat)
+
+    monkeypatch.setattr("engine.nature.ee.Image", _FakeImage)
+
+    class _FakeReducer:
+        @staticmethod
+        def count():
+            return object()
+        @staticmethod
+        def mean():
+            return object()
+
+    monkeypatch.setattr("engine.nature.ee.Reducer", _FakeReducer)
+
+
+_LINK_AOI = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 5.0}
+_LINK_TR = ("2024-01-01", "2024-03-31")
+
+
+class TestSupplierSpatialLink:
+    def test_emits_all_six_fields(self, monkeypatch) -> None:
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=10, baseline_size=10,
+            n_change=50, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        for key in (
+            "nature.supplier_spatial_link.centroid_offset_km",
+            "nature.supplier_spatial_link.centroid_lat",
+            "nature.supplier_spatial_link.centroid_lon",
+            "nature.supplier_spatial_link.n_change_pixels",
+            "nature.habitat.attributability_state",
+            "_provenance.nature.supplier_spatial_link",
+        ):
+            assert key in out
+
+    def test_high_attributability_for_near_centroid(self, monkeypatch) -> None:
+        # Centroid at (0, 0.005) ≈ 0.56 km from supplier (0,0) → high.
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=5, baseline_size=5,
+            n_change=50, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        offset = out["nature.supplier_spatial_link.centroid_offset_km"]
+        assert offset == pytest.approx(0.556, abs=0.05)
+        assert out["nature.habitat.attributability_state"] == "high"
+        assert out["nature.supplier_spatial_link.centroid_lat"] == 0.0
+        assert out["nature.supplier_spatial_link.centroid_lon"] == 0.005
+        assert out["nature.supplier_spatial_link.n_change_pixels"] == 50
+
+    def test_low_attributability_for_distant_centroid(self, monkeypatch) -> None:
+        # Centroid at (0, 0.05) ≈ 5.56 km from supplier → > 3 km → low.
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=5, baseline_size=5,
+            n_change=50, centroid_lon=0.05, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        assert out["nature.supplier_spatial_link.centroid_offset_km"] > 3.0
+        assert out["nature.habitat.attributability_state"] == "low"
+
+    def test_sparse_when_too_few_change_pixels(self, monkeypatch) -> None:
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=5, baseline_size=5,
+            n_change=3, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        assert out["nature.habitat.attributability_state"] == "sparse"
+        assert out["nature.supplier_spatial_link.centroid_offset_km"] is None
+        assert out["nature.supplier_spatial_link.centroid_lat"] is None
+        assert out["nature.supplier_spatial_link.centroid_lon"] is None
+        assert out["nature.supplier_spatial_link.n_change_pixels"] == 3
+
+    def test_sparse_when_dw_window_empty(self, monkeypatch) -> None:
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=0, baseline_size=5,
+            n_change=50, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        assert out["nature.habitat.attributability_state"] == "sparse"
+        assert out["nature.supplier_spatial_link.centroid_offset_km"] is None
+        assert out["nature.supplier_spatial_link.n_change_pixels"] == 0
+
+    def test_provenance_carries_spatial_link_terms(self, monkeypatch) -> None:
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=5, baseline_size=5,
+            n_change=42, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        prov = out["_provenance.nature.supplier_spatial_link"]
+        terms = prov["extra"]["spatial_link_terms"]
+        assert terms["attributability_state"] == "high"
+        assert terms["n_change_pixels"] == 42
+        assert terms["centroid_lat"] == 0.0
+        assert terms["centroid_lon"] == 0.005
+        assert terms["centroid_offset_km"] == pytest.approx(0.556, abs=0.05)
+        # AT17: additive provenance under provenance.extra.
+        assert prov["indicator_id"] == "nature.supplier_spatial_link"
+        assert prov["observations"] is None

@@ -1,16 +1,20 @@
 """Unit tests for engine.nature.compute_regional_loss_evidence.
 
-Added by M-V1x-RECONCILE per the spec's §5 step 15; updated by the M-UI-A6
-follow-up that corrected the IC §7.5 inversion (the emitted sub-score is
-``External_Driver_Screening = 1 − regional_loss_evidence``, not the raw
-flag). Pins:
+Added by M-V1x-RECONCILE; reframed by M-ATTRIB-A1 (AT5). The indicator is
+now **reference data**, not attribution. It emits a continuous ring-vs-buffer
+loss-rate ratio (and a window label) instead of the old binary
+``External_Driver_Screening`` sub-score. Pins:
 
-1. External_Driver_Screening = 0.0 (raw regional_loss_evidence = 1.0) when
-   ring_loss_rate > 2× buffer_loss_rate — an external driver is present, so
-   low confidence the supplier is implicated.
-2. External_Driver_Screening = 1.0 otherwise (buffer dominates, rates are
-   comparable, or both zero) — no external driver, supplier implicated.
-3. Hansen window is fixed at the most recent HANSEN_LOOKBACK_YEARS years
+1. `nature.regional_loss_evidence.ratio` = ring_loss_rate /
+   max(buffer_loss_rate, 1e-9). >1 ⇒ the surrounding ring lost forest faster
+   than the supplier buffer (broader regional pattern); <1 ⇒ the buffer was
+   a relatively active deforestation pocket.
+2. The raw boolean `regional_loss_evidence_raw` flag (1.0 when ring rate
+   > HANSEN_LOSS_RATIO_THRESHOLD × buffer rate) is preserved in
+   provenance.extra for the audit trail.
+3. `nature.external_driver_screening` is no longer emitted, and
+   provenance.extra no longer carries `confidence_terms` (not a confidence).
+4. Hansen window is fixed at the most recent HANSEN_LOOKBACK_YEARS years
    independent of the user's `time_range`.
 
 These tests avoid EE entirely — the function's EE surface is faked at the
@@ -175,7 +179,7 @@ def _install_fakes(
 
 
 class TestRegionalLossEvidence:
-    def test_screening_zero_when_external_driver_present(
+    def test_ratio_high_when_ring_outpaces_buffer(
         self, monkeypatch,
     ) -> None:
         # Site: 5 km buffer ≈ 7854 ha → ~78.54 million m². Loss: 1 ha = 10_000 m².
@@ -184,7 +188,7 @@ class TestRegionalLossEvidence:
         # buffer_rate = 10_000 / 78_540_000  ≈ 1.27e-4
         # ring_rate   = 2_000_000 / 500_000_000 = 4.0e-3
         # ratio       = ring_rate / buffer_rate ≈ 31.4 → >> 2.0 →
-        #   regional_loss_evidence = 1.0 → External_Driver_Screening = 0.0.
+        #   regional_loss_evidence_raw = 1.0 (broader regional pattern).
         _install_fakes(
             monkeypatch,
             site_area_ha=7854.0,
@@ -194,39 +198,47 @@ class TestRegionalLossEvidence:
         )
         from engine.nature import compute_regional_loss_evidence
         out = compute_regional_loss_evidence(_AOI, _TIME_RANGE, ee_client=None)
-        # IC §7.5 inversion: external driver present → sub-score 0.0.
-        assert out["nature.external_driver_screening"] == 0.0
         prov = out["_provenance.nature.regional_loss_evidence"]
-        # Raw evidence flag preserved in extra.
-        assert prov["extra"]["regional_loss_evidence"] == 1.0
+        expected_ratio = (
+            prov["extra"]["ring_loss_rate_m2_per_m2"]
+            / prov["extra"]["buffer_loss_rate_m2_per_m2"]
+        )
+        # M-ATTRIB-A1 (AT5): continuous ratio output, no external_driver score.
+        assert "nature.external_driver_screening" not in out
+        assert out["nature.regional_loss_evidence.ratio"] == pytest.approx(expected_ratio)
+        assert out["nature.regional_loss_evidence.ratio"] > 1.0
+        assert prov["extra"]["ratio"] == pytest.approx(expected_ratio)
+        # Raw evidence flag preserved in extra for the audit trail.
+        assert prov["extra"]["regional_loss_evidence_raw"] == 1.0
         assert prov["indicator_id"] == "nature.regional_loss_evidence"
         assert prov["temporal_mode"] == "standing_exposure"
         assert prov["data_type"] == "reference_dataset"
-        # And the extras carry the per-rate diagnostics.
+        # M-ATTRIB-A1 (§7.3): confidence_terms removed — no longer a confidence.
+        assert "confidence_terms" not in prov["extra"]
         assert prov["extra"]["ring_loss_rate_m2_per_m2"] > (
             HANSEN_LOSS_RATIO_THRESHOLD * prov["extra"]["buffer_loss_rate_m2_per_m2"]
         )
 
-    def test_screening_one_when_buffer_loss_rate_dominates(self, monkeypatch) -> None:
-        # Buffer is losing aggressively; ring is quiet. Ring rate is < 2x buffer
-        # rate, so no "external driver" — supplier owns the change →
-        # regional_loss_evidence = 0.0 → External_Driver_Screening = 1.0.
+    def test_ratio_below_one_when_buffer_loss_rate_dominates(self, monkeypatch) -> None:
+        # Buffer is losing aggressively; ring is comparatively quiet. Ring rate
+        # is < buffer rate → ratio < 1 and raw flag 0.0 (buffer was an active
+        # deforestation pocket).
         _install_fakes(
             monkeypatch,
             site_area_ha=7854.0,
             ring_area_m2=500_000_000.0,
             site_loss_m2=5_000_000.0,                       # 500 ha
-            ring_loss_m2=5_000_000.0,                       # also 500 ha — ring rate is 1/buffer-rate × area ratio
+            ring_loss_m2=5_000_000.0,                       # also 500 ha
         )
         from engine.nature import compute_regional_loss_evidence
         out = compute_regional_loss_evidence(_AOI, _TIME_RANGE, ee_client=None)
-        assert out["nature.external_driver_screening"] == 1.0
+        assert out["nature.regional_loss_evidence.ratio"] < 1.0
         prov = out["_provenance.nature.regional_loss_evidence"]
-        assert prov["extra"]["regional_loss_evidence"] == 0.0
+        assert prov["extra"]["regional_loss_evidence_raw"] == 0.0
 
-    def test_screening_one_when_both_rates_zero(self, monkeypatch) -> None:
-        # No Hansen loss in either region — no external driver → screening 1.0
-        # (high attribution confidence by default), raw evidence 0.0.
+    def test_ratio_zero_when_both_rates_zero(self, monkeypatch) -> None:
+        # No Hansen loss in either region — ratio = 0 / max(0, 1e-9) = 0.0,
+        # raw evidence 0.0. No divide-by-zero.
         _install_fakes(
             monkeypatch,
             site_area_ha=7854.0,
@@ -236,9 +248,9 @@ class TestRegionalLossEvidence:
         )
         from engine.nature import compute_regional_loss_evidence
         out = compute_regional_loss_evidence(_AOI, _TIME_RANGE, ee_client=None)
-        assert out["nature.external_driver_screening"] == 1.0
+        assert out["nature.regional_loss_evidence.ratio"] == 0.0
         prov = out["_provenance.nature.regional_loss_evidence"]
-        assert prov["extra"]["regional_loss_evidence"] == 0.0
+        assert prov["extra"]["regional_loss_evidence_raw"] == 0.0
 
     def test_uses_fixed_five_year_lookback_independent_of_time_range(
         self, monkeypatch,
@@ -272,6 +284,12 @@ class TestRegionalLossEvidence:
             # And the observations.count records HANSEN_LOOKBACK_YEARS.
             assert prov["observations"]["count"] == HANSEN_LOOKBACK_YEARS
             assert prov["observations"]["unit"] == "annual_rasters"
+            # M-ATTRIB-A1 (AT5/AT6): window label is a "YYYY–YYYY" string for
+            # the Hansen-card context line, spanning HANSEN_LOOKBACK_YEARS.
+            window = out["nature.regional_loss_evidence.window"]
+            assert isinstance(window, str)
+            start_yr, end_yr = (int(y) for y in window.split("–"))
+            assert end_yr - start_yr + 1 == HANSEN_LOOKBACK_YEARS
             # And both buffer + ring reductions happened.
             assert len(area_image.calls) == 2
 

@@ -510,6 +510,120 @@ def _dw_layer(setup: dict, result: dict) -> _LayerSpec:
 
 
 # ---------------------------------------------------------------------------
+# M-ATTRIB-A1 — habitat-conversion attributability overlay (§5.1/§5.2)
+# ---------------------------------------------------------------------------
+
+# Map indicator id for the habitat-conversion attributability overlay. This
+# establishes the marker + line + hover-tooltip pattern that M-WIND-A1 v2.0
+# reuses for Air attributability (AT19/AT21).
+_HABITAT_MAP_KEY: str = "nature.habitat.conversion_score"
+
+# AT9 — folium AwesomeMarkers icon colours (named, not hex) + matching line
+# hex. Sparse renders nothing.
+_ATTRIB_MARKER_ICON_COLOUR: dict[str, str] = {
+    "high": "green", "moderate": "orange", "low": "red",
+}
+_ATTRIB_LINE_HEX: dict[str, str] = {
+    "high": "#16a34a", "moderate": "#f59e0b", "low": "#dc2626",
+}
+_ATTRIB_STATE_LABEL: dict[str, str] = {
+    "high": "High", "moderate": "Moderate", "low": "Low",
+}
+
+
+def _habitat_centroid_tooltip(state: str, offset_km, n_change) -> str:
+    """§5.2 — hover tooltip text for the change-centroid marker."""
+    dist = f"{offset_km:.1f}" if offset_km is not None else "?"
+    label = _ATTRIB_STATE_LABEL.get(state, state)
+    return (
+        f"Habitat changes centred {dist} km from supplier — "
+        f"{label} attributability. N = {n_change or 0} change pixels."
+    )
+
+
+def _habitat_overlay_elements(setup: dict, result: dict) -> list:
+    """Build the folium elements for the habitat attributability overlay.
+
+    Returns a coloured centroid `folium.Marker` (with hover tooltip) and a
+    `folium.PolyLine` from the supplier centre to the centroid, both
+    colour-coded by attributability state (AT9). Returns ``[]`` when the
+    state is sparse / absent or no centroid was located — nothing renders.
+    Split from the render path so the construction is unit-testable.
+    """
+    state = result.get("nature.habitat.attributability_state")
+    if state not in _ATTRIB_MARKER_ICON_COLOUR:        # high / moderate / low only
+        return []
+    lat = result.get("nature.supplier_spatial_link.centroid_lat")
+    lon = result.get("nature.supplier_spatial_link.centroid_lon")
+    if lat is None or lon is None:
+        return []
+    offset = result.get("nature.supplier_spatial_link.centroid_offset_km")
+    n_change = result.get("nature.supplier_spatial_link.n_change_pixels")
+    centre = setup["centre"]
+    tooltip = _habitat_centroid_tooltip(state, offset, n_change)
+
+    marker = folium.Marker(
+        location=[lat, lon],
+        tooltip=tooltip,
+        icon=folium.Icon(color=_ATTRIB_MARKER_ICON_COLOUR[state], icon="leaf"),
+    )
+    line = folium.PolyLine(
+        locations=[[centre["lat"], centre["lon"]], [lat, lon]],
+        color=_ATTRIB_LINE_HEX[state],
+        weight=3,
+        opacity=0.8,
+        tooltip=tooltip,
+    )
+    return [marker, line]
+
+
+def _habitat_overlay_prose(result: dict) -> str:
+    """One-line explainer above the habitat attributability map."""
+    state = result.get("nature.habitat.attributability_state")
+    if state == "sparse":
+        return (
+            "**Habitat conversion — attributability.** Too few habitat-change "
+            "pixels to locate a change centroid (sparse); no centroid is drawn."
+        )
+    if state in _ATTRIB_STATE_LABEL:
+        offset = result.get("nature.supplier_spatial_link.centroid_offset_km")
+        dist = f"{offset:.1f} km" if offset is not None else "—"
+        return (
+            "**Habitat conversion — attributability.** The coloured marker is "
+            f"the centroid of detected natural→non-natural change ({dist} from "
+            "the supplier); the line links it to the supplier coordinate. "
+            "Colour = attributability (green/amber/red). This is context only — "
+            "it does not enter the composite score."
+        )
+    return (
+        "**Habitat conversion — attributability.** No attributability state "
+        "available for this screening."
+    )
+
+
+def _render_habitat_attributability_map(setup: dict, result: dict) -> None:
+    """Render the habitat-conversion attributability overlay (§5.1).
+
+    Habitat conversion has no single raster layer (it's a DW class-delta
+    aggregate), so this path draws the base map plus the centroid marker +
+    supplier→centroid line + hover tooltip rather than a tile layer.
+    """
+    st.markdown(_habitat_overlay_prose(result))
+    st.write("")
+    m = _build_base_map(setup)
+    # Supplier "label" on hover, parallel to the centroid marker (§5.1).
+    centre = setup["centre"]
+    folium.Marker(
+        location=[centre["lat"], centre["lon"]],
+        tooltip="Supplier coordinate",
+        icon=folium.Icon(color="gray", icon="industry", prefix="fa"),
+    ).add_to(m)
+    for element in _habitat_overlay_elements(setup, result):
+        element.add_to(m)
+    m.to_streamlit(height=500)
+
+
+# ---------------------------------------------------------------------------
 # Registry — 14 scored tiles (MV9). Keys == C4b tile select_keys, so the
 # "View on map →" affordance can dispatch by the value it sets verbatim.
 # Hansen + ODIAC are reference datasets and deliberately absent (MV10).
@@ -601,6 +715,16 @@ def _dispatch(indicator_id: str, setup: dict, result: dict, run_id: str) -> None
     exceptions are caught and surfaced as ``st.error`` (the EE round-trip is
     the likely failure mode) so the rest of the page keeps rendering.
     """
+    # M-ATTRIB-A1 (§5.1): habitat conversion has no raster layer — route it to
+    # the attributability overlay (centroid marker + supplier→centroid line +
+    # hover tooltip) instead of the cached-tile raster path.
+    if indicator_id == _HABITAT_MAP_KEY:
+        try:
+            _render_habitat_attributability_map(setup, result)
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Map render failed: {exc}")
+        return
+
     builder = _RENDERERS.get(indicator_id)
     if builder is None:
         _render_unsupported_indicator(indicator_id)

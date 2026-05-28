@@ -37,9 +37,10 @@ _PILLAR_DISPLAY: dict[str, str] = {
 # ``_PILLAR_PRIORITY_IDS`` / ``_PILLAR_CONFIDENCE_IDS`` (engine/orchestrator.py).
 _CHIP_KEYS: dict[str, tuple[str, str]] = {
     "composite": ("composite.overall_screening",   "composite.confidence"),
-    "air":       ("air.audit_followup_priority",   "air.attribution_confidence_score"),
+    # M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
+    "air":       ("air.audit_followup_priority",   "air.measurement_quality_score"),
     "ghg":       ("ghg.audit_followup_priority",   "ghg.data_quality_attribution"),
-    "nature":    ("nature.followup_priority",      "nature.quality_attribution"),
+    "nature":    ("nature.followup_priority",      "nature.measurement_quality"),
 }
 
 

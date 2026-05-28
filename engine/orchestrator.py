@@ -53,9 +53,10 @@ _PILLAR_PRIORITY_IDS: tuple[str, ...] = (
 # IC_v4 §4 — composite confidence is the minimum across the pillars that
 # produced a confidence aggregate.
 _PILLAR_CONFIDENCE_IDS: tuple[str, ...] = (
-    "air.attribution_confidence_score",
+    # M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
+    "air.measurement_quality_score",
     "ghg.data_quality_attribution",
-    "nature.quality_attribution",
+    "nature.measurement_quality",
 )
 
 
@@ -169,7 +170,7 @@ class ScreeningRun:
         priority is None, the composite is None. The prior survivor-mean
         behaviour produced misleading composite scores when a pillar
         failed entirely (Rio de Janeiro region screening saw composite
-        = nature.followup_priority = nature.quality_attribution = 0.858
+        = nature.followup_priority = nature.measurement_quality = 0.858
         because Air and GHG priorities were None and the mean was
         computed over the one survivor).
         """

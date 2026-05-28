@@ -452,7 +452,7 @@ class TestPillarTemplateSelection:
         # low priority).
         payload = {
             "air.audit_followup_priority":      0.10,
-            "air.attribution_confidence_score": 0.20,
+            "air.measurement_quality_score": 0.20,
             "air.no2.confidence":               0.20,
         }
         rendered, template_id, bucket = _render_pillar("air", payload)
@@ -476,7 +476,7 @@ class TestPillarTemplateSelection:
     def test_high_priority_with_dominant_picks_main(self) -> None:
         payload = {
             "air.audit_followup_priority":      0.80,
-            "air.attribution_confidence_score": 0.80,
+            "air.measurement_quality_score": 0.80,
             "air.no2.score":     0.9,
             "air.no2.site":      42.0,
             "air.no2.z":         2.3,
@@ -495,7 +495,7 @@ class TestPillarTemplateSelection:
     def test_nature_low_high_path(self) -> None:
         payload = {
             "nature.followup_priority":    0.21,
-            "nature.quality_attribution":  0.71,
+            "nature.measurement_quality":  0.71,
         }
         rendered, template_id, _ = _render_pillar("nature", payload)
         assert template_id == "nature/low/high/main"
@@ -527,7 +527,7 @@ class TestPillarTemplateSelection:
     def test_moderate_low_fires_data_quality_phrasing(self) -> None:
         payload = {
             "air.audit_followup_priority":      0.50,
-            "air.attribution_confidence_score": 0.10,
+            "air.measurement_quality_score": 0.10,
             "air.no2.score":     0.9,
             "air.no2.site":      40.0,
             "air.no2.z":         1.5,
@@ -575,7 +575,7 @@ class TestDirectionStripping:
     def test_nature_strips_when_direction_none(self) -> None:
         payload = {
             "nature.followup_priority":   0.70,
-            "nature.quality_attribution": 0.80,
+            "nature.measurement_quality": 0.80,
             "nature.biodiversity_exposure":    0.9,
             "nature.habitat.conversion_score": 0.05,
             "nature.vegetation_condition":     0.05,
@@ -590,7 +590,7 @@ class TestDirectionStripping:
         # Air's direction is never None — the phrase stays intact.
         payload = {
             "air.audit_followup_priority":      0.80,
-            "air.attribution_confidence_score": 0.80,
+            "air.measurement_quality_score": 0.80,
             "air.no2.score":     0.9,
             "air.no2.site":      42.0,
             "air.no2.z":         2.3,
@@ -612,7 +612,7 @@ _WORKED_EXAMPLE_PAYLOAD: dict = {
 
     # Air — high priority, moderate confidence, NO₂ dominant.
     "air.audit_followup_priority":      0.72,
-    "air.attribution_confidence_score": 0.41,
+    "air.measurement_quality_score": 0.41,
     "air.no2.score":     0.55,
     "air.no2.site":      42.0,
     "air.no2.z":         2.3,
@@ -642,7 +642,7 @@ _WORKED_EXAMPLE_PAYLOAD: dict = {
 
     # Nature — low priority, high confidence.
     "nature.followup_priority":   0.21,
-    "nature.quality_attribution": 0.71,
+    "nature.measurement_quality": 0.71,
 }
 
 
@@ -704,7 +704,7 @@ class TestEngineShapedPayload:
             "composite.overall_screening": 0.35,
             "composite.confidence":        0.60,
             "air.audit_followup_priority":      0.40,
-            "air.attribution_confidence_score": 0.60,
+            "air.measurement_quality_score": 0.60,
             "air.no2.score":     0.4,
             "air.no2.site":      28.0,
             "air.no2.z":         1.2,
@@ -722,7 +722,7 @@ class TestEngineShapedPayload:
             "ghg.activity_score":            0.1,
             "ghg.co2_context":               None,
             "nature.followup_priority":   0.35,
-            "nature.quality_attribution": 0.55,
+            "nature.measurement_quality": 0.55,
             "nature.biodiversity_exposure":    0.4,
             "nature.habitat.conversion_score": 0.1,
             "nature.vegetation_condition":     0.1,
@@ -745,11 +745,11 @@ class TestEngineShapedPayload:
             "composite.overall_screening": None,
             "composite.confidence":        None,
             "air.audit_followup_priority":      None,
-            "air.attribution_confidence_score": None,
+            "air.measurement_quality_score": None,
             "ghg.audit_followup_priority":  None,
             "ghg.data_quality_attribution": None,
             "nature.followup_priority":     None,
-            "nature.quality_attribution":   None,
+            "nature.measurement_quality":   None,
         }
         result = generate_verbal_summary(payload)
         # All low/low-shape outputs.
@@ -764,11 +764,11 @@ class TestEngineShapedPayload:
             "composite.overall_screening": 0.85,
             "composite.confidence":        0.80,
             "air.audit_followup_priority":      0.80,
-            "air.attribution_confidence_score": 0.80,
+            "air.measurement_quality_score": 0.80,
             "ghg.audit_followup_priority":  0.80,
             "ghg.data_quality_attribution": 0.80,
             "nature.followup_priority":     0.80,
-            "nature.quality_attribution":   0.80,
+            "nature.measurement_quality":   0.80,
         }
         result = generate_verbal_summary(payload)
         assert result.template_ids["overview"] == "overview/3/high"
@@ -782,11 +782,11 @@ class TestEngineShapedPayload:
             "composite.overall_screening": 0.65,
             "composite.confidence":        0.80,
             "air.audit_followup_priority":      0.80,
-            "air.attribution_confidence_score": 0.80,
+            "air.measurement_quality_score": 0.80,
             "ghg.audit_followup_priority":  0.50,
             "ghg.data_quality_attribution": 0.80,
             "nature.followup_priority":     0.80,
-            "nature.quality_attribution":   0.80,
+            "nature.measurement_quality":   0.80,
         }
         result = generate_verbal_summary(payload)
         assert result.template_ids["overview"] == "overview/2/high"

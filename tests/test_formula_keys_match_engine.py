@@ -35,7 +35,7 @@ from engine.ghg import (
 from engine.nature import (
     compute_biodiversity_exposure,
     compute_habitat_conversion_score,
-    compute_nature_quality_attribution,
+    compute_nature_measurement_quality,  # M-ATTRIB-A1 (AT13)
     compute_vegetation_condition,
 )
 from ui.components.c5_drilldown import (
@@ -82,7 +82,7 @@ _NATURE_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_biodiversity_exposure({}),
     lambda: compute_habitat_conversion_score({}),
     lambda: compute_vegetation_condition({}),
-    lambda: compute_nature_quality_attribution({}),
+    lambda: compute_nature_measurement_quality({}),
 ])
 
 

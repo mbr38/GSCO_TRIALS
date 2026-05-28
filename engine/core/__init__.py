@@ -6,6 +6,13 @@ lazily by `repeatable_core` so this package works without them.
 """
 
 from engine.core.adaptive_scale import adaptive_scale_m, method_note_fragment
+from engine.core.attributability import (
+    ATTRIBUTABILITY_STATES,
+    AttributabilityState,
+    compass_direction,
+    compute_habitat_attributability,
+    haversine_km,
+)
 from engine.core.buffers import (
     background_ring,
     pixel_size_warning,
@@ -48,13 +55,17 @@ __all__ = [
     "adaptive_scale_m",
     "anomaly_z_hf",
     "aoi_scale_class",
+    "ATTRIBUTABILITY_STATES",
+    "AttributabilityState",
     "background_ring",
     "background_value",
     "build_fallback_extra",
     "build_provenance",
     "ClimatologyBaseline",
     "climatology_baseline",
+    "compass_direction",
     "compute_anomaly_strength_term",
+    "compute_habitat_attributability",
     "compute_indicator_confidence",
     "compute_n_valid_term",
     "compute_pillar_confidence",
@@ -64,6 +75,7 @@ __all__ = [
     "FallbackContext",
     "FallbackOutcome",
     "FallbackPlan",
+    "haversine_km",
     "load_climatology",
     "method_note_fragment",
     "pixel_size_warning",

@@ -49,7 +49,7 @@ _PILLAR_AGGREGATE_IDS = (
     "air.pollution_proxy_score",
     "air.spatiotemporal_anomaly_score",
     "air.trend_score",
-    "air.attribution_confidence_score",
+    "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
     "air.audit_followup_priority",
 )
 
@@ -74,6 +74,8 @@ def _fake_air_payload() -> dict:
     payload["air.pollution_proxy_score"]        = 0.45
     payload["air.spatiotemporal_anomaly_score"] = 0.55
     payload["air.trend_score"]                  = 0.0
+    # M-ATTRIB-A1 (AT16) — dual-emit: orchestrator reads the new ID.
+    payload["air.measurement_quality_score"]    = 0.72
     payload["air.attribution_confidence_score"] = 0.72
     payload["air.audit_followup_priority"]      = 0.62
     return payload
@@ -432,7 +434,7 @@ class TestTwoPillarHappyPath:
         def _fake_nature_payload() -> dict:
             return {
                 "nature.followup_priority":   0.40,
-                "nature.quality_attribution": 0.55,
+                "nature.measurement_quality": 0.55,  # M-ATTRIB-A1 (AT13)
             }
 
         monkeypatch.setitem(orchestrator._PILLARS, "air",    lambda **_kw: _fake_air_payload())

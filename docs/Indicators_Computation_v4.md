@@ -234,9 +234,8 @@ Core_GHG_Audit_Support_v1 =                      (M5.5b: ODIAC demoted)
   See audit §3.4 for full trace.
 
 GHG_Data_Quality_Attribution_v1 =
-    0.33·Temporal_Coverage + 0.27·Spatial_Resolution_Suitability
-  + 0.27·Retrieval_or_Inventory_Quality
-  + 0.13·Nearby_Source_Isolation                 (sums to 1.00)
+    0.34·Temporal_Coverage + 0.33·Spatial_Resolution_Suitability
+  + 0.33·Retrieval_or_Inventory_Quality            (sums to 1.00)
 
   Method: Wind_Consistency (0.15) deferred to v1.x Tier C1a (ERA5 wind).
   Sector_Match (0.10) is **scrapped** per audit §9.2 on
@@ -246,9 +245,19 @@ GHG_Data_Quality_Attribution_v1 =
   defaulted term that systematically differs from tagged suppliers).
   It is not deferred, not coming back as a confidence-formula term; it
   survives only as the informational `sector_signal_anomaly`
-  provenance flag (Schema_v2 §6.1). Remaining four weights rescaled by
-  1/0.75 = 1.333…. Nearby_Source_Isolation in v1 uses the satellite-only
-  proxy in §7.2.
+  provenance flag (Schema_v2 §6.1).
+
+  M-ATTRIB-A1 (AT15): `Nearby_Source_Isolation` (was 0.13) is **removed**
+  from this aggregate. Methodological reason: it is an *attributability*
+  concept ("is the supplier signal isolated, or contaminated by other
+  emitters?"), not a *measurement-quality* one, and its v1 value is a
+  fixed 1.0 placeholder that inflated the score. `compute_nearby_source_isolation`
+  still emits the field (reserved for a future GHG attributability surface,
+  parallel to Nature's habitat-conversion spatial link), but it no longer
+  enters Data_Quality_Attribution. The three surviving measurement-quality
+  terms are renormalised to 0.34 / 0.33 / 0.33. The §7.2 satellite-only
+  proxy formula for `Nearby_Source_Isolation` is retained for that future
+  surface.
 
 GHG_Audit_FollowUp_Priority =
     0.40·Core_GHG_Audit_Support
@@ -339,20 +348,31 @@ Sub-formula breakdowns:
 ### 3.3 Pillar aggregates
 
 ```
-Nature_Quality_Attribution =
-    0.20·Valid_Pixel_Coverage
-  + 0.20·Cloud_or_Observation_Quality
+Nature_Measurement_Quality =                (M-ATTRIB-A1: renamed from
+    0.35·Valid_Pixel_Coverage                Nature_Quality_Attribution)
+  + 0.25·Cloud_or_Observation_Quality
   + 0.20·DynamicWorld_Class_Confidence
-  + 0.15·Seasonal_Comparability
-  + 0.15·Supplier_Spatial_Link              (see §7.5)
-  + 0.10·External_Driver_Screening          (see §7.5)
+  + 0.20·Seasonal_Comparability
 
 Nature_FollowUp_Priority =
     0.30·Biodiversity_Exposure
   + 0.30·Habitat_Conversion
   + 0.25·Vegetation_Condition
-  + 0.15·Nature_Quality_Attribution
+  + 0.15·Nature_Measurement_Quality
 ```
+
+> **M-ATTRIB-A1 (28 May 2026).** This aggregate was renamed from
+> `Nature_Quality_Attribution` to `Nature_Measurement_Quality` and reshaped to
+> contain *measurement-quality* terms only. The two attribution terms were
+> removed because they are not measurement quality:
+> - `Supplier_Spatial_Link` (was 0.15) is now a **categorical attributability**
+>   state (high/moderate/low/sparse) computed by centroid offset — see §7.5.
+>   It surfaces on the map + C5 disclaimer and does **not** enter any composite.
+> - `External_Driver_Screening` (was 0.10) is now **reference data**: the
+>   `regional_loss_evidence` ring-vs-buffer Hansen ratio surfaced on the M-UI-A6
+>   Hansen card. It does not enter any composite or measurement-quality score.
+> The four surviving terms are renormalised to sum to 1.00. The followup-priority
+> weight on the renamed aggregate is unchanged (0.15).
 
 Sub-formula breakdowns for the data-quality components:
 
@@ -644,49 +664,82 @@ If at any point you want EVI re-added (e.g. to discriminate dense-canopy stress 
 
 ### 7.5 What `Supplier_Spatial_Link` and `External_Driver_Screening` actually mean
 
-These are the two trickiest terms in the Nature pillar. Both are confidence multipliers, not exposure scores. Both are inside `Nature_Quality_Attribution` (§3.3), which is the term that pushes back on overclaiming.
+> **M-ATTRIB-A1 (28 May 2026) — reframed.** These two terms were originally
+> framed as confidence sub-scores inside `Nature_Quality_Attribution`, but
+> that conflated *measurement quality* (how well we observed the site) with
+> *attributability* (whether the change is the supplier's). M-ATTRIB-A1
+> separates the concepts:
+> - `Supplier_Spatial_Link` is now a **categorical attributability** state
+>   (high / moderate / low / sparse), computed by centroid offset (Approach C
+>   below). It surfaces visually (map centroid marker + line) and in the C5
+>   disclaimer; it does **not** enter the confidence chain or any composite.
+> - `External_Driver_Screening` is **deleted as a sub-score**; the underlying
+>   `regional_loss_evidence` Hansen ring-vs-buffer comparison is reframed as
+>   **reference data** (a continuous ratio surfaced on the M-UI-A6 Hansen
+>   card), not an attribution-confidence term.
+>
+> Both still compute; neither feeds `Nature_Measurement_Quality` (§3.3). The
+> rest of this section documents the original framing for historical context
+> and the new attributability computation.
 
-**`Supplier_Spatial_Link` (weight 0.15) — "is the observed change actually near the supplier?"**
+**`Supplier_Spatial_Link` — categorical attributability via centroid offset (M-ATTRIB-A1 Approach C).**
 
-When Dynamic World shows habitat conversion inside the supplier buffer, that change could be right next to the supplier point (highly attributable) or at the far edge of the buffer (weakly attributable). This sub-score captures the spatial distribution of the change.
-
-```
-1. Build a binary "change mask" of pixels converted between baseline and current
-2. For each change pixel, compute distance d_i from the supplier point
-3. d_centroid = mean(d_i)
-4. Supplier_Spatial_Link = clamp( 1 − d_centroid / r_site_km , 0 , 1 )
-```
-
-A score near 1.0 means the change is concentrated near the supplier (high attributability). A score near 0 means the change is at the buffer edge (low attributability — the supplier is probably not the driver).
-
-If there are no change pixels, the score is set to 1.0 (no claim to qualify).
-
-**`External_Driver_Screening` (weight 0.10) — "is there an obvious non-supplier explanation?"**
-
-This sub-score downweights confidence when the observed habitat/vegetation change can be explained by drivers the supplier has no control over: drought, fire scars, regional deforestation, large infrastructure projects.
-
-In v1 only one of the three evidence terms is wired (`regional_loss_evidence`); `fire_evidence` and `drought_evidence` remain placeholders pending Tier C1a / Tier A2. The audit §9.3 v1.4 form is therefore:
-
-```
-external_driver_evidence  = regional_loss_evidence    (v1)
-External_Driver_Screening = 1 − external_driver_evidence
-
-# Tier C1a / A2 will restore the original max-of-three form:
-# external_driver_evidence = max(fire_evidence, drought_evidence, regional_loss_evidence)
-```
-
-**`regional_loss_evidence` formula (audit §9.3 / engine).** Always uses the most recent `HANSEN_LOOKBACK_YEARS = 5` Hansen loss years, independent of the user's `time_range` (Hansen's annual cadence and standing-exposure framing make user-window-driven slices noisy and misleading):
+When Dynamic World shows habitat conversion inside the supplier buffer, that change could be right next to the supplier point (highly attributable) or at the far edge of the buffer (weakly attributable). The signal captures the spatial distribution of the change:
 
 ```
-buffer_loss_rate        = sum(hansen[y] in Site_Buffer for y in lookback) / area_buffer
-ring_loss_rate          = sum(hansen[y] in Background_Ring for y in lookback) / area_ring
-regional_loss_evidence  = 1.0 if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD · buffer_loss_rate
-                          else 0.0          (HANSEN_LOSS_RATIO_THRESHOLD = 2.0)
+1. Build a per-pixel "change mask": baseline ∈ natural classes AND
+   current ∈ non-natural classes (the natural→non-natural transition).
+2. Centroid = the (area-weighted) lon/lat centroid of the change pixels.
+3. d_centroid_km = geodesic distance from the supplier coordinate to the centroid.
+4. Categorical bucket (engine.core.attributability.compute_habitat_attributability):
+       high      d_centroid_km ≤ HABITAT_SPATIAL_LINK_HIGH_KM  (1.0 km)
+       moderate  1.0 < d ≤ HABITAT_SPATIAL_LINK_MOD_KM          (3.0 km)
+       low       d > 3.0 km
+       sparse    n_change_pixels < N_MIN_PIXELS_FOR_CENTROID (10), or no centroid
 ```
 
-Implementation lives in `engine.nature.compute_regional_loss_evidence` and emits canonical provenance under `_provenance.nature.regional_loss_evidence` (`data_type="reference_dataset"`, `temporal_mode="standing_exposure"`). The function runs unconditionally whenever the Nature pillar runs — it's a single Hansen reduceRegion pair, so the cost is negligible compared with the rest of the pipeline.
+High means the change is concentrated near the supplier (high attributability);
+low means it is concentrated far from the supplier (the supplier is probably not
+the driver); sparse means there is too little change signal to attribute.
+Thresholds are first-pass and flagged for calibration (M-ATTRIB-A1 Q-AT-1).
+Implementation: `engine.nature.compute_supplier_spatial_link` (emits
+`nature.supplier_spatial_link.*` + `nature.habitat.attributability_state`,
+all in `provenance.extra.spatial_link_terms`).
 
-A score near 1.0 means no obvious external driver (high confidence the supplier is implicated). A score near 0 means the change is regional / explained by fires / drought (low confidence in supplier attribution).
+**`External_Driver_Screening` (historical — removed as a sub-score by M-ATTRIB-A1) — "is there an obvious non-supplier explanation?"**
+
+This sub-score downweighted confidence when the observed habitat/vegetation change can be explained by drivers the supplier has no control over: drought, fire scars, regional deforestation, large infrastructure projects.
+
+In v1 the only wired evidence term was `regional_loss_evidence`; `fire_evidence` and `drought_evidence` remained placeholders pending Tier C1a / Tier A2. M-ATTRIB-A1 (AT5) reframes `regional_loss_evidence` as **reference data** — a continuous ring-vs-buffer ratio, not the old binary `External_Driver_Screening = 1 − regional_loss_evidence` sub-score.
+
+**`regional_loss_evidence` formula (audit §9.3 / engine, M-ATTRIB-A1 form).** Always uses the most recent `HANSEN_LOOKBACK_YEARS = 5` Hansen loss years, independent of the user's `time_range` (Hansen's annual cadence and standing-exposure framing make user-window-driven slices noisy and misleading):
+
+```
+buffer_loss_rate = sum(hansen[y] in Site_Buffer for y in lookback) / area_buffer
+ring_loss_rate   = sum(hansen[y] in Background_Ring for y in lookback) / area_ring
+
+# M-ATTRIB-A1 reference-data outputs:
+nature.regional_loss_evidence.ratio  = ring_loss_rate / max(buffer_loss_rate, 1e-9)
+nature.regional_loss_evidence.window = "YYYY–YYYY"  (the fixed Hansen lookback)
+
+# Raw boolean flag (retained in provenance.extra for the audit trail only):
+regional_loss_evidence_raw = 1.0 if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD · buffer_loss_rate
+                             else 0.0          (HANSEN_LOSS_RATIO_THRESHOLD = 2.0)
+```
+
+The ratio is surfaced as a regional-context line on the M-UI-A6 Hansen card
+("ring loss is {ratio:.1f}× buffer loss over {window}"). Implementation lives
+in `engine.nature.compute_regional_loss_evidence` and emits canonical
+provenance under `_provenance.nature.regional_loss_evidence`
+(`data_type="reference_dataset"`, `temporal_mode="standing_exposure"`;
+M-ATTRIB-A1 removed the `confidence_terms` from `provenance.extra` — it is no
+longer a confidence). The function runs unconditionally whenever the Nature
+pillar runs — a single Hansen reduceRegion pair, negligible cost.
+
+Interpretation: ratio > 1 ⇒ the surrounding ring lost forest faster than the
+supplier buffer (a broader regional pattern); ratio < 1 ⇒ the supplier buffer
+was a relatively active deforestation pocket. This is regional context, not
+attribution and not a composite input.
 
 Why these two terms are kept in `Nature_Quality_Attribution`, not in the exposure or conversion scores: they don't change *what* was observed. They change *how confidently we can blame the supplier for it*. That is a confidence concept and belongs in the data-quality aggregate, which is then surfaced next to the main Nature follow-up score in the UI per PLFS_v3 §9.
 

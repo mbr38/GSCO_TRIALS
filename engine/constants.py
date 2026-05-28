@@ -144,15 +144,18 @@ CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).
-# Wind_Consistency (0.15) and Sector_Match (0.10) are deferred to v1.x, so the
-# remaining four terms are rescaled by 1/(1−0.25) = 1.333…
-# IC_v3 §2.3 had an incorrect rescale (0.30/0.24/0.24/0.12, sum 0.90); v4 fixed
-# it. Sums to 1.00.
+# Wind_Consistency (0.15) and Sector_Match (0.10) are deferred to v1.x.
+# M-ATTRIB-A1 (AT15): nearby_source_isolation (was 0.13) is removed from this
+# *measurement-quality* aggregate — it's an attributability concept, not a
+# measurement-quality term, and its v1 value is a fixed 1.0 placeholder that
+# inflated the aggregate. `compute_nearby_source_isolation` still emits the
+# field (reserved for a future attributability surface, per AT2 system-wide
+# framing) but it no longer enters this dict. The surviving three terms are
+# renormalised per spec §4.5; sums to 1.00.
 GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
-    "ghg.temporal_coverage":              0.33,
-    "ghg.spatial_resolution_suitability": 0.27,
-    "ghg.retrieval_inventory_quality":    0.27,
-    "ghg.nearby_source_isolation":        0.13,
+    "ghg.temporal_coverage":              0.34,
+    "ghg.spatial_resolution_suitability": 0.33,
+    "ghg.retrieval_inventory_quality":    0.33,
 }
 
 # IC_v4 §2.3 — GHG Audit Follow-Up Priority terms. Sums to 1.00.
@@ -258,15 +261,22 @@ VEGETATION_CONDITION_WEIGHTS: dict[str, float] = {
     "nature.recovery.score":       -0.10,
 }
 
-# IC_v4 §3.3 — Nature_Quality_Attribution. Six confidence-side sub-scores.
+# IC_v4 §3.3 — Nature measurement quality (renamed from Quality_Attribution).
+# M-ATTRIB-A1 (AT13 / AT14): this aggregate is now *measurement quality* only.
+# Two terms were removed because they are not measurement quality:
+#   - supplier_spatial_link (was 0.15) → categorical attributability surface
+#     (centroid offset; see engine.core.attributability + nature.habitat
+#      .attributability_state). It does NOT enter any composite.
+#   - external_driver_screening (was 0.10) → reference data (regional loss
+#     evidence ratio on the M-UI-A6 Hansen card). It does NOT enter any
+#     composite or measurement-quality score.
+# The four surviving sub-scores are renormalised per spec §4.2 first-pass.
 # Sums to 1.00.
-NATURE_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
-    "nature.valid_pixel_coverage":      0.20,
-    "nature.cloud_observation_quality": 0.20,
-    "nature.dw.class_confidence":       0.20,
-    "nature.seasonal_comparability":    0.15,
-    "nature.supplier_spatial_link":     0.15,
-    "nature.external_driver_screening": 0.10,
+NATURE_MEASUREMENT_QUALITY_WEIGHTS: dict[str, float] = {
+    "nature.valid_pixel_coverage":      0.35,   # was 0.20
+    "nature.cloud_observation_quality": 0.25,   # was 0.20
+    "nature.dw.class_confidence":       0.20,   # unchanged
+    "nature.seasonal_comparability":    0.20,   # was 0.15
 }
 
 # IC_v4 §3.3 — Nature_FollowUp_Priority. Sums to 1.00.
@@ -483,6 +493,8 @@ INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
     "air.pollution_proxy_score":        "derived",
     "air.spatiotemporal_anomaly_score": "derived",
     "air.trend_score":                  "derived",
+    # M-ATTRIB-A1 (AT16): new measurement-quality ID + legacy alias (window).
+    "air.measurement_quality_score":    "derived",
     "air.attribution_confidence_score": "derived",
     "ghg.core_audit_support":           "derived",
     "ghg.spatiotemporal_anomaly":       "derived",
@@ -491,7 +503,7 @@ INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
     "nature.biodiversity_exposure":     "derived",
     "nature.habitat.conversion_score":  "derived",
     "nature.vegetation_condition":      "derived",
-    "nature.quality_attribution":       "derived",
+    "nature.measurement_quality":       "derived",
     "air.audit_followup_priority":      "derived",
     "ghg.audit_followup_priority":      "derived",
     "nature.followup_priority":         "derived",
@@ -536,6 +548,24 @@ NDVI_NEGATIVE_TREND_THRESHOLD: float = -0.01
 # Water_or_FloodedVegetation_Exposure saturation point: 20% combined
 # aquatic/wetland cover = score 1.0.
 WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
+
+# M-ATTRIB-A1 (AT12 / §4.7) — habitat-conversion attributability via the
+# supplier→centroid distance (Approach C). These are categorical thresholds
+# for `engine.core.attributability.compute_habitat_attributability`; they do
+# NOT enter any composite or measurement-quality score.
+#   high      ≤ HABITAT_SPATIAL_LINK_HIGH_KM
+#   moderate  (HIGH, MOD]
+#   low       > HABITAT_SPATIAL_LINK_MOD_KM
+#   sparse    n_change_pixels < N_MIN_PIXELS_FOR_CENTROID (or no centroid)
+# CALIBRATION (AT20 / Q-AT-1): first-pass values; flagged for a joint
+# calibration sweep with the M-WIND-A1 v2.0 thresholds after first demo runs.
+# Note: N_MIN_PIXELS_FOR_CENTROID counts pixels at the *adaptive reduction
+# scale*, not DW's 10 m native scale — so the represented area scales with
+# AOI size. Revisit during calibration if region-scale AOIs over/under-trip
+# the sparse gate.
+N_MIN_PIXELS_FOR_CENTROID: int = 10
+HABITAT_SPATIAL_LINK_HIGH_KM: float = 1.0
+HABITAT_SPATIAL_LINK_MOD_KM: float = 3.0
 
 
 # ---------------------------------------------------------------------------

@@ -613,11 +613,11 @@ stateDiagram-v2
 | C3 | Traffic-light summary: three pillar Follow-Up Priority chips (red/amber/green) with numeric score and confidence dot | S2_Results, S2_Partial |
 | C4a | Hotspot map (Policy Maker primary viz) | S2_Results, S2_Partial (Policy Maker only) |
 | C4b | KPI tile grid (MNC primary viz) | S2_Results, S2_Partial (MNC only) |
-| C4c | Multi-indicator map (shared, between C4b and C5) — empty base map until a C4b tile's "View on map →" sets the active indicator; renders that indicator's raster (M-UI-A5) | S2_Results, S2_Partial (multi-indicator) |
+| C4c | Multi-indicator map (shared, between C4b and C5) — empty base map until a C4b tile's "View on map →" sets the active indicator; renders that indicator's raster (M-UI-A5). **M-ATTRIB-A1:** when habitat conversion is the active indicator it has no raster — instead the map draws a colour-coded **centroid marker** at the centroid of natural→non-natural change, a **line** from the supplier coordinate to that centroid, and a **hover tooltip** ("Habitat changes centred {dist} km from supplier — {state} attributability. N = {n} change pixels."). Colour = attributability state (green High / amber Moderate / red Low); Sparse renders no centroid. Context only — not in the composite. *(Note: habitat conversion is not currently a C4b headline tile, so this overlay renders only when habitat conversion becomes the active map indicator; wiring a habitat tile is a follow-up.)* | S2_Results, S2_Partial (multi-indicator) |
 | C5a | Air Pollution drill-down panel | S2_Results, S2_Partial |
 | C5b | GHG drill-down panel | S2_Results, S2_Partial |
 | C5c | Nature/Land drill-down panel | S2_Results, S2_Partial |
-| C5d | **Reference datasets** sub-section (M-UI-A6) — rendered after the Nature/Land deep-dive, before C6. A short header disclaimer ("shown for context, not part of the composite score"), then two muted reference cards side-by-side (Hansen forest loss; ODIAC CO₂) and a single "Why reference data?" expander. Each card: indicator name (with the P-09 info affordance) → "Reference dataset — not used in composite score" badge → headline value + unit → vintage line → source line → one-sentence interpretation → italic audit footnote. Cards carry **no severity badge and no confidence dot** (they are context, not a verdict); missing data renders "Data not available for this AOI" rather than omitting the card. | S2_Results, S2_Partial |
+| C5d | **Reference datasets** sub-section (M-UI-A6) — rendered after the Nature/Land deep-dive, before C6. A short header disclaimer ("shown for context, not part of the composite score"), then two muted reference cards side-by-side (Hansen forest loss; ODIAC CO₂) and a single "Why reference data?" expander. Each card: indicator name (with the P-09 info affordance) → "Reference dataset — not used in composite score" badge → headline value + unit → vintage line → source line → **regional-context line (Hansen only, M-ATTRIB-A1: "ring loss is {ratio:.1f}× buffer loss over {window}" + a one-sentence interpretation keyed to the ratio band)** → one-sentence interpretation → italic audit footnote. Cards carry **no severity badge and no confidence dot** (they are context, not a verdict); missing data renders "Data not available for this AOI" rather than omitting the card. | S2_Results, S2_Partial |
 | C6 | Confidence panel: three pillar confidence scores with limiting-factor explanations | S2_Results, S2_Partial |
 | C7 | Verbal summary paragraph (server-generated) | S2_Results, S2_Partial |
 | C8 | Action bar: Save as report, Switch to Trend | S2_Results, S2_Partial |
@@ -1374,7 +1374,7 @@ A score of exactly `0.33` or `0.66` lands in the *higher-severity* band (≥-bas
 
 ### C.2 Confidence dots (for Quality / Attribution Confidence scores)
 
-Applied to any 0–1 pillar confidence score (`air.attribution_confidence_score`, `ghg.data_quality_attribution`, `nature.quality_attribution`, and the composite `composite.confidence`).
+Applied to any 0–1 pillar confidence score (`air.measurement_quality_score`, `ghg.data_quality_attribution`, `nature.measurement_quality`, and the composite `composite.confidence`). *(M-ATTRIB-A1 renamed `air.attribution_confidence_score` → `air.measurement_quality_score` — both emitted during a 1-milestone deprecation window — and `nature.quality_attribution` → `nature.measurement_quality`.)*
 
 | State | Score range | Glyph | Semantic meaning |
 |---|---|---|---|
@@ -1445,6 +1445,13 @@ Tests: `tests/test_c4b_kpi_grid.py` (24 tests) covers tile-spec integrity (count
 **M-UI-E.4 shipped.** C5a/b/c drill-down panels (`ui/components/c5_drilldown.py`) live. Three pillar expanders, collapsed by default. Each panel renders a Follow-Up Priority Score headline with formula breakdown (per `Indicators_Computation_v4.md` §1.3 / §2.3 / §3.3), per-indicator rows, and a "Datasets used" sub-expander listing the canonical M5.6 provenance blocks for that pillar.
 
 Air and GHG share a uniform 6-column row schema (indicator / site / anomaly / z / confidence / score). Nature is sub-sectioned by indicator class — Biodiversity exposure (KBA), Habitat conversion (+ Hansen forest loss as a sub-bullet), Vegetation condition (NDVI), and a Land-cover composition table (9-class Dynamic World breakdown) — because its outputs are too heterogeneous for a uniform row schema.
+
+**M-ATTRIB-A1 — C5 habitat-conversion panel (§5.4).** The habitat-conversion panel separates **measurement quality** from **attributability**:
+- A **Measurement quality** row (the habitat indicator's M-TIER-A1 confidence, `nature.habitat.confidence`) — renamed from the old "Confidence (habitat)" row.
+- An **Attributability** row with a colour-coded badge (green/amber/red) and "(centred {dist} km from supplier)" for High/Moderate/Low; a muted "Sparse" note when there are too few change pixels.
+- A **Low-only** expander, "What's behind this attributability?", giving the centroid distance, compass direction, change-pixel count, and the threshold rationale (parallel to the coastal-handling and fallback sub-sections).
+- A "What's behind this measurement?" expander (the habitat confidence-terms breakdown).
+The old per-indicator confidence rows for `forest_loss` and `regional_loss_evidence` are **removed** from this panel — both are reference data and surface in the "Reference datasets" sub-section (C5d), not as habitat confidence rows.
 
 Formula weights are pulled from `engine.constants.{AIR,GHG,NATURE}_FOLLOWUP_WEIGHTS` rather than inlined, so the breakdown stays in lockstep with the live engine. `_build_formula` raises `KeyError` at import time if the engine adds or renames a weight key — fail-loud is the intended behaviour, since silent drift between the breakdown UI and the live formula is exactly the bug this design prevents.
 

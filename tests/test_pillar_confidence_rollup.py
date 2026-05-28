@@ -84,8 +84,13 @@ class TestComputePillarConfidence:
 
 class TestGhgDqaSubScoreRecompute:
     """Pin spec §4.2 — three GHG sub-scores derive from per-indicator
-    A1 inputs (`N_valid`, `spatial_context`, `QA`); the fourth
-    (`nearby_source_isolation`) stays independent."""
+    A1 inputs (`N_valid`, `spatial_context`, `QA`).
+
+    M-ATTRIB-A1 (AT15): `nearby_source_isolation` is no longer part of
+    the data-quality aggregate at all (removed from
+    GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS — it's attributability, not
+    measurement quality). The aggregate is now exactly these three terms.
+    """
 
     @staticmethod
     def _payload(**per_indicator) -> dict:
@@ -149,10 +154,16 @@ class TestGhgDqaSubScoreRecompute:
             "ghg.spatial_resolution_suitability": None,
         }
 
-    def test_weight_dict_unchanged_by_a1(self) -> None:
-        # Spec §4.2 preserves the sums-to-1.00 weighting; A1 only rewires
-        # the four named sub-scores' derivation, not their pillar weights.
+    def test_weight_dict_sums_to_one(self) -> None:
+        # M-ATTRIB-A1 §7.5: the three surviving sub-scores still sum to 1.00
+        # after nearby_source_isolation was removed and the rest renormalised.
         assert sum(GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS.values()) == pytest.approx(1.0)
+
+    def test_nearby_source_isolation_not_in_aggregate(self) -> None:
+        # M-ATTRIB-A1 (AT15) regression: removed from the data-quality
+        # aggregate; reserved for a future attributability surface.
+        assert "ghg.nearby_source_isolation" not in GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS
+        assert len(GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +183,9 @@ class TestNatureValidPixelCoverageRecompute:
         }
 
     def test_valid_pixel_coverage_means_per_indicator_qa(self) -> None:
+        # M-ATTRIB-A1 (AT5 / Q3): regional_loss_evidence is supplied here but
+        # is NOT averaged in — it's reference data, dropped from the QA set.
+        # The mean is over the seven live Nature indicators only.
         payload = self._payload(
             kba={"qa": 1.0},
             dw={"qa": 0.9},
@@ -180,10 +194,10 @@ class TestNatureValidPixelCoverageRecompute:
             ndvi={"qa": 0.9},
             water={"qa": 0.9},
             recovery={"qa": 0.85},
-            regional_loss_evidence={"qa": 1.0},
+            regional_loss_evidence={"qa": 0.1},  # present but excluded
         )
         out = compute_nature_quality_sub_scores(payload, aoi={"radius_km": 5})
-        expected = (1.0 + 0.9 + 0.85 + 1.0 + 0.9 + 0.9 + 0.85 + 1.0) / 8
+        expected = (1.0 + 0.9 + 0.85 + 1.0 + 0.9 + 0.9 + 0.85) / 7
         assert out["nature.valid_pixel_coverage"] == pytest.approx(expected)
 
     def test_valid_pixel_coverage_skips_missing_indicators(self) -> None:
@@ -197,16 +211,22 @@ class TestNatureValidPixelCoverageRecompute:
         assert out["nature.valid_pixel_coverage"] is None
 
     def test_other_nature_sub_scores_unchanged_by_a1(self) -> None:
-        # spec §4.3 explicitly preserves these — placeholders unchanged.
+        # The two remaining measurement-quality placeholders are unchanged.
         out = compute_nature_quality_sub_scores({}, aoi={"radius_km": 5})
         assert out["nature.cloud_observation_quality"] == 0.8
         assert out["nature.seasonal_comparability"]    == 1.0
-        assert out["nature.supplier_spatial_link"]     == 0.7
+
+    def test_supplier_spatial_link_no_longer_emitted_here(self) -> None:
+        # M-ATTRIB-A1 (AT13/AT14): supplier_spatial_link is now a categorical
+        # attributability surface, not a 0-1 measurement-quality sub-score.
+        # This function no longer emits it.
+        out = compute_nature_quality_sub_scores({}, aoi={"radius_km": 5})
+        assert "nature.supplier_spatial_link" not in out
 
     def test_external_driver_screening_not_emitted_here(self) -> None:
-        # Audit §9.3 — emitted by compute_regional_loss_evidence in
-        # run_pillar, not by this function. The pre-A1 placeholder of
-        # 1.0 was removed by M-V1x-RECONCILE.
+        # Audit §9.3 / M-ATTRIB-A1 (AT5) — regional loss evidence is reference
+        # data (emitted by compute_regional_loss_evidence), never a quality
+        # sub-score here.
         out = compute_nature_quality_sub_scores({}, aoi={"radius_km": 5})
         assert "nature.external_driver_screening" not in out
 
@@ -347,6 +367,8 @@ class TestNatureValidPixelCoverageRederivationStrictNone:
     def test_nature_valid_pixel_coverage_recomputes_from_per_indicator_qa(
         self,
     ) -> None:
+        # M-ATTRIB-A1 (AT5 / Q3): regional_loss_evidence is reference data,
+        # excluded from the QA mean — averaged over the seven live indicators.
         payload = {
             f"_provenance.nature.{ind}": {"extra": {"confidence_terms": {"qa": v}}}
             for ind, v in [
@@ -357,11 +379,11 @@ class TestNatureValidPixelCoverageRederivationStrictNone:
                 ("ndvi",        0.9),
                 ("water",       0.9),
                 ("recovery",    0.85),
-                ("regional_loss_evidence", 1.0),
+                ("regional_loss_evidence", 1.0),  # present but excluded
             ]
         }
         out = compute_nature_quality_sub_scores(payload, aoi={"radius_km": 5})
-        expected = (1.0 + 0.9 + 0.85 + 1.0 + 0.9 + 0.9 + 0.85 + 1.0) / 8
+        expected = (1.0 + 0.9 + 0.85 + 1.0 + 0.9 + 0.9 + 0.85) / 7
         assert out["nature.valid_pixel_coverage"] == pytest.approx(expected)
 
     def test_nature_strict_none_propagation_with_malformed_provenance(self) -> None:

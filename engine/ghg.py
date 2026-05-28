@@ -696,14 +696,22 @@ def compute_retrieval_inventory_quality(payload: dict) -> dict:
 
 
 def compute_nearby_source_isolation(payload: dict) -> dict:
-    """Schema_v2 §3.4 — fixed 1.0 placeholder.
+    """Schema_v2 §3.4 — fixed 1.0 placeholder. RESERVED for future use.
+
+    M-ATTRIB-A1 (AT15): this is an *attributability* concept, not a
+    measurement-quality term. As of M-ATTRIB-A1 it is removed from
+    `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS` (the data-quality aggregate) so
+    the fixed 1.0 placeholder no longer inflates that score. The field is
+    still emitted into the payload and provenance — reserved for a future
+    GHG attributability surface (parallel to the M-WIND-A1 v2.0 / Nature
+    `supplier_spatial_link` attributability work) — but it does NOT enter
+    any aggregate in v1.x.
 
     The real formula (IC_v4 §7.2) is the satellite-only proxy
-    `0.5·isolation_from_no2 + 0.5·isolation_from_viirs`. Returning 1.0 in
-    v1 over-states isolation in industrial corridors — acceptable v1 trade
-    given Wind_Consistency is also deferred. Independent of A1 per spec §4.2.
+    `0.5·isolation_from_no2 + 0.5·isolation_from_viirs`. Independent of A1
+    per spec §4.2.
 
-    TODO(IC_v5): implement per §7.2 satellite-only proxy.
+    TODO(IC_v5 / future attributability milestone): implement per §7.2.
     """
     return {"ghg.nearby_source_isolation": 1.0}
 
@@ -904,7 +912,14 @@ def compute_ghg_trend(
 # `selected`. Other pillar aggregates filter both.
 def compute_ghg_data_quality_attribution(payload: dict) -> dict:
     """IC_v4 §2.3 — weighted sum per GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS
-    over the four quality sub-scores. Missing terms renormalised."""
+    over the three measurement-quality sub-scores. Missing terms
+    renormalised.
+
+    M-ATTRIB-A1 (AT15): nearby_source_isolation was removed from the
+    weights dict (attributability, not measurement quality), so this is now
+    a three-term aggregate. compute_nearby_source_isolation still emits the
+    field into the payload, but it is not a candidate here.
+    """
     candidates = {
         k: payload[k] for k in GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS
         if payload.get(k) is not None

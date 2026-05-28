@@ -20,10 +20,11 @@ from engine.air import (
     apply_aod_qa_mask,
     compute_air_audit_followup_priority,
     compute_air_pollution_proxy_score,
-    compute_attribution_confidence_score,
+    compute_attribution_confidence_score,  # M-ATTRIB-A1: legacy alias (back-compat)
     compute_heavy_industry_score,
     compute_industrial_air_pollution_burden,
     compute_industrial_combustion_proxy,
+    compute_measurement_quality_score,  # M-ATTRIB-A1 (AT16)
     compute_pm_or_aerosol,
     compute_pollutant_snapshot,
     compute_smoke_dust_regional_transport,
@@ -532,10 +533,46 @@ class TestAirAuditFollowupPartialMissing:
             "air.pollution_proxy_score":          0.5,
             "air.spatiotemporal_anomaly_score":   0.4,
             "air.trend_score":                    None,
-            "air.attribution_confidence_score":   0.7,
+            "air.measurement_quality_score":      0.7,  # M-ATTRIB-A1 (AT16)
         }
         out = compute_air_audit_followup_priority(payload, mode="trend")
         assert out["air.audit_followup_priority"] is None
+
+
+# ---------------------------------------------------------------------------
+# compute_measurement_quality_score — rename + dual-emit (M-ATTRIB-A1 §7.6)
+# ---------------------------------------------------------------------------
+
+class TestMeasurementQualityRename:
+    def _payload(self) -> dict:
+        return {f"air.{p}.confidence": 0.8 for p in ("no2", "so2", "co")}
+
+    def test_emits_both_new_and_legacy_id(self) -> None:
+        """AT16: emits the new `air.measurement_quality_score` AND the
+        legacy `air.attribution_confidence_score` during the 1-milestone
+        deprecation window (Q-AT-3)."""
+        selected = {"air.no2.score", "air.so2.score", "air.co.score"}
+        out = compute_measurement_quality_score(self._payload(), selected)
+        assert "air.measurement_quality_score" in out
+        assert "air.attribution_confidence_score" in out
+
+    def test_both_ids_carry_identical_value(self) -> None:
+        selected = {"air.no2.score", "air.so2.score", "air.co.score"}
+        out = compute_measurement_quality_score(self._payload(), selected)
+        assert out["air.measurement_quality_score"] == pytest.approx(0.8)
+        assert (
+            out["air.attribution_confidence_score"]
+            == out["air.measurement_quality_score"]
+        )
+
+    def test_both_none_when_no_contributors(self) -> None:
+        out = compute_measurement_quality_score({}, set())
+        assert out["air.measurement_quality_score"] is None
+        assert out["air.attribution_confidence_score"] is None
+
+    def test_legacy_function_alias_is_same_callable(self) -> None:
+        """Back-compat: the old function name still imports and works."""
+        assert compute_attribution_confidence_score is compute_measurement_quality_score
 
     def test_returns_none_when_all_inputs_missing(self) -> None:
         out = compute_air_audit_followup_priority(payload={}, mode="screening")
@@ -601,7 +638,7 @@ class TestRunPillar:
             "air.pollution_proxy_score",
             "air.spatiotemporal_anomaly_score",
             "air.trend_score",
-            "air.attribution_confidence_score",
+            "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             "air.audit_followup_priority",
         ):
             assert agg_id in result

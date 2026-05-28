@@ -509,6 +509,11 @@ def _render_provenance_for_payload(payload) -> str:
     fallback_html = _render_fallback_appendix(prov_blocks)
     if fallback_html:
         blocks.append(fallback_html)
+    # M-ATTRIB-A1 §5.6 — habitat attribution context. Low-only; omitted
+    # entirely otherwise (parallels coastal / fallback sub-blocks).
+    habitat_attrib_html = _render_habitat_attribution_appendix(prov_blocks)
+    if habitat_attrib_html:
+        blocks.append(habitat_attrib_html)
     return "\n".join(blocks)
 
 
@@ -650,6 +655,52 @@ def _render_fallback_appendix(prov_blocks: list[tuple[str, dict]]) -> str:
             f"— background comparisons reflect regional-scale context.</p>"
         )
     return "\n".join(parts)
+
+
+# M-ATTRIB-A1 §5.6 — PDF "Habitat attribution context" sub-block. Low-only,
+# parallel to the coastal / fallback sub-blocks. Surfaces the supplier→change
+# centroid offset for auditors when habitat conversion attributability is Low.
+_HABITAT_ATTRIB_APPENDIX_HEADER: str = "Habitat attribution context"
+
+
+def _render_habitat_attribution_appendix(
+    prov_blocks: list[tuple[str, dict]],
+) -> str:
+    """Render the §5.6 habitat-attribution sub-block, or "" unless Low.
+
+    Reads `extra.spatial_link_terms` from the
+    `nature.supplier_spatial_link` provenance block. Fires only when the
+    attributability state is "low" (High / Moderate / Sparse surface on the
+    map, not in the report); omitted entirely otherwise.
+    """
+    for ind_id, prov in prov_blocks:
+        if ind_id != "nature.supplier_spatial_link":
+            continue
+        extra = prov.get("extra")
+        if not isinstance(extra, dict):
+            continue
+        terms = extra.get("spatial_link_terms")
+        if not isinstance(terms, dict):
+            continue
+        if terms.get("attributability_state") != "low":
+            return ""
+        offset = terms.get("centroid_offset_km")
+        dist = f"{offset:.1f} km" if isinstance(offset, (int, float)) else "—"
+        direction = terms.get("direction") or "—"
+        n_change = terms.get("n_change_pixels") or 0
+        return "\n".join([
+            f"<h4>{_HABITAT_ATTRIB_APPENDIX_HEADER}</h4>",
+            "<p>This supplier shows <strong>Low</strong> attribution "
+            "confidence on habitat conversion:</p>",
+            "<ul class='provenance-extras'>",
+            f"<li>Centroid of habitat changes: <strong>{dist}</strong> from "
+            f"supplier ({html.escape(str(direction))} direction)</li>",
+            f"<li>N = <strong>{int(n_change)}</strong> change pixels</li>",
+            "<li>Interpretation: detected changes are spatially concentrated "
+            "away from the supplier coordinate.</li>",
+            "</ul>",
+        ])
+    return ""
 
 
 # M-UI-A1-SURFACE Sub-milestone 3 polish (24 May 2026): the PDF

@@ -58,11 +58,11 @@
       "air.aod.trend"
     ]
   },
-  "air.attribution_confidence_score": {
+  "air.measurement_quality_score": {
     "sub_section": "component_score",
-    "display_name": "Attribution confidence (Air)",
-    "definition": "Quality / coverage gate on the Air priority. Synthesises retrieval-quality metadata (valid-pixel coverage, retrieval inventory quality, anomaly significance) into a 0-1 confidence score.",
-    "decision_relevance": "Calibrates how seriously to take the headline Air score. Low attribution confidence (typically: thin valid-pixel coverage or sub-saturation anomaly) tells the reviewer to expect weaker spatial precision in any follow-up.",
+    "display_name": "Measurement quality (Air)",
+    "definition": "Measurement-quality gate on the Air priority (M-ATTRIB-A1, renamed from 'Attribution confidence'). Mean of the per-pollutant M-TIER-A1 confidence scores — synthesises retrieval-quality metadata (valid-pixel coverage, retrieval inventory quality, anomaly significance) into a 0-1 score. This measures how well the satellites observed the site, NOT whether the signal is attributable to the supplier (attributability is a separate categorical surface).",
+    "decision_relevance": "Calibrates how seriously to take the headline Air score. Low measurement quality (typically: thin valid-pixel coverage or sub-saturation anomaly) tells the reviewer to expect weaker spatial precision in any follow-up.",
     "limitations": "v1 confidence formula is partly placeholder (IC §6.3 gap) — the three sub-components carry flat 1.0 / 0.7 / 0.8 values pending verified retrieval-quality formulas in v1.x.",
     "esg_alignment": "—",
     "inputs": [
@@ -119,13 +119,12 @@
     "display_name": "Data-quality attribution (GHG)",
     "definition": "Quality / coverage gate on the GHG priority. Synthesises retrieval-quality metadata across CH₄ (S5P), VIIRS, and the optional CO₂ display layer.",
     "decision_relevance": "Calibrates how seriously to take the headline GHG score. CH₄ retrieval is the weakest link in tropical wet seasons (cloud cover) — low confidence often correlates with monsoon-period screenings.",
-    "limitations": "v1 confidence formula partly placeholder (IC §6.3 gap), same as Air's attribution confidence. ODIAC vintage flag (M5.5 deferred follow-up) not yet wired into the quality score.",
+    "limitations": "v1 confidence formula partly placeholder (IC §6.3 gap), same as Air's measurement quality. ODIAC vintage flag (M5.5 deferred follow-up) not yet wired into the quality score. M-ATTRIB-A1 (AT15): nearby_source_isolation was removed from this aggregate (it is an attributability concept with a fixed 1.0 v1 placeholder, not a measurement-quality term); the remaining three sub-scores are renormalised to sum to 1.0.",
     "esg_alignment": "—",
     "inputs": [
       "ghg.temporal_coverage",
       "ghg.spatial_resolution_suitability",
-      "ghg.retrieval_inventory_quality",
-      "ghg.nearby_source_isolation"
+      "ghg.retrieval_inventory_quality"
     ]
   },
 
@@ -170,20 +169,18 @@
       "nature.recovery.score"
     ]
   },
-  "nature.quality_attribution": {
+  "nature.measurement_quality": {
     "sub_section": "component_score",
-    "display_name": "Quality attribution (Nature)",
-    "definition": "Quality / coverage gate on the Nature priority. Synthesises retrieval-quality metadata across the seven Nature single-value indicators (DW class confidence, Hansen coverage, MODIS NDVI quality, etc.).",
+    "display_name": "Measurement quality (Nature)",
+    "definition": "Measurement-quality gate on the Nature priority (M-ATTRIB-A1, renamed from 'Quality attribution'). Synthesises retrieval-quality metadata across the live Nature single-value indicators (DW class confidence, valid-pixel coverage, seasonal comparability, cloud quality). This measures how well the satellites observed the site — NOT whether detected change is attributable to the supplier (attributability is a separate categorical surface, see habitat conversion's spatial link).",
     "decision_relevance": "Calibrates how seriously to take the headline Nature score. Low values typically correlate with persistent cloud cover (sparse DW composites) or AOI lying outside an asset's coverage window.",
-    "limitations": "Same IC §6.3 placeholder caveat — v1 uses partly-placeholder confidence values for five of the six sub-scores. Doesn't yet account for adaptive-scale coarsening's impact on per-pixel reliability for region-scale AOIs.",
+    "limitations": "Same IC §6.3 placeholder caveat — v1 uses partly-placeholder values for cloud_observation_quality (0.8) and seasonal_comparability (1.0). M-ATTRIB-A1 (AT13/AT14) removed supplier_spatial_link (now categorical attributability) and external_driver_screening (now reference data) from this aggregate; the four surviving sub-scores are renormalised to sum to 1.0.",
     "esg_alignment": "—",
     "inputs": [
       "nature.valid_pixel_coverage",
       "nature.cloud_observation_quality",
       "nature.dw.class_confidence",
-      "nature.seasonal_comparability",
-      "nature.supplier_spatial_link",
-      "nature.external_driver_screening"
+      "nature.seasonal_comparability"
     ]
   },
 

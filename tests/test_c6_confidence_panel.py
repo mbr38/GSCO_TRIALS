@@ -46,24 +46,28 @@ def test_air_dispatch_returns_lowest_confidence_pollutant_prose():
 def test_ghg_dispatch_returns_lowest_subscore_prose():
     """GHG's resolver picks the lowest-valued sub-score from the table."""
     payload = {
-        # nearby_source_isolation is lowest → its prose wins.
+        # M-ATTRIB-A1 (AT15): nearby_source_isolation is no longer a
+        # measurement-quality sub-score, so even though it's the lowest
+        # value here it is NOT a limiting-factor candidate. The lowest of
+        # the three real sub-scores (retrieval_inventory_quality) wins.
         "ghg.temporal_coverage":              0.80,
         "ghg.spatial_resolution_suitability": 0.70,
         "ghg.retrieval_inventory_quality":    0.65,
         "ghg.nearby_source_isolation":        0.10,
     }
     result = _limiting_factor_for("ghg", payload)
-    assert result == _GHG_LIMITING_FACTOR_PROSE["ghg.nearby_source_isolation"]
+    assert result == _GHG_LIMITING_FACTOR_PROSE["ghg.retrieval_inventory_quality"]
 
 
 def test_nature_dispatch_returns_lowest_subscore_prose():
+    # M-ATTRIB-A1 (AT13/AT14): only the four measurement-quality sub-scores
+    # are limiting-factor candidates; supplier_spatial_link and
+    # external_driver_screening are no longer measurement quality.
     payload = {
         "nature.valid_pixel_coverage":      0.90,
         "nature.cloud_observation_quality": 0.85,
         "nature.dw.class_confidence":       0.05,    # lowest → wins.
         "nature.seasonal_comparability":    0.60,
-        "nature.supplier_spatial_link":     0.40,
-        "nature.external_driver_screening": 0.50,
     }
     result = _limiting_factor_for("nature", payload)
     assert result == _NATURE_LIMITING_FACTOR_PROSE["nature.dw.class_confidence"]

@@ -18,8 +18,12 @@ Layers (mirrors engine/air.py and engine/ghg.py architecture):
    that feed the pillar follow-up priority: biodiversity_exposure,
    habitat.conversion_score, vegetation_condition.
 3. Pillar aggregates (IC_v4 §3.3 / Schema_v2 §4.10) — two aggregates:
-   nature.quality_attribution (six confidence sub-scores) and
+   nature.measurement_quality (M-ATTRIB-A1 AT13, renamed from
+   quality_attribution; four measurement-quality sub-scores) and
    nature.followup_priority (the headline pillar score).
+   Plus two non-composite surfaces added by M-ATTRIB-A1:
+   regional_loss_evidence (reference-data ratio) and supplier_spatial_link
+   (categorical habitat-conversion attributability via centroid offset).
 4. `run_pillar` — orchestrator entry point. Cross-pillar dependencies: none
    in v1; `accumulated_payload` is accepted for signature parity only.
 
@@ -31,13 +35,16 @@ Quality notes (v1 baseline):
   0.40 when fires are confirmed).
 - Sector-aware habitat weighting is deferred. Uniform DW class buckets are
   used per `engine.constants.DW_NATURAL_CLASSES` / `DW_NON_NATURAL_CLASSES`.
-- Several Nature_Quality_Attribution sub-scores are placeholders pending
+- Several Nature measurement-quality sub-scores are placeholders pending
   IC_v5 §6.3 (same TODO chain as Air's confidence).
+- M-ATTRIB-A1: measurement quality and attributability are separated.
+  supplier_spatial_link is now a categorical attributability state (centroid
+  offset, not a 0-1 quality term); external_driver_screening became the
+  regional_loss_evidence reference ratio. Neither enters the composite.
 
 TODOs deferred from this milestone:
 - TODO(v1.x): wire FIRMS once IC_v5 §7.3 confirms the active-fire multiplier.
 - TODO(IC_v5): replace placeholder quality sub-scores with real formulas.
-- TODO(v1.x): supplier_spatial_link and external_driver_screening per IC §7.5.
 - TODO(v1.x): JRC GSW long-term water mask once IC docs specify the lookback.
 """
 
@@ -60,8 +67,9 @@ from engine.constants import (
     HANSEN_LOOKBACK_YEARS,
     HANSEN_LOSS_RATIO_THRESHOLD,
     KBA_DISTANCE_DECAY_KM,
+    N_MIN_PIXELS_FOR_CENTROID,
     NATURE_FOLLOWUP_WEIGHTS,
-    NATURE_QUALITY_ATTRIBUTION_WEIGHTS,
+    NATURE_MEASUREMENT_QUALITY_WEIGHTS,
     NDVI_NEGATIVE_TREND_THRESHOLD,
     NORMALISATION_K,
     VEGETATION_CONDITION_WEIGHTS,
@@ -70,11 +78,14 @@ from engine.constants import (
 from engine.core import (
     adaptive_scale_m,
     build_provenance,
+    compass_direction,
     compute_anomaly_strength_term,
+    compute_habitat_attributability,
     compute_indicator_confidence,
     compute_n_valid_term,
     compute_qa_term,
     compute_spatial_context_term,
+    haversine_km,
     method_note_fragment,
     six_step,
 )
@@ -1047,16 +1058,24 @@ def compute_regional_loss_evidence(
 ) -> dict:
     """Audit §9.3 / IC_v4 §7.5 — Hansen ring-vs-buffer loss-rate comparison.
 
-    Emits `nature.external_driver_screening`, the IC §7.5 attribution-
-    confidence sub-score: ``External_Driver_Screening = 1 − regional_loss_evidence``.
-    The raw `regional_loss_evidence` flag is 1.0 when forest loss in the
-    Background_Ring outpaces the Site_Buffer by more than
-    `HANSEN_LOSS_RATIO_THRESHOLD` (a regional driver — drought, fire,
-    regional deforestation — rather than supplier-attributable change), 0.0
-    otherwise. The emitted sub-score is therefore 0.0 when an external driver
-    is present (low confidence the supplier is implicated) and 1.0 when it is
-    not (high confidence). It feeds `Nature_Quality_Attribution` at weight
-    0.10. The raw flag is preserved in `provenance.extra.regional_loss_evidence`.
+    M-ATTRIB-A1 (AT5): reframed as **reference data**, not attribution.
+    Methodological rationale: Hansen's ~1-year publishing lag plus the
+    5-year cumulative window mean this measures *regional deforestation
+    pressure over the Hansen window*, not the temporal scope of the current
+    screening — so it is not an attribution-confidence signal. It no longer
+    emits `nature.external_driver_screening` and no longer enters any
+    composite or measurement-quality aggregate.
+
+    The compute logic is unchanged — it still measures the ring-vs-buffer
+    loss-rate ratio — but the output is reshaped to two reference values:
+      - `nature.regional_loss_evidence.ratio`  = ring_loss_rate /
+        max(buffer_loss_rate, 1e-9). >1 ⇒ surrounding ring lost forest
+        faster than the supplier buffer (a broader regional pattern); <1 ⇒
+        the buffer was a relatively active deforestation pocket.
+      - `nature.regional_loss_evidence.window` = the Hansen lookback window
+        as a "YYYY–YYYY" string, for the M-UI-A6 Hansen-card context line.
+    The raw boolean `regional_loss_evidence` flag and the loss rates are
+    retained in `provenance.extra` for the audit trail.
 
     Hansen's annual cadence makes the user's `time_range` too narrow for
     this comparison — we always read the most recent
@@ -1068,7 +1087,8 @@ def compute_regional_loss_evidence(
     The function returns the canonical 11-field provenance block under
     `_provenance.nature.regional_loss_evidence`. Its data_type is
     `reference_dataset` to match Hansen's post-demotion treatment
-    (audit §9.3 v1.4).
+    (audit §9.3 v1.4). M-ATTRIB-A1 removed the `confidence_terms` from
+    provenance.extra (this is no longer a confidence).
     """
     cfg = NATURE_INDICATOR_CONFIG["forest_loss"]
     centre = aoi["centre"]
@@ -1112,39 +1132,29 @@ def compute_regional_loss_evidence(
     buffer_loss_rate = buffer_loss_m2 / site_area_m2 if site_area_m2 > 0 else 0.0
     ring_loss_rate = ring_loss_m2 / ring_area_m2 if ring_area_m2 > 0 else 0.0
 
-    # IC §7.5 — `regional_loss_evidence` is the raw evidence flag: 1.0 when
-    # ring loss outpaces buffer loss by > HANSEN_LOSS_RATIO_THRESHOLD (an
-    # external driver — drought/fire/regional deforestation — likely explains
-    # the change). The *scored* sub-score is its inverse:
-    #   External_Driver_Screening = 1 − regional_loss_evidence
-    # so the Nature_Quality_Attribution term reads as attribution confidence —
-    # 1.0 = no external driver (supplier implicated), 0.0 = regional driver
-    # likely explains it. The raw flag is retained in provenance.extra.
+    # M-ATTRIB-A1 (AT5) — reference-data ratio. The raw boolean flag is kept
+    # for the audit trail but is no longer the headline output.
+    #   regional_loss_evidence (flag) = 1.0 when ring loss outpaces buffer
+    #     loss by > HANSEN_LOSS_RATIO_THRESHOLD (a broader regional pattern).
+    #   ratio = ring_loss_rate / max(buffer_loss_rate, 1e-9): the continuous
+    #     ring-vs-buffer comparison surfaced on the M-UI-A6 Hansen card.
     regional_loss_evidence = (
         1.0
         if ring_loss_rate > HANSEN_LOSS_RATIO_THRESHOLD * buffer_loss_rate
         else 0.0
     )
-    external_driver_screening = 1.0 - regional_loss_evidence
+    ratio = ring_loss_rate / max(buffer_loss_rate, 1e-9)
 
     lookback_start_year = 2000 + lookback_start_offset
     lookback_end_year = 2000 + _HANSEN_MAX_LOSS_YEAR
     hansen_window = (f"{lookback_start_year}-01-01", f"{lookback_end_year}-12-31")
-
-    rle_terms = _single_snapshot_confidence_terms(
-        "nature.regional_loss_evidence",
-        aoi=aoi,
-        n_observations=HANSEN_LOOKBACK_YEARS,
-    )
-    rle_confidence = compute_indicator_confidence(
-        indicator_id="nature.regional_loss_evidence",
-        column_to_surface_uncertainty="n_a",
-        **rle_terms,
-    )
+    window_label = f"{lookback_start_year}–{lookback_end_year}"
 
     return {
-        "nature.external_driver_screening": external_driver_screening,
-        "nature.regional_loss_evidence.confidence": rle_confidence,
+        # M-ATTRIB-A1 (AT5): reference-data outputs — NOT attribution, NOT in
+        # any composite or measurement-quality aggregate.
+        "nature.regional_loss_evidence.ratio": ratio,
+        "nature.regional_loss_evidence.window": window_label,
         "_provenance.nature.regional_loss_evidence": build_provenance(
             indicator_id="nature.regional_loss_evidence",
             asset_id=cfg.asset_id,
@@ -1157,21 +1167,184 @@ def compute_regional_loss_evidence(
                 f"Hansen lossyear sum over Site_Buffer and Background_Ring "
                 f"across the most recent {HANSEN_LOOKBACK_YEARS} loss years "
                 f"(years {lookback_start_year}-{lookback_end_year}); "
-                f"regional_loss_evidence = 1.0 if ring_rate > "
-                f"{HANSEN_LOSS_RATIO_THRESHOLD} × buffer_rate; "
-                "External_Driver_Screening = 1 − regional_loss_evidence "
-                "(audit §9.3 v1.4 / IC §7.5)"
+                f"reference ratio = ring_rate / buffer_rate. Reference data "
+                "(M-ATTRIB-A1 / audit §9.3 v1.4): regional context only, not "
+                "attribution and not in the composite."
             ),
             observations={"count": HANSEN_LOOKBACK_YEARS, "unit": "annual_rasters"},
             extra={
-                "regional_loss_evidence":     regional_loss_evidence,
+                "ratio":                      ratio,
+                "regional_loss_evidence_raw": regional_loss_evidence,
                 "buffer_loss_rate_m2_per_m2": buffer_loss_rate,
                 "ring_loss_rate_m2_per_m2":   ring_loss_rate,
                 "lookback_years":             HANSEN_LOOKBACK_YEARS,
                 "ratio_threshold":            HANSEN_LOSS_RATIO_THRESHOLD,
                 "hansen_max_loss_year":       _HANSEN_MAX_LOSS_YEAR,
-                "confidence_terms": {**rle_terms, "column_to_surface_uncertainty": "n_a"},
+                # M-ATTRIB-A1: confidence_terms removed — no longer a confidence.
             },
+        ),
+    }
+
+
+# M-ATTRIB-A1 (AT7) — DW class indices for the natural→non-natural transition
+# mask. Computed once at import from the module-level DW_INDEX_TO_LABEL order.
+_NATURAL_DW_INDICES: list[int] = [DW_INDEX_TO_LABEL.index(c) for c in DW_NATURAL_CLASSES]
+_NON_NATURAL_DW_INDICES: list[int] = [DW_INDEX_TO_LABEL.index(c) for c in DW_NON_NATURAL_CLASSES]
+
+
+def compute_supplier_spatial_link(
+    aoi: dict,
+    time_range: tuple[str, str],
+    ee_client,                                          # noqa: ARG001 — parity
+    *,
+    n_min_pixels: int = N_MIN_PIXELS_FOR_CENTROID,
+) -> dict:
+    """Habitat-conversion attributability via centroid offset (Approach C).
+
+    M-ATTRIB-A1 (AT7 / AT8 / §4.3): the *sole* attributability signal for
+    habitat conversion in v1.x. Measurement quality (how well we observed)
+    and attributability (whether the change is plausibly the supplier's) are
+    separate concepts — this is the latter, categorical, and it does NOT
+    enter the composite or the measurement-quality aggregate (AT1 / AT18).
+
+    Steps:
+      1. Build current and baseline DW mode-label images over the same two
+         windows `compute_habitat_conversion` uses (current `time_range`;
+         baseline `HABITAT_BASELINE_YEARS` earlier).
+      2. Per-pixel transition mask: baseline pixel ∈ natural classes AND
+         current pixel ∈ non-natural classes (the natural→non-natural
+         conversion the habitat signal aggregates at buffer level).
+      3. Reduce: count the transition pixels and take the (equal-area)
+         centroid of their lon/lat over the site buffer. With binary
+         per-pixel conversion at a fixed reduction scale, the mean of
+         `pixelLonLat()` over the masked pixels is the area-weighted centroid.
+      4. Geodesic distance (haversine) from the supplier coordinate
+         (`aoi['centre']`) to that centroid → categorical state.
+
+    Sparse case: fewer than `n_min_pixels` transition pixels (or empty DW
+    windows / no centroid) ⇒ `attributability_state = "sparse"`, with
+    None centroid coordinates and offset. No exception is raised — sparse
+    is an honest "not enough signal to attribute", not a compute failure.
+
+    Emits (none enter any composite or aggregate):
+        nature.supplier_spatial_link.centroid_offset_km   (None if sparse)
+        nature.supplier_spatial_link.centroid_lat         (None if sparse)
+        nature.supplier_spatial_link.centroid_lon         (None if sparse)
+        nature.supplier_spatial_link.n_change_pixels      (int)
+        nature.habitat.attributability_state              (high/moderate/low/sparse)
+        _provenance.nature.supplier_spatial_link          (AT17 fields in extra)
+    """
+    cfg = NATURE_INDICATOR_CONFIG["habitat"]
+    centre = aoi["centre"]
+    radius_km = aoi["radius_km"]
+    geom = site_buffer(centre, radius_km)
+    scale_m = adaptive_scale_m(geom, cfg.scale_m)
+
+    start_year = int(time_range[0][:4])
+    end_year = int(time_range[1][:4])
+    baseline_start = f"{start_year - HABITAT_BASELINE_YEARS}-{time_range[0][5:]}"
+    baseline_end = f"{end_year - HABITAT_BASELINE_YEARS}-{time_range[1][5:]}"
+
+    current_ic = (
+        ee.ImageCollection(cfg.asset_id)
+        .filterDate(time_range[0], time_range[1])
+        .filterBounds(geom)
+    )
+    baseline_ic = (
+        ee.ImageCollection(cfg.asset_id)
+        .filterDate(baseline_start, baseline_end)
+        .filterBounds(geom)
+    )
+
+    centroid_offset_km: float | None = None
+    centroid_lat: float | None = None
+    centroid_lon: float | None = None
+    n_change_pixels = 0
+
+    # Empty DW windows ⇒ no transition layer ⇒ sparse (mirrors the
+    # M-NATURE-DEFENSIVE no_dw_pixels guard in compute_habitat_conversion).
+    if (current_ic.size().getInfo() or 0) > 0 and (baseline_ic.size().getInfo() or 0) > 0:
+        current_label = current_ic.select("label").mode()
+        baseline_label = baseline_ic.select("label").mode()
+
+        baseline_natural = baseline_label.remap(
+            _NATURAL_DW_INDICES, [1] * len(_NATURAL_DW_INDICES), 0,
+        )
+        current_non_natural = current_label.remap(
+            _NON_NATURAL_DW_INDICES, [1] * len(_NON_NATURAL_DW_INDICES), 0,
+        )
+        transition = baseline_natural.And(current_non_natural).rename("change").selfMask()
+
+        n_change_pixels = int(
+            (transition.reduceRegion(
+                reducer=ee.Reducer.count(),
+                geometry=geom,
+                scale=scale_m,
+                bestEffort=True,
+                maxPixels=int(1e9),
+            ).getInfo() or {}).get("change") or 0
+        )
+
+        if n_change_pixels >= n_min_pixels:
+            lonlat = ee.Image.pixelLonLat().updateMask(transition)
+            centroid = lonlat.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=geom,
+                scale=scale_m,
+                bestEffort=True,
+                maxPixels=int(1e9),
+            ).getInfo() or {}
+            centroid_lon = centroid.get("longitude")
+            centroid_lat = centroid.get("latitude")
+            if centroid_lat is not None and centroid_lon is not None:
+                centroid_offset_km = haversine_km(
+                    centre["lat"], centre["lon"], centroid_lat, centroid_lon,
+                )
+
+    state = compute_habitat_attributability(centroid_offset_km, n_change_pixels)
+    # Compass bearing supplier→centroid for the C5 expander + PDF prose
+    # (None when sparse / no centroid).
+    direction = (
+        compass_direction(centre["lat"], centre["lon"], centroid_lat, centroid_lon)
+        if centroid_lat is not None and centroid_lon is not None
+        else None
+    )
+
+    spatial_link_terms = {
+        "attributability_state": state,
+        "centroid_offset_km":    centroid_offset_km,
+        "centroid_lat":          centroid_lat,
+        "centroid_lon":          centroid_lon,
+        "n_change_pixels":       n_change_pixels,
+        "n_min_pixels":          n_min_pixels,
+        "direction":             direction,
+    }
+
+    return {
+        "nature.supplier_spatial_link.centroid_offset_km": centroid_offset_km,
+        "nature.supplier_spatial_link.centroid_lat":       centroid_lat,
+        "nature.supplier_spatial_link.centroid_lon":       centroid_lon,
+        "nature.supplier_spatial_link.n_change_pixels":    n_change_pixels,
+        "nature.habitat.attributability_state":            state,
+        "_provenance.nature.supplier_spatial_link": build_provenance(
+            indicator_id="nature.supplier_spatial_link",
+            asset_id=cfg.asset_id,
+            band="label",
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "Centroid of natural→non-natural DW transition pixels "
+                f"(baseline {HABITAT_BASELINE_YEARS}y earlier) vs supplier "
+                "coordinate; geodesic offset bucketed categorically. "
+                "Attributability surface (M-ATTRIB-A1) — NOT in any composite "
+                f"or measurement-quality score; {method_note_fragment(scale_m, cfg.scale_m)}"
+            ),
+            # `change_pixels` isn't one of the schema's temporal observation
+            # units; the transition-pixel count lives in spatial_link_terms.
+            observations=None,
+            extra={"spatial_link_terms": spatial_link_terms},
         ),
     }
 
@@ -1635,9 +1808,12 @@ def compute_vegetation_condition(payload: dict) -> dict:
 # Quality-attribution sub-scores  (IC §3.3 / Schema_v2 §4.8 — placeholders)
 # ---------------------------------------------------------------------------
 
+# M-ATTRIB-A1 (AT5 / Q3): regional_loss_evidence dropped — it is reference
+# data, not measurement quality, so its QA term no longer feeds the Nature
+# measurement-quality aggregate (valid_pixel_coverage). forest_loss stays:
+# it's still a live Nature indicator's QA term in v1.
 _NATURE_QA_INDICATOR_KEYS: tuple[str, ...] = (
     "kba", "dw", "habitat", "forest_loss", "ndvi", "water", "recovery",
-    "regional_loss_evidence",
 )
 
 
@@ -1656,18 +1832,25 @@ def _nature_confidence_term_for(
 
 
 def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
-    """Five of the six IC §3.3 confidence-side sub-scores.
+    """Three of the four IC §3.3 measurement-quality sub-scores.
 
-    The sixth, `dw.class_confidence`, is already produced by
-    `compute_current_land_cover`. `nature.external_driver_screening` is
-    produced by `compute_regional_loss_evidence` (audit §9.3 / IC §7.5).
+    The fourth, `dw.class_confidence`, is already produced by
+    `compute_current_land_cover` (we don't redefine it here so the
+    DW-emitted value flows through).
 
-    M-TIER-A1 (spec §4.3): `nature.valid_pixel_coverage` is now the mean
-    of per-indicator A1 QA terms across the Nature indicators that
-    emitted them — replaces the pre-A1 echo of `dw.class_confidence`.
-    The other three sub-scores stay as placeholders pending Tier C
-    work (Seasonal_Comparability month-offset, real Cloud_or_Observation_Quality
-    from SCL, Supplier_Spatial_Link per §7.5).
+    M-ATTRIB-A1 (AT13 / AT14): this function no longer emits
+    `nature.supplier_spatial_link` — that signal became a categorical
+    *attributability* surface (centroid offset; see
+    `compute_supplier_spatial_link` + engine.core.attributability) and is
+    NOT a measurement-quality term. `nature.external_driver_screening`
+    (from `compute_regional_loss_evidence`) is likewise gone from this
+    pillar's measurement quality — it's now reference data.
+
+    M-TIER-A1 (spec §4.3): `nature.valid_pixel_coverage` is the mean of
+    per-indicator A1 QA terms across the live Nature indicators that
+    emitted them. The other two sub-scores here stay as placeholders
+    pending Tier C work (Seasonal_Comparability month-offset; real
+    Cloud_or_Observation_Quality from SCL).
     """
     qa_values = [
         v for ind in _NATURE_QA_INDICATOR_KEYS
@@ -1686,8 +1869,6 @@ def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
         # Seasonal_Comparability: 1.0 if user-selected window matches a 90-day
         # bracket cleanly; placeholder 1.0 until the month-offset calc lands.
         "nature.seasonal_comparability":    1.0,
-        # §7.5 placeholder.
-        "nature.supplier_spatial_link":     0.7,
     }
 
 
@@ -1695,30 +1876,42 @@ def compute_nature_quality_sub_scores(payload: dict, aoi: dict) -> dict:
 # Pillar aggregates  (IC_v4 §3.3 / Schema_v2 §4.10)
 # ---------------------------------------------------------------------------
 
-def compute_nature_quality_attribution(payload: dict) -> dict:
-    """IC §3.3 — weighted sum of the six confidence-side sub-scores.
+def compute_nature_measurement_quality(payload: dict) -> dict:
+    """IC §3.3 — weighted sum of the four measurement-quality sub-scores.
+
+    M-ATTRIB-A1 (AT13): renamed from `compute_nature_quality_attribution`
+    and reshaped. The aggregate now contains only measurement-quality
+    terms (valid_pixel_coverage, cloud_observation_quality,
+    dw.class_confidence, seasonal_comparability). The two attribution
+    signals that the old name papered over — `supplier_spatial_link`
+    (now categorical attributability) and `external_driver_screening`
+    (now reference data) — no longer enter it. Emits the renamed ID
+    `nature.measurement_quality`.
 
     Missing terms renormalised. Returns None if every term is None.
     """
     candidates = {
-        k: payload[k] for k in NATURE_QUALITY_ATTRIBUTION_WEIGHTS
+        k: payload[k] for k in NATURE_MEASUREMENT_QUALITY_WEIGHTS
         if payload.get(k) is not None
     }
     if not candidates:
-        return {"nature.quality_attribution": None}
+        return {"nature.measurement_quality": None}
     weights = _renormalise_weights(
-        NATURE_QUALITY_ATTRIBUTION_WEIGHTS, set(candidates),
+        NATURE_MEASUREMENT_QUALITY_WEIGHTS, set(candidates),
     )
     score = sum(weights[k] * candidates[k] for k in candidates)
-    return {"nature.quality_attribution": score}
+    return {"nature.measurement_quality": score}
 
 
 # Maps NATURE_FOLLOWUP_WEIGHTS keys to canonical payload IDs.
+# M-ATTRIB-A1 (AT13): the "quality_attribution" term label is retained as an
+# internal followup-weight key (the weight is unchanged per §4.1), but it
+# now points at the renamed `nature.measurement_quality` aggregate ID.
 _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "biodiversity_exposure": "nature.biodiversity_exposure",
     "habitat_conversion":    "nature.habitat.conversion_score",
     "vegetation_condition":  "nature.vegetation_condition",
-    "quality_attribution":   "nature.quality_attribution",
+    "quality_attribution":   "nature.measurement_quality",
 }
 
 
@@ -1839,18 +2032,43 @@ def run_pillar(
         )
 
     # External driver screening — single Hansen reduceRegion pair, cheap.
-    # Always runs when Nature runs; replaces the v1 constant-1.0 placeholder
-    # that compute_nature_quality_sub_scores used to emit. Audit §9.3 /
-    # IC_v4 §7.5. Runs before the pure aggregates (it's independent of them
-    # and its output feeds the quality sub-scores) so the rest can live in
-    # `recompute_nature_aggregates`, reusable by the M-FALLBACK-A1 patch path.
+    # M-ATTRIB-A1 (AT5): regional_loss_evidence is reference data (Hansen
+    # ring-vs-buffer ratio), not a quality sub-score. It no longer feeds any
+    # aggregate, but still runs when Nature runs so the M-UI-A6 Hansen card
+    # can show the regional-context line. Audit §9.3 / IC_v4 §7.5. Runs before
+    # the pure aggregates so the rest can live in `recompute_nature_aggregates`.
     if indicator_keys:
         try:
             payload.update(compute_regional_loss_evidence(aoi, time_range, ee_client))
         except IndicatorComputeError as err:
-            payload["nature.external_driver_screening"] = None
+            payload["nature.regional_loss_evidence.ratio"] = None
+            payload["nature.regional_loss_evidence.window"] = None
             failures.append({
                 "indicator":    "regional_loss_evidence",
+                "indicator_id": err.indicator_id,
+                "reason":       err.reason,
+            })
+
+    # M-ATTRIB-A1 (AT7/AT8): habitat-conversion attributability via centroid
+    # offset. Only runs when habitat conversion was selected (it's the
+    # attributability surface for that indicator). EE call → lives here, not
+    # in recompute_nature_aggregates. Attributability never enters an
+    # aggregate, so a failure degrades to "sparse", never a pillar failure.
+    if "habitat" in indicator_keys:
+        try:
+            payload.update(
+                compute_supplier_spatial_link(aoi, time_range, ee_client)
+            )
+        except IndicatorComputeError as err:
+            payload.update({
+                "nature.supplier_spatial_link.centroid_offset_km": None,
+                "nature.supplier_spatial_link.centroid_lat":       None,
+                "nature.supplier_spatial_link.centroid_lon":       None,
+                "nature.supplier_spatial_link.n_change_pixels":    0,
+                "nature.habitat.attributability_state":            "sparse",
+            })
+            failures.append({
+                "indicator":    "supplier_spatial_link",
                 "indicator_id": err.indicator_id,
                 "reason":       err.reason,
             })
@@ -1870,7 +2088,8 @@ def recompute_nature_aggregates(payload: dict, aoi: dict, mode: str) -> dict:
     Extracted from `run_pillar` so the M-FALLBACK-A1 patch path can refresh
     the aggregates after splicing a recomputed single indicator. Does NOT
     re-run `compute_regional_loss_evidence` (an EE call) — it preserves the
-    existing `nature.external_driver_screening` value from the screening.
+    existing `nature.regional_loss_evidence.*` reference values from the
+    screening (M-ATTRIB-A1: reference data, not in any aggregate).
     """
     # Augment habitat payload with the four pct_norm derived keys, plus
     # annualised_rate_score, that HABITAT_CONVERSION_WEIGHTS reads.
@@ -1884,7 +2103,7 @@ def recompute_nature_aggregates(payload: dict, aoi: dict, mode: str) -> dict:
 
     # Quality sub-scores + pillar aggregates.
     payload.update(compute_nature_quality_sub_scores(payload, aoi))
-    payload.update(compute_nature_quality_attribution(payload))
+    payload.update(compute_nature_measurement_quality(payload))
     payload.update(compute_nature_spatiotemporal_anomaly(payload))
     payload.update(compute_nature_followup_priority(payload, mode))
     return payload

@@ -32,10 +32,11 @@ from ui.components.traffic_light import (
 
 
 # (display name, confidence payload key, pillar id for limiting-factor dispatch).
+# M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
 _PILLAR_ROWS: tuple[tuple[str, str, str], ...] = (
-    ("Air Pollution", "air.attribution_confidence_score", "air"),
-    ("GHG emissions", "ghg.data_quality_attribution",     "ghg"),
-    ("Nature/Land",   "nature.quality_attribution",       "nature"),
+    ("Air Pollution", "air.measurement_quality_score", "air"),
+    ("GHG emissions", "ghg.data_quality_attribution",  "ghg"),
+    ("Nature/Land",   "nature.measurement_quality",    "nature"),
 )
 
 

@@ -27,6 +27,7 @@ from ui.components.c5_drilldown import (
     _odiac_card_fields,
     _odiac_vintage_year,
     _parse_year_from_asset_id,
+    _regional_context_line,
 )
 from engine.verbal_summary import (
     _hansen_reference_clause,
@@ -95,6 +96,59 @@ def test_hansen_vintage_from_provenance():
 def test_hansen_vintage_falls_back_when_no_provenance():
     # Fallback mirrors engine.nature._HANSEN_MAX_LOSS_YEAR (23 → 2023).
     assert _hansen_vintage_year({}) == 2023
+
+
+# ---------------------------------------------------------------------------
+# M-ATTRIB-A1 (AT6/AT22) — Hansen-card regional-context line
+# ---------------------------------------------------------------------------
+
+class TestRegionalContextLine:
+    def test_none_when_ratio_or_window_missing(self):
+        assert _regional_context_line({}) is None
+        assert _regional_context_line(
+            {"nature.regional_loss_evidence.ratio": 1.2}
+        ) is None
+        assert _regional_context_line(
+            {"nature.regional_loss_evidence.window": "2019–2023"}
+        ) is None
+
+    def test_low_ratio_says_buffer_was_active_pocket(self):
+        line = _regional_context_line({
+            "nature.regional_loss_evidence.ratio": 0.3,
+            "nature.regional_loss_evidence.window": "2019–2023",
+        })
+        assert "ring loss is 0.3× buffer loss over 2019–2023" in line
+        assert "active deforestation pocket" in line
+
+    def test_similar_ratio_says_no_strong_pattern(self):
+        line = _regional_context_line({
+            "nature.regional_loss_evidence.ratio": 1.0,
+            "nature.regional_loss_evidence.window": "2019–2023",
+        })
+        assert "no strong" in line
+
+    def test_high_ratio_says_broader_regional_pattern(self):
+        line = _regional_context_line({
+            "nature.regional_loss_evidence.ratio": 3.5,
+            "nature.regional_loss_evidence.window": "2019–2023",
+        })
+        assert "ring loss is 3.5× buffer loss" in line
+        assert "broader regional deforestation pattern" in line
+
+    def test_hansen_card_fields_carries_regional_context(self):
+        payload = {
+            "nature.forest_loss.pct": 2.34,
+            "nature.regional_loss_evidence.ratio": 1.8,
+            "nature.regional_loss_evidence.window": "2019–2023",
+            **_HANSEN_PROV_2023,
+        }
+        fields = _hansen_card_fields(payload)
+        assert fields.regional_context is not None
+        assert "1.8×" in fields.regional_context
+
+    def test_odiac_card_has_no_regional_context(self):
+        fields = _odiac_card_fields(_full_present_payload())
+        assert fields.regional_context is None
 
 
 def test_odiac_vintage_from_coverage_window():
