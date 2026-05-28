@@ -1,0 +1,326 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8511/
+          - generic [ref=e21]: 🏠
+          - paragraph [ref=e24]: Landing
+      - listitem [ref=e25]:
+        - link "Scope Setup" [ref=e27] [cursor=pointer]:
+          - /url: http://localhost:8511/Scope_Setup
+          - generic [ref=e30]: 🌍
+          - paragraph [ref=e33]: Scope Setup
+      - listitem [ref=e34]:
+        - link "Workflow Hub" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8511/Workflow_Hub
+          - generic [ref=e39]: 🔀
+          - paragraph [ref=e42]: Workflow Hub
+      - listitem [ref=e43]:
+        - link "Inspect — Setup" [ref=e45] [cursor=pointer]:
+          - /url: http://localhost:8511/Inspect_Setup
+          - generic [ref=e48]: 🔍
+          - paragraph [ref=e51]: Inspect — Setup
+      - listitem [ref=e52]:
+        - link "Inspect — Results" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8511/Screening_Results
+          - generic [ref=e57]: 📊
+          - paragraph [ref=e60]: Inspect — Results
+      - listitem [ref=e61]:
+        - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Setup
+          - generic [ref=e66]: 📋
+          - paragraph [ref=e69]: Prioritisation — Setup
+      - listitem [ref=e70]:
+        - link "Prioritisation — Results" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Results
+          - generic [ref=e75]: 📈
+          - paragraph [ref=e78]: Prioritisation — Results
+      - listitem [ref=e79]:
+        - link "Indicator Library" [ref=e81] [cursor=pointer]:
+          - /url: http://localhost:8511/Indicator_Library
+          - generic [ref=e84]: 📚
+          - paragraph [ref=e87]: Indicator Library
+      - listitem [ref=e88]:
+        - link "Saved Analyses" [ref=e90] [cursor=pointer]:
+          - /url: http://localhost:8511/Saved_Analyses
+          - generic [ref=e93]: 💾
+          - paragraph [ref=e96]: Saved Analyses
+      - listitem [ref=e97]:
+        - link "Reports" [ref=e99] [cursor=pointer]:
+          - /url: http://localhost:8511/Reports
+          - generic [ref=e102]: 📄
+          - paragraph [ref=e105]: Reports
+    - generic [ref=e106]:
+      - paragraph [ref=e110] [cursor=pointer]: Developer
+      - listitem [ref=e111]:
+        - link "Engine Scratch (dev)" [ref=e113] [cursor=pointer]:
+          - /url: http://localhost:8511/engine_scratch
+          - generic [ref=e116]: 🧪
+          - paragraph [ref=e119]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e123]
+    - generic [ref=e125]:
+      - generic [ref=e342]:
+        - generic [ref=e347]:
+          - button "Fullscreen" [ref=e352] [cursor=pointer]:
+            - img [ref=e353]
+          - img "0" [ref=e358]
+        - paragraph [ref=e365]:
+          - text: Signed in as
+          - strong [ref=e366]: Policy Maker
+          - text: · Session
+          - code [ref=e367]: ffd6f927
+        - generic [ref=e371]:
+          - paragraph [ref=e378]: "Scope: not set"
+          - button "Pick scope" [ref=e9389] [cursor=pointer]:
+            - paragraph [ref=e9393]: Pick scope
+        - button "Sign out" [ref=e9396] [cursor=pointer]:
+          - paragraph [ref=e9400]: Sign out
+      - separator [ref=e401]
+      - heading "Inspect — Setup" [level=1] [ref=e9401]:
+        - text: Inspect — Setup
+        - generic [ref=e407]:
+          - link "Link to heading":
+            - /url: "#inspect-setup"
+            - img
+      - paragraph [ref=e9406]: "Configure a single-supplier screening: pick a location, a radius, and the indicators you want. The result lands on the Screening Results page (P-05)."
+      - generic [ref=e9408]:
+        - heading "Location" [level=3] [ref=e9414]:
+          - text: Location
+          - generic [ref=e9415]:
+            - link "Link to heading":
+              - /url: "#location"
+              - img
+        - generic [ref=e9417]:
+          - tablist [ref=e9419]:
+            - tab "Free coordinates" [selected] [ref=e9420] [cursor=pointer]:
+              - paragraph [ref=e9422]: Free coordinates
+            - tab "Region" [ref=e9423] [cursor=pointer]:
+              - paragraph [ref=e9425]: Region
+            - tab "Supplier" [ref=e9426] [cursor=pointer]:
+              - paragraph [ref=e9428]: Supplier
+          - tabpanel "Free coordinates" [ref=e9431]:
+            - generic [ref=e9432]:
+              - generic [ref=e9434]:
+                - textbox "Search for a location" [ref=e9441]:
+                  - /placeholder: e.g. "São Paulo, Brazil"
+                - button "Search" [ref=e9446] [cursor=pointer]:
+                  - paragraph [ref=e9450]: Search
+              - generic [ref=e9452]:
+                - generic [ref=e9456]:
+                  - generic [ref=e9457]:
+                    - paragraph [ref=e9460]: Latitude
+                    - button "Help for Latitude" [ref=e9464] [cursor=pointer]:
+                      - img [ref=e9465]
+                  - generic [ref=e9468]:
+                    - spinbutton "Latitude" [ref=e9471]: "-15.7808"
+                    - generic [ref=e9472]:
+                      - button [ref=e9473] [cursor=pointer]:
+                        - img [ref=e9474]
+                      - button [ref=e9476] [cursor=pointer]:
+                        - img [ref=e9477]
+                - generic [ref=e9482]:
+                  - generic [ref=e9483]:
+                    - paragraph [ref=e9486]: Longitude
+                    - button "Help for Longitude" [ref=e9490] [cursor=pointer]:
+                      - img [ref=e9491]
+                  - generic [ref=e9494]:
+                    - spinbutton "Longitude" [ref=e9497]: "-47.7968"
+                    - generic [ref=e9498]:
+                      - button [ref=e9499] [cursor=pointer]:
+                        - img [ref=e9500]
+                      - button [ref=e9502] [cursor=pointer]:
+                        - img [ref=e9503]
+      - generic [ref=e1100]:
+        - heading "Buffer radius" [level=3] [ref=e9505]:
+          - text: Buffer radius
+          - generic [ref=e1107]:
+            - link "Link to heading":
+              - /url: "#priority"
+              - img
+        - generic [ref=e9508]:
+          - generic [ref=e9509]:
+            - paragraph [ref=e9512]: Radius (km)
+            - button "Help for Radius (km)" [ref=e9516] [cursor=pointer]:
+              - img [ref=e9517]
+          - generic [ref=e9520]:
+            - slider "Radius (km)" [active] [ref=e9524]:
+              - generic:
+                - generic:
+                  - paragraph: "5"
+            - generic:
+              - generic:
+                - paragraph: "1"
+              - generic:
+                - paragraph: "100"
+        - paragraph [ref=e9530]:
+          - text: Screening will inspect a
+          - strong [ref=e9531]: 5 km radius
+          - text: around the centre.
+      - generic [ref=e9533]:
+        - generic [ref=e9535]:
+          - generic [ref=e9537]:
+            - heading "Indicators" [level=3] [ref=e9543]:
+              - text: Indicators
+              - generic [ref=e9544]:
+                - link "Link to heading":
+                  - /url: "#indicators"
+                  - img
+            - paragraph [ref=e9549]: All indicators are selected by default. Deselect any you don't need; a single-indicator selection produces the focused map view.
+          - generic [ref=e9553]:
+            - button "Reset to all" [ref=e9558] [cursor=pointer]:
+              - paragraph [ref=e9562]: Reset to all
+            - button "Deselect all" [ref=e9567] [cursor=pointer]:
+              - paragraph [ref=e9571]: Deselect all
+        - group [ref=e9574]:
+          - generic "keyboard_arrow_down Air Pollution (9 / 9 selected)" [ref=e9575] [cursor=pointer]:
+            - generic [ref=e9576]:
+              - generic [ref=e9578]: keyboard_arrow_down
+              - paragraph [ref=e9581]: Air Pollution (9 / 9 selected)
+          - generic [ref=e9583]:
+            - generic [ref=e9586] [cursor=pointer]:
+              - checkbox "**Select all Air Pollution**" [checked]
+              - paragraph [ref=e9591]:
+                - strong [ref=e9592]: Select all Air Pollution
+            - separator [ref=e9597]
+            - generic [ref=e9599]:
+              - generic [ref=e9601]:
+                - generic [ref=e9604] [cursor=pointer]:
+                  - checkbox "NO₂" [checked]
+                  - paragraph [ref=e9609]: NO₂
+                - generic [ref=e9612] [cursor=pointer]:
+                  - checkbox "HCHO" [checked]
+                  - paragraph [ref=e9617]: HCHO
+                - generic [ref=e9620] [cursor=pointer]:
+                  - checkbox "O₃" [checked]
+                  - paragraph [ref=e9625]: O₃
+              - generic [ref=e9627]:
+                - generic [ref=e9630] [cursor=pointer]:
+                  - checkbox "SO₂" [checked]
+                  - paragraph [ref=e9635]: SO₂
+                - generic [ref=e9638] [cursor=pointer]:
+                  - checkbox "PM₂.₅" [checked]
+                  - paragraph [ref=e9643]: PM₂.₅
+                - generic [ref=e9646] [cursor=pointer]:
+                  - checkbox "AAI (Aerosol Absorbing Index)" [checked]
+                  - paragraph [ref=e9651]: AAI (Aerosol Absorbing Index)
+              - generic [ref=e9653]:
+                - generic [ref=e9656] [cursor=pointer]:
+                  - checkbox "CO" [checked]
+                  - paragraph [ref=e9661]: CO
+                - generic [ref=e9664] [cursor=pointer]:
+                  - checkbox "PM₁₀" [checked]
+                  - paragraph [ref=e9669]: PM₁₀
+                - generic [ref=e9672] [cursor=pointer]:
+                  - checkbox "AOD (Aerosol Optical Depth)" [checked]
+                  - paragraph [ref=e9677]: AOD (Aerosol Optical Depth)
+        - group [ref=e9680]:
+          - generic "keyboard_arrow_down GHG emissions (3 / 3 selected)" [ref=e9681] [cursor=pointer]:
+            - generic [ref=e9682]:
+              - generic [ref=e9684]: keyboard_arrow_down
+              - paragraph [ref=e9687]: GHG emissions (3 / 3 selected)
+          - generic [ref=e9689]:
+            - generic [ref=e9692] [cursor=pointer]:
+              - checkbox "**Select all GHG emissions**" [checked]
+              - paragraph [ref=e9697]:
+                - strong [ref=e9698]: Select all GHG emissions
+            - separator [ref=e9703]
+            - generic [ref=e9705]:
+              - generic [ref=e9710] [cursor=pointer]:
+                - checkbox "CH₄" [checked]
+                - paragraph [ref=e9715]: CH₄
+              - generic [ref=e9720] [cursor=pointer]:
+                - checkbox "CO₂ (ODIAC)" [checked]
+                - paragraph [ref=e9725]: CO₂ (ODIAC)
+              - generic [ref=e9730] [cursor=pointer]:
+                - checkbox "Nighttime lights (VIIRS)" [checked]
+                - paragraph [ref=e9735]: Nighttime lights (VIIRS)
+        - group [ref=e9738]:
+          - generic "keyboard_arrow_down Nature/Land (7 / 7 selected)" [ref=e9739] [cursor=pointer]:
+            - generic [ref=e9740]:
+              - generic [ref=e9742]: keyboard_arrow_down
+              - paragraph [ref=e9745]: Nature/Land (7 / 7 selected)
+          - generic [ref=e9747]:
+            - generic [ref=e9750] [cursor=pointer]:
+              - checkbox "**Select all Nature/Land**" [checked]
+              - paragraph [ref=e9755]:
+                - strong [ref=e9756]: Select all Nature/Land
+            - separator [ref=e9761]
+            - generic [ref=e9763]:
+              - generic [ref=e9765]:
+                - generic [ref=e9768] [cursor=pointer]:
+                  - checkbox "Key Biodiversity Areas" [checked]
+                  - paragraph [ref=e9773]: Key Biodiversity Areas
+                - generic [ref=e9776] [cursor=pointer]:
+                  - checkbox "Forest loss (Hansen)" [checked]
+                  - paragraph [ref=e9781]: Forest loss (Hansen)
+                - generic [ref=e9784] [cursor=pointer]:
+                  - checkbox "Vegetation recovery" [checked]
+                  - paragraph [ref=e9789]: Vegetation recovery
+              - generic [ref=e9791]:
+                - generic [ref=e9794] [cursor=pointer]:
+                  - checkbox "Dynamic World land cover" [checked]
+                  - paragraph [ref=e9799]: Dynamic World land cover
+                - generic [ref=e9802] [cursor=pointer]:
+                  - checkbox "NDVI (vegetation index)" [checked]
+                  - paragraph [ref=e9807]: NDVI (vegetation index)
+              - generic [ref=e9809]:
+                - generic [ref=e9812] [cursor=pointer]:
+                  - checkbox "Habitat conversion" [checked]
+                  - paragraph [ref=e9817]: Habitat conversion
+                - generic [ref=e9820] [cursor=pointer]:
+                  - checkbox "Water / flooded vegetation" [checked]
+                  - paragraph [ref=e9825]: Water / flooded vegetation
+      - generic [ref=e1201]:
+        - heading "Run" [level=3] [ref=e9826]:
+          - text: Run
+          - generic [ref=e1209]:
+            - link "Link to heading":
+              - /url: "#indicator-snapshot-3-critical-of-14-screened"
+              - img
+        - paragraph [ref=e9831]:
+          - strong [ref=e9832]: Centre.
+          - text: "-15.7808, -47.7968"
+          - strong [ref=e9833]: Buffer.
+          - text: 5 km radius
+          - strong [ref=e9834]: Indicators.
+          - text: "19"
+        - paragraph [ref=e9839]:
+          - strong [ref=e9840]: Screening window
+        - paragraph [ref=e9845]: "Loaded from saved analysis (window: 2026-02-27 → 2026-05-28). Change to re-run."
+        - generic [ref=e9847]:
+          - button "30 d" [ref=e9852] [cursor=pointer]:
+            - paragraph [ref=e9856]: 30 d
+          - button "90 d" [ref=e9861] [cursor=pointer]:
+            - paragraph [ref=e9865]: 90 d
+          - button "6 mo" [ref=e9870] [cursor=pointer]:
+            - paragraph [ref=e9874]: 6 mo
+          - button "12 mo" [ref=e9879] [cursor=pointer]:
+            - paragraph [ref=e9883]: 12 mo
+          - button "Custom" [ref=e9888] [cursor=pointer]:
+            - paragraph [ref=e9892]: Custom
+        - paragraph [ref=e9897]:
+          - text: "Estimated compute time:"
+          - strong [ref=e9898]: ~60 seconds
+          - text: (approximate)
+        - group [ref=e9901]:
+          - generic "keyboard_arrow_down Advanced options" [ref=e9902] [cursor=pointer]:
+            - generic [ref=e9903]:
+              - generic [ref=e9905]: keyboard_arrow_down
+              - paragraph [ref=e9908]: Advanced options
+          - generic [ref=e9912]:
+            - paragraph [ref=e9916]: End date
+            - radiogroup "End date" [ref=e9917] [cursor=pointer]:
+              - generic [ref=e9918]:
+                - radio "Today" [checked]
+                - paragraph [ref=e9923]: Today
+              - generic [ref=e9924]:
+                - radio "Pick a different date"
+                - paragraph [ref=e9929]: Pick a different date
+        - generic [ref=e9931]:
+          - button "Run Screening" [ref=e9936] [cursor=pointer]:
+            - paragraph [ref=e9940]: Run Screening
+          - button "Run Trend" [disabled] [ref=e9948]:
+            - paragraph [ref=e9952]: Run Trend

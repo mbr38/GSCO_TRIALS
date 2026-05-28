@@ -1,0 +1,132 @@
+- generic [ref=e2]:
+  - list [ref=e23]:
+    - generic [ref=e24]:
+      - paragraph [ref=e28] [cursor=pointer]: Main
+      - listitem [ref=e29]:
+        - link "Landing" [ref=e31] [cursor=pointer]:
+          - /url: http://localhost:8511/
+          - generic [ref=e34]: 🏠
+          - paragraph [ref=e37]: Landing
+      - listitem [ref=e38]:
+        - link "Scope Setup" [ref=e40] [cursor=pointer]:
+          - /url: http://localhost:8511/Scope_Setup
+          - generic [ref=e43]: 🌍
+          - paragraph [ref=e46]: Scope Setup
+      - listitem [ref=e47]:
+        - link "Workflow Hub" [ref=e49] [cursor=pointer]:
+          - /url: http://localhost:8511/Workflow_Hub
+          - generic [ref=e52]: 🔀
+          - paragraph [ref=e55]: Workflow Hub
+      - listitem [ref=e56]:
+        - link "Inspect — Setup" [ref=e58] [cursor=pointer]:
+          - /url: http://localhost:8511/Inspect_Setup
+          - generic [ref=e61]: 🔍
+          - paragraph [ref=e64]: Inspect — Setup
+      - listitem [ref=e65]:
+        - link "Inspect — Results" [ref=e67] [cursor=pointer]:
+          - /url: http://localhost:8511/Screening_Results
+          - generic [ref=e70]: 📊
+          - paragraph [ref=e73]: Inspect — Results
+      - listitem [ref=e74]:
+        - link "Prioritisation — Setup" [ref=e76] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Setup
+          - generic [ref=e79]: 📋
+          - paragraph [ref=e82]: Prioritisation — Setup
+      - listitem [ref=e83]:
+        - link "Prioritisation — Results" [ref=e85] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Results
+          - generic [ref=e88]: 📈
+          - paragraph [ref=e91]: Prioritisation — Results
+      - listitem [ref=e92]:
+        - link "Indicator Library" [ref=e94] [cursor=pointer]:
+          - /url: http://localhost:8511/Indicator_Library
+          - generic [ref=e97]: 📚
+          - paragraph [ref=e100]: Indicator Library
+      - listitem [ref=e101]:
+        - link "Saved Analyses" [ref=e103] [cursor=pointer]:
+          - /url: http://localhost:8511/Saved_Analyses
+          - generic [ref=e106]: 💾
+          - paragraph [ref=e109]: Saved Analyses
+      - listitem [ref=e110]:
+        - link "Reports" [ref=e112] [cursor=pointer]:
+          - /url: http://localhost:8511/Reports
+          - generic [ref=e115]: 📄
+          - paragraph [ref=e118]: Reports
+    - generic [ref=e119]:
+      - paragraph [ref=e123] [cursor=pointer]: Developer
+      - listitem [ref=e124]:
+        - link "Engine Scratch (dev)" [ref=e126] [cursor=pointer]:
+          - /url: http://localhost:8511/engine_scratch
+          - generic [ref=e129]: 🧪
+          - paragraph [ref=e132]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e4]
+    - generic [ref=e136]:
+      - generic [ref=e223]:
+        - generic [ref=e228]:
+          - button "Fullscreen" [ref=e233] [cursor=pointer]:
+            - img [ref=e234]
+          - img "0" [ref=e239]
+        - paragraph [ref=e246]:
+          - text: Signed in as
+          - strong [ref=e247]: Policy Maker
+          - text: · Session
+          - code [ref=e248]: bc1d2ec3
+        - generic [ref=e252]:
+          - paragraph [ref=e259]: "Scope: not set"
+          - button "Pick scope" [ref=e264] [cursor=pointer]:
+            - paragraph [ref=e268]: Pick scope
+        - button "Sign out" [ref=e273] [cursor=pointer]:
+          - paragraph [ref=e277]: Sign out
+      - separator [ref=e282]
+      - heading "Scope Setup" [level=1] [ref=e287]:
+        - text: Scope Setup
+        - generic [ref=e288]:
+          - link "Link to heading":
+            - /url: "#scope-setup"
+            - img
+      - paragraph [ref=e293]:
+        - text: Choose what you want to screen. You can change this any time from the
+        - strong [ref=e294]: Change scope
+        - text: link in the top nav.
+      - heading "Pick a scope mode" [level=3] [ref=e300]:
+        - text: Pick a scope mode
+        - generic [ref=e301]:
+          - link "Link to heading":
+            - /url: "#pick-a-scope-mode"
+            - img
+      - generic [ref=e303]:
+        - generic [ref=e307]:
+          - heading "Country / region" [level=4] [ref=e313]:
+            - text: Country / region
+            - generic [ref=e314]:
+              - link "Link to heading":
+                - /url: "#country-region"
+                - img
+          - paragraph [ref=e319]: Screen a whole administrative region. You'll get a representative buffer at the region's centroid.
+          - generic [ref=e321]:
+            - paragraph [ref=e325]: Country
+            - generic [ref=e327]:
+              - generic [ref=e328]:
+                - generic [ref=e329]: Brazil
+                - combobox "Selected Brazil. Country" [ref=e331]
+              - img "open" [ref=e333]
+          - generic [ref=e336]:
+            - paragraph [ref=e340]: Region
+            - generic [ref=e342]:
+              - generic [ref=e343]:
+                - generic [ref=e344]: Acre
+                - combobox "Selected Acre. Region" [ref=e346]
+              - img "open" [ref=e348]
+          - button "Preview" [ref=e352] [cursor=pointer]:
+            - paragraph [ref=e356]: Preview
+        - generic [ref=e360]:
+          - heading "No scope" [level=4] [ref=e366]:
+            - text: No scope
+            - generic [ref=e367]:
+              - link "Link to heading":
+                - /url: "#no-scope"
+                - img
+          - paragraph [ref=e372]: Skip scope setup and configure each screening from scratch using free coordinates.
+          - button "Continue without a scope" [ref=e375] [cursor=pointer]:
+            - paragraph [ref=e379]: Continue without a scope

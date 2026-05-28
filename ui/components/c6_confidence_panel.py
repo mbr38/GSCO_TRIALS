@@ -24,6 +24,7 @@ from engine.verbal_summary import (
     _resolve_air_limiting_factor,
     _resolve_quality_limiting_factor,
 )
+from ui.components.legacy_id_fallback import payload_read
 from ui.components.traffic_light import (
     band_for_score,
     band_label,
@@ -52,7 +53,9 @@ def render_c6_confidence_panel(payload: dict) -> None:
         )
         st.divider()
         for display_name, conf_key, pillar in _PILLAR_ROWS:
-            confidence = payload.get(conf_key)
+            # M-ATTRIB-A1 dual-emit shim — read new ID, fall back to legacy
+            # so old saved analyses still render the pillar confidence rows.
+            confidence = payload_read(payload, conf_key)
             _render_row(display_name, confidence, pillar, payload)
 
 

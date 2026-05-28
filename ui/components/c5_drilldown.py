@@ -35,6 +35,11 @@ from engine.constants import (
     NATURE_FOLLOWUP_WEIGHTS,
 )
 from ui.components.indicator_info import render_indicator_name_with_info
+from ui.components.legacy_id_fallback import payload_read
+from ui.components.multi_map_state import (
+    request_scroll,
+    set_active_indicator,
+)
 from ui.components.traffic_light import (
     band_colour,
     band_for_score,
@@ -127,7 +132,8 @@ def _render_headline(
     misleading "—" in a band-coloured pill.
     """
     priority   = payload.get(priority_key)
-    confidence = payload.get(confidence_key)
+    # M-ATTRIB-A1 dual-emit shim — read new ID, fall back to legacy.
+    confidence = payload_read(payload, confidence_key)
     glyph      = confidence_glyph(confidence)
 
     if priority is None:
@@ -163,7 +169,9 @@ def _render_headline(
     col_c.caption("Contribution")
     any_missing = False
     for term in formula:
-        value = payload.get(term.payload_key)
+        # M-ATTRIB-A1 dual-emit shim — read new ID, fall back to legacy
+        # (no-op for terms whose id wasn't renamed).
+        value = payload_read(payload, term.payload_key)
         if value is None:
             any_missing = True
         contribution = term.weight * value if value is not None else None
@@ -632,6 +640,23 @@ def _render_habitat_attributability(payload: dict) -> None:
             f"(N = {n_change or 0}) to locate a change centroid."
         )
     # state absent (habitat not run) → render nothing.
+
+    # M-ATTRIB-A1 (§5.1): "View on map →" affordance for the habitat
+    # attributability overlay. Habitat conversion isn't a C4b headline tile
+    # (the curated grid deliberately excludes it), so this is the only entry
+    # point in the UI for the centroid marker + line + hover tooltip.
+    # Renders only when the engine actually computed attributability — no
+    # link if the habitat path didn't run or the payload is from an old
+    # saved analysis without the spatial-link fields.
+    if state is not None:
+        if st.button(
+            "View on map →",
+            key="viewmap_nature_habitat_attributability",
+            type="tertiary",
+        ):
+            set_active_indicator("nature.habitat.conversion_score")
+            request_scroll()
+            st.rerun()
 
     # C5 expander — Low-only sub-section (§5.3 / AT11), parallel to the
     # coastal-handling and fallback sub-sections.
@@ -1248,10 +1273,11 @@ _HANSEN_SOURCE_LINE: str = "Hansen Global Forest Change (University of Maryland)
 _ODIAC_SOURCE_LINE:  str = "ODIAC fossil-fuel CO₂ (NIES, Japan)"
 
 # §4.1 / RD8 — Hansen audit footnote (what Hansen *does* feed).
+# M-ATTRIB-A1 (AT5): External_Driver_Screening was removed; Hansen now feeds
+# the reference-data `regional_loss_evidence.ratio` shown on the line above.
 _HANSEN_AUDIT_FOOTNOTE: str = (
-    "Hansen contributes to the regional_loss_evidence binary flag in "
-    "External Driver Screening when ring-vs-buffer loss differs "
-    "significantly, but is not part of the composite score."
+    "Hansen feeds the reference-data ring-vs-buffer ratio shown above "
+    "(M-ATTRIB-A1) and is not part of the composite score."
 )
 # §4.2 — ODIAC audit footnote.
 _ODIAC_AUDIT_FOOTNOTE: str = (

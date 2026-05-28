@@ -1,0 +1,92 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8511/
+          - generic [ref=e21]: 🏠
+          - paragraph [ref=e24]: Landing
+      - listitem [ref=e25]:
+        - link "Scope Setup" [ref=e27] [cursor=pointer]:
+          - /url: http://localhost:8511/Scope_Setup
+          - generic [ref=e30]: 🌍
+          - paragraph [ref=e33]: Scope Setup
+      - listitem [ref=e34]:
+        - link "Workflow Hub" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8511/Workflow_Hub
+          - generic [ref=e39]: 🔀
+          - paragraph [ref=e42]: Workflow Hub
+      - listitem [ref=e43]:
+        - link "Inspect — Setup" [ref=e45] [cursor=pointer]:
+          - /url: http://localhost:8511/Inspect_Setup
+          - generic [ref=e48]: 🔍
+          - paragraph [ref=e51]: Inspect — Setup
+      - listitem [ref=e52]:
+        - link "Inspect — Results" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8511/Screening_Results
+          - generic [ref=e57]: 📊
+          - paragraph [ref=e60]: Inspect — Results
+      - listitem [ref=e61]:
+        - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Setup
+          - generic [ref=e66]: 📋
+          - paragraph [ref=e69]: Prioritisation — Setup
+      - listitem [ref=e70]:
+        - link "Prioritisation — Results" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8511/Prioritisation_Results
+          - generic [ref=e75]: 📈
+          - paragraph [ref=e78]: Prioritisation — Results
+      - listitem [ref=e79]:
+        - link "Indicator Library" [ref=e81] [cursor=pointer]:
+          - /url: http://localhost:8511/Indicator_Library
+          - generic [ref=e84]: 📚
+          - paragraph [ref=e87]: Indicator Library
+      - listitem [ref=e88]:
+        - link "Saved Analyses" [ref=e90] [cursor=pointer]:
+          - /url: http://localhost:8511/Saved_Analyses
+          - generic [ref=e93]: 💾
+          - paragraph [ref=e96]: Saved Analyses
+      - listitem [ref=e97]:
+        - link "Reports" [ref=e99] [cursor=pointer]:
+          - /url: http://localhost:8511/Reports
+          - generic [ref=e102]: 📄
+          - paragraph [ref=e105]: Reports
+    - generic [ref=e106]:
+      - paragraph [ref=e110] [cursor=pointer]: Developer
+      - listitem [ref=e111]:
+        - link "Engine Scratch (dev)" [ref=e113] [cursor=pointer]:
+          - /url: http://localhost:8511/engine_scratch
+          - generic [ref=e116]: 🧪
+          - paragraph [ref=e119]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e123]:
+      - generic [ref=e9954]:
+        - img "Running..." [ref=e9955]:
+          - img [ref=e10075]
+        - button "Stop" [ref=e9960] [cursor=pointer]
+    - generic [ref=e125]:
+      - generic [ref=e9962]:
+        - generic [ref=e9967]:
+          - button "Fullscreen" [ref=e9972] [cursor=pointer]:
+            - img [ref=e9973]
+          - img "0" [ref=e9978]
+        - paragraph [ref=e9985]:
+          - text: Signed in as
+          - strong [ref=e9986]: Policy Maker
+          - text: · Session
+          - code [ref=e9987]: ffd6f927
+        - generic [ref=e9991]:
+          - paragraph [ref=e9998]: "Scope: not set"
+          - button "Pick scope" [ref=e10003] [cursor=pointer]:
+            - paragraph [ref=e10007]: Pick scope
+        - button "Sign out" [ref=e10012] [cursor=pointer]:
+          - paragraph [ref=e10016]: Sign out
+      - separator [ref=e10021]
+      - heading "Screening Results" [level=1] [ref=e10026]:
+        - text: Screening Results
+        - generic [ref=e10027]:
+          - link "Link to heading":
+            - /url: "#screening-results"
+            - img
+      - paragraph [ref=e10035]: Running screening — this takes ~30–60 seconds…

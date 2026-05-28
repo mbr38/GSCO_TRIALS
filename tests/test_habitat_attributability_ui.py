@@ -29,16 +29,24 @@ class _Spy:
         self.captions: list[str] = []
         self.markdowns: list[str] = []
         self.expander_labels: list[str] = []
+        self.button_labels: list[str] = []
     def caption(self, s, **_kw) -> None:
         self.captions.append(s)
     def markdown(self, s, **_kw) -> None:
         self.markdowns.append(s)
     def expander(self, label, **_kw):
         return _Expander(label, self)
+    def button(self, label, **_kw) -> bool:
+        # Record the click affordance; return False so the click-handler
+        # body doesn't fire (we test the click side-effect separately).
+        self.button_labels.append(label)
+        return False
 
     @property
     def all_text(self) -> str:
-        return " || ".join(self.captions + self.markdowns + self.expander_labels)
+        return " || ".join(
+            self.captions + self.markdowns + self.expander_labels + self.button_labels,
+        )
 
 
 @pytest.fixture
@@ -106,3 +114,66 @@ class TestHabitatAttributabilityRows:
         text = spy.all_text.lower()
         assert "forest loss" not in text
         assert "regional loss evidence" not in text
+
+
+class TestHabitatViewOnMapLink:
+    """The 'View on map →' affordance is the only UI entry point for the
+    habitat attributability overlay (habitat conversion isn't in C4b)."""
+
+    def test_link_renders_when_state_computed(self, spy):
+        c5_drilldown._render_habitat_attributability(_payload("high", offset=0.8, n_change=40))
+        assert "View on map →" in spy.button_labels
+
+    def test_link_renders_for_sparse_too(self, spy):
+        # Sparse → no centroid, but the base map (supplier + buffer) is still
+        # useful context. Link should still render.
+        c5_drilldown._render_habitat_attributability(_payload("sparse", n_change=4))
+        assert "View on map →" in spy.button_labels
+
+    def test_link_absent_when_state_absent(self, spy):
+        # Old payload from a saved analysis pre-M-ATTRIB-A1 has no state →
+        # nothing to view on the map. Don't render a dead link.
+        c5_drilldown._render_habitat_attributability(
+            {"nature.habitat.confidence": 0.9}
+        )
+        assert "View on map →" not in spy.button_labels
+
+    def test_click_sets_active_indicator_to_habitat_conversion_score(
+        self, monkeypatch,
+    ):
+        # Spy on the side-effects: set_active_indicator + request_scroll +
+        # st.rerun must all fire when the button is clicked.
+        calls = {"active": None, "scrolled": False, "reran": False}
+
+        def _set_active(ind_id):
+            calls["active"] = ind_id
+
+        def _scroll():
+            calls["scrolled"] = True
+
+        # Streamlit spy with a button that returns True (i.e. "user clicked").
+        class _ClickSpy:
+            captions: list = []
+            markdowns: list = []
+            button_labels: list = []
+            def caption(self, *a, **k): pass
+            def markdown(self, *a, **k): pass
+            def expander(self, label, **_kw):
+                return _Expander(label, type("_S", (), {"expander_labels": []})())
+            def button(self, label, **_kw):
+                self.button_labels.append(label)
+                return True               # simulate the click
+            def rerun(self):
+                calls["reran"] = True
+
+        spy = _ClickSpy()
+        monkeypatch.setattr(c5_drilldown, "st", spy)
+        monkeypatch.setattr(c5_drilldown, "_render_confidence_terms_expander", lambda *a, **k: None)
+        monkeypatch.setattr(c5_drilldown, "set_active_indicator", _set_active)
+        monkeypatch.setattr(c5_drilldown, "request_scroll", _scroll)
+
+        c5_drilldown._render_habitat_attributability(_payload("high", offset=0.8, n_change=40))
+
+        assert calls["active"] == "nature.habitat.conversion_score"
+        assert calls["scrolled"] is True
+        assert calls["reran"] is True

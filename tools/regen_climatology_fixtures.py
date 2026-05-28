@@ -114,13 +114,33 @@ def _scaled_mean_image(indicator_key: str, window: tuple[str, str]):
     return ic.mean(), band
 
 
-def _country_fc(only: list[str] | None, simplify_m: float):
-    """GAUL level0 FeatureCollection (optionally filtered + simplified)."""
+def _country_fc(only: list[str] | None, simplify_m: float, bbox_inset: float):
+    """GAUL level0 FeatureCollection, made safe for global reduceRegions.
+
+    Each country geometry is clipped to a slightly-inset world rectangle
+    (default 0.01° from ±180°/±90°) so no vertex lands exactly on the
+    antimeridian — that's the trigger for the "Unable to transform edge"
+    error EE raises during ``reduceRegions`` for countries like Russia,
+    USA (Aleutians), Fiji, Kiribati and Antarctica.
+
+    Simplify is opt-in (off by default): aggressive simplification can
+    *create* the antimeridian-vertex pathology that this guard exists to
+    prevent. Use it only if you hit memory limits.
+    """
     import ee
 
     fc = ee.FeatureCollection(CLIMATOLOGY_COUNTRY_ASSET)
     if only:
         fc = fc.filter(ee.Filter.inList(_COUNTRY_KEY, only))
+    if bbox_inset > 0:
+        world = ee.Geometry.Rectangle(
+            [-180 + bbox_inset, -90 + bbox_inset,
+             180 - bbox_inset, 90 - bbox_inset],
+            proj="EPSG:4326", geodesic=False,
+        )
+        fc = fc.map(
+            lambda f: f.setGeometry(f.geometry().intersection(world, maxError=1000))
+        )
     if simplify_m:
         fc = fc.map(
             lambda f: f.setGeometry(f.geometry().simplify(maxError=simplify_m))
@@ -130,7 +150,12 @@ def _country_fc(only: list[str] | None, simplify_m: float):
 
 def _stats_fc(indicator_key: str, window, fc, scale_m: float, tile_scale: int):
     """reduceRegions FeatureCollection: one feature per country carrying the
-    median + stdDev of the indicator (server-side, all countries at once)."""
+    median + stdDev of the indicator (server-side, all countries at once).
+
+    ``crs="EPSG:4326"`` is set explicitly so the reduction runs in plain
+    lat/lon — without it EE picks the image's native projection (S5P/MAIAC
+    sinusoidal etc.) and edge-transform errors at the antimeridian fire.
+    """
     import ee
 
     image, band = _scaled_mean_image(indicator_key, window)
@@ -140,6 +165,7 @@ def _stats_fc(indicator_key: str, window, fc, scale_m: float, tile_scale: int):
         reducer=reducers,
         scale=scale_m,
         tileScale=tile_scale,
+        crs="EPSG:4326",
     ), band
 
 
@@ -216,7 +242,7 @@ def _run_getinfo(args, window) -> None:
         except (json.JSONDecodeError, OSError) as err:
             print(f"Could not read --out for resume ({err}); starting fresh.")
 
-    fc = _country_fc(args.countries, args.simplify_m)
+    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset)
 
     for ind in CLIMATOLOGY_INDICATORS:
         if ind in done:
@@ -252,7 +278,7 @@ def _run_getinfo(args, window) -> None:
 def _run_export(args, window) -> None:
     import ee
 
-    fc = _country_fc(args.countries, args.simplify_m)
+    fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset)
     tasks = []
     for ind in CLIMATOLOGY_INDICATORS:
         stats, _band = _stats_fc(ind, window, fc, args.scale_m, args.tile_scale)
@@ -329,8 +355,15 @@ def main() -> None:
         help="reduceRegions tileScale (raise if you hit 'computed value too large')",
     )
     parser.add_argument(
-        "--simplify-m", type=float, default=5000.0,
-        help="Simplify country polygons to this maxError (m); 0 disables.",
+        "--simplify-m", type=float, default=0.0,
+        help="Simplify country polygons to this maxError (m); 0 disables. "
+             "Off by default: simplify can create antimeridian-vertex edges "
+             "that crash reduceRegions.",
+    )
+    parser.add_argument(
+        "--bbox-inset", type=float, default=0.01,
+        help="Clip country geometries to a world rectangle inset this many "
+             "degrees from ±180°/±90° (avoids antimeridian-edge errors).",
     )
     parser.add_argument(
         "--countries", nargs="*", default=None,

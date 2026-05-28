@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from ui.components.legacy_id_fallback import payload_read
 from ui.components.traffic_light import (
     band_colour,
     band_for_score,
@@ -77,7 +78,8 @@ def _render_chip(chip_key: str, payload: dict) -> None:
     """
     priority_key, confidence_key = _CHIP_KEYS[chip_key]
     score = payload.get(priority_key)
-    confidence = payload.get(confidence_key)
+    # M-ATTRIB-A1 dual-emit shim — read new ID, fall back to legacy.
+    confidence = payload_read(payload, confidence_key)
     label = _PILLAR_DISPLAY[chip_key]
 
     if score is None:

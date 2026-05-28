@@ -197,9 +197,10 @@ def test_hansen_card_fields_present():
     assert f.vintage_line == "Latest Hansen data: 2023"
     assert "University of Maryland" in f.source_line
     assert "Moderate cumulative loss" in f.interpretation
-    assert "regional_loss_evidence" in f.audit_footnote
-    # RD8 — explains what Hansen *does* feed, not just "ignored".
-    assert "External Driver Screening" in f.audit_footnote
+    # RD8 / M-ATTRIB-A1: explains what Hansen *does* feed — the reference
+    # ring-vs-buffer ratio (External Driver Screening was removed by AT5).
+    assert "ring-vs-buffer ratio" in f.audit_footnote
+    assert "not part of the composite score" in f.audit_footnote
     # P-09 link target (M-UI-A2 affordance uses the library card key).
     assert f.indicator_id == "nature.forest_loss.ha"
 
