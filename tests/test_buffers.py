@@ -580,12 +580,33 @@ class TestSixStepRingMetadataSurface:
         monkeypatch.setattr(
             rc, "site_buffer", lambda c, r: _EnvelopeSentinel(),
         )
+        # M-PERF-A1 — six_step batches site + background reductions via
+        # `_site_value_reduction` / `_background_value_reduction` + an
+        # `ee.Dictionary({...}).getInfo()` round-trip in the no-fallback
+        # branch. Stub the reduction builders and ee.Dictionary so the
+        # spy IC isn't asked to support EE primitives; site_value /
+        # background_value receive `_precomputed={}` and return their
+        # canned values via the stubs below.
         monkeypatch.setattr(
-            rc, "site_value", lambda aoi, ic, band, scale: 1.0,
+            rc, "_site_value_reduction", lambda *_a, **_kw: object(),
+        )
+        monkeypatch.setattr(
+            rc, "_background_value_reduction", lambda *_a, **_kw: object(),
+        )
+
+        class _FakeBatchedDict:
+            def __init__(self, mapping): self._mapping = mapping
+            def getInfo(self): return {"site": {}, "background": {}}
+
+        monkeypatch.setattr(rc.ee, "Dictionary", _FakeBatchedDict)
+        monkeypatch.setattr(
+            rc, "site_value",
+            lambda aoi, ic, band, scale, _precomputed=None: 1.0,
         )
         monkeypatch.setattr(
             rc, "background_value",
-            lambda aoi, ic, band, seasonal, scale, *, ring: (0.5, 0.1),
+            lambda aoi, ic, band, seasonal, scale, *, ring,
+                   _precomputed=None: (0.5, 0.1),
         )
         monkeypatch.setattr(
             rc, "background_ring",

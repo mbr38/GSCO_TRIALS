@@ -419,14 +419,6 @@ def compute_co2_snapshot(
         )
 
     ic = ee.ImageCollection(cfg.asset_id).filterDate(*time_range)
-    # `n_months` is still read for the annualisation factor below and
-    # surfaced in provenance. The historical "n_months == 0 → raise" guard
-    # has been removed: run_pillar's M5.5c coverage_window check now skips
-    # this function entirely for time ranges outside 2020-2023, so the
-    # branch was dead code. If a future caller dispatches CO₂ outside its
-    # coverage window without using run_pillar, the divide-by-zero in
-    # `annualisation = 12.0 / n_months` will surface the bug loudly.
-    n_months = int(ic.size().getInfo() or 0)
 
     site_geom = site_buffer(aoi["centre"], radius_km)
     # M-TIER-A3 Step B — background_ring returns a dict; extract geometry.
@@ -438,39 +430,53 @@ def compute_co2_snapshot(
     # `ic.sum()` adds the months element-wise: sum_pixel = Σ_months tC.
     summed_image = ic.select(cfg.band).sum()
 
-    # M-AIR-GHG-DEFENSIVE: materialise the reduceRegion dict first, then
-    # use .get() with a None-aware fallback. The previous form
-    # `reduceRegion(...).get(band).getInfo() or 0.0` relied on implicit
-    # short-circuit when the band key was absent (empty buffer → None →
-    # getInfo() returns None → falsy → 0.0); the explicit pattern below
-    # is the same shape Nature uses (M-NATURE-DEFENSIVE) and crashes
-    # loudly only on truly unexpected EE responses.
-    site_sum_reduction = summed_image.reduceRegion(
-        reducer=ee.Reducer.sum(),
-        geometry=site_geom,
-        scale=cfg.scale_m,
-        bestEffort=True,
-        maxPixels=int(1e9),
-    ).getInfo() or {}
-    site_sum_t_c = float(site_sum_reduction.get(cfg.band) or 0.0)
+    # M-PERF-A1 — batch the four per-snapshot getInfo round-trips into
+    # one. `n_months` (collection size) and the three reduceRegion
+    # dictionaries all evaluate server-side; combining them into one
+    # ee.Dictionary lets a single `getInfo()` materialise everything.
+    # Pre-batching this function fired 4 getInfo round-trips per
+    # screening — see docs/M-PERF-A1_step_a_findings.md §3.
+    #
+    # Defensive shape (M-AIR-GHG-DEFENSIVE): each unpacked reduction
+    # dict still falls back to `{}` and the per-band lookup falls back
+    # to `0.0` so an empty buffer (band absent) yields zeros rather
+    # than crashing.
+    combined = ee.Dictionary({
+        "n_months": ic.size(),
+        "site_sum": summed_image.reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=site_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ),
+        "site_mean": summed_image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=site_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ),
+        "ring_mean": summed_image.reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=ring_geom,
+            scale=cfg.scale_m,
+            bestEffort=True,
+            maxPixels=int(1e9),
+        ),
+    }).getInfo() or {}
 
-    site_mean_reduction = summed_image.reduceRegion(
-        reducer=ee.Reducer.mean(),
-        geometry=site_geom,
-        scale=cfg.scale_m,
-        bestEffort=True,
-        maxPixels=int(1e9),
-    ).getInfo() or {}
-    site_mean_t_c = float(site_mean_reduction.get(cfg.band) or 0.0)
-
-    ring_mean_reduction = summed_image.reduceRegion(
-        reducer=ee.Reducer.mean(),
-        geometry=ring_geom,
-        scale=cfg.scale_m,
-        bestEffort=True,
-        maxPixels=int(1e9),
-    ).getInfo() or {}
-    ring_mean_t_c = float(ring_mean_reduction.get(cfg.band) or 0.0)
+    # `n_months` surfaced in provenance + drives annualisation. The
+    # historical "n_months == 0 → raise" guard has been removed:
+    # run_pillar's M5.5c coverage_window check now skips this function
+    # entirely for time ranges outside 2020-2023, so the branch was
+    # dead code. If a future caller dispatches CO₂ outside its coverage
+    # window without using run_pillar, the divide-by-zero in
+    # `annualisation = 12.0 / n_months` will surface the bug loudly.
+    n_months = int(combined.get("n_months") or 0)
+    site_sum_t_c  = float((combined.get("site_sum")  or {}).get(cfg.band) or 0.0)
+    site_mean_t_c = float((combined.get("site_mean") or {}).get(cfg.band) or 0.0)
+    ring_mean_t_c = float((combined.get("ring_mean") or {}).get(cfg.band) or 0.0)
 
     # Annualise: `summed_image` is Σ months over time_range, so the mean
     # per month is (Σ months) / n_months; the annualised value is ×12.

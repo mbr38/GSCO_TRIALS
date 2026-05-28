@@ -1176,18 +1176,36 @@ class TestSixStepFilterBoundsScope:
 
         monkeypatch.setattr(rc, "site_buffer", fake_site_buffer)
 
+        # M-PERF-A1 — six_step's no-fallback branch now batches
+        # site + background reductions through ee.Dictionary({...}).getInfo().
+        # Stub the helper reductions + ee.Dictionary so the spy IC isn't
+        # asked to support .select / .mean / .map / .reduceRegion.
+        monkeypatch.setattr(
+            rc, "_site_value_reduction", lambda *_a, **_kw: object(),
+        )
+        monkeypatch.setattr(
+            rc, "_background_value_reduction", lambda *_a, **_kw: object(),
+        )
+
+        class _FakeBatchedDict:
+            def __init__(self, mapping): self._mapping = mapping
+            def getInfo(self): return {"site": {}, "background": {}}
+
+        monkeypatch.setattr(rc.ee, "Dictionary", _FakeBatchedDict)
+
         # Stub the rest of six_step's downstream surface — they have
         # their own coverage and would otherwise need full EE mocks.
+        # site_value / background_value are called with _precomputed=
+        # dicts from the batched getInfo above; the stubs ignore both
+        # forms uniformly.
         monkeypatch.setattr(
             rc, "site_value",
-            lambda aoi, ic, band, scale: 1.0,
+            lambda aoi, ic, band, scale, _precomputed=None: 1.0,
         )
-        # M-TIER-A3 Step E — background_value now accepts a `ring=` kwarg
-        # so six_step can construct the ring once and pass it in. The
-        # lambda stub mirrors the new positional+kwarg shape.
         monkeypatch.setattr(
             rc, "background_value",
-            lambda aoi, ic, band, seasonal, scale, *, ring: (0.5, 0.1),
+            lambda aoi, ic, band, seasonal, scale, *, ring,
+                   _precomputed=None: (0.5, 0.1),
         )
         # M-TIER-A3 Step E — six_step now calls background_ring directly
         # to surface land-mask provenance fields in its return dict.
@@ -1261,15 +1279,29 @@ class TestSixStepFilterBoundsScope:
                 captured_radius_km.append(radius_km) or _EnvelopeSentinel()
             ),
         )
+        # M-PERF-A1 — stub the batched-reduction helpers + ee.Dictionary so
+        # the spy IC isn't asked to support .select / .mean / .reduceRegion.
+        monkeypatch.setattr(
+            rc, "_site_value_reduction", lambda *_a, **_kw: object(),
+        )
+        monkeypatch.setattr(
+            rc, "_background_value_reduction", lambda *_a, **_kw: object(),
+        )
+
+        class _FakeBatchedDict:
+            def __init__(self, mapping): self._mapping = mapping
+            def getInfo(self): return {"site": {}, "background": {}}
+
+        monkeypatch.setattr(rc.ee, "Dictionary", _FakeBatchedDict)
+
         monkeypatch.setattr(
             rc, "site_value",
-            lambda aoi, ic, band, scale: 1.0,
+            lambda aoi, ic, band, scale, _precomputed=None: 1.0,
         )
-        # M-TIER-A3 Step E — background_value now accepts `ring=` kwarg;
-        # six_step calls background_ring directly so we stub both.
         monkeypatch.setattr(
             rc, "background_value",
-            lambda aoi, ic, band, seasonal, scale, *, ring: (0.5, 0.1),
+            lambda aoi, ic, band, seasonal, scale, *, ring,
+                   _precomputed=None: (0.5, 0.1),
         )
         monkeypatch.setattr(
             rc, "background_ring",

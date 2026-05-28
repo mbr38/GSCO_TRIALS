@@ -138,39 +138,10 @@ st.caption(
     "Demo build — authentication deferred."
 )
 
-import time
-import logging
-import ee
+# M-PERF-A1: ee.ComputedObject.getInfo is wrapped once per process to add
+# timing logs + transient-error retry/backoff (PF1-PF8). Module-level
+# install is idempotent via the _GSCO_WRAPPED marker so Streamlit reruns
+# don't nest wrappers. See engine/core/ee_resilience.py for the policy.
+from engine.core.ee_resilience import install_getinfo_wrapper
 
-logger = logging.getLogger("ee_timing")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    h = logging.StreamHandler()
-    h.setFormatter(logging.Formatter("[ee_timing] %(message)s"))
-    logger.addHandler(h)
-
-# Streamlit re-executes this script on every user interaction. Without the
-# guard below, each rerun would re-wrap the (already-wrapped) getInfo and the
-# wrapper would nest N deep — producing N duplicate log lines per real EE
-# call (no extra EE round-trip, but noisy + small CPU cost). The marker
-# attribute lets us detect "already patched" idempotently.
-_GSCO_WRAPPED = "_gsco_ee_timing_wrapped"
-
-if not getattr(ee.ComputedObject.getInfo, _GSCO_WRAPPED, False):
-    _original_getInfo = ee.ComputedObject.getInfo
-
-    def _timed_getInfo(self, *args, **kwargs):
-        label = type(self).__name__
-        t0 = time.perf_counter()
-        try:
-            result = _original_getInfo(self, *args, **kwargs)
-            elapsed = time.perf_counter() - t0
-            logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  OK")
-            return result
-        except Exception as exc:
-            elapsed = time.perf_counter() - t0
-            logger.info(f"{label}.getInfo()  {elapsed:6.2f}s  FAILED: {exc}")
-            raise
-
-    setattr(_timed_getInfo, _GSCO_WRAPPED, True)
-    ee.ComputedObject.getInfo = _timed_getInfo
+install_getinfo_wrapper()

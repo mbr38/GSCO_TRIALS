@@ -264,14 +264,35 @@ class _FakeIc:
         )
 
 
+class _FakeBatchedDict:
+    """Stand-in for ``ee.Dictionary({...}).getInfo()``.
+
+    M-PERF-A1 batched the per-snapshot getInfo round-trips into one
+    ee.Dictionary wrapping the four server-side primitives
+    (collection size + three reduceRegions). Real ee.Dictionary
+    requires an initialised EE session; this stub mirrors the unpack
+    contract by materialising each value's `.getInfo()` lazily inside
+    its own `.getInfo()`.
+    """
+
+    def __init__(self, mapping: dict) -> None:
+        self._mapping = mapping
+
+    def getInfo(self) -> dict:
+        out: dict = {}
+        for key, val in self._mapping.items():
+            out[key] = val.getInfo() if hasattr(val, "getInfo") else val
+        return out
+
+
 @pytest.fixture
 def fake_co2_ee(monkeypatch):
     """Replace EE surfaces used by compute_co2_snapshot.
 
     Returns a factory that installs a synthetic ImageCollection with the
-    given per-pixel and ring statistics. Also stubs `ee.Reducer.sum` and
-    `ee.Reducer.mean` because the real EE client requires an initialised
-    session to construct Reducer instances.
+    given per-pixel and ring statistics. Also stubs `ee.Reducer.sum`,
+    `ee.Reducer.mean`, and `ee.Dictionary` because the real EE client
+    requires an initialised session to construct any of them.
     """
     def install(*, n_months: int = 3, site_sum: float = 100.0,
                 site_mean: float = 5.0, ring_mean: float = 1.0):
@@ -293,6 +314,10 @@ def fake_co2_ee(monkeypatch):
                 "sum":  staticmethod(lambda: _FakeReducerKind()),
                 "mean": staticmethod(lambda: _FakeReducerKind()),
             }),
+        )
+        # M-PERF-A1 — ee.Dictionary wraps the batched primitives.
+        monkeypatch.setattr(
+            "engine.ghg.ee.Dictionary", _FakeBatchedDict,
         )
         # site_buffer / background_ring just need to return distinguishable
         # objects — actual geometry isn't inspected by the fake.

@@ -795,10 +795,62 @@ the dominant runtime cost for full-screening mode and for P-08 batch runs.
   patterns, a single full screening run can issue 20–30 sequential EE 
   calls. P-08 batch mode (up to 30 nodes) compounds this. Target: cap 
   Nature at ≤ 10 round-trips per AOI.
-- **`compute_co2_snapshot` (engine/ghg.py)** — issues 4 sequential 
-  round-trips per AOI: `ic.size().getInfo()`, then three separate 
-  `reduceRegion().get(band).getInfo()` calls (site sum, site mean, ring 
-  mean). Same Dictionary-batching opportunity.
+- ~~**`compute_co2_snapshot` (engine/ghg.py)** — issues 4 sequential
+  round-trips per AOI: `ic.size().getInfo()`, then three separate
+  `reduceRegion().get(band).getInfo()` calls (site sum, site mean, ring
+  mean). Same Dictionary-batching opportunity.~~ **M-PERF-A1, 28 May 2026
+  — done.** Now a single `ee.Dictionary` packs `n_months` plus the three
+  `reduceRegion` dicts; one `getInfo()` materialises everything. See
+  `engine/ghg.py::compute_co2_snapshot` + `tests/test_ghg.py::TestCo2Snapshot`
+  (`_FakeBatchedDict` stub mirrors the batched unpack).
+
+### M-PERF-A1 status (28 May 2026)
+
+**Item 3.5 — retry/backoff on EE `getInfo`.** Done. Engine-wide via the
+single chokepoint in `engine/core/ee_resilience.py::install_getinfo_wrapper`
+(installed by `app.py`). Tenacity-driven exponential-backoff retry on
+HTTP 429 / 5xx / EE-specific "Computation timed out";
+`IndicatorComputeError` + `PillarComputeError` short-circuit (PF5).
+Backoff schedule: 1 s base, ×2 mult, 5 attempts, 30 s cap (PF6).
+Thread-safe via tenacity's per-call closure state (PF8). 34 unit tests
+under `tests/test_ee_resilience.py` cover predicate, retry behaviour,
+backoff ceiling, concurrent retries, counter accumulation, and wrapper
+idempotence. Wind's M-WIND-A1 v2.0 ERA5 fetches inherit the layer for
+free (PF17 — pillar-agnostic placement).
+
+**Item 3.1 — round-trip batching.** Partially done; *top offenders only*
+per PF1 (targeted, not full). What landed:
+
+- `engine.ghg.compute_co2_snapshot`: 4 → 1 `getInfo` round-trip (above).
+- `engine.core.repeatable_core.six_step` no-fallback branch:
+  `site_value` + `background_value` reductions combined into a single
+  `ee.Dictionary` round-trip. Covers all 9 air pollutants + GHG CH4/VIIRS
+  + Nature NDVI — every indicator that goes through `six_step`. Saves 1
+  `getInfo` per indicator per AOI in the no-fallback hot path.
+
+Measured baseline from the Step A profile (`tools/m_perf_a1_profile.py`,
+3 AOIs, 19 indicators): 86 `getInfo` calls per AOI. Expected post-batch:
+~71 per AOI (~17% reduction). The Step E regression harness
+(`tests/test_m_perf_a1_regression.py`, gated on `RUN_EE_TESTS=1`)
+verifies the exact figure plus tolerance (1e-6 relative / 1e-9 absolute,
+categorical-exact PF3) against `tests/baselines/m_perf_a1/*.json`.
+
+**Explicitly deferred — `_server_side_hf` batching into the
+site+background dict.** Step B's Tier-1 named this; M-PERF-A1 shipped
+without it because it would lift `bg_median` / `bg_std` from Python
+floats to server-side `ee.Number` refs *and* move the `bg_std <= 0`
+degenerate-case check from client-side to `ee.Algorithms.If` —
+substantive enough to exceed PF14 "pure call-consolidation only" and
+to introduce real categorical-flip risk on `hf` / `n_valid_dates` for
+boundary cases. The 1-chunk fast path savings would be ~11 calls/AOI
+(another ~13%), so the opportunity is real; a follow-up milestone
+(M-PERF-A2?) can revisit with a dedicated risk plan and the regression
+harness already in place.
+
+**Remaining backlog (lower urgency).** The Nature-side candidates above
+(`compute_kba_proximity`, `compute_habitat_conversion` DW-mode duplicate)
+remain unbatched. Each is 3-4 calls/AOI; Step A profiling confirmed
+they're lower-impact than Air's six_step path. Tier-2 follow-up.
 
 ## M5.5 status (current)
 

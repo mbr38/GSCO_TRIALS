@@ -83,25 +83,56 @@ _PER_DATE_SERIES_MAX_OBSERVATIONS: int = 100
 # Step 1 — site value (IC_v4 §0.2)
 # ---------------------------------------------------------------------------
 
-def site_value(
+def _site_value_reduction(
     aoi: dict,
     image_collection: ee.ImageCollection,
     band: str,
-    scale: float | None = None,
-) -> float:
-    """Mean of `band` over Site_Buffer across `image_collection`.
+    scale: float | None,
+):
+    """Build the server-side reduction for site value, *without* calling
+    ``getInfo``. Returned object is an unevaluated ``ee.Dictionary`` whose
+    materialised form is ``{band: mean_value_or_None}``.
 
-    Raises `IndicatorComputeError` when the buffer has zero valid pixels.
+    Shared between the standalone ``site_value`` path (one getInfo per
+    indicator) and ``six_step``'s M-PERF-A1 batched path (one
+    ``ee.Dictionary`` combining site + background, then a single getInfo
+    for the pair). The site geometry is built internally so callers
+    (including six_step) never need to thread ``site_buffer`` through
+    twice — that keeps the reduction's pre-conditions in one place.
     """
     geom = site_buffer(aoi["centre"], aoi["radius_km"])
     img = image_collection.select(band).mean()
-    info = img.reduceRegion(
+    return img.reduceRegion(
         reducer=ee.Reducer.mean(),
         geometry=geom,
         scale=scale,
         bestEffort=True,
         maxPixels=int(1e9),
-    ).getInfo()
+    )
+
+
+def site_value(
+    aoi: dict,
+    image_collection: ee.ImageCollection,
+    band: str,
+    scale: float | None = None,
+    *,
+    _precomputed: dict | None = None,
+) -> float:
+    """Mean of `band` over Site_Buffer across `image_collection`.
+
+    Raises `IndicatorComputeError` when the buffer has zero valid pixels.
+
+    M-PERF-A1 — when ``_precomputed`` is supplied, it must be the already-
+    materialised inner dict from the batched ``ee.Dictionary`` call in
+    ``six_step``. Skips the reduceRegion round-trip and runs the same
+    null-value error path on the supplied dict, so the failure mode is
+    identical whether the call is batched or standalone.
+    """
+    if _precomputed is None:
+        info = _site_value_reduction(aoi, image_collection, band, scale).getInfo()
+    else:
+        info = _precomputed
     value = info.get(band) if info else None
     if value is None:
         # M-AIR-GHG-DEFENSIVE: raise SiteBufferNoDataError so pillar
@@ -127,6 +158,42 @@ def site_value(
 # Step 2 — background value (IC_v4 §0.2, optional §0.6 seasonality)
 # ---------------------------------------------------------------------------
 
+def _background_value_reduction(
+    image_collection: ee.ImageCollection,
+    ring: dict,
+    band: str,
+    *,
+    seasonal: bool,
+    scale: float | None,
+):
+    """Build the server-side reduction for background value, *without*
+    calling ``getInfo``. Returned object is an unevaluated ``ee.Dictionary``
+    whose materialised form is
+    ``{f"{band}_median": ..., f"{band}_stdDev": ...}``.
+
+    Shared with ``six_step``'s M-PERF-A1 batched path. The land-mask /
+    seasonality / per-image mask composition is identical to
+    ``background_value``'s pre-batching shape so the batched and
+    unbatched dictionaries are interchangeable.
+    """
+    geom = ring["geometry"]
+    mask = ring["mask"]
+    ic = image_collection.select(band)
+    if seasonal and _seasonality is not None:
+        ic = _seasonality.same_month_filter(ic)
+    if mask is not None:
+        ic = ic.map(lambda img: img.updateMask(mask))
+    img = ic.mean()
+    reducers = ee.Reducer.median().combine(ee.Reducer.stdDev(), sharedInputs=True)
+    return img.reduceRegion(
+        reducer=reducers,
+        geometry=geom,
+        scale=scale,
+        bestEffort=True,
+        maxPixels=int(1e9),
+    )
+
+
 def background_value(
     aoi: dict,
     image_collection: ee.ImageCollection,
@@ -135,6 +202,7 @@ def background_value(
     scale: float | None = None,
     *,
     ring: dict | None = None,
+    _precomputed: dict | None = None,
 ) -> tuple[float, float]:
     """Median and stdDev of `band` over Background_Ring.
 
@@ -153,7 +221,6 @@ def background_value(
     # per-image `updateMask` so the reduction only sees land pixels.
     if ring is None:
         ring = background_ring(aoi["centre"], aoi["radius_km"])
-    geom = ring["geometry"]
     mask = ring["mask"]
 
     # M-TIER-A3 Step D / LM7 — when masking is enabled and the geometric
@@ -165,6 +232,10 @@ def background_value(
     # message stays the same — both subtypes route through the
     # `background_ring_no_data` skipped_reason renderer (spec §3.5,
     # `Inspection.js` Q-A3-1 recommendation).
+    #
+    # M-PERF-A1 — this check stays in place even on the ``_precomputed``
+    # batched path so the batched and standalone call shapes raise the
+    # same error in the same conditions.
     if mask is not None and ring["land_fraction"] < LAND_MASK_FRACTION_MIN_THRESHOLD:
         raise BackgroundRingNoDataError(
             indicator_id=band,
@@ -177,31 +248,13 @@ def background_value(
             ),
         )
 
-    ic = image_collection.select(band)
-
-    if seasonal and _seasonality is not None:
-        ic = _seasonality.same_month_filter(ic)
-    # TODO(M3+): wire same-month filter once engine/core/seasonality.py lands.
-
-    # Per-image masking (not post-mean) so the land mask composes with any
-    # per-image cloud masks already in `image_collection` — the cloud mask
-    # AND the land mask both fire, leaving only valid-land pixels for the
-    # spatial median+stdDev reduction. For a *static* mask this is
-    # equivalent to `ic.mean().updateMask(mask)`; the per-image shape is
-    # the spec-locked form (LM3 + §3.4) and survives a future swap to a
-    # time-varying mask without changing the call site.
-    if mask is not None:
-        ic = ic.map(lambda img: img.updateMask(mask))
-
-    img = ic.mean()
-    reducers = ee.Reducer.median().combine(ee.Reducer.stdDev(), sharedInputs=True)
-    info = img.reduceRegion(
-        reducer=reducers,
-        geometry=geom,
-        scale=scale,
-        bestEffort=True,
-        maxPixels=int(1e9),
-    ).getInfo()
+    if _precomputed is None:
+        # TODO(M3+): wire same-month filter once engine/core/seasonality.py lands.
+        info = _background_value_reduction(
+            image_collection, ring, band, seasonal=seasonal, scale=scale,
+        ).getInfo()
+    else:
+        info = _precomputed
     median = info.get(f"{band}_median") if info else None
     std = info.get(f"{band}_stdDev") if info else None
     if median is None or std is None:
@@ -707,9 +760,36 @@ def six_step(
         # Pre-milestone path (and strict audit mode, FB16): no fallbacks —
         # identical to the M-TIER-A3 behaviour. Any zero-coverage failure
         # propagates so the pillar dispatcher emits its skipped payload.
-        site = site_value(aoi, ic_window, band, scale=scale)
+        #
+        # M-PERF-A1 — batch site_value + background_value into one
+        # ee.Dictionary so the no-fallback hot path pays one getInfo
+        # round-trip instead of two. The two reductions share neither
+        # geometry nor reducer kind (site=Mean over Site_Buffer,
+        # background=Median+StdDev over the land-masked annulus), but
+        # ee.Dictionary composes them server-side and one getInfo call
+        # materialises both. Failure detection runs on the unpacked
+        # dicts inside ``site_value`` / ``background_value`` via the
+        # ``_precomputed`` kwarg, so the categorical raise-paths are
+        # identical to the standalone code.
+        #
+        # The fallback path below intentionally does *not* batch — it
+        # may re-call site_value over different image_collections (SPPY
+        # windows) and may bypass the background reduction entirely
+        # (climatology). Batching there would couple branches that need
+        # independent retry semantics.
+        combined = ee.Dictionary({
+            "site": _site_value_reduction(aoi, ic_window, band, scale),
+            "background": _background_value_reduction(
+                ic_window, ring, band, seasonal=seasonal, scale=scale,
+            ),
+        }).getInfo() or {}
+        site = site_value(
+            aoi, ic_window, band, scale=scale,
+            _precomputed=combined.get("site"),
+        )
         bg_median, bg_std = background_value(
             aoi, ic_window, band, seasonal=seasonal, scale=scale, ring=ring,
+            _precomputed=combined.get("background"),
         )
         fb_outcome = NO_FALLBACK
         hf_ic, hf_time_range = ic_window, time_range

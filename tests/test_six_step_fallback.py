@@ -74,13 +74,39 @@ def _wire(
     }
     monkeypatch.setattr(rc, "background_ring", lambda centre, radius_km: ring)
 
-    def _site_value(aoi, ic, band, scale=None):
+    # M-PERF-A1 — the no-fallback hot path now batches the two reductions
+    # through `_site_value_reduction` / `_background_value_reduction` +
+    # `ee.Dictionary({...}).getInfo()` before delegating to the
+    # `site_value` / `background_value` post-processors via _precomputed.
+    # Stub the reduction builders to opaque sentinels and ee.Dictionary to
+    # a fake whose getInfo returns empty dicts (so the post-processors
+    # see ``_precomputed={}`` and route through their raise-or-return
+    # paths exactly as the standalone code does).
+    monkeypatch.setattr(
+        rc, "_site_value_reduction", lambda *_a, **_kw: object(),
+    )
+    monkeypatch.setattr(
+        rc, "_background_value_reduction", lambda *_a, **_kw: object(),
+    )
+
+    class _FakeBatchedDict:
+        def __init__(self, mapping): self._mapping = mapping
+        # Empty inner dicts route the post-processors through their
+        # "no value present" branches; the stubbed `_site_value` /
+        # `_background_value` below ignore _precomputed entirely and
+        # return canned values, so the inner shape is unused.
+        def getInfo(self): return {"site": {}, "background": {}}
+
+    monkeypatch.setattr(rc.ee, "Dictionary", _FakeBatchedDict)
+
+    def _site_value(aoi, ic, band, scale=None, _precomputed=None):
         if ic.window in site_fail_windows:
             raise SiteBufferNoDataError(indicator_id=band, reason="no pixels")
         return 100.0
     monkeypatch.setattr(rc, "site_value", _site_value)
 
-    def _background_value(aoi, ic, band, seasonal, scale, *, ring):
+    def _background_value(aoi, ic, band, seasonal, scale, *, ring,
+                          _precomputed=None):
         if ic.window in ring_fail_windows:
             raise BackgroundRingNoDataError(indicator_id=band, reason="no pixels")
         return (50.0, 10.0)
