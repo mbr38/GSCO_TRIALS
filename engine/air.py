@@ -44,10 +44,18 @@ Mode handling:
 
 from __future__ import annotations
 
+import concurrent.futures
 from dataclasses import dataclass
 from typing import Callable
 
 import ee
+
+
+# M-PERF-PARALLEL #3b: cap concurrent EE requests per pillar to avoid
+# overwhelming the project's per-second quota. 4 workers is a defensive
+# default that comfortably saturates EE's parallelism budget for one
+# project without tripping HTTP 429s; tune via this constant.
+_AIR_MAX_PARALLEL_WORKERS: int = 4
 
 from engine.constants import (
     AIR_FOLLOWUP_WEIGHTS,
@@ -774,6 +782,63 @@ def compute_air_audit_followup_priority(
 # Pillar entry point
 # ---------------------------------------------------------------------------
 
+def _compute_one_pollutant_outcome(
+    pol_key: str,
+    aoi: dict,
+    time_range: tuple[str, str],
+    mode: str,
+    ee_client,
+    fallback: FallbackContext | None,
+) -> tuple[dict, dict | None]:
+    """Compute one pollutant's snapshot OR its skip / failure payload.
+
+    Returns ``(payload_chunk, failure_or_none)`` so the parallel dispatcher
+    in ``run_pillar`` can merge results deterministically on the main
+    thread. Stateless — every input is passed in; nothing mutates any
+    shared structure. Safe to run in a worker thread.
+
+    Exception handling mirrors the prior inline loop body in run_pillar:
+    BackgroundRingNoDataError + SiteBufferNoDataError become silent-skip
+    payloads (no _failures entry); only IndicatorComputeError becomes a
+    failure record (the indicator's keys are set to None).
+    """
+    try:
+        snapshot = compute_pollutant_snapshot(
+            aoi=aoi,
+            pollutant=pol_key,
+            time_range=time_range,
+            mode=mode,
+            ee_client=ee_client,
+            fallback=fallback,
+        )
+        return snapshot, None
+    except BackgroundRingNoDataError as err:
+        return _emit_skipped_air_result(
+            pol_key,
+            time_range=time_range,
+            skipped_reason="background_ring_no_data",
+            reason_detail=err.reason,
+        ), None
+    except SiteBufferNoDataError as err:
+        cfg = AIR_POLLUTANT_CONFIG[pol_key]
+        return _emit_skipped_air_result(
+            pol_key,
+            time_range=time_range,
+            skipped_reason=cfg.skipped_reason_no_data,
+            reason_detail=err.reason,
+        ), None
+    except IndicatorComputeError as err:
+        chunk = {
+            make_id(PILLAR_AIR, pol_key, m): None for m in _MEASUREMENT_KEYS
+        }
+        failure = {
+            "pollutant":    pol_key,
+            "indicator_id": err.indicator_id,
+            "reason":       err.reason,
+        }
+        return chunk, failure
+
+
 def run_pillar(
     aoi: dict,
     time_range: tuple[str, str],
@@ -808,54 +873,33 @@ def run_pillar(
     payload: dict = {}
     failures: list[dict] = []
 
-    for pol_key in sorted(pollutant_keys):
-        try:
-            snapshot = compute_pollutant_snapshot(
-                aoi=aoi,
-                pollutant=pol_key,
-                time_range=time_range,
-                mode=mode,
-                ee_client=ee_client,
-                fallback=fallback,
-            )
-        # M-OCEAN-RING: ring-over-water is a silent-skip path, not a
-        # failure — surfaces in C9 / C4b with an actionable explanation
-        # instead of bubbling up as a pillar-wide compute failure when
-        # every coastal-AOI pollutant trips it simultaneously.
-        except BackgroundRingNoDataError as err:
-            payload.update(_emit_skipped_air_result(
-                pol_key,
-                time_range=time_range,
-                skipped_reason="background_ring_no_data",
-                reason_detail=err.reason,
+    # See _compute_one_pollutant_outcome below — the per-pollutant try/except
+    # used to live inline here; extracting it into a stateless helper makes
+    # the loop body suitable for concurrent dispatch.
+
+    # M-PERF-PARALLEL #3b: the 9 pollutants are fully independent (each
+    # reduces its own asset against the same AOI + window; no cross-pollutant
+    # dependencies). Dispatching them through a thread pool overlaps the
+    # blocking .getInfo() round-trips, dropping Air wall-time ~3-4×.
+    # ThreadPoolExecutor.map preserves input order, so merging the per-
+    # pollutant payload chunks in sorted(pollutant_keys) order keeps the
+    # final payload byte-identical to the prior serial implementation.
+    sorted_keys = sorted(pollutant_keys)
+    if sorted_keys:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(_AIR_MAX_PARALLEL_WORKERS, len(sorted_keys)),
+            thread_name_prefix="gsco-air",
+        ) as ex:
+            outcomes = list(ex.map(
+                lambda pk: _compute_one_pollutant_outcome(
+                    pk, aoi, time_range, mode, ee_client, fallback,
+                ),
+                sorted_keys,
             ))
-        # M-AIR-GHG-DEFENSIVE: site buffer empty (e.g. Acre's deep-Amazon
-        # AOI with persistent S5P cloud cover) is also a silent-skip
-        # path, not a pillar failure. Each pollutant's PollutantConfig
-        # carries the appropriate asset-family code
-        # (no_s5p_pixels / no_cams_pixels / no_maiac_pixels) so C4b's
-        # failed-tile expander reads e.g. "Sentinel-5P had no usable
-        # observations…" instead of a raw stack-trace fragment.
-        # Caught before generic IndicatorComputeError because it's a
-        # subclass — order matters.
-        except SiteBufferNoDataError as err:
-            cfg = AIR_POLLUTANT_CONFIG[pol_key]
-            payload.update(_emit_skipped_air_result(
-                pol_key,
-                time_range=time_range,
-                skipped_reason=cfg.skipped_reason_no_data,
-                reason_detail=err.reason,
-            ))
-        except IndicatorComputeError as err:
-            for measurement in _MEASUREMENT_KEYS:
-                payload[make_id(PILLAR_AIR, pol_key, measurement)] = None
-            failures.append({
-                "pollutant":    pol_key,
-                "indicator_id": err.indicator_id,
-                "reason":       err.reason,
-            })
-        else:
-            payload.update(snapshot)
+        for chunk, failure in outcomes:
+            payload.update(chunk)
+            if failure is not None:
+                failures.append(failure)
 
     if pollutant_keys and len(failures) == len(pollutant_keys):
         affected = [

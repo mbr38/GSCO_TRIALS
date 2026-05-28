@@ -75,6 +75,13 @@ TODOs still deferred:
 
 from __future__ import annotations
 
+import concurrent.futures
+
+# M-PERF-PARALLEL #3b: per-pillar EE concurrency budget. 3 GHG indicators
+# (CH₄, CO₂, VIIRS) → max-workers=3 saturates them; the constant exists
+# for parity with Air's _AIR_MAX_PARALLEL_WORKERS and easy tuning.
+_GHG_MAX_PARALLEL_WORKERS: int = 3
+
 from dataclasses import dataclass
 
 import ee
@@ -961,6 +968,101 @@ def compute_ghg_audit_followup_priority(
 # Pillar entry point
 # ---------------------------------------------------------------------------
 
+def _compute_one_ghg_indicator_outcome(
+    ind_key: str,
+    aoi: dict,
+    time_range: tuple[str, str],
+    mode: str,
+    ee_client,
+    fallback: FallbackContext | None,
+) -> tuple[dict, dict | None, bool]:
+    """Compute one GHG indicator — coverage gate + snapshot + skip / failure.
+
+    Returns ``(payload_chunk, failure_or_none, attempted_flag)``:
+      - ``attempted_flag=False`` for out-of-coverage skips (the original
+        loop's ``continue`` path — chunk carries None values + skipped
+        provenance; the indicator does NOT count toward attempted_keys).
+      - ``attempted_flag=True`` for everything else (success, soft-skip
+        via Background/SiteBuffer NoData, or hard IndicatorComputeError).
+
+    Stateless / thread-safe; mirrors `_compute_one_pollutant_outcome` in
+    engine.air. Bundling the standing-window check into the helper keeps
+    the per-indicator work fully independent so the dispatcher in
+    run_pillar can parallelise without coordination.
+    """
+    cfg = GHG_INDICATOR_CONFIG[ind_key]
+
+    # M-V1x-STANDING-WINDOW + M5.5c — coverage gate before snapshot.
+    effective_time_range = (
+        _latest_coverage_year_window(cfg.coverage_window)
+        if cfg.coverage_window is not None
+        else time_range
+    )
+    if not _time_range_in_coverage(effective_time_range, cfg.coverage_window):
+        chunk: dict = {
+            make_id(PILLAR_GHG, ind_key, m): None
+            for m in cfg.emitted_measurements
+        }
+        chunk[f"_provenance.ghg.{ind_key}"] = build_provenance(
+            indicator_id=f"ghg.{ind_key}",
+            asset_id=cfg.asset_id,
+            band=cfg.band,
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=effective_time_range,
+            coverage_window=cfg.coverage_window,
+            skipped_reason="out_of_coverage",
+            observations={"count": 0, "unit": "monthly_grids"},
+            extra={},
+        )
+        return chunk, None, False  # not attempted (the prior loop's `continue`)
+
+    try:
+        if ind_key == "co2":
+            snapshot = compute_co2_snapshot(
+                aoi=aoi,
+                time_range=effective_time_range,
+                mode=mode,
+                ee_client=ee_client,
+            )
+        else:
+            snapshot = compute_ghg_indicator_snapshot(
+                aoi=aoi,
+                indicator=ind_key,
+                time_range=time_range,
+                mode=mode,
+                ee_client=ee_client,
+                fallback=fallback,
+            )
+        return snapshot, None, True
+    except BackgroundRingNoDataError as err:
+        return _emit_skipped_ghg_result(
+            ind_key,
+            time_range=time_range,
+            skipped_reason="background_ring_no_data",
+            reason_detail=err.reason,
+        ), None, True
+    except SiteBufferNoDataError as err:
+        return _emit_skipped_ghg_result(
+            ind_key,
+            time_range=time_range,
+            skipped_reason=cfg.skipped_reason_no_data,
+            reason_detail=err.reason,
+        ), None, True
+    except IndicatorComputeError as err:
+        chunk = {
+            make_id(PILLAR_GHG, ind_key, m): None
+            for m in cfg.emitted_measurements
+        }
+        failure = {
+            "indicator":    ind_key,
+            "indicator_id": err.indicator_id,
+            "reason":       err.reason,
+        }
+        return chunk, failure, True
+
+
 def run_pillar(
     aoi: dict,
     time_range: tuple[str, str],
@@ -995,104 +1097,30 @@ def run_pillar(
     # skipped, not failed).
     attempted_keys: set[str] = set()
 
-    for ind_key in sorted(indicator_keys):
-        cfg = GHG_INDICATOR_CONFIG[ind_key]
-
-        # M-V1x-STANDING-WINDOW — a coverage_window marks a standing-exposure
-        # indicator (ODIAC is the only one in v1). Such indicators read their
-        # latest available year independent of the user's analysis window
-        # (audit §9.3 / M5.5b standing-exposure intent), so present-day runs
-        # surface the 2023 value rather than skipping. Live-window indicators
-        # (CH₄, VIIRS) have no coverage_window → effective == user window.
-        effective_time_range = (
-            _latest_coverage_year_window(cfg.coverage_window)
-            if cfg.coverage_window is not None
-            else time_range
-        )
-
-        # M5.5c — skip silently when out of coverage. Retained as a safety
-        # net for any future windowed indicator whose latest year still
-        # can't satisfy the check; ODIAC's fixed latest-year window is always
-        # in coverage, so it no longer hits this path. No `_failures` entry —
-        # out-of-coverage is an expected case, not a failure.
-        if not _time_range_in_coverage(effective_time_range, cfg.coverage_window):
-            for measurement in cfg.emitted_measurements:
-                payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
-            # M5.6 — canonical provenance even on the skip path. The
-            # zero-count observations field tells reviewers explicitly
-            # that no images were actually pulled. `observations.unit` is
-            # ODIAC-specific today (it's the only indicator with a
-            # coverage_window in v1); generalise when CH₄/VIIRS or other
-            # indicators acquire windows.
-            payload[f"_provenance.ghg.{ind_key}"] = build_provenance(
-                indicator_id=f"ghg.{ind_key}",
-                asset_id=cfg.asset_id,
-                band=cfg.band,
-                data_type=cfg.data_type,
-                data_source=cfg.data_source,
-                native_scale_m=cfg.scale_m,
-                time_range=effective_time_range,
-                coverage_window=cfg.coverage_window,
-                skipped_reason="out_of_coverage",
-                observations={"count": 0, "unit": "monthly_grids"},
-                extra={},
-            )
-            continue
-
-        attempted_keys.add(ind_key)
-
-        try:
-            # CO₂ has a bespoke ODIAC pipeline (inventory product, not a
-            # column density), so it bypasses six_step. All other GHG
-            # indicators flow through compute_ghg_indicator_snapshot.
-            if ind_key == "co2":
-                snapshot = compute_co2_snapshot(
-                    aoi=aoi,
-                    time_range=effective_time_range,    # fixed latest ODIAC year
-                    mode=mode,
-                    ee_client=ee_client,
-                )
-            else:
-                snapshot = compute_ghg_indicator_snapshot(
-                    aoi=aoi,
-                    indicator=ind_key,
-                    time_range=time_range,
-                    mode=mode,
-                    ee_client=ee_client,
-                    fallback=fallback,
-                )
-        # M-OCEAN-RING: silent-skip when the §0.2 ring lands over water /
-        # outside asset coverage. CH₄ flows through six_step so it can
-        # trip this; CO₂ uses its own ODIAC reduction (gated by
-        # coverage_window) and won't. VIIRS goes through six_step too.
-        except BackgroundRingNoDataError as err:
-            payload.update(_emit_skipped_ghg_result(
-                ind_key,
-                time_range=time_range,
-                skipped_reason="background_ring_no_data",
-                reason_detail=err.reason,
+    # M-PERF-PARALLEL #3b: dispatch the (up to 3) GHG indicators concurrently
+    # through a thread pool. Each is independent — coverage-gating + snapshot
+    # + skip + failure logic is bundled in _compute_one_ghg_indicator_outcome
+    # so workers are stateless. attempted_keys / payload / failures are merged
+    # on the main thread in canonical sorted order so the final shape stays
+    # byte-identical to the prior serial implementation.
+    sorted_keys = sorted(indicator_keys)
+    if sorted_keys:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(_GHG_MAX_PARALLEL_WORKERS, len(sorted_keys)),
+            thread_name_prefix="gsco-ghg",
+        ) as ex:
+            outcomes = list(ex.map(
+                lambda ik: _compute_one_ghg_indicator_outcome(
+                    ik, aoi, time_range, mode, ee_client, fallback,
+                ),
+                sorted_keys,
             ))
-        # M-AIR-GHG-DEFENSIVE: site buffer empty (e.g. Acre's deep-Amazon
-        # AOI). Routed to the silent-skip payload with an asset-family
-        # code (no_s5p_pixels for CH₄; no_viirs_pixels for VIIRS). Caught
-        # before generic IndicatorComputeError because it's a subclass.
-        except SiteBufferNoDataError as err:
-            payload.update(_emit_skipped_ghg_result(
-                ind_key,
-                time_range=time_range,
-                skipped_reason=cfg.skipped_reason_no_data,
-                reason_detail=err.reason,
-            ))
-        except IndicatorComputeError as err:
-            for measurement in cfg.emitted_measurements:
-                payload[make_id(PILLAR_GHG, ind_key, measurement)] = None
-            failures.append({
-                "indicator":    ind_key,
-                "indicator_id": err.indicator_id,
-                "reason":       err.reason,
-            })
-        else:
-            payload.update(snapshot)
+        for ind_key, (chunk, failure, attempted) in zip(sorted_keys, outcomes):
+            payload.update(chunk)
+            if failure is not None:
+                failures.append(failure)
+            if attempted:
+                attempted_keys.add(ind_key)
 
     if attempted_keys and len(failures) == len(attempted_keys):
         affected = [

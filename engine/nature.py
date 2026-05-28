@@ -50,10 +50,17 @@ TODOs deferred from this milestone:
 
 from __future__ import annotations
 
+import concurrent.futures
 import math
 from dataclasses import dataclass, field
 
 import ee
+
+
+# M-PERF-PARALLEL #3b: Nature dispatches up to 9 EE pipelines per screening
+# (7 main indicators + regional_loss_evidence + supplier_spatial_link).
+# 6 workers is a defensive default; tune if EE quota becomes the limit.
+_NATURE_MAX_PARALLEL_WORKERS: int = 6
 
 from engine.constants import (
     BIODIVERSITY_EXPOSURE_WEIGHTS,
@@ -1966,6 +1973,29 @@ def compute_nature_spatiotemporal_anomaly(payload: dict) -> dict:
 # Pillar entry point
 # ---------------------------------------------------------------------------
 
+def _run_one_nature_task(
+    task: tuple,
+) -> tuple[dict, dict | None]:
+    """Worker for the parallel Nature dispatch in run_pillar.
+
+    Each task tuple is ``(label, callable, default_chunk_on_failure,
+    failure_indicator_name, counts_toward_main_pillar_failure_check)``.
+    Returns ``(payload_chunk, failure_or_none)``: on success the chunk is
+    the callable's return dict; on IndicatorComputeError it's the
+    pre-built None-filled chunk plus a failure record. Stateless;
+    thread-safe.
+    """
+    _label, fn, default_chunk_on_failure, failure_indicator_name, _is_main = task
+    try:
+        return fn(), None
+    except IndicatorComputeError as err:
+        return default_chunk_on_failure, {
+            "indicator":    failure_indicator_name,
+            "indicator_id": err.indicator_id,
+            "reason":       err.reason,
+        }
+
+
 def run_pillar(
     aoi: dict,
     time_range: tuple[str, str],
@@ -1998,9 +2028,8 @@ def run_pillar(
     payload: dict = {}
     failures: list[dict] = []
 
-    # Sequential dispatch — the dict ordering here is the authoritative
-    # compute order for Nature (KBA → DW → habitat → forest → NDVI → water → recovery).
-    dispatch = {
+    # Compute task table for the main 7 indicators (canonical order).
+    main_task_callables = {
         "kba":         lambda: compute_kba_proximity(aoi, time_range, ee_client),
         "dw":          lambda: compute_current_land_cover(aoi, time_range, ee_client),
         "habitat":     lambda: compute_habitat_conversion(aoi, time_range, ee_client),
@@ -2010,71 +2039,88 @@ def run_pillar(
         "recovery":    lambda: compute_recovery_signal(aoi, time_range, ee_client),
     }
 
-    for ind_key in [k for k in dispatch if k in indicator_keys]:
-        try:
-            payload.update(dispatch[ind_key]())
-        except IndicatorComputeError as err:
-            for emitted in NATURE_INDICATOR_CONFIG[ind_key].emitted_keys:
-                payload[emitted] = None
-            failures.append({
-                "indicator":    ind_key,
-                "indicator_id": err.indicator_id,
-                "reason":       err.reason,
-            })
-
-    if indicator_keys and len(failures) == len(indicator_keys):
-        affected = [
-            key
-            for ind in sorted(indicator_keys)
-            for key in NATURE_INDICATOR_CONFIG[ind].emitted_keys
-        ]
-        raise PillarComputeError(
-            pillar=PILLAR_NATURE,
-            indicator_ids=affected,
-            reason="all selected Nature indicators failed to compute",
-        )
-
-    # External driver screening — single Hansen reduceRegion pair, cheap.
-    # M-ATTRIB-A1 (AT5): regional_loss_evidence is reference data (Hansen
-    # ring-vs-buffer ratio), not a quality sub-score. It no longer feeds any
-    # aggregate, but still runs when Nature runs so the M-UI-A6 Hansen card
-    # can show the regional-context line. Audit §9.3 / IC_v4 §7.5. Runs before
-    # the pure aggregates so the rest can live in `recompute_nature_aggregates`.
+    # M-PERF-PARALLEL #3b: build a flat list of independent tasks (main 7
+    # + regional_loss_evidence + supplier_spatial_link when habitat is
+    # selected). Cause #2 decoupled supplier_spatial_link from habitat's
+    # payload, so all 9 are now fully independent of each other and can
+    # run concurrently. The previous serial sum (~30-60 s for Nature)
+    # collapses to ≈ max(per-indicator wall-time).
+    #
+    # Each task entry is a tuple:
+    #   (label, callable, default_chunk_on_failure, failure_indicator_name,
+    #    counts_toward_main_pillar_failure_check)
+    # — the last flag matters for the PillarComputeError gate, which only
+    # fires when EVERY main-loop indicator failed (regional_loss / spatial
+    # _link failures don't escalate to a pillar-wide failure).
+    tasks: list[tuple[str, "Callable[[], dict]", dict, str, bool]] = []
+    for ind_key in [k for k in main_task_callables if k in indicator_keys]:
+        tasks.append((
+            ind_key,
+            main_task_callables[ind_key],
+            {k: None for k in NATURE_INDICATOR_CONFIG[ind_key].emitted_keys},
+            ind_key,
+            True,
+        ))
+    # Reference-data ratio (Hansen ring-vs-buffer). M-ATTRIB-A1 (AT5): no
+    # longer a quality sub-score; ALWAYS runs when Nature runs so the
+    # M-UI-A6 Hansen card can show the regional-context line.
     if indicator_keys:
-        try:
-            payload.update(compute_regional_loss_evidence(aoi, time_range, ee_client))
-        except IndicatorComputeError as err:
-            payload["nature.regional_loss_evidence.ratio"] = None
-            payload["nature.regional_loss_evidence.window"] = None
-            failures.append({
-                "indicator":    "regional_loss_evidence",
-                "indicator_id": err.indicator_id,
-                "reason":       err.reason,
-            })
-
+        tasks.append((
+            "regional_loss_evidence",
+            lambda: compute_regional_loss_evidence(aoi, time_range, ee_client),
+            {
+                "nature.regional_loss_evidence.ratio":  None,
+                "nature.regional_loss_evidence.window": None,
+            },
+            "regional_loss_evidence",
+            False,  # not a main-pillar indicator
+        ))
     # M-ATTRIB-A1 (AT7/AT8): habitat-conversion attributability via centroid
-    # offset. Only runs when habitat conversion was selected (it's the
-    # attributability surface for that indicator). EE call → lives here, not
-    # in recompute_nature_aggregates. Attributability never enters an
-    # aggregate, so a failure degrades to "sparse", never a pillar failure.
+    # offset. Only runs when habitat was selected. Failure degrades to
+    # "sparse"; never escalates to a pillar-wide failure.
     if "habitat" in indicator_keys:
-        try:
-            payload.update(
-                compute_supplier_spatial_link(aoi, time_range, ee_client)
-            )
-        except IndicatorComputeError as err:
-            payload.update({
+        tasks.append((
+            "supplier_spatial_link",
+            lambda: compute_supplier_spatial_link(aoi, time_range, ee_client),
+            {
                 "nature.supplier_spatial_link.centroid_offset_km": None,
                 "nature.supplier_spatial_link.centroid_lat":       None,
                 "nature.supplier_spatial_link.centroid_lon":       None,
                 "nature.supplier_spatial_link.n_change_pixels":    0,
                 "nature.habitat.attributability_state":            "sparse",
-            })
-            failures.append({
-                "indicator":    "supplier_spatial_link",
-                "indicator_id": err.indicator_id,
-                "reason":       err.reason,
-            })
+            },
+            "supplier_spatial_link",
+            False,
+        ))
+
+    if tasks:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=min(_NATURE_MAX_PARALLEL_WORKERS, len(tasks)),
+            thread_name_prefix="gsco-nature",
+        ) as ex:
+            outcomes = list(ex.map(_run_one_nature_task, tasks))
+        # Merge in canonical task-list order. Track main-only failures
+        # separately so the PillarComputeError gate stays scoped to the
+        # main indicators (regional_loss / spatial_link don't escalate).
+        main_failure_count = 0
+        for (label, _fn, _chunk, _fname, is_main), (chunk, failure) in zip(tasks, outcomes):
+            payload.update(chunk)
+            if failure is not None:
+                failures.append(failure)
+                if is_main:
+                    main_failure_count += 1
+
+        if indicator_keys and main_failure_count == len(indicator_keys):
+            affected = [
+                key
+                for ind in sorted(indicator_keys)
+                for key in NATURE_INDICATOR_CONFIG[ind].emitted_keys
+            ]
+            raise PillarComputeError(
+                pillar=PILLAR_NATURE,
+                indicator_ids=affected,
+                reason="all selected Nature indicators failed to compute",
+            )
 
     recompute_nature_aggregates(payload, aoi, mode)
 

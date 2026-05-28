@@ -431,7 +431,7 @@ class TestTwoPillarHappyPath:
         confidences. This is the path the old test would have exercised
         if Nature had been wired into the M5c-era stubs.
         """
-        def _fake_nature_payload() -> dict:
+        def _minimal_nature_payload() -> dict:
             return {
                 "nature.followup_priority":   0.40,
                 "nature.measurement_quality": 0.55,  # M-ATTRIB-A1 (AT13)
@@ -439,7 +439,7 @@ class TestTwoPillarHappyPath:
 
         monkeypatch.setitem(orchestrator._PILLARS, "air",    lambda **_kw: _fake_air_payload())
         monkeypatch.setitem(orchestrator._PILLARS, "ghg",    lambda **_kw: _fake_ghg_payload())
-        monkeypatch.setitem(orchestrator._PILLARS, "nature", lambda **_kw: _fake_nature_payload())
+        monkeypatch.setitem(orchestrator._PILLARS, "nature", lambda **_kw: _minimal_nature_payload())
 
         result = ScreeningRun(
             aoi=_AOI,
@@ -493,6 +493,106 @@ class TestAccumulatedPayloadThreadedToGhg:
         # to 0.5, including these two.
         assert accumulated["air.industrial_combustion_proxy"] == 0.5
         assert accumulated["air.smoke_dust_regional_transport"] == 0.5
+
+
+def _minimal_nature_payload() -> dict:
+    """Minimal Nature payload — enough for the orchestrator to merge + the
+    GHG/composite paths to find `nature.followup_priority` afterwards."""
+    return {
+        "nature.followup_priority":   0.40,
+        "nature.measurement_quality": 0.55,
+    }
+
+
+class TestPerfParallelStagedExecution:
+    """M-PERF-PARALLEL (cause #3): Air + Nature run concurrently in Stage 1;
+    GHG runs in Stage 2 after both Stage-1 outcomes are merged.
+
+    The barrier-based test below is deterministic — no timing assertions.
+    If Air and Nature run sequentially, the second one will block forever
+    on the barrier (the first never reaches it), and the explicit timeout
+    on `barrier.wait` raises BrokenBarrierError → the test fails clearly.
+    """
+
+    def test_air_and_nature_run_concurrently_in_stage_1(self, monkeypatch):
+        import threading
+
+        # Both Stage-1 pillars must reach the barrier within the timeout for
+        # it to release — only possible if they're executed concurrently.
+        barrier = threading.Barrier(parties=2, timeout=2.0)
+        ghg_saw_payload: dict = {}
+
+        def _air_fn(**_kw):
+            barrier.wait()  # blocks until Nature also reaches here
+            return _fake_air_payload()
+
+        def _nature_fn(**_kw):
+            barrier.wait()
+            return _minimal_nature_payload()
+
+        def _ghg_fn(**kw):
+            # Capture accumulated_payload so we can verify Stage-1 merged
+            # before Stage 2 started.
+            ghg_saw_payload.update(kw["accumulated_payload"])
+            return _fake_ghg_payload()
+
+        monkeypatch.setitem(orchestrator._PILLARS, "air",    _air_fn)
+        monkeypatch.setitem(orchestrator._PILLARS, "ghg",    _ghg_fn)
+        monkeypatch.setitem(orchestrator._PILLARS, "nature", _nature_fn)
+
+        ScreeningRun(
+            aoi=_AOI,
+            selected_indicators={
+                "air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score",
+            },
+            time_range=_TIME_RANGE,
+            ee_client=None,
+            centre_metadata=_CENTRE_METADATA,
+        ).run()
+
+        # GHG (Stage 2) must have seen both Air's AND Nature's outputs in
+        # its accumulated_payload — proving Stage 1 finished before Stage 2.
+        assert "air.industrial_combustion_proxy" in ghg_saw_payload
+        assert "nature.followup_priority" in ghg_saw_payload
+
+    def test_ghg_starts_only_after_air_and_nature_complete(self, monkeypatch):
+        # Independent assertion of the same staging invariant, via call
+        # ordering (record entry order; assert GHG entered last).
+        entry_order: list = []
+        lock = __import__("threading").Lock()
+
+        def _record(name, payload):
+            with lock:
+                entry_order.append(name)
+            return payload
+
+        monkeypatch.setitem(
+            orchestrator._PILLARS, "air",
+            lambda **_kw: _record("air", _fake_air_payload()),
+        )
+        monkeypatch.setitem(
+            orchestrator._PILLARS, "nature",
+            lambda **_kw: _record("nature", _minimal_nature_payload()),
+        )
+        monkeypatch.setitem(
+            orchestrator._PILLARS, "ghg",
+            lambda **_kw: _record("ghg", _fake_ghg_payload()),
+        )
+
+        ScreeningRun(
+            aoi=_AOI,
+            selected_indicators={
+                "air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score",
+            },
+            time_range=_TIME_RANGE,
+            ee_client=None,
+            centre_metadata=_CENTRE_METADATA,
+        ).run()
+
+        # GHG must be the LAST pillar called (Stage 2 follows Stage 1).
+        assert entry_order[-1] == "ghg"
+        # Air + Nature both ran in Stage 1 (order between them is racy → set).
+        assert set(entry_order[:-1]) == {"air", "nature"}
 
 
 class TestPerPillarFailuresNamespaced:

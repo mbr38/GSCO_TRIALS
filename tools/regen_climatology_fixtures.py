@@ -243,6 +243,17 @@ def _write_fixture(out_path: Path, countries: dict, args, window,
     )
 
 
+def _indicators_to_run(only_indicators: list[str] | None) -> list[str]:
+    """Honor ``--only-indicators`` if set, else the full in-scope list."""
+    if not only_indicators:
+        return list(CLIMATOLOGY_INDICATORS)
+    selected = [i for i in only_indicators if i in CLIMATOLOGY_INDICATORS]
+    unknown = sorted(set(only_indicators) - set(CLIMATOLOGY_INDICATORS))
+    if unknown:
+        print(f"WARNING: ignoring unknown --only-indicators: {unknown}", file=sys.stderr)
+    return selected
+
+
 # ---------------------------------------------------------------------------
 # Modes
 # ---------------------------------------------------------------------------
@@ -262,8 +273,9 @@ def _run_getinfo(args, window) -> None:
             print(f"Could not read --out for resume ({err}); starting fresh.")
 
     fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset, args.exclude_countries)
+    indicators = _indicators_to_run(args.only_indicators)
 
-    for ind in CLIMATOLOGY_INDICATORS:
+    for ind in indicators:
         if ind in done:
             print(f"  {ind}: skip (already computed)", flush=True)
             continue
@@ -298,8 +310,9 @@ def _run_export(args, window) -> None:
     import ee
 
     fc = _country_fc(args.countries, args.simplify_m, args.bbox_inset, args.exclude_countries)
+    indicators = _indicators_to_run(args.only_indicators)
     tasks = []
-    for ind in CLIMATOLOGY_INDICATORS:
+    for ind in indicators:
         stats, _band = _stats_fc(ind, window, fc, args.scale_m, args.tile_scale)
         prefix = f"clim_{args.vintage}_{ind.replace('.', '_')}"
         task = ee.batch.Export.table.toDrive(
@@ -389,6 +402,12 @@ def main() -> None:
         "--exclude-countries", nargs="*", default=None,
         help=f"GAUL ADM0_NAME values to skip. Default: "
              f"{list(_DEFAULT_EXCLUDED_COUNTRIES)}",
+    )
+    parser.add_argument(
+        "--only-indicators", nargs="*", default=None,
+        help="Restrict the run to this subset of CLIMATOLOGY_INDICATORS "
+             "(useful for retrying memory-hungry indicators at a higher "
+             "--tile-scale without redoing the whole world).",
     )
     parser.add_argument(
         "--countries", nargs="*", default=None,

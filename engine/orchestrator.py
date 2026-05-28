@@ -21,12 +21,38 @@ Future:
 
 from __future__ import annotations
 
+import concurrent.futures
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable
 
 from engine import air, ghg, nature
 from engine.core.fallback import FallbackContext
 from engine.exceptions import IndicatorComputeError, PillarComputeError
+
+
+# M-PERF-PARALLEL (cause #3): Air and Nature don't read the cross-pillar
+# `accumulated_payload`, so they can run concurrently. GHG must still wait
+# for Air to finish — it merges Air's `industrial_combustion_proxy` and
+# `smoke_dust_regional_transport` into its own payload before computing the
+# combustion-proxy / fire-transport sub-aggregates. Wall-time savings ≈ the
+# shorter of Air vs Nature.
+_PARALLEL_STAGE_1_PILLARS: tuple[str, ...] = ("air", "nature")
+_SEQUENTIAL_STAGE_2_PILLARS: tuple[str, ...] = ("ghg",)
+
+
+@dataclass
+class _PillarOutcome:
+    """Pillar-thread result, captured for main-thread merging into self.payload.
+
+    Either ``result`` (the pillar's return dict) is set, or ``pillar_failure``
+    (a ``PillarComputeError``) is — never both. The worker thread never
+    mutates ``ScreeningRun.payload``; the orchestrator merges the outcome on
+    the main thread so per-pillar key writes stay single-threaded.
+    """
+
+    result: dict | None
+    pillar_failure: PillarComputeError | None
 
 
 # Mapping of pillar name → run_pillar callable. Iteration order = execution
@@ -107,9 +133,39 @@ class ScreeningRun:
     # ------------------------------------------------------------------ #
 
     def run(self) -> dict:
-        """Run every available pillar and assemble the unified result payload."""
-        for pillar_name, run_pillar_fn in _PILLARS.items():
-            self._run_one_pillar(pillar_name, run_pillar_fn)
+        """Run every available pillar and assemble the unified result payload.
+
+        M-PERF-PARALLEL (cause #3): Stage 1 runs Air + Nature concurrently
+        in a `ThreadPoolExecutor` (both are independent of cross-pillar
+        payload borrows); Stage 2 runs GHG sequentially after Stage 1's
+        results have been merged into `self.payload` (GHG reads Air's
+        sub-aggregates via `accumulated_payload`). The worker threads
+        never mutate `self.payload` — outcomes are captured and merged on
+        the main thread in canonical pillar order, so per-key writes stay
+        single-threaded.
+        """
+        # Stage 1 — Air + Nature in parallel.
+        stage1: dict[str, _PillarOutcome] = {}
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=len(_PARALLEL_STAGE_1_PILLARS),
+            thread_name_prefix="gsco-pillar",
+        ) as ex:
+            futures = {
+                ex.submit(self._call_pillar, name, _PILLARS[name]): name
+                for name in _PARALLEL_STAGE_1_PILLARS
+            }
+            for fut in concurrent.futures.as_completed(futures):
+                name = futures[fut]
+                stage1[name] = fut.result()
+        # Merge in canonical order so any (unlikely) shared key resolves
+        # the same way as the prior sequential implementation did.
+        for name in _PARALLEL_STAGE_1_PILLARS:
+            self._apply_pillar_outcome(name, stage1[name])
+
+        # Stage 2 — GHG (reads Air's keys via accumulated_payload).
+        for name in _SEQUENTIAL_STAGE_2_PILLARS:
+            self._run_one_pillar(name, _PILLARS[name])
+
         self._compute_composite()
         self._compute_composite_confidence()
         self._consolidate_failures()
@@ -129,13 +185,28 @@ class ScreeningRun:
         pillar: str,
         run_pillar_fn: Callable[..., dict],
     ) -> None:
-        """Run one pillar, catching pillar-wide failures so the orchestrator
-        keeps going. Per-indicator failures (the pillar's `_failures` list)
-        are popped out of the return dict and stashed per-pillar so the next
-        pillar doesn't overwrite them when it updates `self.payload`.
+        """Sequential dispatch — call the pillar then merge its outcome.
 
-        Threads `accumulated_payload=self.payload` so GHG can read Air's
-        borrowed sub-aggregate values when it runs second.
+        Convenience wrapper used by Stage 2 (GHG). Stage 1 (Air + Nature)
+        calls `_call_pillar` directly in a thread pool and applies outcomes
+        via `_apply_pillar_outcome` on the main thread.
+        """
+        self._apply_pillar_outcome(pillar, self._call_pillar(pillar, run_pillar_fn))
+
+    def _call_pillar(
+        self,
+        pillar: str,
+        run_pillar_fn: Callable[..., dict],
+    ) -> _PillarOutcome:
+        """Invoke `run_pillar_fn` and capture its outcome.
+
+        **Thread-safe**: never mutates `self.payload`. Returns a
+        ``_PillarOutcome`` for the main thread to merge via
+        ``_apply_pillar_outcome``. Passes a copy of ``self.payload`` to the
+        pillar's ``accumulated_payload`` so concurrent Stage-1 pillars
+        can't observe each other's partial writes (GHG-only borrows still
+        work in Stage 2 because by then both Stage-1 outcomes have been
+        merged).
         """
         try:
             result = run_pillar_fn(
@@ -144,24 +215,41 @@ class ScreeningRun:
                 mode="screening",
                 selected_indicators=self._pillar_selection(pillar),
                 ee_client=self.ee_client,
-                accumulated_payload=self.payload,
+                # Snapshot, not a live reference — keeps Stage 1 thread-safe.
+                accumulated_payload=dict(self.payload),
                 fallback=self.fallback,
             )
+            return _PillarOutcome(result=result, pillar_failure=None)
         except PillarComputeError as err:
+            return _PillarOutcome(result=None, pillar_failure=err)
+
+    def _apply_pillar_outcome(
+        self,
+        pillar: str,
+        outcome: _PillarOutcome,
+    ) -> None:
+        """Merge a pillar's outcome into `self.payload` (main thread only).
+
+        Mirrors the previous body of `_run_one_pillar`. Per-indicator
+        failures (the pillar's ``_failures`` list) are popped out of the
+        return dict and stashed per-pillar so a subsequent pillar's
+        ``_failures`` (or absence thereof) doesn't overwrite this one's.
+        """
+        if outcome.pillar_failure is not None:
+            err = outcome.pillar_failure
             self.pillar_wide_failures[pillar] = {
                 "indicator_ids": err.indicator_ids,
                 "reason":        err.reason,
             }
             for ind_id in err.indicator_ids:
                 self.payload[ind_id] = None
-        else:
-            # Pop the pillar's `_failures` list out before merging into
-            # `self.payload` — otherwise the next pillar's `_failures`
-            # (or lack thereof) would overwrite this one's.
-            failures = result.pop("_failures", None)
-            if failures is not None:
-                self.indicator_failures[pillar] = failures
-            self.payload.update(result)
+            return
+        # Success path — outcome.result is non-None by _PillarOutcome contract.
+        result = outcome.result
+        failures = result.pop("_failures", None)
+        if failures is not None:
+            self.indicator_failures[pillar] = failures
+        self.payload.update(result)
 
     def _compute_composite(self) -> None:
         """IC_v4 §4 — equal-weighted mean of per-pillar follow-up priorities.
