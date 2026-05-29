@@ -32,15 +32,20 @@ TRAFFIC_LIGHT_THRESHOLDS: tuple[float, float] = (0.33, 0.66)
 # Repeatable core method  (IC_v4 §0.2 step 5, §0.4)
 # ---------------------------------------------------------------------------
 # @parameter
-# tier: first-pass
-# rationale: First-pass intuition that a per-day z-score of 2.0 (the standard
-#     2σ threshold) is the right gate for an "anomalous day". Has not been
-#     validated against ground truth; M-DIAG-A1 (28 May 2026) flagged that
-#     this threshold misbehaves at clean-air locations (collapses to firing
-#     every day) and at plume-contaminated locations (silences real signals).
-#     Subject to revision after a calibration sweep.
-# source: docs/Indicators_Computation_v4.md §0.4 (2σ convention); docs/M-DIAG-A1_diagnosis_report.md; calibration pending
-# last_reviewed: 2026-05-28
+# tier: spec-mandated
+# rationale: Per-day z-score gate for an "anomalous day" — the standard 2σ
+#     threshold. M-DIAG-A1 originally pre-diagnosed this as a calibration
+#     concern, but that "AAI fires every day / Norilsk fires never" symptom
+#     turned out to be a key-naming bug in `_server_side_hf` (see
+#     docs/M-DIAG-A1_diagnosis_report.md §7), not a threshold problem.
+#     M-DIAG-A2 Step C.3 (29 May 2026) reviewed the post-fix per-day z
+#     distribution at the 5 calibration seeds: per-day-z spans realistic
+#     ranges (e.g. Norilsk NO2 median +2.18, max +24.4); the 2.0 gate
+#     produces hf values 0.26-0.84 across pollutants and seeds. The spec
+#     value stands; promoted from "first-pass" to "spec-mandated" per
+#     IC §0.4's 2σ convention now that the detector is functional.
+# source: docs/Indicators_Computation_v4.md §0.4; M-DIAG-A1 fix; M-DIAG-A2 §4.2 calibration record
+# last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi]
 ANOMALY_Z_THRESHOLD: float = 2.0
 
@@ -725,36 +730,52 @@ HABITAT_SPATIAL_LINK_MOD_KM: float = 3.0
 # tier: first-pass
 # rationale: Upper wind-speed bound for "high" attributability — below 2 m/s
 #     the air is calm enough that an observed plume is plausibly local to the
-#     site. The 2 m/s breakpoint aligns with the Pasquill calm-to-light wind
-#     threshold (WA8), but the choice to use it as the attributability gate is
-#     first-pass and flagged for a joint calibration sweep with the habitat
-#     thresholds (Q-WA-1 / Q-AT-1). The 29 May 2026 demo seeds found no site
-#     landing at "low", which is a detector/architecture issue, not a reason
-#     to move this value yet.
-# source: M-WIND-A1 v2.0 spec §5.2 (Pasquill calm-to-light); calibration pending
+#     site. Aligns with the Pasquill calm-to-light wind threshold (WA8).
+#     M-DIAG-A2 Step C.3 (29 May 2026) reviewed against post-fix 5-seed
+#     baseline: kept unchanged. The Norilsk NO2 case (s=2.8 m/s wind, lands
+#     "moderate" not "high") suggested raising to ~3.0 m/s would match the
+#     operator's high-attributability intuition there, but doing so flips
+#     Sapezal NO2/AAI (s=2.0-2.7 m/s) to "high" which contradicts the
+#     "moderate" intuition for tropical clean-air seeds. Anti-overfitting
+#     argued against. The Brasilia NO2/SO2 cases firing "high" (s=1.2-1.8 m/s)
+#     are methodologically defensible. Stays first-pass — re-review when
+#     additional non-tropical industrial seeds enter the calibration set.
+# source: M-WIND-A1 v2.0 spec §5.2 (Pasquill calm-to-light); M-DIAG-A2 §4.2 (no change)
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_SPEED_HIGH_MAX_MS: float = 2.0
 # @parameter
-# tier: first-pass
+# tier: calibrated
 # rationale: Lower wind-speed bound for "low" attributability — at or above
-#     5 m/s the wind is brisk enough that an observed plume is more likely
-#     advected from elsewhere than emitted locally. The 5 m/s breakpoint
-#     matches the Pasquill light-to-moderate transition. First-pass; the
-#     Q-WA-1 finding suggests v1.x may drop this to ~3.5 m/s so realistic
-#     3-4 m/s coastal-industrial regimes can produce "low".
-# source: M-WIND-A1 v2.0 spec §5.2 (Pasquill light-to-moderate); calibration pending
+#     3.5 m/s the wind is brisk enough that an observed plume is more likely
+#     advected from elsewhere than emitted locally. M-DIAG-A2 Step C.3
+#     (29 May 2026) lowered this from the original 5.0 m/s to 3.5 m/s based
+#     on post-fix 5-seed baseline evidence: Suape (coastal industrial, ~4 m/s
+#     wind regime) was operator-expected "moderate-to-low" but landed
+#     uniformly moderate because every Air indicator's wind speed sat just
+#     below the 5 m/s gate; dropping to 3.5 m/s shifts Suape NO2/HCHO/AAI/SO2
+#     to "low" matching expectation, and Q-WA-1 explicitly predicted this
+#     adjustment. The 3.5 m/s value is approximately the Pasquill light-to-
+#     moderate transition's lower edge (the original 5.0 m/s was its upper
+#     edge); both are defensible meteorologically. Anti-overfitting note:
+#     Sapezal/Brasilia/Comodoro/Norilsk indicators are not affected by this
+#     change (their speeds are well below or well above the 3.5 m/s pivot).
+# source: M-WIND-A1 v2.0 spec §5.2; M-DIAG-A2 §4.2 calibration record
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
-WIND_SPEED_LOW_MIN_MS:  float = 5.0
+WIND_SPEED_LOW_MIN_MS:  float = 3.5
 # @parameter
 # tier: first-pass
 # rationale: Upper bound on the upwind/downwind background-ring asymmetry
 #     ratio for "high" attributability. A near-symmetric ring (ratio < 1.5)
-#     is consistent with a local source dominating in all directions. The
-#     1.5 breakpoint is a first-pass intuition with no empirical grounding
-#     yet; flagged for the joint calibration sweep (Q-WA-1).
-# source: M-WIND-A1 v2.0 spec §5.2; first-pass intuition; calibration pending
+#     is consistent with a local source dominating in all directions.
+#     M-DIAG-A2 Step C.3 (29 May 2026) reviewed against post-fix 5-seed
+#     baseline: most observed ratios cluster within 0.9-1.1 (effectively
+#     symmetric), so the 1.5 vs 2.5 buckets are exercised mostly by speed,
+#     not ratio. The 1.5 value held up — kept unchanged. Re-review when
+#     calibration set includes locations with stronger directional
+#     contrast.
+# source: M-WIND-A1 v2.0 spec §5.2; M-DIAG-A2 §4.2 (no change)
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_ASYMMETRY_HIGH_MAX: float = 1.5
@@ -762,9 +783,13 @@ WIND_ASYMMETRY_HIGH_MAX: float = 1.5
 # tier: first-pass
 # rationale: Lower bound on the upwind/downwind asymmetry ratio for "low"
 #     attributability. A strongly directional ring (ratio >= 2.5) points to
-#     an off-site source advected past the supplier. The 2.5 breakpoint is a
-#     first-pass intuition flagged for the joint calibration sweep (Q-WA-1).
-# source: M-WIND-A1 v2.0 spec §5.2; first-pass intuition; calibration pending
+#     an off-site source advected past the supplier. M-DIAG-A2 Step C.3
+#     (29 May 2026) reviewed against post-fix 5-seed baseline: no observed
+#     ratio crossed 2.5 in the 5-seed set (highest was Norilsk AAI at 1.65
+#     post-abs-fix), so the gate was not exercised. Kept unchanged; re-review
+#     when calibration set includes locations with stronger directional
+#     contrast.
+# source: M-WIND-A1 v2.0 spec §5.2; M-DIAG-A2 §4.2 (no change)
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_ASYMMETRY_LOW_MIN:  float = 2.5
@@ -777,9 +802,11 @@ WIND_ASYMMETRY_LOW_MIN:  float = 2.5
 # rationale: Calm-day cutoff (1 m/s) below which wind direction is too
 #     ill-defined to contribute to the asymmetry calculation. Such days still
 #     count toward the speed mean and the anomaly-day total — only their
-#     direction is dropped. The 1 m/s figure is a first-pass judgment about
-#     where direction becomes meaningless; not calibrated.
-# source: M-WIND-A1 v2.0 spec §5.2 (WA9); calibration pending
+#     direction is dropped. M-DIAG-A2 Step C.3 (29 May 2026) reviewed against
+#     post-fix 5-seed baseline: no seed has a non-trivial fraction of days
+#     below this threshold (the per-seed mean speeds all sit well above 1 m/s).
+#     Kept unchanged.
+# source: M-WIND-A1 v2.0 spec §5.2 (WA9); M-DIAG-A2 §4.2 (no change)
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_CALM_THRESHOLD_MS: float = 1.0
@@ -791,8 +818,13 @@ WIND_CALM_THRESHOLD_MS: float = 1.0
 # rationale: Minimum number of anomaly days needed to assess wind
 #     attributability. Below 5 days the directional sample is too thin to
 #     trust, so the state is reported as "sparse" and no arrow renders.
-#     First-pass sample-size floor, not derived from a power analysis.
-# source: M-WIND-A1 v2.0 spec §5.2 (WA10); calibration pending
+#     M-DIAG-A2 Step C.3 (29 May 2026) reviewed against post-fix 5-seed
+#     baseline: all wind-eligible (seed × indicator) cells in the calibration
+#     set had N >= 6 (lowest was Suape NO2 at 7, Brasilia SO2 at 6). The
+#     5-day gate fires "sparse" cleanly for cases that truly need it
+#     (Norilsk SO2/AOD skipped for other reasons; not gated by N). Kept
+#     unchanged; not derived from a power analysis.
+# source: M-WIND-A1 v2.0 spec §5.2 (WA10); M-DIAG-A2 §4.2 (no change)
 # last_reviewed: 2026-05-29
 # applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_N_MIN_ANOMALY_DAYS: int = 5
@@ -807,6 +839,31 @@ WIND_ATTRIBUTABILITY_INDICATORS: frozenset[str] = frozenset({
     "air.hcho",
     "air.aai",
     "air.aod",
+})
+
+# M-DIAG-A2 §4.1 — sign-bearing wind-attribution indicators.
+#
+# Most wind-attribution indicators (NO₂, SO₂, HCHO, AOD) report strictly-
+# non-negative concentrations, so the upwind/downwind asymmetry ratio
+# `bg_upwind / bg_downwind` is always non-negative and the bucket logic in
+# `compute_wind_attributability_state` works as the spec describes.
+#
+# AAI (Aerosol Absorbing Index) is the exception: it is a SIGNED
+# dimensionless index where positive = absorbing aerosols (smoke, dust)
+# and negative = scattering aerosols (clean air). At locations where the
+# two half-rings span both signs (e.g. Norilsk post-fix), the raw ratio
+# can be negative and the `mean_asymmetry_ratio must be non-negative`
+# validator at engine/core/wind.py:118-121 raised, silent-degrading wind
+# attribution to sparse via the `six_step` try/except.
+#
+# Fix per M-DIAG-A2 Step B (operator-locked 29 May 2026): for indicators
+# in this set, `measure_ring_asymmetry` computes the ratio on absolute
+# values — `abs(bg_upwind) / abs(bg_downwind)` — preserving the magnitude-
+# asymmetry semantic without sign issues. Validator stays as defense-in-
+# depth. Out-of-set indicators use the unchanged
+# `bg_upwind / bg_downwind` formula.
+SIGN_BEARING_WIND_INDICATORS: frozenset[str] = frozenset({
+    "air.aai",
 })
 
 # ERA5 hourly reanalysis — wind components at 10 m. Spec §5.1 sampling.

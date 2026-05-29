@@ -50,20 +50,24 @@ from engine.core.wind import (
 class TestComputeWindAttributabilityState:
     """WA5 / WA6 / WA7 — categorical bucket function."""
 
+    # M-DIAG-A2 Step C.3 (29 May 2026) — WIND_SPEED_LOW_MIN_MS calibrated
+    # from 5.0 to 3.5 m/s. The (4.99, 1.0) and (3.5, 1.0) cases moved from
+    # "moderate" to "low"; (3.49, 1.0) is now the upper edge of "moderate".
     @pytest.mark.parametrize("speed,ratio,expected", [
         # High: BOTH speed < HIGH_MAX AND ratio < HIGH_MAX
         (0.0, 0.0, "high"),
         (1.0, 1.0, "high"),
         (1.9, 1.49, "high"),
-        # Moderate: speed in [HIGH_MAX, LOW_MIN) only
+        # Moderate: speed in [HIGH_MAX, LOW_MIN) = [2.0, 3.5)
         (2.0, 1.0, "moderate"),
         (3.0, 1.0, "moderate"),
-        (4.99, 1.0, "moderate"),
+        (3.49, 1.0, "moderate"),
         # Moderate: ratio in [HIGH_MAX, LOW_MIN) only
         (1.0, 1.5, "moderate"),
         (1.0, 2.0, "moderate"),
         (1.0, 2.49, "moderate"),
         # Low: speed >= LOW_MIN
+        (3.5, 1.0, "low"),
         (5.0, 1.0, "low"),
         (10.0, 1.0, "low"),
         # Low: ratio >= LOW_MIN
@@ -799,3 +803,215 @@ class TestConfidenceFormulaUnchangedByWindIntegration:
         assert "confidence_terms" in return_dict_keys
         # Ensure no key conflates them.
         assert "wind_confidence" not in return_dict_keys
+
+
+# ===========================================================================
+# M-DIAG-A2 §4.1 — sign-bearing wind indicators (AAI abs-ratio fix)
+# ===========================================================================
+
+
+class TestMeasureRingAsymmetrySignBearing:
+    """M-DIAG-A2 §4.1 — verifies the AAI sign-bearing fix.
+
+    Before M-DIAG-A2, ``measure_ring_asymmetry`` computed
+    ``ratio = bg_upwind / bg_downwind`` unconditionally. For positive-
+    concentration indicators (NO₂, SO₂, HCHO, AOD) that's always non-
+    negative. For AAI (Aerosol Absorbing Index, a SIGNED dimensionless
+    index) it could be any sign, and a negative aggregate then crashed
+    the validator at ``compute_wind_attributability_state`` L118-121.
+    M-DIAG-A1's fix to ``_server_side_hf`` made AAI produce real anomaly
+    days for the first time, which exposed this latent issue.
+
+    Fix (M-DIAG-A2 Step B): for ``indicator_id in
+    SIGN_BEARING_WIND_INDICATORS`` (currently just ``air.aai``), compute
+    the ratio on absolute values. Other indicators unchanged.
+    """
+
+    _CENTRE = {"lat": 0.0, "lon": 0.0}
+
+    @staticmethod
+    def _stub_image_collection():
+        """A duck-typed stub for the EE ImageCollection that
+        ``measure_ring_asymmetry`` calls ``.select(band).mean().reduceRegion(...)``
+        on. Each chained call returns another stub; the final
+        ``reduceRegion(...).get(band)`` returns a sentinel.
+        """
+        class _Stub:
+            def select(self, *a, **kw): return self
+            def mean(self): return self
+            def reduceRegion(self, *a, **kw): return self
+            def get(self, *a, **kw): return 0.0  # unused — see _patch_ee_chain
+        return _Stub()
+
+    @classmethod
+    def _patch_ee_chain(cls, monkeypatch, per_day_results):
+        """Patch the EE-touching glue in engine.core.wind so the test
+        runs without real EE. Replaces:
+
+          - ``half_ring_geometry`` with a sentinel-returning stub
+            (its return value is only used to call ``_reduce_half``
+            in the stubbed image collection)
+          - ``ee.Number`` with an inert constructor (the ratio is
+            computed client-side from per_day_results, not from
+            ``_reduce_half``'s return value)
+          - ``ee.Dictionary`` with an identity passthrough
+          - ``ee.List(...).getInfo()`` to return ``per_day_results``
+        """
+        from engine.core import wind as wind_module
+        monkeypatch.setattr(
+            wind_module, "half_ring_geometry",
+            lambda *a, **kw: object(),
+        )
+        class _StubList:
+            def __init__(self, *a, **kw): pass
+            def getInfo(self): return per_day_results
+        monkeypatch.setattr(wind_module.ee, "List", _StubList)
+        monkeypatch.setattr(wind_module.ee, "Dictionary", lambda d: d)
+        class _InertNumber:
+            def __init__(self, *a, **kw): pass
+        monkeypatch.setattr(wind_module.ee, "Number", _InertNumber)
+        # ee.Reducer.mean() inside _reduce_half — return sentinel.
+        class _InertReducer:
+            @staticmethod
+            def mean(): return object()
+        monkeypatch.setattr(wind_module.ee, "Reducer", _InertReducer)
+
+    def _build_samples(self, bg_upwind_vals, bg_downwind_vals):
+        """Construct synthetic samples + EE-batch results that drive
+        ``measure_ring_asymmetry`` to the per-day ratio computation.
+
+        Patches ``ee.List(...).getInfo()`` to return canned per-day
+        upwind/downwind reductions so no real EE is needed. Also patches
+        ``half_ring_geometry`` to avoid touching ``ee.Geometry`` for
+        coordinates.
+        """
+        from engine.core.era5 import Era5WindSample
+        samples = [
+            Era5WindSample(
+                date_utc=f"2026-03-{i+1:02d}",
+                speed_ms=3.0,             # above calm; direction known
+                direction_deg=90.0,       # eastward
+                coverage_ok=True,
+            )
+            for i in range(len(bg_upwind_vals))
+        ]
+        per_day_results = [
+            {"upwind": u, "downwind": d}
+            for u, d in zip(bg_upwind_vals, bg_downwind_vals)
+        ]
+        return samples, per_day_results
+
+    def test_sign_bearing_aai_with_opposite_sign_halves_uses_abs(self, monkeypatch):
+        """Opposite-sign half-rings (Norilsk-style AAI): without the fix
+        this produces a negative ratio that crashes the downstream
+        validator. With the fix, the ratio is positive (magnitude
+        asymmetry preserved) and the aggregator yields a non-negative
+        mean.
+        """
+        from engine.core import wind as wind_module
+        from engine.core.wind import measure_ring_asymmetry
+
+        # Three days of opposite-sign halves: pre-fix ratio = -2.0 each.
+        # Post-fix: abs(0.4)/abs(-0.2) = 2.0 each.
+        bg_up   = [0.4, 0.3, 0.5]
+        bg_down = [-0.2, -0.15, -0.25]
+        samples, per_day_results = self._build_samples(bg_up, bg_down)
+
+        self._patch_ee_chain(monkeypatch, per_day_results)
+
+        measurements = measure_ring_asymmetry(
+            samples,
+            centre=self._CENTRE,
+            r_site_km=10.0,
+            r_background_km=30.0,
+            image_collection=self._stub_image_collection(),
+            band="absorbing_aerosol_index",
+            scale=1113.2,
+            indicator_id="air.aai",
+        )
+
+        # All three ratios must be positive (abs-based).
+        ratios = [m.asymmetry_ratio for m in measurements]
+        assert all(r is not None and r > 0 for r in ratios), (
+            f"Expected all positive ratios (abs-based for AAI); got {ratios}"
+        )
+        # abs(0.4)/abs(-0.2)=2.0; abs(0.3)/abs(-0.15)=2.0; abs(0.5)/abs(-0.25)=2.0
+        for r in ratios:
+            assert r == pytest.approx(2.0)
+
+    def test_non_sign_bearing_indicator_uses_raw_ratio_unchanged(self, monkeypatch):
+        """NO₂ (positive concentrations) keeps the unchanged
+        ``bg_upwind / bg_downwind`` formula. Same canned data; ratio
+        should NOT take abs() (proves the indicator_id branch is
+        respected).
+        """
+        from engine.core import wind as wind_module
+        from engine.core.wind import measure_ring_asymmetry
+
+        # Real NO₂ ring values are always positive — but to PROVE the
+        # branch is respected we feed mixed-sign canned values (which
+        # don't occur in real NO₂ but exercise the code path
+        # symmetrically with the AAI test).
+        bg_up   = [0.4, 0.3, 0.5]
+        bg_down = [-0.2, -0.15, -0.25]
+        samples, per_day_results = self._build_samples(bg_up, bg_down)
+
+        self._patch_ee_chain(monkeypatch, per_day_results)
+
+        measurements = measure_ring_asymmetry(
+            samples,
+            centre=self._CENTRE,
+            r_site_km=10.0,
+            r_background_km=30.0,
+            image_collection=self._stub_image_collection(),
+            band="tropospheric_NO2_column_number_density",
+            scale=1113.2,
+            indicator_id="air.no2",  # NOT sign-bearing
+        )
+        # Raw 0.4/-0.2 = -2.0 — preserves sign because NO₂ isn't in the set.
+        ratios = [m.asymmetry_ratio for m in measurements]
+        for r in ratios:
+            assert r == pytest.approx(-2.0)
+
+    def test_indicator_id_none_defaults_to_raw_ratio(self, monkeypatch):
+        """Backward-compat: legacy/test callers that don't pass
+        ``indicator_id`` get the unchanged raw ratio (pre-M-DIAG-A2
+        behaviour).
+        """
+        from engine.core import wind as wind_module
+        from engine.core.wind import measure_ring_asymmetry
+
+        bg_up   = [0.4]
+        bg_down = [0.2]
+        samples, per_day_results = self._build_samples(bg_up, bg_down)
+
+        self._patch_ee_chain(monkeypatch, per_day_results)
+
+        measurements = measure_ring_asymmetry(
+            samples,
+            centre=self._CENTRE,
+            r_site_km=10.0,
+            r_background_km=30.0,
+            image_collection=self._stub_image_collection(),
+            band="any_band",
+            scale=1113.2,
+            # indicator_id NOT passed
+        )
+        ratios = [m.asymmetry_ratio for m in measurements]
+        assert ratios[0] == pytest.approx(2.0)  # 0.4/0.2
+
+    def test_sign_bearing_set_membership(self):
+        """The set is exposed as a constant + AAI is the only member in v1."""
+        from engine.constants import (
+            SIGN_BEARING_WIND_INDICATORS,
+            WIND_ATTRIBUTABILITY_INDICATORS,
+        )
+        assert "air.aai" in SIGN_BEARING_WIND_INDICATORS
+        # Sign-bearing is a subset of wind-attributability set.
+        assert SIGN_BEARING_WIND_INDICATORS.issubset(WIND_ATTRIBUTABILITY_INDICATORS)
+        # All non-AAI wind indicators are NOT sign-bearing.
+        non_aai_wind = WIND_ATTRIBUTABILITY_INDICATORS - {"air.aai"}
+        assert not (non_aai_wind & SIGN_BEARING_WIND_INDICATORS), (
+            "Only AAI should be in SIGN_BEARING_WIND_INDICATORS in v1; "
+            "adding others requires reviewing their sign convention."
+        )

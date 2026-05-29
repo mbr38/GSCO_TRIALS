@@ -77,7 +77,11 @@ class TestParser:
         assert _by_name("TRAFFIC_LIGHT_THRESHOLDS").value == (0.33, 0.66)
 
     def test_optional_last_reviewed_present(self) -> None:
-        assert _by_name("ANOMALY_Z_THRESHOLD").last_reviewed == "2026-05-28"
+        # M-DIAG-A2 Step C.3 (29 May 2026) re-reviewed ANOMALY_Z_THRESHOLD
+        # against the post-fix detector and promoted its tier from
+        # "first-pass" to "spec-mandated" (per IC §0.4 2σ convention). The
+        # last_reviewed date moves forward accordingly.
+        assert _by_name("ANOMALY_Z_THRESHOLD").last_reviewed == "2026-05-29"
 
     def test_applies_to_parsed(self) -> None:
         rec = _by_name("WIND_SPEED_HIGH_MAX_MS")
@@ -87,10 +91,14 @@ class TestParser:
 
     def test_honest_tier_distribution(self) -> None:
         # UX16 — most thresholds ship first-pass (the honest current state).
+        # M-DIAG-A2 Step C.3 (29 May 2026) shifted the distribution by:
+        #   - ANOMALY_Z_THRESHOLD: first-pass → spec-mandated (IC §0.4)
+        #   - WIND_SPEED_LOW_MIN_MS: first-pass → calibrated (5.0 → 3.5)
+        # Net: -2 first-pass, +1 spec-mandated, +1 calibrated.
         tiers = [r.tier for r in load_registry()]
-        assert tiers.count("first-pass") == 15
-        assert tiers.count("spec-mandated") == 2
-        assert tiers.count("calibrated") == 0
+        assert tiers.count("first-pass") == 13
+        assert tiers.count("spec-mandated") == 3
+        assert tiers.count("calibrated") == 1
 
 
 # ---------------------------------------------------------------------------

@@ -939,6 +939,9 @@ def six_step(
                 anomaly_dates_utc=hf_result.anomaly_dates_utc,
                 wind_data_window=hf_time_range,
                 ring_land_fraction=ring.get("land_fraction"),
+                # M-DIAG-A2 §4.1 — let the wind module pick the AAI-safe
+                # absolute-value ratio for sign-bearing indicators.
+                indicator_id=indicator_id,
             )
         except Exception as exc:  # noqa: BLE001 — wind is informational; never crash the indicator
             # Emit a warning so dev / regen runs surface the silent-degrade

@@ -43,6 +43,7 @@ import ee
 
 from engine.constants import (
     LAND_MASK_FRACTION_MIN_THRESHOLD,
+    SIGN_BEARING_WIND_INDICATORS,
     WIND_ASYMMETRY_HIGH_MAX,
     WIND_ASYMMETRY_LOW_MIN,
     WIND_CALM_THRESHOLD_MS,
@@ -304,6 +305,7 @@ def measure_ring_asymmetry(
     band: str,
     scale: float | None,
     calm_threshold_ms: float = WIND_CALM_THRESHOLD_MS,
+    indicator_id: str | None = None,
 ) -> list[WindAnomalyDayMeasurement]:
     """Per-anomaly-day upwind/downwind background-ring reductions.
 
@@ -323,6 +325,20 @@ def measure_ring_asymmetry(
     intentionally NOT the median used by ``background_value`` because the
     upwind/downwind contrast we care about *is* the tail behaviour, not
     the central value.
+
+    M-DIAG-A2 §4.1 — sign-bearing indicators. Most wind-attribution
+    indicators report strictly-non-negative concentrations, so the
+    `bg_upwind / bg_downwind` ratio is non-negative and the bucket logic
+    in `compute_wind_attributability_state` works as the spec describes.
+    AAI is the exception: it is a SIGNED dimensionless index. When the
+    upwind and downwind half-rings straddle zero, the raw ratio is
+    negative and the validator at L118-121 raised (silent-degrading wind
+    attribution to sparse via `six_step`'s try/except). For indicator IDs
+    in ``SIGN_BEARING_WIND_INDICATORS`` (currently just ``air.aai``), the
+    ratio is computed on absolute values — ``abs(bg_upwind) /
+    abs(bg_downwind)`` — preserving the magnitude-asymmetry semantic
+    without sign issues. ``indicator_id=None`` defaults to the non-sign-
+    bearing path (legacy / test callers).
     """
     if not samples:
         return []
@@ -416,7 +432,18 @@ def measure_ring_asymmetry(
                 and bg_downwind is not None
                 and bg_downwind != 0.0
             ):
-                ratio = bg_upwind / bg_downwind
+                # M-DIAG-A2 §4.1 — sign-bearing indicators use absolute
+                # values so the ratio stays non-negative and the bucket
+                # logic + validator stay valid. AAI is the only current
+                # member of SIGN_BEARING_WIND_INDICATORS; future
+                # additions to that set get the same treatment.
+                if indicator_id in SIGN_BEARING_WIND_INDICATORS:
+                    if bg_downwind == 0.0 or abs(bg_downwind) == 0.0:
+                        ratio = None
+                    else:
+                        ratio = abs(bg_upwind) / abs(bg_downwind)
+                else:
+                    ratio = bg_upwind / bg_downwind
         measurements.append(WindAnomalyDayMeasurement(
             date_utc=s.date_utc,
             speed_ms=s.speed_ms,
@@ -531,6 +558,7 @@ def compute_wind_attribution_extra(
     wind_data_window: tuple[str, str] | None,
     ring_land_fraction: float | None = None,
     n_min: int = WIND_N_MIN_ANOMALY_DAYS,
+    indicator_id: str | None = None,
 ) -> dict:
     """Top-level wind-attribution helper invoked by ``six_step`` for in-scope indicators.
 
@@ -595,6 +623,7 @@ def compute_wind_attribution_extra(
         image_collection=image_collection,
         band=band,
         scale=scale,
+        indicator_id=indicator_id,
     )
     agg = _aggregate_measurements(
         measurements, calm_threshold_ms=WIND_CALM_THRESHOLD_MS,
