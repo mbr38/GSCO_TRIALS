@@ -33,6 +33,7 @@ from engine.constants import (
     GHG_FOLLOWUP_WEIGHTS,
     HABITAT_SPATIAL_LINK_MOD_KM,
     NATURE_FOLLOWUP_WEIGHTS,
+    WIND_ATTRIBUTABILITY_INDICATORS,
 )
 from ui.components.indicator_info import render_indicator_name_with_info
 from ui.components.legacy_id_fallback import payload_read
@@ -312,6 +313,11 @@ def _render_air_panel(payload: dict) -> None:
                 indicator_id=f"air.{row.indicator}.score",
                 key_prefix="c5_air",
             )
+            # M-UI-WIND-INLINE — inline wind-attribution flag (high /
+            # moderate / low) immediately under the row, parallel to the
+            # habitat-conversion attributability pattern. No-op for
+            # out-of-scope pollutants (CO, O₃, PM₂.₅, PM₁₀).
+            _render_wind_attribution_inline(payload, f"air.{row.indicator}")
             _render_confidence_terms_expander(
                 payload, "air", row.indicator, row.display_name,
             )
@@ -1119,6 +1125,64 @@ def _compass_from_bearing(bearing_deg: float) -> str:
     """8-point compass code for ``bearing_deg`` (0 = North, clockwise)."""
     idx = int((bearing_deg + 22.5) % 360.0 // 45.0)
     return _COMPASS_POINTS_8[idx]
+
+
+def _render_wind_attribution_inline(payload: dict, indicator_id: str) -> None:
+    """M-UI-WIND-INLINE — inline wind-attribution flag rendered immediately
+    beneath the per-indicator row in the Air drill-down (C5a).
+
+    Pattern mirrors ``_render_habitat_attributability``'s flag line: a
+    coloured ⬤ dot + state label + a concise context tail. Unlike the
+    M-WIND-A1 v2.0 ``_render_wind_attribution_section`` below (Low-only,
+    inside the "What's behind this confidence?" expander per WA14), this
+    helper fires for **all** non-sparse states (high / moderate / low) so
+    the user can read the attributability without having to find the
+    arrow on the map and hover.
+
+    Out-of-scope pollutants (CO, O₃, PM₂.₅, PM₁₀) get no flag — the wind
+    block isn't computed for them.
+
+    ``indicator_id`` is the canonical pillar.indicator key, e.g.
+    ``"air.no2"``. The provenance block at
+    ``_provenance.air.<pollutant>.extra`` is the source of truth.
+    """
+    if indicator_id not in WIND_ATTRIBUTABILITY_INDICATORS:
+        return
+    prov = payload.get(f"_provenance.{indicator_id}") or {}
+    extra = prov.get("extra") or {}
+    state = extra.get("wind_attributability_state")
+    if state is None:
+        return
+    n_days = extra.get("wind_n_anomaly_days") or 0
+    if state in _ATTRIBUTABILITY_COLOURS:  # high / moderate / low
+        colour = _ATTRIBUTABILITY_COLOURS[state]
+        label = _ATTRIBUTABILITY_LABELS[state]
+        speed = extra.get("wind_mean_speed_ms")
+        ratio = extra.get("wind_mean_asymmetry_ratio")
+        # Context tail — compact: "{speed} m/s · ratio {ratio} · N days".
+        # The all-calm case (ratio is None) drops the ratio fragment.
+        parts: list[str] = []
+        if isinstance(speed, (int, float)):
+            parts.append(f"{speed:.1f} m/s")
+        if isinstance(ratio, (int, float)):
+            parts.append(f"ratio {ratio:.2f}")
+        if n_days:
+            parts.append(f"{n_days} days")
+        tail = " · ".join(parts)
+        tail_html = f" &nbsp;({tail})" if tail else ""
+        st.markdown(
+            f"<div style='margin:-4px 0 4px 0; font-size:0.85em;'>"
+            f"Wind attribution: <span style='color:{colour}'>⬤</span> "
+            f"<strong>{label}</strong>{tail_html}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    elif state == "sparse":
+        st.caption(
+            f"Wind attribution: Sparse — too few anomaly days "
+            f"(N = {n_days}) to assess."
+        )
+    # state absent → no-op (handled at the top)
 
 
 def _render_wind_attribution_section(extra: dict | None) -> None:

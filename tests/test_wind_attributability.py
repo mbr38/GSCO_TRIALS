@@ -383,6 +383,7 @@ class _StreamlitSpy:
     def __init__(self) -> None:
         self.markdown_calls: list[str] = []
         self.warning_calls:  list[str] = []
+        self.caption_calls:  list[str] = []
         self.divider_calls:  int = 0
 
     def markdown(self, s, **_kwargs) -> None:
@@ -390,6 +391,9 @@ class _StreamlitSpy:
 
     def warning(self, s, **_kwargs) -> None:
         self.warning_calls.append(s)
+
+    def caption(self, s, **_kwargs) -> None:
+        self.caption_calls.append(s)
 
     def divider(self) -> None:
         self.divider_calls += 1
@@ -647,24 +651,29 @@ class TestFormatWindTooltip:
             "wind_data_window": "2026-03-01/2026-05-31",
         }
 
+    # M-UI-WIND-TOOLTIP (29 May 2026) — tooltip strings compressed from
+    # full sentences to "<b>Label</b> — facts" idiom so they fit the
+    # Leaflet hover bubble's 340px max-width without clipping. The
+    # assertions below pin both the state label and the data shape.
+
     def test_high_tooltip_text(self):
         from ui.components.c4a_indicator_map import _format_wind_tooltip
         text = _format_wind_tooltip(self._extra("high", ratio=1.2, speed=1.0))
-        assert "High attribution confidence" in text
+        assert "<b>High attribution</b>" in text
         assert "1.0 m/s" in text
         assert "1.20" in text
-        assert "N = 7" in text
+        assert "7 anomaly days" in text
 
     def test_moderate_tooltip_text(self):
         from ui.components.c4a_indicator_map import _format_wind_tooltip
         text = _format_wind_tooltip(self._extra("moderate", ratio=1.8))
-        assert "Moderate attribution confidence" in text
+        assert "<b>Moderate attribution</b>" in text
         assert "1.80" in text
 
     def test_low_tooltip_text(self):
         from ui.components.c4a_indicator_map import _format_wind_tooltip
         text = _format_wind_tooltip(self._extra("low", ratio=3.0))
-        assert "Low attribution confidence" in text
+        assert "<b>Low attribution</b>" in text
         assert "external sources" in text
 
     def test_all_calm_uses_no_ratio_template(self):
@@ -677,6 +686,20 @@ class TestFormatWindTooltip:
     def test_sparse_returns_empty_string(self):
         from ui.components.c4a_indicator_map import _format_wind_tooltip
         assert _format_wind_tooltip(self._extra("sparse")) == ""
+
+    def test_tooltip_length_fits_max_width(self):
+        """M-UI-WIND-TOOLTIP — sanity check: post-compression strings stay
+        short enough to wrap into 2 lines max at the 340px max-width
+        (~50-55 chars per line at 12px font). A naive bound: every
+        tooltip < 130 chars even at long-number cases."""
+        from ui.components.c4a_indicator_map import _format_wind_tooltip
+        for state in ("high", "moderate", "low"):
+            text = _format_wind_tooltip(
+                self._extra(state, ratio=999.99, speed=99.9, n_days=999),
+            )
+            assert len(text) < 130, (
+                f"{state!r} tooltip is {len(text)} chars: {text!r}"
+            )
 
 
 # ===========================================================================
@@ -1015,3 +1038,193 @@ class TestMeasureRingAsymmetrySignBearing:
             "Only AAI should be in SIGN_BEARING_WIND_INDICATORS in v1; "
             "adding others requires reviewing their sign convention."
         )
+
+
+# ===========================================================================
+# M-UI-WIND-INLINE — inline wind-attribution flag in C5 Air drilldown
+# ===========================================================================
+
+
+class TestC5WindAttributionInlineFlag:
+    """Verifies that ``_render_wind_attribution_inline`` renders a flag
+    line beneath each in-scope Air row, parallel to the habitat-
+    conversion attributability pattern. Overrides the original M-WIND-A1
+    WA14/WA15 "Low-only on C5" rule per operator decision (29 May 2026):
+    high/moderate also surface inline so the user doesn't have to find
+    the arrow on the map and hover.
+
+    Out-of-scope pollutants (CO, O₃, PM₂.₅, PM₁₀) get no flag.
+    """
+
+    def _payload(
+        self,
+        indicator_id: str,
+        state: str | None,
+        *,
+        speed: float | None = 2.8,
+        ratio: float | None = 1.00,
+        n_days: int = 56,
+    ) -> dict:
+        extra: dict = {"wind_attributability_state": state}
+        if speed is not None:
+            extra["wind_mean_speed_ms"] = speed
+        if ratio is not None:
+            extra["wind_mean_asymmetry_ratio"] = ratio
+        if n_days:
+            extra["wind_n_anomaly_days"] = n_days
+        return {f"_provenance.{indicator_id}": {"extra": extra}}
+
+    def test_out_of_scope_pollutant_renders_nothing(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        # CO is not in WIND_ATTRIBUTABILITY_INDICATORS.
+        _render_wind_attribution_inline(
+            self._payload("air.co", "high"), "air.co",
+        )
+        assert st_spy.markdown_calls == []
+        assert st_spy.caption_calls == []
+
+    def test_renders_high_state_with_coloured_dot_and_label(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        _render_wind_attribution_inline(
+            self._payload("air.no2", "high", speed=1.5, ratio=1.20, n_days=12),
+            "air.no2",
+        )
+        # Single markdown call inline.
+        assert len(st_spy.markdown_calls) == 1
+        html = st_spy.markdown_calls[0]
+        # Coloured ⬤ dot, label, and the compact context.
+        assert "#16a34a" in html              # high → green
+        assert "⬤" in html
+        assert "<strong>High</strong>" in html
+        assert "1.5 m/s" in html
+        assert "ratio 1.20" in html
+        assert "12 days" in html
+
+    def test_renders_moderate_state_amber(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        _render_wind_attribution_inline(
+            self._payload("air.no2", "moderate", speed=2.8, ratio=1.00, n_days=56),
+            "air.no2",
+        )
+        html = st_spy.markdown_calls[0]
+        assert "#f59e0b" in html              # moderate → amber
+        assert "<strong>Moderate</strong>" in html
+        assert "2.8 m/s" in html
+
+    def test_renders_low_state_red(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        _render_wind_attribution_inline(
+            self._payload("air.no2", "low", speed=5.8, ratio=1.00),
+            "air.no2",
+        )
+        html = st_spy.markdown_calls[0]
+        assert "#dc2626" in html              # low → red
+        assert "<strong>Low</strong>" in html
+
+    def test_renders_sparse_caption(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        _render_wind_attribution_inline(
+            self._payload("air.no2", "sparse", speed=None, ratio=None, n_days=0),
+            "air.no2",
+        )
+        # Sparse renders as st.caption, not st.markdown.
+        assert st_spy.markdown_calls == []
+        assert len(st_spy.caption_calls) == 1
+        caption = st_spy.caption_calls[0]
+        assert "Sparse" in caption
+        assert "too few anomaly days" in caption
+
+    def test_renders_nothing_when_state_absent(self, st_spy):
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        # Provenance present but no wind block (e.g. legacy saved analysis).
+        _render_wind_attribution_inline(
+            {"_provenance.air.no2": {"extra": {}}}, "air.no2",
+        )
+        assert st_spy.markdown_calls == []
+        assert st_spy.caption_calls == []
+
+    def test_all_calm_omits_ratio_fragment(self, st_spy):
+        """All-calm case: ratio is None → context tail drops the ratio
+        fragment but keeps speed and N days."""
+        from ui.components.c5_drilldown import _render_wind_attribution_inline
+        _render_wind_attribution_inline(
+            self._payload("air.no2", "high", speed=0.5, ratio=None, n_days=10),
+            "air.no2",
+        )
+        html = st_spy.markdown_calls[0]
+        assert "0.5 m/s" in html
+        assert "10 days" in html
+        assert "ratio" not in html
+
+
+# ===========================================================================
+# M-UI-WIND-TOOLTIP — folium.Tooltip wrapper with explicit max-width
+# ===========================================================================
+
+
+class TestWindTooltipWrappedWithMaxWidth:
+    """Verifies that the wind overlay's hover tooltip is a ``folium.Tooltip``
+    object (not a bare string) with explicit ``max-width`` + ``white-space``
+    CSS so the bubble wraps long copy instead of clipping.
+    """
+
+    def _result(self, state: str) -> dict:
+        return {
+            "_provenance.air.no2": {
+                "extra": {
+                    "wind_attributability_state": state,
+                    "wind_mean_speed_ms": 4.8,
+                    "wind_mean_asymmetry_ratio": 2.70,
+                    "wind_mean_direction_deg": 270.0,
+                    "wind_n_anomaly_days": 7,
+                    "wind_n_calm_days": 0,
+                    "wind_data_window": "2026-03-01/2026-05-31",
+                },
+            },
+        }
+
+    def _setup(self) -> dict:
+        return {"centre": {"lat": -13.5, "lon": -58.8}, "radius_km": 5.0}
+
+    def test_shaft_tooltip_is_folium_tooltip_with_max_width(self):
+        import folium
+        from ui.components.c4a_indicator_map import _wind_overlay_elements
+        elements = _wind_overlay_elements(
+            self._setup(), self._result("moderate"), "air.no2.score",
+        )
+        shaft = elements[0]
+        # Folium attaches sub-Children including the Tooltip object.
+        tooltips = [
+            child for child in shaft._children.values()
+            if isinstance(child, folium.Tooltip)
+        ]
+        assert len(tooltips) == 1, (
+            "Expected exactly one folium.Tooltip on the shaft; instead the "
+            "raw tooltip string is passed directly to PolyLine — which "
+            "uses Leaflet's default max-width and clips long copy."
+        )
+        tt = tooltips[0]
+        # `style` is stored on the Tooltip instance (not in options).
+        # The explicit CSS that makes the bubble wrap rather than clip.
+        style = tt.style or ""
+        assert "max-width" in style, (
+            f"folium.Tooltip.style missing max-width: {style!r}"
+        )
+        assert "white-space:normal" in style, (
+            f"folium.Tooltip.style missing white-space:normal: {style!r}"
+        )
+
+    def test_head_marker_tooltip_is_folium_tooltip_with_max_width(self):
+        import folium
+        from ui.components.c4a_indicator_map import _wind_overlay_elements
+        elements = _wind_overlay_elements(
+            self._setup(), self._result("moderate"), "air.no2.score",
+        )
+        head = elements[1]
+        tooltips = [
+            child for child in head._children.values()
+            if isinstance(child, folium.Tooltip)
+        ]
+        assert len(tooltips) == 1
+        tt = tooltips[0]
+        assert "max-width" in (tt.style or "")

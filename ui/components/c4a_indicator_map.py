@@ -650,16 +650,37 @@ _WIND_ARROW_HEX: dict[str, str] = {
 # WA17–WA19 — per-category hover copy. ``{speed}``, ``{ratio}``, ``{n_days}``
 # get interpolated against the provenance numbers; the all-calm variant
 # replaces the ratio line entirely.
+#
+# M-UI-WIND-TOOLTIP (29 May 2026) — tooltip text was getting cut off in
+# the Leaflet hover bubble at the default ~200px max-width. Compressed
+# from full sentences to a "Label — facts" idiom (~70 chars typical) and
+# the rendering at `_wind_overlay_elements` now wraps the string in a
+# folium.Tooltip with explicit max-width + white-space:normal so the
+# wrap behaviour is deterministic.
 _WIND_TOOLTIP_TEMPLATE_BY_STATE: dict[str, str] = {
-    "high":     "High attribution confidence — calm wind ({speed:.1f} m/s), symmetric background (ratio {ratio:.2f}). N = {n_days} anomaly days.",
-    "moderate": "Moderate attribution confidence — some wind influence on this signal. Wind {speed:.1f} m/s, asymmetry ratio {ratio:.2f}. N = {n_days} anomaly days.",
-    "low":      "Low attribution confidence — wind conditions suggest external sources may have contributed. Wind {speed:.1f} m/s, asymmetry ratio {ratio:.2f}. N = {n_days} anomaly days.",
+    "high":     "<b>High attribution</b> — calm wind ({speed:.1f} m/s), symmetric ring (ratio {ratio:.2f}). {n_days} anomaly days.",
+    "moderate": "<b>Moderate attribution</b> — {speed:.1f} m/s wind, ratio {ratio:.2f}. {n_days} anomaly days.",
+    "low":      "<b>Low attribution</b> — wind suggests external sources. {speed:.1f} m/s, ratio {ratio:.2f}. {n_days} anomaly days.",
 }
 _WIND_TOOLTIP_ALL_CALM_TEMPLATE_BY_STATE: dict[str, str] = {
-    "high":     "High attribution confidence — all anomaly days calm (mean {speed:.1f} m/s). N = {n_days} anomaly days.",
-    "moderate": "Moderate attribution confidence — mostly calm anomaly days. Wind {speed:.1f} m/s. N = {n_days} anomaly days.",
-    "low":      "Low attribution confidence — wind conditions suggest external sources may have contributed. Wind {speed:.1f} m/s. N = {n_days} anomaly days.",
+    "high":     "<b>High attribution</b> — all anomaly days calm (mean {speed:.1f} m/s). {n_days} anomaly days.",
+    "moderate": "<b>Moderate attribution</b> — mostly calm. {speed:.1f} m/s. {n_days} anomaly days.",
+    "low":      "<b>Low attribution</b> — wind suggests external sources. {speed:.1f} m/s. {n_days} anomaly days.",
 }
+
+# M-UI-WIND-TOOLTIP — explicit Leaflet tooltip style. Without this the
+# default ~200-250px max-width truncated the longer "moderate"/"low"
+# strings to a single ellipsised line. The white-space:normal flag is
+# what lets the text wrap instead of clipping; max-width caps the bubble
+# so it doesn't grow to span the viewport.
+_WIND_TOOLTIP_STYLE: str = (
+    "max-width:340px;"
+    "white-space:normal;"
+    "word-wrap:break-word;"
+    "font-size:12px;"
+    "line-height:1.35;"
+    "padding:6px 8px;"
+)
 
 # Arrow length in kilometres, derived from the AOI buffer radius so the
 # arrow always extends a little past the outline at any zoom level.
@@ -789,20 +810,33 @@ def _wind_overlay_elements(setup: dict, result: dict, indicator_id: str) -> list
         _WIND_ARROW_MIN_LENGTH_KM,
     )
     tip_lat, tip_lon = _haversine_destination(centre, bearing, arrow_length_km)
-    tooltip = _format_wind_tooltip(extra)
+    tooltip_text = _format_wind_tooltip(extra)
     colour = _WIND_ARROW_HEX[state]
+
+    # M-UI-WIND-TOOLTIP — wrap the string in folium.Tooltip with explicit
+    # max-width + white-space:normal so longer "moderate"/"low" strings
+    # wrap instead of clipping. `sticky=True` keeps the bubble open while
+    # the cursor traces along the polyline (matters most for the shaft).
+    # The text is interpreted as HTML by Leaflet (folium's Tooltip default),
+    # so the templated <b>…</b> tags render as bold without further opts.
+    def _make_tooltip() -> folium.Tooltip:
+        return folium.Tooltip(
+            tooltip_text,
+            sticky=True,
+            style=_WIND_TOOLTIP_STYLE,
+        )
 
     shaft = folium.PolyLine(
         locations=[[centre["lat"], centre["lon"]], [tip_lat, tip_lon]],
         color=colour,
         weight=4,
         opacity=0.9,
-        tooltip=tooltip,
+        tooltip=_make_tooltip(),
     )
     head = folium.Marker(
         location=[tip_lat, tip_lon],
         icon=_wind_arrow_div_icon(colour, bearing),
-        tooltip=tooltip,
+        tooltip=_make_tooltip(),
     )
     return [shaft, head]
 
