@@ -52,20 +52,65 @@ class TestFixtureIntegrity:
         assert "Brazil" in countries
         assert "India" in countries
 
-    def test_every_country_has_all_indicators_with_sane_values(self) -> None:
+    def test_demo_relevant_countries_have_all_eleven_indicators(self) -> None:
+        """The countries the demo actually uses must carry the full set.
+
+        Tiny / uninhabited territories (Baker Island, Howland, Tokelau, etc.)
+        legitimately lack some indicators — S5P CH4's ~7 km native footprint
+        and CAMS PM's 44 km grid simply don't produce stable values over a few
+        km² of land. That's fine for v1 because no supplier sits there. The
+        demo-relevant countries, however, MUST be complete.
+        """
         countries = cl.load_climatology()["countries"]
         assert countries, "fixture must ship at least one country"
+        demo_countries = [
+            "Brazil", "India", "United States of America", "China", "Indonesia",
+        ]
+        for name in demo_countries:
+            assert name in countries, f"demo-relevant country {name!r} missing"
+            entry = countries[name]
+            missing = [i for i in CLIMATOLOGY_INDICATORS if i not in entry]
+            assert not missing, f"{name} missing indicators: {missing}"
+
+    def test_every_indicator_has_high_global_coverage(self) -> None:
+        """Each in-scope indicator must be present for ≥90% of countries —
+        catches asset-wide regen failures while tolerating the tiny-country
+        gaps. As of the 2026 vintage every indicator clears 96%."""
+        countries = cl.load_climatology()["countries"]
+        n = len(countries)
+        assert n > 0
+        for ind in CLIMATOLOGY_INDICATORS:
+            present = sum(1 for c in countries.values() if ind in c)
+            coverage = present / n
+            assert coverage >= 0.90, (
+                f"{ind} coverage only {coverage:.1%} ({present}/{n}) — "
+                f"below the 90% floor; the asset's regen likely failed"
+            )
+
+    # Indicators with a strict physical non-negativity bound:
+    # - PM/AOD: surface concentrations / optical depth
+    # - O3: total column always large positive (~250–300 DU)
+    # - CH4: volume mixing ratio in ppb, always ~1800+ ppb
+    # - VIIRS: nightlight radiance
+    # The column-density retrievals (NO2, SO2, CO, HCHO) can land slightly
+    # negative in clean atmospheres — that's the retrieval's noise floor, not
+    # a fixture bug. AAI is a signed index by construction.
+    _STRICT_NONNEGATIVE = frozenset({
+        "air.o3", "air.pm25", "air.pm10", "air.aod", "ghg.ch4", "ghg.viirs",
+    })
+
+    def test_every_present_value_is_sane(self) -> None:
+        """Every (country, indicator) entry that IS present must be finite,
+        have non-negative std, and clear the physics-aware sign check."""
+        countries = cl.load_climatology()["countries"]
         for name, entry in countries.items():
-            for ind in CLIMATOLOGY_INDICATORS:
-                assert ind in entry, f"{name} missing {ind}"
-                median = entry[ind]["median"]
-                std = entry[ind]["std"]
+            for ind, stats in entry.items():
+                median = stats["median"]
+                std = stats["std"]
                 assert math.isfinite(median), f"{name}/{ind} median not finite"
                 assert math.isfinite(std), f"{name}/{ind} std not finite"
                 assert std >= 0.0, f"{name}/{ind} std negative"
-                # Non-negative where applicable — AAI is a signed index, so
-                # it's exempt (§7.5 "where applicable").
-                if ind != "air.aai":
+                if ind in self._STRICT_NONNEGATIVE:
                     assert median >= 0.0, f"{name}/{ind} median negative"
 
 
