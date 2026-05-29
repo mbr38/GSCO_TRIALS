@@ -1347,3 +1347,49 @@ The "Run comprehensive" path is the integration point with P-04's
 report-build context so the user lands back on P-11 with the same
 template selected after the comprehensive screening completes and is
 saved.
+---
+
+## Combined-reducer key-naming lint (M-DIAG-A1 follow-up, Q-DIAG-A2-3)
+
+Surfaced during the M-DIAG-A1 investigation (29 May 2026; see
+`docs/M-DIAG-A1_diagnosis_report.md` §7). Earth Engine auto-suffixes
+each reducer's output key when reducers are combined via
+`Reducer.X().combine(Reducer.Y(), sharedInputs=True)`. The legacy code
+in `_server_side_hf` read the bare-band key `{band}` from a combined
+`mean().combine(count())` reducer; the actual key is `{band}_mean`, so
+the lookup silently returned the 0.0 default for every granule. The
+per-day HF detector was effectively a sign-of-`bg_median` oracle for
+the entire engine lifetime.
+
+The one-line fix (`mean_key = f"{band}_mean"`) lands in M-DIAG-A1.
+M-DIAG-A2 will audit other combined-reducer call sites in the engine
+for the same class of bug (item 1 of the M-DIAG-A1 §8.4 scope).
+
+**This v1.x followup** is a separate longer-term proposal that
+M-DIAG-A2 explicitly excludes (per operator decision Q-DIAG-A2-3):
+introduce a generic lint or runtime warning that flags any reducer
+output key not read by a downstream consumer. The bug class is the
+trap (silent default for an absent key) rather than the specific
+function. A static check or a runtime assert in the `_precomputed`-
+materialised dict path would catch the next instance of this bug
+class generically.
+
+**Sketch when picked up.** Either:
+
+- A small linter that walks `engine/` for `Reducer.X().combine(...)`
+  patterns and pairs each construction with the downstream
+  `info.get(...)` call, verifying that the requested key matches the
+  reducer's documented auto-suffix convention. Static; no EE calls;
+  could run as a `pre-commit` hook.
+- A runtime opt-in (e.g. `EE_REDUCER_STRICT=1`) that wraps
+  `ee.Dictionary.getInfo()` and asserts every requested key was
+  present in the materialised dict — surfaces the bug-shape via a
+  loud crash rather than a silent zero. Cost: defensive lookups in
+  hot paths cannot use `info.get(key, default)` patterns idiomatically;
+  the wrapper would need an explicit allowlist.
+
+Either approach catches Q-DIAG-A2-3's stated failure mode (any future
+combined-reducer key bug producing the same pathological "hf=0 or 1"
+signature). Out of scope for M-DIAG-A2 by operator decision; valid
+v1.x candidate when the engine settles down enough to invest in
+detection infrastructure.

@@ -1,0 +1,542 @@
+[
+  {
+    "seed": "sapezal",
+    "indicator": "air.no2",
+    "section": "4.1",
+    "site": 40.800420221287546,
+    "bg_median": 40.82267541790474,
+    "bg_std": 0.8020241578602925,
+    "cv": 0.01964653589334633,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.so2",
+    "section": "4.1",
+    "site": 8.735514277288939,
+    "bg_median": 5.48323262362013,
+    "bg_std": 27.424497468747216,
+    "cv": 5.001519970283709,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.co",
+    "section": "4.1",
+    "site": 27.176529466270107,
+    "bg_median": 27.52420025231925,
+    "bg_std": 0.4070173496612604,
+    "cv": 0.014787617657554436,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.hcho",
+    "section": "4.1",
+    "site": 120.53492154527113,
+    "bg_median": 105.79058149005742,
+    "bg_std": 12.477370734218045,
+    "cv": 0.1179440604113771,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.o3",
+    "section": "4.1",
+    "site": 256.2611965314859,
+    "bg_median": 256.1832490597932,
+    "bg_std": 0.2278617210447833,
+    "cv": 0.000889448166033683,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.aai",
+    "section": "4.1",
+    "site": -0.649756261912722,
+    "bg_median": -0.6474493589758484,
+    "bg_std": 0.04758135680061747,
+    "cv": 0.07349046862272418,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.aod",
+    "section": "4.1",
+    "site": 67.20124216649783,
+    "bg_median": 76.25104908392522,
+    "bg_std": 17.081791089577248,
+    "cv": 0.22402040751959076,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "ghg.ch4",
+    "section": "4.1",
+    "site": 1901.1643353289678,
+    "bg_median": 1908.8389169152522,
+    "bg_std": 15.492844423595463,
+    "cv": 0.008116370787657881,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "ghg.viirs",
+    "section": "4.1",
+    "site": 3.523467092399094,
+    "bg_median": 0.14961618214780853,
+    "bg_std": 4.048659807088457,
+    "cv": 27.060306906432842,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "nature.ndvi",
+    "section": "4.1",
+    "site": null,
+    "bg_median": 0.8379010492296769,
+    "bg_std": 0.07223505335688707,
+    "cv": 0.08620952727448696,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.no2",
+    "section": "4.1",
+    "site": 104.22797102707531,
+    "bg_median": 67.3703536095933,
+    "bg_std": 11.334928114195673,
+    "cv": 0.1682480127665772,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.co",
+    "section": "4.1",
+    "site": 31.974404604438583,
+    "bg_median": 31.6718600078344,
+    "bg_std": 0.8770221802006807,
+    "cv": 0.027690895955707655,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.hcho",
+    "section": "4.1",
+    "site": 46.121954131080244,
+    "bg_median": 39.87034127831002,
+    "bg_std": 3.5772099150398287,
+    "cv": 0.08972107587616454,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.o3",
+    "section": "4.1",
+    "site": 445.63916420222125,
+    "bg_median": 443.890581253345,
+    "bg_std": 1.0781099502326956,
+    "cv": 0.002428774107323034,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.aai",
+    "section": "4.1",
+    "site": -0.12629219431284622,
+    "bg_median": 0.013645023559861382,
+    "bg_std": 0.08974861637520323,
+    "cv": 6.577388157775741,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "ghg.ch4",
+    "section": "4.1",
+    "site": 1858.882303967459,
+    "bg_median": 1868.2378509676278,
+    "bg_std": 7.958387914561947,
+    "cv": 0.00425983656761906,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "ghg.viirs",
+    "section": "4.1",
+    "site": 17.255878311803336,
+    "bg_median": 0.42013463126872036,
+    "bg_std": 5.434295869101044,
+    "cv": 12.934653476888077,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "nature.ndvi",
+    "section": "4.1",
+    "site": null,
+    "bg_median": -0.030261899801976567,
+    "bg_std": 0.01447390017991453,
+    "cv": 0.47828788921471355,
+    "ring": {},
+    "site_buf": {},
+    "plume_contam": {}
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.no2",
+    "section": "4.2",
+    "z_aggregate": -0.027748785867708986,
+    "hf": 0.4117647058823529,
+    "n_anomaly_days": 35,
+    "per_day_z_stats": {
+      "n": 85,
+      "min": -30.72620741858366,
+      "med": 0.6598757080539029,
+      "max": 17.410480067734905,
+      "pct_ge_1_5": 47.05882352941177,
+      "pct_ge_2_0": 41.1764705882353,
+      "pct_ge_2_5": 37.64705882352941
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.so2",
+    "section": "4.2",
+    "z_aggregate": 0.11859038282743699,
+    "hf": 0.26,
+    "n_anomaly_days": 13,
+    "per_day_z_stats": {
+      "n": 50,
+      "min": -7.60449979973595,
+      "med": 0.572450995761628,
+      "max": 12.697082638327132,
+      "pct_ge_1_5": 30.0,
+      "pct_ge_2_0": 26.0,
+      "pct_ge_2_5": 20.0
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.co",
+    "section": "4.2",
+    "z_aggregate": -0.8541915629358098,
+    "hf": 0.34285714285714286,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 70,
+      "min": -32.29908051395671,
+      "med": -2.771745401830852,
+      "max": 20.461378529693466,
+      "pct_ge_1_5": 38.57142857142857,
+      "pct_ge_2_0": 34.285714285714285,
+      "pct_ge_2_5": 34.285714285714285
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.hcho",
+    "section": "4.2",
+    "z_aggregate": 1.1816864601753567,
+    "hf": 0.352112676056338,
+    "n_anomaly_days": 25,
+    "per_day_z_stats": {
+      "n": 71,
+      "min": -18.814592017645438,
+      "med": -0.019398606017843444,
+      "max": 15.98026574391035,
+      "pct_ge_1_5": 35.2112676056338,
+      "pct_ge_2_0": 35.2112676056338,
+      "pct_ge_2_5": 32.394366197183096
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.o3",
+    "section": "4.2",
+    "z_aggregate": 0.3420823442187123,
+    "hf": 0.47191011235955055,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 89,
+      "min": -47.04217438622159,
+      "med": -2.281316586489524,
+      "max": 61.42578375216523,
+      "pct_ge_1_5": 47.19101123595506,
+      "pct_ge_2_0": 47.19101123595506,
+      "pct_ge_2_5": 46.06741573033708
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.aai",
+    "section": "4.2",
+    "z_aggregate": -0.04848333658370132,
+    "hf": 0.4606741573033708,
+    "n_anomaly_days": 41,
+    "per_day_z_stats": {
+      "n": 89,
+      "min": -31.06829470794408,
+      "med": 0.8001694036864255,
+      "max": 28.934988654288862,
+      "pct_ge_1_5": 48.31460674157304,
+      "pct_ge_2_0": 46.06741573033708,
+      "pct_ge_2_5": 44.943820224719104
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "air.aod",
+    "section": "4.2",
+    "z_aggregate": -0.529792623617162,
+    "hf": 0.3333333333333333,
+    "n_anomaly_days": 11,
+    "per_day_z_stats": {
+      "n": 33,
+      "min": -2.0518333308677783,
+      "med": 0.2512481753042692,
+      "max": 6.995692096304183,
+      "pct_ge_1_5": 33.333333333333336,
+      "pct_ge_2_0": 27.272727272727273,
+      "pct_ge_2_5": 21.21212121212121
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "ghg.ch4",
+    "section": "4.2",
+    "z_aggregate": -0.4953629802540363,
+    "hf": 0.0,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 2,
+      "min": -2.4028771810158216,
+      "med": -1.4435989348157627,
+      "max": -0.48432068861570376,
+      "pct_ge_1_5": 0.0,
+      "pct_ge_2_0": 0.0,
+      "pct_ge_2_5": 0.0
+    },
+    "disagreement_class": "agree (quiet)"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "ghg.viirs",
+    "section": "4.2",
+    "z_aggregate": 0.8333253646908773,
+    "hf": null,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 80,
+      "min": 0.5465190436899089,
+      "med": 0.825127451772002,
+      "max": 0.9063405343169234,
+      "pct_ge_1_5": 0.0,
+      "pct_ge_2_0": 0.0,
+      "pct_ge_2_5": 0.0
+    },
+    "disagreement_class": "n/a"
+  },
+  {
+    "seed": "sapezal",
+    "indicator": "nature.ndvi",
+    "section": "4.2",
+    "z_aggregate": -0.5099358015921968,
+    "hf": null,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 5,
+      "min": -1.6798499425408293,
+      "med": -0.2502900095465318,
+      "max": -0.044164558641525124,
+      "pct_ge_1_5": 0.0,
+      "pct_ge_2_0": 0.0,
+      "pct_ge_2_5": 0.0
+    },
+    "disagreement_class": "n/a"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.no2",
+    "section": "4.2",
+    "z_aggregate": 3.2516851493149,
+    "hf": 0.6746987951807228,
+    "n_anomaly_days": 56,
+    "per_day_z_stats": {
+      "n": 83,
+      "min": -2.228357353185245,
+      "med": 2.1773499465365216,
+      "max": 24.411905932160327,
+      "pct_ge_1_5": 59.036144578313255,
+      "pct_ge_2_0": 53.01204819277108,
+      "pct_ge_2_5": 48.19277108433735
+    },
+    "disagreement_class": "agree (strong)"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.co",
+    "section": "4.2",
+    "z_aggregate": 0.34496801042700403,
+    "hf": 0.5238095238095238,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 84,
+      "min": -9.235657156682588,
+      "med": 0.4315050893686023,
+      "max": 10.228264060535759,
+      "pct_ge_1_5": 40.476190476190474,
+      "pct_ge_2_0": 39.285714285714285,
+      "pct_ge_2_5": 35.714285714285715
+    },
+    "disagreement_class": "aggr-quiet, per-day-saturated"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.hcho",
+    "section": "4.2",
+    "z_aggregate": 1.7476225889026746,
+    "hf": 0.7471264367816092,
+    "n_anomaly_days": 65,
+    "per_day_z_stats": {
+      "n": 87,
+      "min": -4.340759655158121,
+      "med": 1.2096673406219274,
+      "max": 10.188851735673024,
+      "pct_ge_1_5": 45.97701149425287,
+      "pct_ge_2_0": 37.93103448275862,
+      "pct_ge_2_5": 35.632183908045974
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.o3",
+    "section": "4.2",
+    "z_aggregate": 1.6218966799247774,
+    "hf": 0.5777777777777777,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 90,
+      "min": -62.1934046869748,
+      "med": -0.8970136209986612,
+      "max": 101.80566377892094,
+      "pct_ge_1_5": 44.44444444444444,
+      "pct_ge_2_0": 43.333333333333336,
+      "pct_ge_2_5": 42.22222222222222
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "air.aai",
+    "section": "4.2",
+    "z_aggregate": -1.5592130945805984,
+    "hf": 0.8444444444444444,
+    "n_anomaly_days": 76,
+    "per_day_z_stats": {
+      "n": 90,
+      "min": -8.58750616180296,
+      "med": -1.4911765411293616,
+      "max": 4.094911430883907,
+      "pct_ge_1_5": 11.11111111111111,
+      "pct_ge_2_0": 8.88888888888889,
+      "pct_ge_2_5": 6.666666666666667
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "ghg.ch4",
+    "section": "4.2",
+    "z_aggregate": -1.1755580527873506,
+    "hf": 0.16666666666666666,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 12,
+      "min": -6.853258966431009,
+      "med": 0.05348219586882452,
+      "max": 4.113247497291558,
+      "pct_ge_1_5": 16.666666666666668,
+      "pct_ge_2_0": 16.666666666666668,
+      "pct_ge_2_5": 16.666666666666668
+    },
+    "disagreement_class": "partial"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "ghg.viirs",
+    "section": "4.2",
+    "z_aggregate": 3.0980542992260065,
+    "hf": null,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 80,
+      "min": 2.88907052940461,
+      "med": 2.929474971299228,
+      "max": 4.315132906635032,
+      "pct_ge_1_5": 100.0,
+      "pct_ge_2_0": 100.0,
+      "pct_ge_2_5": 100.0
+    },
+    "disagreement_class": "n/a"
+  },
+  {
+    "seed": "norilsk",
+    "indicator": "nature.ndvi",
+    "section": "4.2",
+    "z_aggregate": 0.663289386967888,
+    "hf": null,
+    "n_anomaly_days": null,
+    "per_day_z_stats": {
+      "n": 5,
+      "min": -1.008537363857591,
+      "med": 1.2277648308925893,
+      "max": 2.069399199692238,
+      "pct_ge_1_5": 20.0,
+      "pct_ge_2_0": 20.0,
+      "pct_ge_2_5": 0.0
+    },
+    "disagreement_class": "n/a"
+  }
+]
