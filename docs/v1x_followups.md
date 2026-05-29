@@ -1393,25 +1393,3 @@ combined-reducer key bug producing the same pathological "hf=0 or 1"
 signature). Out of scope for M-DIAG-A2 by operator decision; valid
 v1.x candidate when the engine settles down enough to invest in
 detection infrastructure.
-
----
-
-## Cleanup of `demo/saved_analyses/_pre_m_diag_a2/` archive (M-DIAG-A2 DGA12)
-
-M-DIAG-A2 (29 May 2026) archived the pre-fix production seeds to
-`demo/saved_analyses/_pre_m_diag_a2/` so the regenerated post-fix seeds
-could replace them safely with a rollback path. The loader's non-
-recursive `glob("*.json")` excludes this folder so the archive doesn't
-pollute the demo.
-
-DGA12 scheduled deletion "after one milestone" — i.e. once a milestone
-ships after M-DIAG-A2 with no need to consult the pre-fix shape, the
-archive can be removed. Delete by:
-
-```
-rm -r demo/saved_analyses/_pre_m_diag_a2/
-```
-
-then commit. The `_baseline_m_diag_a2/` folder is the calibration audit
-trail and may stay longer — it documents what each seed produced at the
-calibrated thresholds and is useful for the next calibration sweep.
