@@ -62,7 +62,12 @@ from ui.components.indicator_detail import render_indicator_detail
 from ui.components.indicator_info import render_indicator_dialog_if_requested  # M-UI-A2
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS  # M-HIDE-SUMMARY
 from ui.components.persistent_nav import render_persistent_nav
-from ui.page_state import PageState, classify_result, detect_e1_reason  # M-RING-UX
+from ui.page_state import (  # M-RING-UX
+    PageState,
+    SCREENING_LOADER_COPY,  # M-UX-A1 (2.6)
+    classify_result,
+    detect_e1_reason,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +193,7 @@ def _render_no_setup() -> None:
 def _render_s1_computing() -> None:
     """S1 — spinner while the engine runs. Transitions on completion."""
     st.title("Screening Results")
-    with st.spinner("Running screening — this takes ~30–60 seconds…"):
+    with st.spinner(SCREENING_LOADER_COPY):
         state = st.session_state["page_state"]
         new_state = _run_engine_and_transition(state)
         st.session_state["page_state"] = new_state

@@ -30,14 +30,82 @@ def render_saved_analyses() -> None:
         _render_empty_state()
         return
 
-    st.caption(
-        f"{len(saves)} saved analys{'is' if len(saves) == 1 else 'es'}. "
-        f"Saves persist for the duration of your session — use Export "
-        f"JSON to keep a permanent copy."
+    # M-UX-A1 (2.7) — free-text search above the list. Client-side
+    # filter-on-rerun (UX7): the saved-analyses list is small (<500 in
+    # v1.x), so a pure in-memory substring scan is instant and needs no
+    # query layer or debounce machinery (matches the P-09 search pattern).
+    query = st.text_input(
+        "Search saved analyses",
+        placeholder="Search by name, supplier, or location…",
+        key="p10_search",
+        label_visibility="collapsed",
     )
+
+    matches = _filter_saves(saves, query)
+
+    if not matches:
+        # UX5 / test-plan 6.2 — non-matching input shows an empty state.
+        st.caption(
+            f"No saved analyses match “{query.strip()}”. "
+            f"Clear the search to see all {len(saves)}."
+        )
+        return
+
+    n = len(matches)
+    if query.strip():
+        st.caption(
+            f"{n} of {len(saves)} saved analys{'is' if n == 1 else 'es'} "
+            f"match “{query.strip()}”."
+        )
+    else:
+        st.caption(
+            f"{n} saved analys{'is' if n == 1 else 'es'}. "
+            f"Saves persist for the duration of your session — use Export "
+            f"JSON to keep a permanent copy."
+        )
     st.divider()
-    for save in saves:
+    for save in matches:
         _render_save_row(save)
+
+
+# ---------------------------------------------------------------------------
+# Search (pure, testable) — M-UX-A1 (2.7)
+# ---------------------------------------------------------------------------
+
+def _save_search_fields(save: dict) -> list[str]:
+    """Return the three searchable strings for a save (UX4).
+
+    Name + supplier (``centre_metadata.node_name``) + location
+    (``centre_metadata.source``). Defensive ``.get`` chains: prioritisation
+    entries and older/stub saves may lack ``centre_metadata``, in which case
+    only the name participates. Missing fields contribute nothing rather
+    than raising.
+    """
+    setup  = save.get("screening_setup") or save.get("prioritisation_setup") or {}
+    centre = setup.get("centre_metadata") or {}
+    return [
+        str(save.get("name") or ""),
+        str(centre.get("node_name") or ""),
+        str(centre.get("source") or ""),
+    ]
+
+
+def _matches_search(save: dict, query: str) -> bool:
+    """True if ``query`` (case-insensitive substring) appears in any of the
+    save's searchable fields (UX5 — OR-combined). Leading/trailing
+    whitespace is stripped; an empty query matches everything."""
+    q = query.strip().lower()
+    if not q:
+        return True
+    return any(q in field.lower() for field in _save_search_fields(save))
+
+
+def _filter_saves(saves: list[dict], query: str) -> list[dict]:
+    """Filter the saves list by the search query, preserving order.
+
+    Empty / whitespace-only query returns the full list unchanged (UX6).
+    """
+    return [s for s in saves if _matches_search(s, query)]
 
 
 # ---------------------------------------------------------------------------

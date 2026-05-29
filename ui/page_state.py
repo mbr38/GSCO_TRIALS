@@ -21,6 +21,19 @@ from typing import Literal
 StateName = Literal["S1_Computing", "S2_Results", "S2_Partial", "E1_AllFailed"]
 
 
+# M-UX-A1 (2.6) — screening loader copy. Single source of truth for the
+# S1_Computing spinner text (pages/05_Screening_Results.py). Static wording
+# (locked decision UX2/UX3): the old "~30–60 seconds" estimate predated the
+# M-PERF-A1 runtime work and no longer reflects observed runtimes, which run
+# ~1–3 minutes and longer for large or coastal AOIs. Lives here (not inline
+# in the page) so the copy is one-touch to update and unit-testable without
+# booting Streamlit.
+SCREENING_LOADER_COPY: str = (
+    "Running screening — typically 1-3 minutes. Larger AOIs and coastal "
+    "locations may take longer."
+)
+
+
 # Per-pillar aggregate keys used to decide whether a pillar produced any
 # scores at all. Lifted from Indicator_ID_Schema_v2 §4 (per-pillar
 # follow-up priorities). Kept in sync with the orchestrator's

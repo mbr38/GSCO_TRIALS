@@ -15,6 +15,26 @@ from demo.indicator_library import (
     load_library,
 )
 from engine.constants import INDICATOR_CONFIDENCE_FAMILY
+from engine.parameter_registry import (  # M-UX-A1 (2.8)
+    ParameterRecord,
+    get_parameters_for_indicator,
+)
+
+
+# M-UX-A1 (2.8) — feature flag (UX20). The parameter-transparency surface is
+# independently revertable: flipping this to False hides the "Parameters &
+# calibration" section on every card without touching the loader (2.6) or the
+# saved-analyses search (2.7).
+_PARAMETERS_SECTION_ENABLED: bool = True
+
+# M-UX-A1 (2.8) — tier badge colours (UX13). Deliberately NOT the
+# severity/attributability green-amber-red: spec-mandated is blue because it
+# is a *different kind* of grounding, not a "better" one.
+_TIER_BADGE_COLOURS: dict[str, str] = {
+    "first-pass":    "#b45309",  # amber
+    "calibrated":    "#15803d",  # green
+    "spec-mandated": "#1d4ed8",  # blue
+}
 
 
 # M-P09-COMPOSITES: fourth tab for cross-pillar / composite entries.
@@ -221,6 +241,96 @@ def _render_card(card: IndicatorCardContent) -> None:
         expanded=False,
     ):
         st.markdown(_confidence_explanation_for(card.indicator_id))
+
+    # M-UX-A1 (2.8): "Parameters & calibration" section — surfaces the
+    # user-facing thresholds that drive this indicator, their tier, rationale,
+    # and code path. Placed below the methodology block, above any references
+    # (UX17). Omitted entirely when the indicator has no parameters.
+    _render_parameters_section(card.indicator_id)
+
+
+# ──────────────────────────────────────────────────────────────────
+# M-UX-A1 (2.8) — Parameters & calibration section
+# ──────────────────────────────────────────────────────────────────
+
+def _tier_badge(tier: str) -> str:
+    """Inline coloured tier badge (UX13). Returns an HTML span."""
+    colour = _TIER_BADGE_COLOURS.get(tier, "#6b7280")  # grey for unknown
+    return (
+        f"<span style='background:{colour};color:#fff;border-radius:4px;"
+        f"padding:1px 7px;font-size:0.75em;font-weight:600;"
+        f"white-space:nowrap;'>{tier}</span>"
+    )
+
+
+def _format_param_value(value) -> str:
+    """Render a constant's live value compactly for the inline header.
+
+    Scalars print as-is; tuples render comma-joined; dicts (e.g.
+    SEVERITY_BANDS) render as a compact key=value list so the user sees the
+    actual bands without a wall of JSON.
+    """
+    if isinstance(value, dict):
+        parts = []
+        for k, v in value.items():
+            if isinstance(v, dict):
+                inner = ", ".join(f"{ik}={iv}" for ik, iv in v.items())
+                parts.append(f"{k}: {{{inner}}}")
+            else:
+                parts.append(f"{k}={v}")
+        return "; ".join(parts)
+    if isinstance(value, (tuple, list)):
+        return ", ".join(str(v) for v in value)
+    return str(value)
+
+
+def _render_parameter_record(rec: ParameterRecord) -> None:
+    """Render one parameter entry: value + tier badge, rationale, source,
+    last-reviewed (if present), and the code-path pointer with the shared
+    note."""
+    st.markdown(
+        f"**`{rec.name}`** = `{_format_param_value(rec.value)}` "
+        f"&nbsp;{_tier_badge(rec.tier)}",
+        unsafe_allow_html=True,
+    )
+    st.markdown(f"**Rationale.** {rec.rationale}")
+    st.markdown(f"**Source.** {rec.source}")
+    if rec.last_reviewed:  # UX15 — optional; surface if present, omit if absent.
+        st.markdown(f"**Last reviewed.** {rec.last_reviewed}")
+
+    # UX14 code-path + UX19 "(shared)" note.
+    shared = ""
+    if rec.shared_count > 0:
+        n = rec.shared_count
+        shared = f"  (shared with {n} other indicator{'s' if n != 1 else ''})"
+    st.caption(f"Code path: `{rec.code_path}`{shared}")
+
+
+def _render_parameters_section(indicator_id: str) -> None:
+    """Render the collapsible "Parameters & calibration" section for an
+    indicator. No-op when the feature flag is off or the indicator has no
+    annotated parameters (UX17 negative case)."""
+    if not _PARAMETERS_SECTION_ENABLED:
+        return
+    params = get_parameters_for_indicator(indicator_id)
+    if not params:
+        return
+    with st.expander(
+        f"⚙ Parameters & calibration ({len(params)})",
+        expanded=False,
+    ):
+        st.caption(
+            "User-facing thresholds that drive this indicator's behaviour. "
+            "The tier badge marks each value's calibration maturity: "
+            "**first-pass** (judgment, pending calibration), **calibrated** "
+            "(validated against ground truth), **spec-mandated** (prescribed "
+            "by methodology). Values are read-only here — edit them at the "
+            "code path shown."
+        )
+        for i, rec in enumerate(params):
+            _render_parameter_record(rec)
+            if i < len(params) - 1:
+                st.divider()
 
 
 # M-P09-COMPOSITES

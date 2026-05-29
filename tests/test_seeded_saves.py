@@ -24,12 +24,20 @@ from demo.saved_analyses import _SEED_FLAG_KEY, seed_saved_analyses
 # ---------------------------------------------------------------------------
 
 def test_seed_populates_empty_session():
-    """Cold start — empty dict gets the two shipped seed entries."""
+    """Cold start — empty dict gets every shipped seed entry.
+
+    Count is derived from the seed dir's glob so adding new fixtures
+    (e.g. M-WIND-A1 v2.0 added wind-demo seeds) doesn't require touching
+    the assertion. ``test_shipped_seed_file_has_canonical_keys`` pins the
+    shape of each individual file.
+    """
+    expected_count = len(list(seed_module._SEED_DIR.glob("*.json")))
     session: dict = {}
     seed_saved_analyses(session)
 
     assert isinstance(session["saved_analyses"], list)
-    assert len(session["saved_analyses"]) == 2
+    assert len(session["saved_analyses"]) == expected_count
+    assert expected_count >= 2  # the original M-P10 pair always ships
 
 
 def test_seed_sets_flag_on_first_call():
@@ -130,10 +138,14 @@ _EXPECTED_KEYS = {
 }
 
 
-@pytest.mark.parametrize(
-    "filename",
-    ["high_priority_amazon.json", "low_priority_brasilia.json"],
-)
+def _all_shipped_seeds() -> list[str]:
+    """All shipped seed filenames, sorted. Discovered dynamically so adding
+    new fixtures (e.g. M-WIND-A1 v2.0 wind-demo seeds) doesn't require
+    touching the parametrise list."""
+    return sorted(p.name for p in _SHIPPED_DIR.glob("*.json"))
+
+
+@pytest.mark.parametrize("filename", _all_shipped_seeds())
 def test_shipped_seed_file_has_canonical_keys(filename: str):
     """Every shipped seed file must parse and carry the canonical six
     keys — the same keys ``_save_as_report`` emits. Phase 2 demo prep

@@ -46,7 +46,17 @@ Severity = Literal["High", "Concern", "Normal", "Sparse"]
 # Canonical threshold table (spec §4.5) — the single source of truth for the
 # severity bands, shared by the grammar functions, the tests, and the docs.
 # ---------------------------------------------------------------------------
-
+# @parameter
+# tier: first-pass
+# rationale: The v1.0 default bands that map each headline tile to High /
+#     Concern / Normal / Sparse. Z-score grammar: |z| >= 2.0 High, >= 1.0
+#     Concern. KBA distance grammar: < 1 km (or any overlap) High, < 10 km
+#     Concern. Sparse override: confidence < 0.40 or valid-pixel fraction
+#     < 0.30. These are spec defaults chosen by judgment; a calibration sweep
+#     against the demo AOIs is a deferred follow-up (M-UI-A4 spec §4.6 / R1).
+# source: docs/M-UI-A4_severity_thresholds.md; M-UI-A4 spec §4.5; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi, nature.dw, nature.kba]
 SEVERITY_BANDS: dict[str, dict] = {
     "zscore": {"High": 2.0, "Concern": 1.0},
     "distance": {"High_km": 1.0, "Concern_km": 10.0, "High_overlap_pct": 0.0},

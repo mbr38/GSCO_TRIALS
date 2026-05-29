@@ -15,18 +15,62 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 # Traffic-light thresholds  (Wireframes Appendix C.1 / Verbal_Summary §1)
 # ---------------------------------------------------------------------------
+# @parameter
+# tier: spec-mandated
+# rationale: The green / amber / red cut points for the headline composite
+#     score and the per-pillar follow-up priorities. A score below 0.33 reads
+#     green, 0.33-0.66 amber, above 0.66 red. These boundaries are prescribed
+#     by the Wireframes traffic-light spec, not chosen by judgment — changing
+#     them is a methodology decision (it reframes what "low/moderate/high
+#     concern" means across the whole tool).
+# source: docs/Wireframes_All_v4.md Appendix C.1; docs/Verbal_Summary_Templates_v1.md §1
+# last_reviewed: 2026-05-29
+# applies_to: [composite.overall_screening, air.audit_followup_priority, ghg.audit_followup_priority, nature.followup_priority]
 TRAFFIC_LIGHT_THRESHOLDS: tuple[float, float] = (0.33, 0.66)
 
 # ---------------------------------------------------------------------------
 # Repeatable core method  (IC_v4 §0.2 step 5, §0.4)
 # ---------------------------------------------------------------------------
+# @parameter
+# tier: first-pass
+# rationale: First-pass intuition that a per-day z-score of 2.0 (the standard
+#     2σ threshold) is the right gate for an "anomalous day". Has not been
+#     validated against ground truth; M-DIAG-A1 (28 May 2026) flagged that
+#     this threshold misbehaves at clean-air locations (collapses to firing
+#     every day) and at plume-contaminated locations (silences real signals).
+#     Subject to revision after a calibration sweep.
+# source: docs/Indicators_Computation_v4.md §0.4 (2σ convention); docs/M-DIAG-A1_diagnosis_report.md; calibration pending
+# last_reviewed: 2026-05-28
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi]
 ANOMALY_Z_THRESHOLD: float = 2.0
+
+# @parameter
+# tier: spec-mandated
+# rationale: The squashing constant k in the repeatable-core normalisation
+#     that maps an unbounded magnitude onto a 0-1 score. Its value is fixed by
+#     the methodology document, not tuned per indicator — it sets how quickly
+#     the score saturates and is shared across every normalised indicator, so
+#     changing it is a cross-cutting methodology decision.
+# source: docs/Indicators_Computation_v4.md §0.4
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi]
 NORMALISATION_K: float = 3.0
 
 # ---------------------------------------------------------------------------
 # Habitat conversion  (IC_v4 §3.1, §3.2)
 # ---------------------------------------------------------------------------
 HABITAT_BASELINE_YEARS: int = 5
+# @parameter
+# tier: first-pass
+# rationale: The natural-habitat loss fraction at which a habitat-conversion
+#     `_pct` term saturates to a score of 1.0 — i.e. losing 10% of natural
+#     cover over the analysis window is treated as maximal concern, and
+#     anything above is clamped. The 10% figure is a first-pass judgment about
+#     where "alarming" begins; it has not been calibrated against observed
+#     conversion-rate distributions.
+# source: docs/Indicators_Computation_v4.md §3.1, §3.2; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.habitat]
 CONVERSION_SATURATION_PCT: float = 0.10
 
 # ---------------------------------------------------------------------------
@@ -241,6 +285,17 @@ HABITAT_CONVERSION_WEIGHTS: dict[str, float] = {
 # ring-vs-buffer loss-rate threshold above which an external driver is
 # flagged. See `engine.nature.compute_regional_loss_evidence`.
 HANSEN_LOOKBACK_YEARS: int = 5
+# @parameter
+# tier: first-pass
+# rationale: Ring-vs-buffer Hansen loss-rate ratio above which the regional
+#     loss evidence flags an external driver — i.e. when forest loss in the
+#     surrounding ring is running at 2× the site-buffer rate, the loss looks
+#     regional rather than supplier-specific. The 2× factor is a first-pass
+#     judgment about what counts as "notably higher"; not calibrated against
+#     observed loss-rate distributions.
+# source: docs/Indicators_Computation_v4.md §7.5; docs/Indicators_Audit_and_v1x_Roadmap.md §9.3; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.forest_loss, nature.regional_loss_evidence]
 HANSEN_LOSS_RATIO_THRESHOLD: float = 2.0
 
 # M-UI-A6 §6 — cumulative Hansen loss (%) at or above which the C7 verbal
@@ -540,6 +595,16 @@ NATIVE_PIXEL_AREA_M2: dict[str, float] = {
 # IC_v4 §3.2 sub-formula tunables.
 # KBA proximity decay (km): `exp(-dist_km / KBA_DISTANCE_DECAY_KM)` halves
 # every ~7 km — concern decays fast but not catastrophically.
+# @parameter
+# tier: first-pass
+# rationale: Decay length (km) in the KBA proximity score `exp(-dist_km / k)`.
+#     With k = 10 km the concern halves roughly every 7 km — fast enough that a
+#     supplier 30 km from a Key Biodiversity Area scores near zero, slow enough
+#     that adjacency isn't a step function. The decay shape comes from the
+#     methodology; the 10 km length scale is a first-pass judgment.
+# source: docs/Indicators_Computation_v4.md §3.2; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.kba]
 KBA_DISTANCE_DECAY_KM: float = 10.0
 # Negative_Vegetation_Trend threshold: −0.01 NDVI/yr means losing 0.10 NDVI
 # over a decade. Below that rate the slope is inside natural inter-annual
@@ -547,6 +612,16 @@ KBA_DISTANCE_DECAY_KM: float = 10.0
 NDVI_NEGATIVE_TREND_THRESHOLD: float = -0.01
 # Water_or_FloodedVegetation_Exposure saturation point: 20% combined
 # aquatic/wetland cover = score 1.0.
+# @parameter
+# tier: first-pass
+# rationale: Combined aquatic / flooded-vegetation cover percentage at which
+#     the water-exposure term saturates to 1.0. At 20% wetland/water cover the
+#     site is treated as maximally water-exposed. The 20% saturation point is a
+#     first-pass judgment about where exposure is "as high as it matters"; not
+#     calibrated.
+# source: docs/Indicators_Computation_v4.md §3.2; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.water, nature.biodiversity_exposure]
 WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
 
 # M-ATTRIB-A1 (AT12 / §4.7) — habitat-conversion attributability via the
@@ -563,8 +638,37 @@ WATER_FLOODED_VEG_SATURATION_PCT: float = 20.0
 # scale*, not DW's 10 m native scale — so the represented area scales with
 # AOI size. Revisit during calibration if region-scale AOIs over/under-trip
 # the sparse gate.
+# @parameter
+# tier: first-pass
+# rationale: Minimum number of change pixels needed to compute a habitat-loss
+#     centroid for the supplier→loss spatial link. Below 10 pixels the centroid
+#     is too noisy, so attributability is reported "sparse". Counted at the
+#     adaptive reduction scale (not DW's 10 m native scale), so the represented
+#     area scales with AOI size — flagged for revisit if region-scale AOIs
+#     over/under-trip this gate during calibration.
+# source: M-ATTRIB-A1 §4.7 (AT20 / Q-AT-1); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.habitat]
 N_MIN_PIXELS_FOR_CENTROID: int = 10
+# @parameter
+# tier: first-pass
+# rationale: Upper distance bound (km) for "high" habitat attributability —
+#     when the supplier point is within 1 km of the loss centroid, the loss is
+#     plausibly attributable to the supplier. First-pass value flagged for a
+#     joint calibration sweep with the wind thresholds (Q-AT-1 / Q-WA-1).
+# source: M-ATTRIB-A1 §4.7 (AT12 / Approach C); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.habitat]
 HABITAT_SPATIAL_LINK_HIGH_KM: float = 1.0
+# @parameter
+# tier: first-pass
+# rationale: Upper distance bound (km) for "moderate" habitat attributability;
+#     beyond 3 km the link is "low". The 1 km / 3 km pair carves the
+#     high/moderate/low bands. First-pass values pending the joint calibration
+#     sweep (Q-AT-1).
+# source: M-ATTRIB-A1 §4.7 (AT12 / Approach C); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [nature.habitat]
 HABITAT_SPATIAL_LINK_MOD_KM: float = 3.0
 
 
@@ -592,18 +696,105 @@ HABITAT_SPATIAL_LINK_MOD_KM: float = 3.0
 # transition. Asymmetry breakpoints (1.5, 2.5) are first-pass intuitions
 # flagged for calibration sweep alongside M-ATTRIB-A1's habitat thresholds
 # (Q-WA-1 / Q-AT-1, joint sweep after first demo runs).
+#
+# Q-WA-1 calibration finding (29 May 2026, M-WIND-A1 v2.0 demo seed prep).
+# Across five seeded demos (Sapezal, Brasilia, Suape, Comodoro Rivadavia,
+# Norilsk smelter) NONE landed at state="low":
+#   - The three tropical seeds (Sapezal, Brasilia, Suape) land at AAI
+#     Moderate because AAI's bg_std collapses to ~0 there, inflating the
+#     anomaly day count to ~89 days at speeds in the 2.4-4.1 m/s range —
+#     below the 5.0 m/s Low speed gate.
+#   - Patagonian Comodoro lands sparse: genuinely clean uniform air, no
+#     per-day z>=2 spike.
+#   - Norilsk Nornickel (world's strongest single-source SO2) returns
+#     NO2 aggregate z=3.25 but per-day hf=0 — the M-TIER-A1 HF detector's
+#     ring-spatial-std baseline includes part of the plume, so per-day
+#     spikes can't cross 2σ even when the aggregate clearly does.
+# The structural blocker is in the HF detector + ring architecture, not
+# in these thresholds. v1.x calibration should consider:
+#   (a) dropping WIND_SPEED_LOW_MIN_MS to ~3.5 m/s so realistic 3-4 m/s
+#       wind regimes can produce Low — would flip Suape and many real
+#       coastal industrial sites to Low without a detector change;
+#   (b) revisiting the HF detector to use a temporal std baseline rather
+#       than ring-spatial std (would catch the Norilsk case structurally);
+#   (c) per-pollutant bucket calibration (AAI's bg_std issue suggests
+#       AAI may need its own wind thresholds or be removed from scope).
+# Deferring the change to v1.x is the right call — the M-WIND-A1 spec
+# lock WA7 stands, the surfaces are validated by unit tests + smoke tool.
+# @parameter
+# tier: first-pass
+# rationale: Upper wind-speed bound for "high" attributability — below 2 m/s
+#     the air is calm enough that an observed plume is plausibly local to the
+#     site. The 2 m/s breakpoint aligns with the Pasquill calm-to-light wind
+#     threshold (WA8), but the choice to use it as the attributability gate is
+#     first-pass and flagged for a joint calibration sweep with the habitat
+#     thresholds (Q-WA-1 / Q-AT-1). The 29 May 2026 demo seeds found no site
+#     landing at "low", which is a detector/architecture issue, not a reason
+#     to move this value yet.
+# source: M-WIND-A1 v2.0 spec §5.2 (Pasquill calm-to-light); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_SPEED_HIGH_MAX_MS: float = 2.0
+# @parameter
+# tier: first-pass
+# rationale: Lower wind-speed bound for "low" attributability — at or above
+#     5 m/s the wind is brisk enough that an observed plume is more likely
+#     advected from elsewhere than emitted locally. The 5 m/s breakpoint
+#     matches the Pasquill light-to-moderate transition. First-pass; the
+#     Q-WA-1 finding suggests v1.x may drop this to ~3.5 m/s so realistic
+#     3-4 m/s coastal-industrial regimes can produce "low".
+# source: M-WIND-A1 v2.0 spec §5.2 (Pasquill light-to-moderate); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_SPEED_LOW_MIN_MS:  float = 5.0
+# @parameter
+# tier: first-pass
+# rationale: Upper bound on the upwind/downwind background-ring asymmetry
+#     ratio for "high" attributability. A near-symmetric ring (ratio < 1.5)
+#     is consistent with a local source dominating in all directions. The
+#     1.5 breakpoint is a first-pass intuition with no empirical grounding
+#     yet; flagged for the joint calibration sweep (Q-WA-1).
+# source: M-WIND-A1 v2.0 spec §5.2; first-pass intuition; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_ASYMMETRY_HIGH_MAX: float = 1.5
+# @parameter
+# tier: first-pass
+# rationale: Lower bound on the upwind/downwind asymmetry ratio for "low"
+#     attributability. A strongly directional ring (ratio >= 2.5) points to
+#     an off-site source advected past the supplier. The 2.5 breakpoint is a
+#     first-pass intuition flagged for the joint calibration sweep (Q-WA-1).
+# source: M-WIND-A1 v2.0 spec §5.2; first-pass intuition; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_ASYMMETRY_LOW_MIN:  float = 2.5
 
 # WA9 — days where mean wind speed is below this threshold are excluded
 # from the direction / asymmetry calculation (no meaningful direction at
 # calm), but still count toward the speed mean and the anomaly-day total.
+# @parameter
+# tier: first-pass
+# rationale: Calm-day cutoff (1 m/s) below which wind direction is too
+#     ill-defined to contribute to the asymmetry calculation. Such days still
+#     count toward the speed mean and the anomaly-day total — only their
+#     direction is dropped. The 1 m/s figure is a first-pass judgment about
+#     where direction becomes meaningless; not calibrated.
+# source: M-WIND-A1 v2.0 spec §5.2 (WA9); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_CALM_THRESHOLD_MS: float = 1.0
 
 # WA10 — minimum anomaly-day sample size. Below this, attributability is
 # "sparse" and no arrow renders on the M-UI-A5 map.
+# @parameter
+# tier: first-pass
+# rationale: Minimum number of anomaly days needed to assess wind
+#     attributability. Below 5 days the directional sample is too thin to
+#     trust, so the state is reported as "sparse" and no arrow renders.
+#     First-pass sample-size floor, not derived from a power analysis.
+# source: M-WIND-A1 v2.0 spec §5.2 (WA10); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.hcho, air.aai, air.aod]
 WIND_N_MIN_ANOMALY_DAYS: int = 5
 
 # WA2 — five in-scope Air-pillar indicators. Wind attribution is computed
