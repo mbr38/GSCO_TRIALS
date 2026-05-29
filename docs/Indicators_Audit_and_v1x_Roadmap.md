@@ -85,11 +85,24 @@ The four weights sum to 1.0; wind is held out at zero per the Rule 1 rescaling p
 
 **More importantly.** Trend mode (P-06) cannot ship at all without `trend.py`. The current v1 build is single-mode (screening only) because of this gap.
 
-**v1.x fix.** Land `engine/core/trend.py` with Theil-Sen slope + Mann-Kendall p-value per `Indicators_Computation_v3.md §0.3`. The two algorithms are well-established (NumPy + SciPy implementations exist), so this is engineering work, not research. Once landed:
+**v1.x fix.** Land `engine/core/trend.py` with Theil-Sen slope + Mann-Kendall p-value per `Indicators_Computation_v3.md §0.3`. The two algorithms are well-established (NumPy + SciPy implementations exist), so this is engineering work, not research.
 
-- Remove the M-FOLLOWUP-FALLBACK known-zero substitution from `engine.nature`.
-- Activate the `Trend_Score` term in each pillar's follow-up priority.
-- Unblock P-06 (Trend View).
+> **RESOLVED — M-TREND-A1 (29 May 2026), with a design reversal.** `engine/core/trend.py`
+> landed, but the original "activate the Trend_Score term" plan was **superseded**: trend
+> is now a **per-indicator, on-demand drill-down**, never a cross-indicator aggregate and
+> never part of `composite.overall_screening`. See the supersession register in the version
+> footer below. Concretely:
+> - The M-FOLLOWUP-FALLBACK known-zero substitution **was removed** from `engine.nature`. ✓
+> - The `Trend_Score` / `GHG_Trend` aggregate terms were **removed** (not activated) from the
+>   Air/GHG follow-up priorities, which were renormalised over the surviving three terms;
+>   `compute_trend_score` / `compute_ghg_trend` and the `air.trend_score` / `ghg.trend` IDs
+>   were deleted. **(TR10 / E3-SUP)**
+> - `Vegetation_Condition`'s `Negative_Vegetation_Trend` term was **demoted** to drill-down-only
+>   and the weights renormalised across the positive terms. **(TR17 / N2-ENV)**
+> - The screening path is unchanged (`six_step` keeps `trend=None`); the trend reducer is a
+>   separate server-side per-day reduction invoked after a screening.
+> The UI half (the per-indicator trend view, save, P-11 SVG report section, and P-06 wireframe
+> retirement) is **M-TREND-A2**.
 
 **Effort.** ~1-2 weeks engine + tests + P-06 wiring.
 
@@ -1018,3 +1031,20 @@ The relative emphasis is preserved (natural-loss dominant, rate term small). Det
 ---
 
 *Document version 1.5 — May 2026. Anchored to `Indicators_Computation_v3.md`, `Indicator_ID_Schema_v1.md`, `GEE_Database_List_v3.md`, `Engine_Module_Skeleton_v1.md`, `Indicators_Full_Research.pdf`, `Inspection.js`, `AirQuality.js`, and the uploaded `v1x_followups.md`. v1.1 added §1.5 (column-vs-surface concentration framing) and expanded Tier C1 into C1a / C1b / C1c with per-gas wind sensitivity detail. v1.2 appended §9 follow-up notes: §9.1 narrows the tropospheric-band switch to NO₂ only and confirms HCHO is already correct; §9.2 scraps Sector_Match from the confidence formula on metadata-bias grounds and replaces it with a standalone provenance flag. v1.3 revised §9.3 (B/C switch logic, Strategy A dropped). v1.4 superseded v1.3 §9.3 with a Hansen demotion approach by analogy with the M5.5b ODIAC demotion. **v1.5 sweeps the document for formula consistency**: §0.5 (formula notation guide) added; §3.4 (GHG pillar aggregates) rewritten with Reference / Live v1 / Post-v1.x three-state pattern and a correction note on the prior `1/0.85` rescaling error; §4.8 (Nature pillar aggregates) likewise expanded with reference + v1 + post-v1.4 forms; §4.3 and §4.4 updated to reflect Hansen demotion; Tier C2 corrected to remove `ghg.sector_match` from the unlocking list; §1.4 spec-doc-drift expanded with the formula corrections and the three new provenance fields v1.x adds. Treat as a working scoping document, not a spec doc — when items here land, the canonical spec docs absorb the changes.*
+
+---
+
+## M-TREND-A1 supersedes-prior-doc register (29 May 2026)
+
+Recorded here per the M-TREND_Decision_Log §9. M-TREND-A1 landed the trend engine as a per-indicator drill-down and removed the speculative aggregate-trend scaffolding. The following prior-doc intents are **superseded**:
+
+| Item | Supersedes |
+|---|---|
+| **D1-SUP** | `Indicators_Computation_v4.md` §0.5 "Trend / Monitoring … minimum 12 months" → the trend floor is now **points-based** (hard ≈ 4 valid days / soft = 12), not time-based; trend reduces the *screening* window with no independent picker. |
+| **E3-SUP** | §1.2 / to-do "activate the `Trend_Score` term in each pillar's follow-up priority" → the `air.trend_score` / `ghg.trend` aggregate terms are **removed** (drill-down-only); `AIR_/GHG_FOLLOWUP_WEIGHTS` renormalised; `compute_trend_score` / `compute_ghg_trend` + IDs deleted. Composite never sees Air/GHG trend. |
+| **N2-ENV** | §1.2 / to-do "unblock `Vegetation_Condition`'s 0.25 trend weight" → the NDVI *slope* term is **demoted** to drill-down-only with an environmental rationale (an NDVI slope is valid only over the long-window drill-down, not the seasonally-honest snapshot). `VEGETATION_CONDITION_WEIGHTS` renormalised across the positive terms. |
+| **New engine patterns** | Trend confidence as a sibling of the M-TIER-A1 confidence formula (additive base × multiplier chain, capped at the snapshot's confidence); seasonality as a **separate categorical flag** (not folded into the scalar); the per-day series + coverage descriptor as first-class engine outputs. |
+
+`Habitat_Conversion` is untouched (a two-point DW difference, no `trend.py` dependency). `nature.ndvi.slope` / `slope_p` remain as drill-down display values. The per-indicator `*.trend` / `*.trend_p` IDs remain; only the pillar-level `*.trend_score` aggregate IDs were removed from the schema.
+
+*Document version 1.6 — 29 May 2026: appended the M-TREND-A1 supersedes-prior-doc register and marked §1.2 resolved (with the aggregate-trend → drill-down design reversal).*

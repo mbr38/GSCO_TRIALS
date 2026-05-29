@@ -68,10 +68,10 @@ def test_every_template_has_non_empty_sections():
 
 def test_every_template_accepts_only_known_source_types():
     """Source types are filtered against saved_analyses ``type`` field.
-    v1 only writes ``"screening"`` and ``"prioritisation"`` — accepting
-    other values would silently exclude no real sources, but the
-    intent should stay explicit."""
-    allowed = {"screening", "prioritisation"}
+    The store writes ``"screening"``, ``"prioritisation"``, and — since
+    M-TREND-A2 (UT10) — ``"trend"``. Accepting other values would silently
+    exclude no real sources, but the intent should stay explicit."""
+    allowed = {"screening", "prioritisation", "trend"}
     for t in _TEMPLATES:
         assert t.accepted_source_types.issubset(allowed), (
             f"{t.template_id} accepts unknown source types: "

@@ -73,9 +73,15 @@ For any time series of site values over the analysis window, trend is the **Thei
 
 - Theil–Sen slope `m` in raw units per year (e.g. mol m⁻² yr⁻¹, ha yr⁻¹, NDVI yr⁻¹).
 - Mann–Kendall two-sided p-value.
-- The slope's *direction* (sign) feeds the score. Magnitude is normalised by background variability.
+- The slope's *direction* (sign) feeds the **display severity** (it is no longer averaged into any scored aggregate — see the M-TREND-A1 notes in §1.3 / §2.3 / §3.2). Magnitude is normalised by background variability (slope in bg-σ per year, an IC §0.4 sibling).
 
 Theil–Sen is preferred over OLS because it is robust to the heavy-tailed outliers in TROPOMI/CAMS time series (cloud-affected days, retrieval failures).
+
+> **M-TREND-A1.** This is now implemented in `engine/core/trend.py` as a
+> **per-indicator, on-demand drill-down** computed *after* a screening on a
+> server-side per-day site series reduced outside `six_step` (which keeps
+> `trend=None` in the screening path). It is never aggregated across
+> indicators and never enters `composite.overall_screening`.
 
 ### 0.4 Normalisation from raw value to 0–1 score
 
@@ -95,7 +101,7 @@ For values that are already in [0, 1] (e.g. KBA overlap %, hotspot frequency, cl
 | Mode | Window |
 |---|---|
 | Screening (P-05) | Most recent valid 90-day composite ending on the latest valid date for that dataset. **The time-range selector is hidden in screening mode on P-04** — screening is always "now" relative to data availability. |
-| Trend / Monitoring (P-06) | User-selected time range, minimum 12 months |
+| Trend / Monitoring (P-06) | The **screening window** (the trend drill-down reduces the screening's chosen window — no independent picker). **M-TREND-A1 (D1-SUP): supersedes the prior "minimum 12 months" floor** — the floor is now **points-based** (hard ≈ 4 valid days, no slope below; soft = 12, slope emitted but low-confidence), not time-based. Short-window risk is carried by the confidence span-term and a separate seasonal flag, not a time gate. |
 | Background statistics (screening) | Last 3 years preceding the screening composite end date |
 | Background statistics (monitoring) | Last 3 years preceding the **user's analysis-window start** (not preceding today). This keeps a re-run of the same audit reproducible at any later date. |
 
@@ -150,16 +156,23 @@ Air_Pollution_Proxy_Score = 0.30·NO₂_score + 0.20·SO₂_score
                           + 0.10·O₃_context_score
 
 SpatioTemporal_Anomaly_Score   = mean of Z_score across all selected pollutants
-Trend_Score                    = mean of Trend_score across all selected pollutants
-                                 (Trend_Score := 0 in Screening mode)
 Attribution_Confidence_Score   = mean of Conf across all selected pollutants
 
 Air_Pollution_Audit_FollowUp_Priority =
-    0.35·Air_Pollution_Proxy_Score
-  + 0.30·SpatioTemporal_Anomaly_Score
-  + 0.20·Trend_Score
-  + 0.15·Attribution_Confidence_Score
+    0.4375·Air_Pollution_Proxy_Score
+  + 0.3750·SpatioTemporal_Anomaly_Score
+  + 0.1875·Attribution_Confidence_Score
 ```
+
+> **M-TREND-A1 (TR10 / decision-log E3).** The former `0.20·Trend_Score`
+> term is **removed** — there is no cross-indicator aggregate trend (averaging
+> incommensurable, noisy, sparse per-indicator slopes is incoherent). Trend is
+> now a per-indicator on-demand drill-down (`engine/core/trend.py`,
+> Theil–Sen + Mann–Kendall over a server-side per-day series), which emits the
+> per-pollutant `.trend` / `.trend_p` display values; it never enters this
+> priority or `composite.overall_screening`. The surviving three terms are
+> renormalised over the prior 0.80 (0.35/0.30/0.15 ÷ 0.80) so the sum stays
+> 1.00. Pre-change weights: 0.35 / 0.30 / 0.20 / 0.15.
 
 `O₃_context_score` is treated as context, not as a primary pollution score — it is the same Z-based score but capped at 0.5, because O₃ is a secondary pollutant and not directly emitted (Indicators Full Research, "Best interpretation" table).
 
@@ -260,11 +273,15 @@ GHG_Data_Quality_Attribution_v1 =
   surface.
 
 GHG_Audit_FollowUp_Priority =
-    0.40·Core_GHG_Audit_Support
-  + 0.25·GHG_SpatioTemporal_Anomaly
-  + 0.20·GHG_Trend                (set to 0 in Screening mode)
-  + 0.15·GHG_Data_Quality_Attribution
+    0.5000·Core_GHG_Audit_Support
+  + 0.3125·GHG_SpatioTemporal_Anomaly
+  + 0.1875·GHG_Data_Quality_Attribution
 ```
+
+> **M-TREND-A1 (TR10 / decision-log E3).** As with Air, the former
+> `0.20·GHG_Trend` term is **removed** (trend is drill-down-only). The
+> surviving three terms are renormalised over the prior 0.80 so the sum stays
+> 1.00. Pre-change weights: 0.40 / 0.25 / 0.20 / 0.15.
 
 **v1.1+ (with sector and wind context — for reference, not implemented in v1):** restore the original weights from `Final_Indicators_List.pdf`.
 
@@ -326,12 +343,23 @@ Habitat_Conversion =                              (audit §9.3 v1.4: Hansen demo
   in ESRS E4 / GRI 101 case studies. Tunable as `CONVERSION_SATURATION_PCT`
   in code.
 
-Vegetation_Condition_v1 =                          (EVI removed, weights rescaled — see §7.4)
-    0.45·Inverted_NDVI_SpatioTemporal_Anomaly
-  + 0.25·Negative_Vegetation_Trend
-  + 0.20·Low_Vegetation_Area_pct
+Vegetation_Condition_v1 =          (EVI removed; NDVI slope demoted — see §7.4)
+    0.6923·Inverted_NDVI_SpatioTemporal_Anomaly
+  + 0.3077·Low_Vegetation_Area_pct
   − 0.10·Recovery_Signal
 ```
+
+> **M-TREND-A1 (TR17 / decision-log N2).** The `0.25·Negative_Vegetation_Trend`
+> term is **removed** from the scored aggregate. An NDVI *slope* is
+> environmentally valid only over the long-window trend drill-down, not the
+> seasonally-honest screening snapshot (N2-ENV): composite keeps the
+> vegetation-*state* signal (`Inverted_NDVI_anomaly` vs same-month baseline)
+> and the multi-year land-change signal (`Habitat_Conversion`, untouched). The
+> freed 0.25 is redistributed across the **positive** terms only
+> (0.45/0.65 and 0.20/0.65), keeping recovery's −0.10 offset. `NDVI_slope` /
+> `NDVI_p` are still emitted as drill-down display values (fed by the
+> on-demand trend pass, not screening). Pre-change weights:
+> 0.45 / 0.25 / 0.20 / −0.10.
 
 Sub-formula breakdowns:
 
@@ -341,7 +369,7 @@ Sub-formula breakdowns:
 | `Sensitive_LandCover_Presence` | `(trees_pct + flooded_veg_pct + grass_pct + shrub_pct) / 100` (capped at 1.0) | The fraction of the buffer that is natural / semi-natural habitat. The four-class sum uses the Dynamic World class mapping below — `DW_NATURAL_CLASSES` is fixed in code, not a tunable. |
 | `Water_or_FloodedVegetation_Exposure` | `min( (water_pct + flooded_veg_pct)/20 , 1.0 )` | The "/20" is the saturation point: 20 % combined aquatic / wetland cover = score 1.0. A supplier with 50 % water exposure is not 2.5× more concerning than one with 20 %; both are "highly water-adjacent". The cap stops one dimension from dominating Biodiversity_Exposure. |
 | `Inverted_NDVI_SpatioTemporal_Anomaly` | `clamp( (NDVI_bg − NDVI_site) / (3·σ_bg) , 0, 1 )` | Inverted because *lower* NDVI is worse. Cap at 3·σ_bg (≈ 99th percentile). |
-| `Negative_Vegetation_Trend` | `clamp( −NDVI_slope / typical_negative_slope_threshold , 0, 1 )` | Threshold ≈ −0.01 NDVI yr⁻¹ — a calibration, not a physical constant. A −0.01 NDVI/yr slope means losing 0.10 NDVI over a decade (visually obvious). Below that rate, the slope is usually inside natural interannual variability (σ ≈ 0.02–0.05 for stable ecosystems) and not reliably distinguishable from noise. |
+| `Negative_Vegetation_Trend` *(M-TREND-A1: demoted to drill-down-only — no longer in `Vegetation_Condition`)* | `clamp( −NDVI_slope / typical_negative_slope_threshold , 0, 1 )` | Threshold ≈ −0.01 NDVI yr⁻¹ — a calibration, not a physical constant. A −0.01 NDVI/yr slope means losing 0.10 NDVI over a decade (visually obvious). Below that rate, the slope is usually inside natural interannual variability (σ ≈ 0.02–0.05 for stable ecosystems) and not reliably distinguishable from noise. **Per TR17 this term is removed from the scored aggregate; the NDVI slope is now surfaced only in the per-indicator trend drill-down.** |
 | `Low_Vegetation_Area_pct` | `low_NDVI_ha / total_natural_ha`, in [0, 1] | Only counts pixels inside the natural-cover mask, so seasonally bare crop fields don't pollute the score. |
 | `Recovery_Signal` | `min( NDVI_improvement_pct/100 + natural_cover_gain_pct/100 , 1.0 )` | Two positive signals: fraction of buffer with significant positive NDVI trend, plus fraction that transitioned from non-natural to natural cover. Subtracted from Vegetation_Condition (the −0.10 term) so recovery reduces priority by up to 10 %, but doesn't erase historical damage. |
 

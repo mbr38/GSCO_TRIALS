@@ -48,7 +48,7 @@ _SUB_AGGREGATE_IDS = (
 _PILLAR_AGGREGATE_IDS = (
     "air.pollution_proxy_score",
     "air.spatiotemporal_anomaly_score",
-    "air.trend_score",
+    # M-TREND-A1 (TR10): air.trend_score is no longer emitted.
     "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
     "air.audit_followup_priority",
 )
@@ -56,7 +56,7 @@ _PILLAR_AGGREGATE_IDS = (
 
 def _fake_air_payload() -> dict:
     """Build a full Air-pillar payload: 9 × 9 single-value keys + provenance
-    + 6 sub-aggregates + 5 pillar aggregates. Numeric values are arbitrary
+    + 6 sub-aggregates + 4 pillar aggregates. Numeric values are arbitrary
     but distinct enough to verify which value reached which composite slot.
     """
     payload: dict = {}
@@ -73,7 +73,7 @@ def _fake_air_payload() -> dict:
     # composite picks up.
     payload["air.pollution_proxy_score"]        = 0.45
     payload["air.spatiotemporal_anomaly_score"] = 0.55
-    payload["air.trend_score"]                  = 0.0
+    # M-TREND-A1 (TR10): air.trend_score no longer emitted.
     # M-ATTRIB-A1 (AT16) — dual-emit: orchestrator reads the new ID.
     payload["air.measurement_quality_score"]    = 0.72
     payload["air.attribution_confidence_score"] = 0.72
@@ -375,7 +375,7 @@ def _fake_ghg_payload() -> dict:
     # the composite picks up.
     payload["ghg.core_audit_support"]         = 0.42
     payload["ghg.spatiotemporal_anomaly"]     = 0.50
-    payload["ghg.trend"]                      = 0.0
+    # M-TREND-A1 (TR10): ghg.trend no longer emitted.
     payload["ghg.data_quality_attribution"]   = 0.65
     payload["ghg.audit_followup_priority"]    = 0.55
     return payload

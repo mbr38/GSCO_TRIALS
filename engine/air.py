@@ -31,15 +31,14 @@ Quality notes (v1 baseline):
   default from `engine.constants.QA_PER_INDICATOR`; Layer B work
   (plumbing real `qa_value > 0.75` filter pass-rates into the EE
   pipeline) is logged for Tier B1 sensitivity-analysis follow-up.
-- TODO(M5+): trend values are still None from M2 (engine/core/trend.py not
-  implemented), so in trend mode `compute_trend_score` returns None.
+- M-TREND-A1 (TR10): trend is a per-indicator drill-down only
+  (`engine/core/trend.py`); there is no aggregate `air.trend_score` and the
+  follow-up priority no longer carries a trend term. Per-pollutant `.trend`
+  / `.trend_p` remain as drill-down display values.
 
 Mode handling:
 - The `mode` parameter is accepted for signature stability with
   Engine_Module_Skeleton §2.1. For single-value indicators it has no effect.
-  At the pillar-aggregate level, `compute_trend_score` returns 0.0 in
-  screening mode (so the Trend term doesn't pull the follow-up score) and
-  the actual trend mean in trend mode.
 """
 
 from __future__ import annotations
@@ -545,7 +544,9 @@ _SINGLE_VALUE_POLLUTANTS: tuple[str, ...] = tuple(AIR_POLLUTANT_CONFIG.keys())
 _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "proxy":      "air.pollution_proxy_score",
     "anomaly":    "air.spatiotemporal_anomaly_score",
-    "trend":      "air.trend_score",
+    # M-TREND-A1 (TR10): the "trend" term is removed — trend is drill-down-
+    # only and never enters the follow-up priority. `air.trend_score` is no
+    # longer emitted (see compute_trend_score removal below).
     # M-ATTRIB-A1 (AT16): points at the renamed measurement-quality ID.
     "confidence": "air.measurement_quality_score",
 }
@@ -687,35 +688,13 @@ def compute_spatiotemporal_anomaly_score(
     }
 
 
-def compute_trend_score(
-    payload: dict,
-    selected: set[str],
-    mode: str,
-) -> dict:
-    """IC_v4 §1.3 — mean of per-pollutant trend slopes across `selected`.
-
-    In screening mode, returns 0.0 so the Trend term in
-    `compute_air_audit_followup_priority` doesn't drag the score in either
-    direction. In trend mode, trend values are still None from M2 — the
-    function returns None until `engine/core/trend.py` lands.
-
-    TODO(M5+): once trend.py exists and `compute_pollutant_snapshot` returns
-    real `.trend` floats, this will compute a meaningful mean in trend mode.
-    """
-    if mode == "screening":
-        return {"air.trend_score": 0.0}
-
-    trends: list[float] = []
-    for pol in _SINGLE_VALUE_POLLUTANTS:
-        if make_id(PILLAR_AIR, pol, "score") not in selected:
-            continue
-        trend = payload.get(make_id(PILLAR_AIR, pol, "trend"))
-        if trend is None:
-            continue
-        trends.append(trend)
-    if not trends:
-        return {"air.trend_score": None}
-    return {"air.trend_score": sum(trends) / len(trends)}
+# M-TREND-A1 (TR10 / decision-log E3): `compute_trend_score` is removed.
+# There is no cross-indicator aggregate trend — averaging incommensurable,
+# noisy, sparse per-indicator slopes is incoherent and unstable (one
+# indicator drags the pillar). Trend is now a per-indicator, on-demand
+# drill-down (`engine/core/trend.py::compute_trend`) that emits the raw
+# per-indicator `.trend` / `.trend_p` display values, and `composite`
+# never sees Air trend. `air.trend_score` is no longer emitted.
 
 
 def compute_measurement_quality_score(
@@ -766,9 +745,8 @@ def compute_air_audit_followup_priority(
     """IC_v4 §1.3 — weighted sum per AIR_FOLLOWUP_WEIGHTS over the four
     pillar aggregates.
 
-    `mode` is accepted for signature stability; mode-dependent behaviour
-    lives upstream in `compute_trend_score` (which returns 0.0 in
-    screening — a known v1 zero, not a missing value).
+    `mode` is accepted for signature stability (M-TREND-A1 removed the only
+    mode-dependent term, the aggregate trend).
 
     M-FOLLOWUP-FALLBACK: strict-None propagation. If any sub-aggregate
     is None, the priority is None. The prior renormalise-over-survivors
@@ -957,7 +935,7 @@ def recompute_air_aggregates(
 
     payload.update(compute_air_pollution_proxy_score(payload, augmented_selected))
     payload.update(compute_spatiotemporal_anomaly_score(payload, augmented_selected))
-    payload.update(compute_trend_score(payload, augmented_selected, mode))
+    # M-TREND-A1 (TR10): no aggregate trend term — trend is drill-down-only.
     payload.update(compute_measurement_quality_score(payload, augmented_selected))
     payload.update(compute_air_audit_followup_priority(payload, mode))
     return payload

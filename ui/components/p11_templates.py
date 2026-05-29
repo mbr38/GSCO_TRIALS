@@ -37,13 +37,16 @@ _TEMPLATES: tuple[ReportTemplate, ...] = (
             "notes."
         ),
         user_type="policy_maker",
-        accepted_source_types=frozenset({"screening", "prioritisation"}),
+        # M-TREND-A2 (UT10): trend records are an accepted source type so the
+        # trend-graph section can render their saved series.
+        accepted_source_types=frozenset({"screening", "prioritisation", "trend"}),
         sections=(
             "title_page",
             "executive_summary",
             "methodology",
             "pillar_findings",
             "indicator_detail",
+            "trend_graph",
             "reference_datasets",
             "provenance_appendix",
         ),
@@ -58,7 +61,8 @@ _TEMPLATES: tuple[ReportTemplate, ...] = (
             "provenance for downstream audit."
         ),
         user_type="mnc",
-        accepted_source_types=frozenset({"screening", "prioritisation"}),
+        # M-TREND-A2 (UT10): trend records accepted as a source type.
+        accepted_source_types=frozenset({"screening", "prioritisation", "trend"}),
         sections=(
             "title_page",
             "executive_summary",
@@ -66,6 +70,7 @@ _TEMPLATES: tuple[ReportTemplate, ...] = (
             "scope_summary",
             "priority_findings",
             "per_supplier_detail",
+            "trend_graph",
             "reference_datasets",
             "provenance_appendix",
         ),

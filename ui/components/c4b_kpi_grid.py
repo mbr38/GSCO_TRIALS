@@ -48,7 +48,9 @@ from ui.components.fallback_retry import (  # M-FALLBACK-A1 §5.3
     is_retryable,
     reason_is_retryable,
 )
+from engine.core.trend import is_series_indicator
 from ui.components.indicator_info import render_indicator_name_with_info
+from ui.components.trend_view import set_active_trend
 from ui.components.multi_map_state import (
     MAP_ANCHOR_ID,
     request_scroll,
@@ -544,6 +546,24 @@ def _render_view_on_map(tile: _TileSpec) -> None:
         st.rerun()
 
 
+def _render_view_trend(tile: _TileSpec) -> None:
+    """The 'view trend →' affordance (M-TREND-A2 / UT7), a sibling of
+    'View on map →'. Series indicators only — non-series tiles (KBA,
+    Dynamic World, ODIAC CO₂, Hansen) carry no link and no substitute
+    (decision-log U6). Sets the active trend indicator and routes to the
+    dedicated P-06 trend page, which computes the trend on open.
+    """
+    if not is_series_indicator(tile.select_key):
+        return
+    if st.button(
+        "View trend →",
+        key=f"viewtrend_{tile.pillar}_{tile.indicator}",
+        type="tertiary",
+    ):
+        set_active_trend(tile.select_key, tile.display_name)
+        st.switch_page("pages/06_Trend_View.py")
+
+
 def _confidence_line_html(confidence: float | None) -> str:
     glyph = confidence_glyph(confidence)
     return (
@@ -599,6 +619,7 @@ def _render_zscore_tile(tile: _TileSpec, payload: dict) -> None:
         st.markdown(_secondary_line_html(tile, payload), unsafe_allow_html=True)
         st.markdown(_confidence_line_html(confidence), unsafe_allow_html=True)
         _render_view_on_map(tile)
+        _render_view_trend(tile)
 
 
 def _secondary_line_html(tile: _TileSpec, payload: dict) -> str:
@@ -653,6 +674,7 @@ def _render_natural_metric_tile(tile: _TileSpec, payload: dict) -> None:
             )
         st.markdown(_confidence_line_html(confidence), unsafe_allow_html=True)
         _render_view_on_map(tile)
+        _render_view_trend(tile)  # no-op for non-series natural-metric tiles
 
 
 def _natural_metric_centre_and_secondary(

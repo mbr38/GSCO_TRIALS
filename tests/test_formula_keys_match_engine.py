@@ -24,13 +24,11 @@ from engine.air import (
     compute_air_pollution_proxy_score,
     compute_attribution_confidence_score,
     compute_spatiotemporal_anomaly_score,
-    compute_trend_score,
 )
 from engine.ghg import (
     compute_core_ghg_audit_support,
     compute_ghg_data_quality_attribution,
     compute_ghg_spatiotemporal_anomaly,
-    compute_ghg_trend,
 )
 from engine.nature import (
     compute_biodiversity_exposure,
@@ -66,16 +64,16 @@ def _harvest_keys(callsites) -> set[str]:
     return keys
 
 
+# M-TREND-A1 (TR10): the aggregate trend reducers (compute_trend_score /
+# compute_ghg_trend) are gone — trend is a per-indicator drill-down only.
 _AIR_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_air_pollution_proxy_score({}, set()),
     lambda: compute_spatiotemporal_anomaly_score({}, set()),
-    lambda: compute_trend_score({}, set(), mode="screening"),
     lambda: compute_attribution_confidence_score({}, set()),
 ])
 _GHG_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_core_ghg_audit_support({}, set()),
     lambda: compute_ghg_spatiotemporal_anomaly({}, set()),
-    lambda: compute_ghg_trend({}, set(), mode="screening"),
     lambda: compute_ghg_data_quality_attribution({}),
 ])
 _NATURE_AGGREGATE_KEYS: set[str] = _harvest_keys([
@@ -127,20 +125,24 @@ def test_nature_formula_payload_keys_emitted_by_engine(term) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Full-cardinality lock — 4 terms per pillar
+# Cardinality lock — per-pillar term counts
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize(
-    "name,formula",
+    "name,formula,expected",
     [
-        ("_AIR_FORMULA",    _AIR_FORMULA),
-        ("_GHG_FORMULA",    _GHG_FORMULA),
-        ("_NATURE_FORMULA", _NATURE_FORMULA),
+        # M-TREND-A1 (TR10): Air/GHG drop the aggregate trend term → 3 terms
+        # each (proxy/anomaly/quality, core_support/anomaly/quality). Nature
+        # never had a trend term and keeps its 4 (IC §3.3).
+        ("_AIR_FORMULA",    _AIR_FORMULA,    3),
+        ("_GHG_FORMULA",    _GHG_FORMULA,    3),
+        ("_NATURE_FORMULA", _NATURE_FORMULA, 4),
     ],
 )
-def test_formula_has_exactly_four_terms(name: str, formula: tuple) -> None:
-    """Every pillar's follow-up priority is a 4-term weighted sum per
-    Indicators_Computation_v4 §1.3 / §2.3 / §3.3. Pin the cardinality
-    so an accidental term drop or addition fails loudly.
-    """
-    assert len(formula) == 4, f"{name} has {len(formula)} terms, expected 4"
+def test_formula_has_expected_term_count(name: str, formula: tuple, expected: int) -> None:
+    """Pin the per-pillar follow-up cardinality so an accidental term drop
+    or addition fails loudly (Indicators_Computation_v4 §1.3 / §2.3 / §3.3,
+    as amended by M-TREND-A1 TR10)."""
+    assert len(formula) == expected, (
+        f"{name} has {len(formula)} terms, expected {expected}"
+    )

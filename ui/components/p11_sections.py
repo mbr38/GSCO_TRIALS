@@ -19,6 +19,12 @@ from typing import Callable
 from engine.constants import TRAFFIC_LIGHT_THRESHOLDS
 from engine.verbal_summary import generate_verbal_summary
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
+from ui.components.trend_record import (
+    significance_text,
+    slope_display,
+    verdict_badge,
+)
+from ui.components.trend_svg import build_trend_svg
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -442,6 +448,87 @@ def _render_reference_datasets(state, sources) -> str:
         blocks.append(_render_reference_dataset_block(payload))
     blocks.append("</section>")
     return "\n".join(blocks)
+
+
+# ──────────────────────────────────────────────────────────────────
+# Trend graph (M-TREND-A2 / UT10)
+# ──────────────────────────────────────────────────────────────────
+
+def _render_trend_graph(state, sources) -> str:
+    """Per-indicator trend graphs for any saved trend records in the report.
+
+    Emits one block per ``type=="trend"`` source: an inline SVG of the trend
+    graph (scatter + Theil–Sen line; season bands when flagged) generated from
+    the saved per-day series, plus a short prose verdict + the metrics.
+    Returns "" (section omitted) when no trend sources are present.
+
+    Graceful fallback (UT10 / §8): if SVG generation fails for a record, that
+    record's block degrades to a statistics summary + a series table rather
+    than breaking the section — consistent with the assembler's per-section
+    try/except.
+    """
+    trend_sources = [s for s in sources if s.get("type") == "trend"]
+    if not trend_sources:
+        return ""
+    blocks = [
+        "<section class='chapter-break'>",
+        "<h2>Trend analysis</h2>",
+        "<p><em>Per-indicator trend drill-downs (Theil–Sen slope + "
+        "Mann–Kendall significance over the screening window). Trend is a "
+        "drill-down signal — it does not enter the composite screening "
+        "score.</em></p>",
+    ]
+    for src in trend_sources:
+        name = html.escape(src.get("display_name") or src.get("indicator_id") or "Trend")
+        result = src.get("trend_result") or {}
+        setup = src.get("screening_setup") or {}
+        lat = (setup.get("centre") or {}).get("lat")
+        blocks.append(f"<h3>{name}</h3>")
+        blocks.append(_render_one_trend_block(result, lat, name))
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+def _render_one_trend_block(result: dict, lat, name: str = "") -> str:
+    """One trend record → verdict + metrics + inline SVG, with a table
+    fallback if the SVG build raises."""
+    badge = verdict_badge(result)
+    conf = result.get("trend_confidence")
+    conf_str = "—" if conf is None else f"{conf:.2f}"
+    metrics = (
+        f"<p><strong>{html.escape(badge['text'])}</strong></p>"
+        f"<ul>"
+        f"<li>Significance: {html.escape(significance_text(result))}</li>"
+        f"<li>Trend confidence: {conf_str}</li>"
+        f"<li>Raw slope: {html.escape(slope_display(result))}</li>"
+        f"</ul>"
+    )
+    try:
+        seasonal = bool(result.get("seasonal_flag"))
+        svg = build_trend_svg(
+            result, lat=lat, show_season_bands=seasonal, width=680,
+            y_label=name or "Site value",
+            title=f"{name} — daily site value" if name else None,
+        )
+        return metrics + f"<div class='trend-graph'>{svg}</div>"
+    except Exception as exc:  # noqa: BLE001 — never emit a broken section
+        return metrics + _render_trend_series_table(result, str(exc))
+
+
+def _render_trend_series_table(result: dict, error: str) -> str:
+    """Fallback when SVG generation fails: the per-day series as a table."""
+    rows = [
+        f"<tr><td>{html.escape(str(iso))}</td><td>{html.escape(f'{v:.4g}')}</td></tr>"
+        for iso, v in (result.get("series") or [])
+    ]
+    return (
+        f"<p><em>Graph unavailable ({html.escape(error)}); showing the "
+        f"per-day series.</em></p>"
+        "<table class='series-table'><thead><tr><th>Date</th>"
+        "<th>Value</th></tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
+    )
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -910,6 +997,7 @@ _SECTION_REGISTRY: dict[str, Callable] = {
     "priority_findings":     _render_priority_findings,
     "indicator_detail":      _render_indicator_detail,
     "per_supplier_detail":   _render_per_supplier_detail,
+    "trend_graph":           _render_trend_graph,
     "reference_datasets":    _render_reference_datasets,
     "provenance_appendix":   _render_provenance_appendix,
 }

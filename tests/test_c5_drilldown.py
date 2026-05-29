@@ -61,16 +61,18 @@ def test_fmt_signed_general_format_for_positive_value():
 # Formula tuples
 # ---------------------------------------------------------------------------
 
-def test_air_formula_has_four_terms():
-    assert len(_AIR_FORMULA) == 4
+# M-TREND-A1 (TR10): Air/GHG follow-up formulas drop the aggregate trend
+# term → 3 terms each; Nature keeps its 4 (it never had a trend term).
+def test_air_formula_has_three_terms():
+    assert len(_AIR_FORMULA) == 3
 
 
 def test_air_formula_weights_sum_to_one():
     assert sum(t.weight for t in _AIR_FORMULA) == pytest.approx(1.0, abs=0.01)
 
 
-def test_ghg_formula_has_four_terms():
-    assert len(_GHG_FORMULA) == 4
+def test_ghg_formula_has_three_terms():
+    assert len(_GHG_FORMULA) == 3
 
 
 def test_ghg_formula_weights_sum_to_one():

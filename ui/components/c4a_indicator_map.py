@@ -51,9 +51,11 @@ import geemap.foliumap as geemap
 import streamlit as st
 
 from engine.air import AIR_POLLUTANT_CONFIG
+from engine.core.trend import is_series_indicator
 from engine.ghg import GHG_INDICATOR_CONFIG
 from engine.nature import KBA_ASSET_ID
 from ui.components import multi_map_state as mms
+from ui.components.trend_view import set_active_trend
 
 
 # ---------------------------------------------------------------------------
@@ -1002,7 +1004,21 @@ def render_c4a_indicator_map(
     this surface is unaffected by the multi-indicator state machine.
     """
     with st.container(border=True):
-        st.markdown("### Map")
+        # M-TREND-A2 (UT7): prominent "View trend" button alongside the map,
+        # for series indicators only.
+        if is_series_indicator(indicator_id):
+            title_col, trend_col = st.columns([4, 1])
+            title_col.markdown("### Map")
+            with trend_col:
+                if st.button(
+                    "📈 View trend",
+                    key=f"viewtrend_singlemap_{indicator_id}",
+                    use_container_width=True,
+                ):
+                    set_active_trend(indicator_id)
+                    st.switch_page("pages/06_Trend_View.py")
+        else:
+            st.markdown("### Map")
         _dispatch(indicator_id, setup, result, _current_run_id())
 
 

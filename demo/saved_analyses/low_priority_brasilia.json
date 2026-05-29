@@ -1,5 +1,5 @@
 {
-  "id": "f4da5f7f-4dac-4523-a224-7a9f2d6b4fab",
+  "id": "63f0cc12-26a3-46de-817c-7b9f38240f40",
   "name": "Distrito Federal, Brazil — Region screening",
   "type": "screening",
   "screening_setup": {
@@ -40,7 +40,7 @@
       "2026-05-23"
     ]
   },
-  "date_saved": "2026-05-29T14:57:20.082071+00:00",
+  "date_saved": "2026-05-29T18:33:02.310987+00:00",
   "payload": {
     "air.aai.site": -0.4779189737365163,
     "air.aai.background": -0.4667895535262914,
@@ -443,13 +443,12 @@
     "air.industrial_air_pollution_burden": 0.14263414775844802,
     "air.pollution_proxy_score": 0.106975610818836,
     "air.spatiotemporal_anomaly_score": 0.06422375615461326,
-    "air.trend_score": 0.0,
     "air.measurement_quality_score": 0.7495364390899535,
     "air.attribution_confidence_score": 0.7495364390899535,
-    "air.audit_followup_priority": 0.1691390564964696,
+    "air.audit_followup_priority": 0.21142382062058698,
     "nature.kba.dist_km": 9.395672626226776,
-    "nature.kba.overlap_ha": 65830.15840577548,
-    "nature.kba.overlap_pct": 11.28029577231136,
+    "nature.kba.overlap_ha": 65830.15840577568,
+    "nature.kba.overlap_pct": 11.280295772311396,
     "nature.kba.proximity_score": 0.3907969112035837,
     "nature.kba.confidence": 1.0,
     "_provenance.nature.kba": {
@@ -621,7 +620,6 @@
     "nature.ndvi.score": 0.17568921288157,
     "nature.ndvi.confidence": 0.5033333333333333,
     "nature.ndvi.inverted_anomaly": 0.17568921288157,
-    "nature.ndvi.negative_trend": null,
     "nature.low_ndvi.ha": 15630.502126000603,
     "nature.low_ndvi.pct": 2.6783573262001985,
     "nature.low_ndvi.pct_norm": 0.026783573262001984,
@@ -801,13 +799,13 @@
     "nature.habitat.annualised_rate_score": 0.0,
     "nature.biodiversity_exposure": 0.4315667378433487,
     "nature.habitat.conversion_score": 0.012773750225815336,
-    "nature.vegetation_condition": 0.0844168604491069,
+    "nature.vegetation_condition": 0.12987209299862598,
     "nature.valid_pixel_coverage": 0.9142857142857144,
     "nature.cloud_observation_quality": 0.8,
     "nature.seasonal_comparability": 1.0,
     "nature.measurement_quality": 0.8336840289727867,
     "nature.spatiotemporal_anomaly_score": 0.0,
-    "nature.followup_priority": 0.2794589658789439,
+    "nature.followup_priority": 0.2908227740163237,
     "ghg.ch4.site": 1888.9006685279592,
     "ghg.ch4.background": 1885.492082707111,
     "ghg.ch4.anomaly": 3.4085858208482023,
@@ -957,10 +955,9 @@
     "ghg.activity_adjusted_co2": 0.8140332030120594,
     "ghg.core_audit_support": 0.17093321670310938,
     "ghg.spatiotemporal_anomaly": 0.23221143782283163,
-    "ghg.trend": 0.0,
     "ghg.data_quality_attribution": 0.8620617283950618,
-    "ghg.audit_followup_priority": 0.2557354053962109,
-    "composite.overall_screening": 0.23477780925720815,
+    "ghg.audit_followup_priority": 0.31966925674526364,
+    "composite.overall_screening": 0.2739719504607248,
     "composite.confidence": 0.7495364390899535,
     "_failures": {
       "air": [
@@ -994,7 +991,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-29T14:57:20.081860+00:00",
+      "computed_at": "2026-05-29T18:33:52.927297+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",
@@ -1022,6 +1019,5 @@
         "nature"
       ]
     }
-  },
-  "expected_attributability": "moderate"
+  }
 }

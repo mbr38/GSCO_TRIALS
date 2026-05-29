@@ -18,6 +18,8 @@ import json
 
 import streamlit as st
 
+from ui.components.trend_record import trend_search_indicator
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -87,6 +89,9 @@ def _save_search_fields(save: dict) -> list[str]:
         str(save.get("name") or ""),
         str(centre.get("node_name") or ""),
         str(centre.get("source") or ""),
+        # M-TREND-A2 (UT9): trend saves also match on their indicator id +
+        # display name; empty for screening / prioritisation records.
+        trend_search_indicator(save),
     ]
 
 
@@ -158,6 +163,8 @@ def _format_row_caption(save: dict) -> str:
     """
     if save.get("type") == "prioritisation":
         return _format_prioritisation_caption(save)
+    if save.get("type") == "trend":
+        return _format_trend_caption(save)
     setup = save.get("screening_setup") or {}
     centre = setup.get("centre") or {}
     lat = centre.get("lat")
@@ -174,6 +181,20 @@ def _format_row_caption(save: dict) -> str:
     return (
         f"Centre: {coord_str} · Buffer: {radius_km} km · "
         f"Indicators: {n_indicators} · {window_str} · Saved: {date_str}"
+    )
+
+
+# M-TREND-A2
+def _format_trend_caption(save: dict) -> str:
+    """Per-row caption for ``type=="trend"`` entries."""
+    result = save.get("trend_result") or {}
+    bucket = result.get("significance_bucket") or "—"
+    cov = result.get("coverage") or {}
+    n = cov.get("n_valid_days", "—")
+    indicator = save.get("display_name") or save.get("indicator_id") or "—"
+    date_str = (save.get("date_saved") or "")[:10] or "—"
+    return (
+        f"Trend · {indicator} · {bucket} · {n} valid days · {date_str}"
     )
 
 
@@ -225,6 +246,12 @@ def _open_save(save: dict) -> None:
     """
     if save.get("type") == "prioritisation":
         _open_prioritisation(save)
+        return
+    if save.get("type") == "trend":
+        # M-TREND-A2 (UT9): re-open a saved trend on the dedicated P-06 page;
+        # it renders from the stored per-day series with no recompute.
+        st.session_state["loaded_trend_record"] = save
+        st.switch_page("pages/06_Trend_View.py")
         return
     setup = save.get("screening_setup")
     payload = save.get("payload")

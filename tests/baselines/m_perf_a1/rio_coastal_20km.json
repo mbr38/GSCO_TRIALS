@@ -17,107 +17,107 @@
     "2026-02-22",
     "2026-05-23"
   ],
-  "captured_at": "2026-05-28T16:17:56.189706+00:00",
-  "wall_time_seconds": 184.718,
-  "total_getinfo_calls": 86,
+  "captured_at": "2026-05-29T18:36:11.204368+00:00",
+  "wall_time_seconds": 218.228,
+  "total_getinfo_calls": 93,
   "total_getinfo_failures": 0,
   "profile": [
     {
       "module": "engine.air",
       "function": "compute_pollutant_snapshot",
-      "count": 27,
-      "total_seconds": 424.78998196090106,
+      "count": 37,
+      "total_seconds": 450.2013908351073,
       "failures": 0
     },
     {
-      "module": "engine.core.ee_resilience",
-      "function": "_wrapped_getInfo",
+      "module": "engine.core.repeatable_core",
+      "function": "_process_chunk_for_server_side_hf",
       "count": 18,
-      "total_seconds": 44.992815357109066,
+      "total_seconds": 29.915937324927654,
       "failures": 0
     },
     {
       "module": "engine.ghg",
       "function": "compute_ghg_indicator_snapshot",
       "count": 7,
-      "total_seconds": 25.04208630794892,
-      "failures": 0
-    },
-    {
-      "module": "engine.ghg",
-      "function": "compute_co2_snapshot",
-      "count": 5,
-      "total_seconds": 4.023258343047928,
+      "total_seconds": 22.1017027568887,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_ndvi_condition",
       "count": 5,
-      "total_seconds": 5.726401631021872,
+      "total_seconds": 2.4298199900076725,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_regional_loss_evidence",
       "count": 5,
-      "total_seconds": 7.761274026997853,
+      "total_seconds": 1.194829731946811,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "_dw_mode_histogram",
       "count": 4,
-      "total_seconds": 8.408045764022972,
+      "total_seconds": 8.467547646956518,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_current_land_cover",
       "count": 3,
-      "total_seconds": 16.53379658306949,
+      "total_seconds": 11.360159641015343,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_kba_proximity",
       "count": 3,
-      "total_seconds": 2.517521054018289,
+      "total_seconds": 2.6347472430206835,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_supplier_spatial_link",
       "count": 3,
-      "total_seconds": 12.793632877932396,
+      "total_seconds": 12.133534614986274,
+      "failures": 0
+    },
+    {
+      "module": "engine.ghg",
+      "function": "compute_co2_snapshot",
+      "count": 2,
+      "total_seconds": 0.7117815150413662,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_forest_loss",
       "count": 2,
-      "total_seconds": 0.8708158399676904,
+      "total_seconds": 1.2642121330136433,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_water_exposure",
       "count": 2,
-      "total_seconds": 6.994900309946388,
+      "total_seconds": 4.786471494007856,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "_ndvi_low_area_pct",
       "count": 1,
-      "total_seconds": 0.3359707779600285,
+      "total_seconds": 0.26478257798589766,
       "failures": 0
     },
     {
       "module": "engine.nature",
       "function": "compute_habitat_conversion",
       "count": 1,
-      "total_seconds": 0.23943363002035767,
+      "total_seconds": 0.44599929702235386,
       "failures": 0
     }
   ],
@@ -126,10 +126,10 @@
     "air.aai.background": -0.41588193728832995,
     "air.aai.anomaly": 0.0048237534368412716,
     "air.aai.z": 0.04589376651901058,
-    "air.aai.hf": 1.0,
+    "air.aai.hf": 0.30337078651685395,
     "air.aai.trend": null,
     "air.aai.trend_p": null,
-    "air.aai.confidence": 0.955,
+    "air.aai.confidence": 0.7808426966292135,
     "air.aai.score": 0.015297922173003525,
     "_provenance.air.aai": {
       "indicator_id": "air.aai",
@@ -153,7 +153,7 @@
         "confidence_terms": {
           "qa": 0.85,
           "n_valid": 1.0,
-          "anomaly_strength": 1.0,
+          "anomaly_strength": 0.30337078651685395,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         },
@@ -167,17 +167,24 @@
         "temporal_fallback_strategy": null,
         "temporal_fallback_source_window": null,
         "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null
+        "climatology_fallback_vintage": null,
+        "wind_attributability_state": "moderate",
+        "wind_mean_speed_ms": 3.067639547908407,
+        "wind_mean_asymmetry_ratio": 0.9577293427838719,
+        "wind_mean_direction_deg": 309.7464872004192,
+        "wind_n_anomaly_days": 27,
+        "wind_n_calm_days": 0,
+        "wind_data_window": "2026-02-22/2026-05-23"
       }
     },
     "air.aod.site": 89.0893435051936,
     "air.aod.background": 65.46824253159258,
     "air.aod.anomaly": 23.621100973601017,
     "air.aod.z": 1.8282506862812224,
-    "air.aod.hf": 0.0,
+    "air.aod.hf": 0.7313432835820896,
     "air.aod.trend": null,
     "air.aod.trend_p": null,
-    "air.aod.confidence": 0.7200000000000001,
+    "air.aod.confidence": 0.9028358208955225,
     "air.aod.score": 0.6094168954270741,
     "_provenance.air.aod": {
       "indicator_id": "air.aod",
@@ -202,12 +209,12 @@
         "confidence_terms": {
           "qa": 0.9,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.7313432835820896,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         },
         "n_valid_dates": 67,
-        "granule_count": 5691,
+        "granule_count": 5777,
         "ring_land_fraction": 0.5274339039367323,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
@@ -216,17 +223,24 @@
         "temporal_fallback_strategy": null,
         "temporal_fallback_source_window": null,
         "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null
+        "climatology_fallback_vintage": null,
+        "wind_attributability_state": "moderate",
+        "wind_mean_speed_ms": 3.178286962655723,
+        "wind_mean_asymmetry_ratio": 1.092279235961217,
+        "wind_mean_direction_deg": 323.0357001241609,
+        "wind_n_anomaly_days": 49,
+        "wind_n_calm_days": 1,
+        "wind_data_window": "2026-02-22/2026-05-23"
       }
     },
     "air.co.site": 25.451085029049974,
     "air.co.background": 23.406216625941816,
     "air.co.anomaly": 2.0448684031081577,
     "air.co.z": 1.436515772564693,
-    "air.co.hf": 0.0,
+    "air.co.hf": 0.42857142857142855,
     "air.co.trend": null,
     "air.co.trend_p": null,
-    "air.co.confidence": 0.564,
+    "air.co.confidence": 0.6497142857142857,
     "air.co.score": 0.4788385908548977,
     "_provenance.air.co": {
       "indicator_id": "air.co",
@@ -250,7 +264,7 @@
         "confidence_terms": {
           "qa": 0.85,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.42857142857142855,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "weak"
         },
@@ -271,10 +285,10 @@
     "air.hcho.background": 121.50135420167481,
     "air.hcho.anomaly": 37.39120464467118,
     "air.hcho.z": 1.2969572720672498,
-    "air.hcho.hf": 0.0,
+    "air.hcho.hf": 0.33783783783783783,
     "air.hcho.trend": null,
     "air.hcho.trend_p": null,
-    "air.hcho.confidence": 0.66975,
+    "air.hcho.confidence": 0.7499864864864864,
     "air.hcho.score": 0.43231909068908325,
     "_provenance.air.hcho": {
       "indicator_id": "air.hcho",
@@ -298,7 +312,7 @@
         "confidence_terms": {
           "qa": 0.85,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.33783783783783783,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "moderate"
         },
@@ -312,18 +326,25 @@
         "temporal_fallback_strategy": null,
         "temporal_fallback_source_window": null,
         "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null
+        "climatology_fallback_vintage": null,
+        "wind_attributability_state": "moderate",
+        "wind_mean_speed_ms": 2.6861610672545195,
+        "wind_mean_asymmetry_ratio": 0.9785615337840156,
+        "wind_mean_direction_deg": 313.5946755830406,
+        "wind_n_anomaly_days": 25,
+        "wind_n_calm_days": 2,
+        "wind_data_window": "2026-02-22/2026-05-23"
       }
     },
-    "air.no2.site": 90.7547884185148,
-    "air.no2.background": 57.7473260258325,
-    "air.no2.anomaly": 33.00746239268231,
-    "air.no2.z": 2.8784581056246927,
-    "air.no2.hf": 0.0,
+    "air.no2.site": 90.60298862948156,
+    "air.no2.background": 58.24948091993147,
+    "air.no2.anomaly": 32.35350770955009,
+    "air.no2.z": 2.839720040427696,
+    "air.no2.hf": 0.5764705882352941,
     "air.no2.trend": null,
     "air.no2.trend_p": null,
-    "air.no2.confidence": 0.684,
-    "air.no2.score": 0.9594860352082308,
+    "air.no2.confidence": 0.8209117647058823,
+    "air.no2.score": 0.9465733468092321,
     "_provenance.air.no2": {
       "indicator_id": "air.no2",
       "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
@@ -346,12 +367,12 @@
         "confidence_terms": {
           "qa": 0.9,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.5764705882352941,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "moderate"
         },
-        "n_valid_dates": 84,
-        "granule_count": 1060,
+        "n_valid_dates": 85,
+        "granule_count": 1077,
         "ring_land_fraction": 0.5274339039367323,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
@@ -360,17 +381,24 @@
         "temporal_fallback_strategy": null,
         "temporal_fallback_source_window": null,
         "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null
+        "climatology_fallback_vintage": null,
+        "wind_attributability_state": "moderate",
+        "wind_mean_speed_ms": 2.866075941026709,
+        "wind_mean_asymmetry_ratio": 0.9390437486700756,
+        "wind_mean_direction_deg": 310.60952502842974,
+        "wind_n_anomaly_days": 49,
+        "wind_n_calm_days": 2,
+        "wind_data_window": "2026-02-22/2026-05-23"
       }
     },
     "air.o3.site": 262.5793375224806,
     "air.o3.background": 261.42233964673386,
     "air.o3.anomaly": 1.1569978757467538,
     "air.o3.z": 1.379998762361836,
-    "air.o3.hf": 0.0,
+    "air.o3.hf": 0.4606741573033708,
     "air.o3.trend": null,
     "air.o3.trend_p": null,
-    "air.o3.confidence": 0.705,
+    "air.o3.confidence": 0.8201685393258427,
     "air.o3.score": 0.45999958745394526,
     "_provenance.air.o3": {
       "indicator_id": "air.o3",
@@ -394,7 +422,7 @@
         "confidence_terms": {
           "qa": 0.85,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.4606741573033708,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         },
@@ -433,10 +461,10 @@
     "air.so2.background": 50.099205688300955,
     "air.so2.anomaly": 29.723731945066618,
     "air.so2.z": 0.45432281081870085,
-    "air.so2.hf": 0.0,
+    "air.so2.hf": 0.07575757575757576,
     "air.so2.trend": null,
     "air.so2.trend_p": null,
-    "air.so2.confidence": 0.594,
+    "air.so2.confidence": 0.6106666666666666,
     "air.so2.score": 0.15144093693956695,
     "_provenance.air.so2": {
       "indicator_id": "air.so2",
@@ -460,7 +488,7 @@
         "confidence_terms": {
           "qa": 0.75,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.07575757575757576,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "moderate_weak"
         },
@@ -474,28 +502,34 @@
         "temporal_fallback_strategy": null,
         "temporal_fallback_source_window": null,
         "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null
+        "climatology_fallback_vintage": null,
+        "wind_attributability_state": "moderate",
+        "wind_mean_speed_ms": 2.400403584152946,
+        "wind_mean_asymmetry_ratio": 0.8918570854056285,
+        "wind_mean_direction_deg": 306.49943903711784,
+        "wind_n_anomaly_days": 5,
+        "wind_n_calm_days": 0,
+        "wind_data_window": "2026-02-22/2026-05-23"
       }
     },
     "air.pm_or_aerosol": 0.015297922173003525,
     "_provenance.air.pm_or_aerosol": {
       "formula": "fallback_aai_only"
     },
-    "air.industrial_combustion_proxy": 0.7672270574668976,
-    "air.voc_photochemical": 0.5960052733977999,
-    "air.heavy_industry_score": 0.38024016494350976,
+    "air.industrial_combustion_proxy": 0.7594794444274984,
+    "air.voc_photochemical": 0.5921314668781004,
+    "air.heavy_industry_score": 0.37636635842381017,
     "air.smoke_dust_regional_transport": 0.2007141896457612,
-    "air.industrial_air_pollution_burden": 0.44062322255539166,
-    "air.pollution_proxy_score": 0.5023374011446746,
-    "air.spatiotemporal_anomaly_score": 0.443828436963686,
-    "air.trend_score": 0.0,
-    "air.measurement_quality_score": 0.6988214285714286,
-    "air.attribution_confidence_score": 0.6988214285714286,
-    "air.audit_followup_priority": 0.4137898357754562,
-    "nature.kba.dist_km": 4.837052087544645,
+    "air.industrial_air_pollution_burden": 0.43545814719579223,
+    "air.pollution_proxy_score": 0.4984635946249751,
+    "air.spatiotemporal_anomaly_score": 0.44198376719240046,
+    "air.measurement_quality_score": 0.7621608943462714,
+    "air.attribution_confidence_score": 0.7621608943462714,
+    "air.audit_followup_priority": 0.5267269030355026,
+    "nature.kba.dist_km": 4.837052087544952,
     "nature.kba.overlap_ha": 3466.1486636452755,
     "nature.kba.overlap_pct": 2.758273466552564,
-    "nature.kba.proximity_score": 0.6164949124307404,
+    "nature.kba.proximity_score": 0.6164949124307215,
     "nature.kba.confidence": 1.0,
     "_provenance.nature.kba": {
       "indicator_id": "nature.kba",
@@ -666,7 +700,6 @@
     "nature.ndvi.score": 0.7803284764986002,
     "nature.ndvi.confidence": 0.5033333333333333,
     "nature.ndvi.inverted_anomaly": 0.7803284764986002,
-    "nature.ndvi.negative_trend": null,
     "nature.low_ndvi.ha": 33256.242392993074,
     "nature.low_ndvi.pct": 26.464476827535442,
     "nature.low_ndvi.pct_norm": 0.26464476827535444,
@@ -805,8 +838,8 @@
         "hansen_max_loss_year": 23
       }
     },
-    "nature.supplier_spatial_link.centroid_offset_km": 2.244242301022651,
-    "nature.supplier_spatial_link.centroid_lat": -22.889810972974626,
+    "nature.supplier_spatial_link.centroid_offset_km": 2.2442423010229837,
+    "nature.supplier_spatial_link.centroid_lat": -22.889810972974622,
     "nature.supplier_spatial_link.centroid_lon": -43.161071873647316,
     "nature.supplier_spatial_link.n_change_pixels": 5669,
     "nature.habitat.attributability_state": "moderate",
@@ -831,8 +864,8 @@
       "extra": {
         "spatial_link_terms": {
           "attributability_state": "moderate",
-          "centroid_offset_km": 2.244242301022651,
-          "centroid_lat": -22.889810972974626,
+          "centroid_offset_km": 2.2442423010229837,
+          "centroid_lat": -22.889810972974622,
           "centroid_lon": -43.161071873647316,
           "n_change_pixels": 5669,
           "n_min_pixels": 10,
@@ -844,23 +877,23 @@
     "nature.habitat.nat_to_built_pct_norm": 0.0,
     "nature.habitat.nat_to_bare_pct_norm": 0.0,
     "nature.habitat.annualised_rate_score": 0.0,
-    "nature.biodiversity_exposure": 0.5634107525614933,
+    "nature.biodiversity_exposure": 0.563410752561485,
     "nature.habitat.conversion_score": 0.0,
-    "nature.vegetation_condition": 0.404076768079441,
+    "nature.vegetation_condition": 0.621656566276063,
     "nature.valid_pixel_coverage": 0.9142857142857144,
     "nature.cloud_observation_quality": 0.8,
     "nature.seasonal_comparability": 1.0,
     "nature.measurement_quality": 0.8634118609559622,
     "nature.spatiotemporal_anomaly_score": 0.0,
-    "nature.followup_priority": 0.3995541969317026,
+    "nature.followup_priority": 0.4539491464808556,
     "ghg.ch4.site": 1889.4906503307539,
     "ghg.ch4.background": 1888.5445599020204,
     "ghg.ch4.anomaly": 0.9460904287334415,
     "ghg.ch4.z": 0.05500882864646913,
-    "ghg.ch4.hf": 0.0,
+    "ghg.ch4.hf": 0.14285714285714285,
     "ghg.ch4.trend": null,
     "ghg.ch4.trend_p": null,
-    "ghg.ch4.confidence": 0.564,
+    "ghg.ch4.confidence": 0.5925714285714285,
     "ghg.ch4.score": 0.01833627621548971,
     "_provenance.ghg.ch4": {
       "indicator_id": "ghg.ch4",
@@ -884,7 +917,7 @@
         "confidence_terms": {
           "qa": 0.85,
           "n_valid": 1.0,
-          "anomaly_strength": 0.0,
+          "anomaly_strength": 0.14285714285714285,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "weak"
         },
@@ -943,12 +976,12 @@
         }
       }
     },
-    "ghg.viirs.site": 34.44211445984472,
-    "ghg.viirs.anomaly": 32.48048285816129,
-    "ghg.viirs.z": 0.8464418080390474,
+    "ghg.viirs.site": 34.45178753984353,
+    "ghg.viirs.anomaly": 32.48787950222785,
+    "ghg.viirs.z": 0.8448058450621845,
     "ghg.viirs.trend": null,
-    "ghg.viirs.confidence": 0.6683333333333333,
-    "ghg.viirs.score": 0.28214726934634915,
+    "ghg.viirs.confidence": 0.675,
+    "ghg.viirs.score": 0.2816019483540615,
     "_provenance.ghg.viirs": {
       "indicator_id": "ghg.viirs",
       "asset_id": "NASA/VIIRS/002/VNP46A2",
@@ -970,12 +1003,12 @@
       "extra": {
         "confidence_terms": {
           "qa": 0.85,
-          "n_valid": 0.8777777777777778,
+          "n_valid": 0.9,
           "anomaly_strength": 0.0,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         },
-        "n_valid_dates": 79,
+        "n_valid_dates": 81,
         "granule_count": 84,
         "ring_land_fraction": 0.5274339039367323,
         "land_mask_applied": true,
@@ -988,25 +1021,24 @@
         "climatology_fallback_vintage": null
       }
     },
-    "ghg.temporal_coverage": 0.9592592592592593,
+    "ghg.temporal_coverage": 0.9666666666666667,
     "ghg.spatial_resolution_suitability": 1.0,
     "ghg.retrieval_inventory_quality": 0.9,
     "ghg.nearby_source_isolation": 1.0,
-    "ghg.combustion_proxy": 0.7672270574668976,
+    "ghg.combustion_proxy": 0.7594794444274984,
     "ghg.fire_or_regional_transport_risk": 0.2007141896457612,
     "ghg.ch4_hotspot_signal": 0.0,
-    "ghg.activity_score": 0.28214726934634915,
+    "ghg.activity_score": 0.2816019483540615,
     "ghg.ch4_context_adjusted": 0.0,
     "ghg.co2_context": 1.0,
-    "ghg.fossil_combustion_score": 0.786597571109339,
-    "ghg.activity_adjusted_co2": 0.7846441808039047,
-    "ghg.core_audit_support": 0.3657946322200698,
-    "ghg.spatiotemporal_anomaly": 0.15024177278091944,
-    "ghg.trend": 0.0,
-    "ghg.data_quality_attribution": 0.9531481481481482,
-    "ghg.audit_followup_priority": 0.32685051830548,
-    "composite.overall_screening": 0.3800648503375463,
-    "composite.confidence": 0.6988214285714286,
+    "ghg.fossil_combustion_score": 0.7841642229990619,
+    "ghg.activity_adjusted_co2": 0.7844805845062184,
+    "ghg.core_audit_support": 0.36233115038350544,
+    "ghg.spatiotemporal_anomaly": 0.1499691122847756,
+    "ghg.data_quality_attribution": 0.9556666666666668,
+    "ghg.audit_followup_priority": 0.4072184227807451,
+    "composite.overall_screening": 0.46263149076570115,
+    "composite.confidence": 0.7621608943462714,
     "_failures": {
       "air": [
         {
@@ -1039,7 +1071,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-28T16:17:56.189303+00:00",
+      "computed_at": "2026-05-29T18:36:11.203866+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",

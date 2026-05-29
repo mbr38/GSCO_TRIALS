@@ -109,7 +109,6 @@ Every pollutant below produces the full measurement set: `.site`, `.background`,
 |---|---|
 | `air.pollution_proxy_score` | §1.3 |
 | `air.spatiotemporal_anomaly_score` | §1.3 |
-| `air.trend_score` | §1.3 (= 0 in screening mode) |
 | `air.attribution_confidence_score` | §1.3 |
 | `air.audit_followup_priority` | §1.3 — the pillar Follow-Up Priority |
 
@@ -150,7 +149,6 @@ CO₂ uses `.mean` and `.total` (annual flux mean and annual area-integrated tot
 |---|---|
 | `ghg.core_audit_support` | §2.3 — v1 rescaled form |
 | `ghg.spatiotemporal_anomaly` | §2.3 |
-| `ghg.trend` | §2.3 (= 0 in screening mode) |
 | `ghg.data_quality_attribution` | §2.3 — v1 rescaled form (Wind_Consistency, Sector_Match deferred); weights 0.33 / 0.27 / 0.27 / 0.13 over the four terms in §3.4 below |
 | `ghg.audit_followup_priority` | §2.3 — the pillar Follow-Up Priority |
 

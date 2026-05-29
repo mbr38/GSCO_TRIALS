@@ -254,6 +254,10 @@ def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     # the active indicator and scrolls here. Empty base map until a tile is
     # clicked (MV6).
     render_multi_indicator_map(setup, result)
+    # M-TREND-A2 (UT7): the per-indicator trend drill-down lives on the
+    # dedicated P-06 page; the C4b "view trend →" links and the
+    # single-indicator map "View trend" button route there (set the active
+    # indicator + switch_page). Absent from C5 (clutter — U6).
     render_c5_drilldowns(result)
     render_c6_confidence_panel(result)
     # M-HIDE-SUMMARY: only render C7 when the user ran the full canonical

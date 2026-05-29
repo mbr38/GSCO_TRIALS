@@ -47,6 +47,16 @@ results = st.Page(
     title="Inspect — Results",
     icon="📊",
 )
+# M-TREND-A2 — per-indicator trend drill-down (P-06). Registered so the
+# ``st.switch_page("pages/06_Trend_View.py")`` calls from the C4b "view trend"
+# tile link, the single-indicator map button, and the P-10 saved-trend Open
+# action all resolve under ``st.navigation``. Reached by drilling into one
+# indicator from a screening; shows an empty-state if opened with no context.
+trend = st.Page(
+    "pages/06_Trend_View.py",
+    title="Trend View",
+    icon="📈",
+)
 prio = st.Page(
     "pages/07_Prioritisation_Setup.py",
     title="Prioritisation — Setup",
@@ -89,6 +99,7 @@ pg = st.navigation({
         hub,
         inspect,
         results,
+        trend,
         prio,
         prio_results,
         library,

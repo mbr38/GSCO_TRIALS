@@ -39,25 +39,6 @@
       "air.aod.z"
     ]
   },
-  "air.trend_score": {
-    "sub_section": "component_score",
-    "display_name": "Trend score (Air)",
-    "definition": "Pillar-level vegetation- and pollutant-trend signal. In screening mode this is fixed to 0.0 — trend analysis lives on the (post-v1) P-06 Trend View, which requires a multi-year time series.",
-    "decision_relevance": "Will contribute 20% of the Air Follow-Up Priority once trend.py lands. Until then, screening-mode runs effectively under-weight Air by 0.20 — the priority is still meaningful but lacks the temporal-deterioration axis.",
-    "limitations": "Currently fixed at 0.0 in screening mode. Real trend computation deferred to the M-TREND-ENGINE milestone.",
-    "esg_alignment": "—",
-    "inputs": [
-      "air.no2.trend",
-      "air.so2.trend",
-      "air.co.trend",
-      "air.hcho.trend",
-      "air.o3.trend",
-      "air.aai.trend",
-      "air.pm25.trend",
-      "air.pm10.trend",
-      "air.aod.trend"
-    ]
-  },
   "air.measurement_quality_score": {
     "sub_section": "component_score",
     "display_name": "Measurement quality (Air)",
@@ -100,18 +81,6 @@
     "esg_alignment": "GHG Protocol Scope 1; Global Methane Pledge (2021)",
     "inputs": [
       "ghg.ch4.z"
-    ]
-  },
-  "ghg.trend": {
-    "sub_section": "component_score",
-    "display_name": "Trend score (GHG)",
-    "definition": "Pillar-level trend signal for GHG indicators. In screening mode this is fixed to 0.0 — the temporal-deterioration axis lives on P-06.",
-    "decision_relevance": "Will contribute 20% of the GHG Follow-Up Priority once trend.py lands. Until then, GHG priorities under-weight temporal deterioration the same way Air does.",
-    "limitations": "Currently fixed at 0.0 in screening mode. Deferred to the M-TREND-ENGINE milestone.",
-    "esg_alignment": "—",
-    "inputs": [
-      "ghg.ch4.trend",
-      "ghg.viirs.trend"
     ]
   },
   "ghg.data_quality_attribution": {
@@ -158,13 +127,12 @@
   "nature.vegetation_condition": {
     "sub_section": "component_score",
     "display_name": "Vegetation condition",
-    "definition": "Composite of vegetation-state signals — NDVI inverted anomaly, low-NDVI area fraction, recovery score, and a negative-trend term. Captures cumulative vegetation stress around the AOI.",
+    "definition": "Composite of vegetation-state signals — NDVI inverted anomaly, low-NDVI area fraction, and recovery score. Captures cumulative vegetation stress around the AOI.",
     "decision_relevance": "Indicates whether vegetation around a supplier is degraded or under stress. Lower scores correlate with persistent drought, pest damage, or land-cover loss.",
-    "limitations": "M-FOLLOWUP-FALLBACK known-zero handling: the negative_trend term is substituted with 0.0 until trend.py lands (M-TREND-ENGINE), so the aggregate is slightly under-weighted on temporal deterioration in v1.",
+    "limitations": "M-TREND-A1 (TR17): the NDVI slope term is demoted to the drill-down trend view (an NDVI slope is environmentally valid only over a long window, not the seasonally-honest snapshot). The aggregate is the seasonally-honest vegetation-state signal; temporal deterioration is surfaced in the per-indicator trend view instead.",
     "esg_alignment": "TNFD; CBD post-2020 framework target 2; UN SDG 15.3 (land degradation neutrality)",
     "inputs": [
       "nature.ndvi.inverted_anomaly",
-      "nature.ndvi.negative_trend",
       "nature.low_ndvi.pct_norm",
       "nature.recovery.score"
     ]

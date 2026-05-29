@@ -277,7 +277,9 @@ _ACTIVITY_ADJUSTED_CO2_WEIGHTS: dict[str, float] = {
 _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "core_support": "ghg.core_audit_support",
     "anomaly":      "ghg.spatiotemporal_anomaly",
-    "trend":        "ghg.trend",
+    # M-TREND-A1 (TR10): the "trend" term is removed — trend is drill-down-
+    # only and never enters the follow-up priority. `ghg.trend` is no longer
+    # emitted (see compute_ghg_trend removal below).
     "quality":      "ghg.data_quality_attribution",
 }
 
@@ -896,29 +898,10 @@ def compute_ghg_spatiotemporal_anomaly(
     }
 
 
-def compute_ghg_trend(
-    payload: dict, selected: set[str], mode: str,
-) -> dict:
-    """IC_v4 §2.3 — mean of per-indicator trend slopes.
-
-    Zero in screening mode; computed in trend mode (None until M5+
-    `engine/core/trend.py` lands).
-
-    TODO(M5+): once trend.py exists, compute a meaningful mean in trend mode.
-    """
-    if mode == "screening":
-        return {"ghg.trend": 0.0}
-    trends: list[float] = []
-    for ind in _SINGLE_VALUE_INDICATORS:
-        if make_id(PILLAR_GHG, ind, "score") not in selected:
-            continue
-        trend = payload.get(make_id(PILLAR_GHG, ind, "trend"))
-        if trend is None:
-            continue
-        trends.append(trend)
-    if not trends:
-        return {"ghg.trend": None}
-    return {"ghg.trend": sum(trends) / len(trends)}
+# M-TREND-A1 (TR10 / decision-log E3): `compute_ghg_trend` is removed — no
+# cross-indicator aggregate trend exists (same rationale as Air). Trend is a
+# per-indicator on-demand drill-down (`engine/core/trend.py::compute_trend`);
+# `ghg.trend` is no longer emitted and `composite` never sees GHG trend.
 
 # Quality sub-scores aren't user-selectable — they're internal placeholders
 # computed unconditionally by run_pillar. So we filter on presence, not on
@@ -952,9 +935,8 @@ def compute_ghg_audit_followup_priority(
     """IC_v4 §2.3 — weighted sum per GHG_FOLLOWUP_WEIGHTS over the four
     pillar aggregates.
 
-    `mode` is accepted for signature stability — mode-dependent
-    behaviour lives upstream in ``compute_ghg_trend`` (0.0 in screening
-    is a known v1 zero, not a missing value).
+    `mode` is accepted for signature stability (M-TREND-A1 removed the
+    only mode-dependent term, the aggregate trend).
 
     M-FOLLOWUP-FALLBACK: strict-None propagation. Same shape as
     ``compute_air_audit_followup_priority`` — any None among the
@@ -1221,7 +1203,7 @@ def recompute_ghg_aggregates(
 
     payload.update(compute_core_ghg_audit_support(payload, augmented_selected))
     payload.update(compute_ghg_spatiotemporal_anomaly(payload, augmented_selected))
-    payload.update(compute_ghg_trend(payload, augmented_selected, mode))
+    # M-TREND-A1 (TR10): no aggregate trend term — trend is drill-down-only.
     payload.update(compute_ghg_data_quality_attribution(payload))
     payload.update(compute_ghg_audit_followup_priority(payload, mode))
     return payload

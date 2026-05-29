@@ -157,12 +157,16 @@ AIR_POLLUTION_PROXY_WEIGHTS: dict[str, float] = {
 }
 AIR_POLLUTANT_WEIGHTS = AIR_POLLUTION_PROXY_WEIGHTS
 
-# IC_v4 §1.3 — Air Audit Follow-Up Priority terms
+# IC_v4 §1.3 — Air Audit Follow-Up Priority terms.
+# M-TREND-A1 (TR10 / decision-log E3): the "trend" term (was 0.20) is
+# removed — trend is now a per-indicator drill-down only and never enters
+# composite arithmetic. The surviving three terms are renormalised over the
+# remaining 0.80 so the dict still sums to 1.00.
+# Pre-change values: proxy 0.35, anomaly 0.30, trend 0.20, confidence 0.15.
 AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "proxy":      0.35,
-    "anomaly":    0.30,
-    "trend":      0.20,
-    "confidence": 0.15,
+    "proxy":      0.35 / 0.80,   # 0.4375
+    "anomaly":    0.30 / 0.80,   # 0.3750
+    "confidence": 0.15 / 0.80,   # 0.1875
 }
 
 # IC_v4 §2.3 — Core GHG Audit Support (M5.5b: ODIAC demoted).
@@ -208,11 +212,14 @@ GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
 }
 
 # IC_v4 §2.3 — GHG Audit Follow-Up Priority terms. Sums to 1.00.
+# M-TREND-A1 (TR10 / decision-log E3): the "trend" term (was 0.20) is
+# removed for the same reason as Air — trend is drill-down-only. The
+# surviving three terms are renormalised over the remaining 0.80.
+# Pre-change values: core_support 0.40, anomaly 0.25, trend 0.20, quality 0.15.
 GHG_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "core_support": 0.40,
-    "anomaly":      0.25,
-    "trend":        0.20,
-    "quality":      0.15,
+    "core_support": 0.40 / 0.80,   # 0.5000
+    "anomaly":      0.25 / 0.80,   # 0.3125
+    "quality":      0.15 / 0.80,   # 0.1875
 }
 
 # Schema_v2 §3.4 — Sentinel-5P CH₄'s real on-ground footprint is ~7 km
@@ -314,10 +321,19 @@ HANSEN_VERBAL_MENTION_THRESHOLD: float = 1.0
 # IC_v4 §3.2 + §7.4 — Vegetation_Condition_v1 (EVI removed). The negative
 # weight on recovery is intentional: positive recovery signal subtracts
 # from concern.
+# M-TREND-A1 (TR17 / decision-log N2): the NDVI *slope* term
+# (`nature.ndvi.negative_trend`, was 0.25) is demoted to drill-down-only —
+# an NDVI slope is environmentally valid only over the long-window trend
+# view, not the seasonally-honest screening snapshot (N2-ENV). The freed
+# 0.25 is redistributed across the POSITIVE terms only (0.45/0.65 and
+# 0.20/0.65), keeping recovery's −0.10 offset. composite keeps the
+# vegetation-*state* signal (inverted_anomaly) + the multi-year land-change
+# signal (Habitat_Conversion, untouched).
+# Pre-change values: inverted_anomaly 0.45, negative_trend 0.25,
+# low_ndvi.pct_norm 0.20, recovery −0.10.
 VEGETATION_CONDITION_WEIGHTS: dict[str, float] = {
-    "nature.ndvi.inverted_anomaly": 0.45,
-    "nature.ndvi.negative_trend":   0.25,
-    "nature.low_ndvi.pct_norm":     0.20,
+    "nature.ndvi.inverted_anomaly": 0.45 / 0.65,   # 0.6923
+    "nature.low_ndvi.pct_norm":     0.20 / 0.65,   # 0.3077
     "nature.recovery.score":       -0.10,
 }
 
@@ -552,13 +568,13 @@ INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
     # "nature.habitat" single_snapshot entry via the base-form fallback.
     "air.pollution_proxy_score":        "derived",
     "air.spatiotemporal_anomaly_score": "derived",
-    "air.trend_score":                  "derived",
+    # M-TREND-A1 (TR10): air.trend_score removed (drill-down-only).
     # M-ATTRIB-A1 (AT16): new measurement-quality ID + legacy alias (window).
     "air.measurement_quality_score":    "derived",
     "air.attribution_confidence_score": "derived",
     "ghg.core_audit_support":           "derived",
     "ghg.spatiotemporal_anomaly":       "derived",
-    "ghg.trend":                        "derived",
+    # M-TREND-A1 (TR10): ghg.trend removed (drill-down-only).
     "ghg.data_quality_attribution":     "derived",
     "nature.biodiversity_exposure":     "derived",
     "nature.habitat.conversion_score":  "derived",
@@ -951,3 +967,66 @@ CLIMATOLOGY_COUNTRY_ASSET: str = "FAO/GAUL/2015/level0"
 # specifically stabilised in early 2019. The 2019-01-01 floor below
 # is the safe "all S5P products available" date.
 EARLIEST_SCREENING_DATE: str = "2019-01-01"
+
+
+# ---------------------------------------------------------------------------
+# M-TREND-A1 — per-indicator trend drill-down (engine/core/trend.py)
+# ---------------------------------------------------------------------------
+# Theil–Sen slope + Mann–Kendall significance over a server-side per-day
+# site series, reduced OUTSIDE six_step and invoked on demand after a
+# screening. None of these enter composite.overall_screening (decision-log
+# E1) — they tune the drill-down only. All first-pass values; rationale in
+# docstrings, bundled into the deferred calibration sweep.
+
+# Two-threshold minimum-points handling (decision-log B4 / TR4). Below the
+# hard floor no slope is emitted ("trend unavailable"); between hard and
+# soft the slope is emitted but the confidence length-term drives the score
+# toward zero. Soft floor = 12 matches Wireframes P-06.
+TREND_HARD_FLOOR_POINTS: int = 4
+TREND_SOFT_FLOOR_POINTS: int = 12
+
+# Display-severity cap (decision-log E-SEV / TR12). The slope is normalised
+# to background-sigmas-per-year (sibling of IC §0.4); k_trend is the σ/yr
+# that saturates severity to 1.0. 1.0 σ/yr is a large year-on-year drift —
+# a first-pass judgement, the obvious calibration target.
+TREND_SEVERITY_K_SIGMA_PER_YEAR: float = 1.0
+
+# Seasonal flag (decision-log C-ii / TR15). A SEPARATE categorical signal,
+# never folded into the confidence scalar. Fires when the window spans less
+# than ~one year, where an un-deseasonalised slope risks reading phenology
+# as trend.
+TREND_SEASONAL_FLAG_MIN_DAYS: int = 365
+
+# Significance buckets (decision-log D2 / TR9). Presentation-layer constants,
+# NOT a gate — the raw slope + p-value are always emitted above the hard
+# floor; these only choose the displayed bucket.
+TREND_SIGNIFICANT_P: float = 0.05
+TREND_WEAK_EMERGING_P: float = 0.10
+
+# Trend-confidence base terms (decision-log C-TERMS / TR13). Additive base
+# (length + span + coverage), mirroring the M-TIER-A1 house confidence
+# pattern, before the multiplicative column_to_surface + fallback chain.
+# Length dominates because too-few-points is the primary trend-reliability
+# risk (ties to the B4 floors). Sums to 1.00.
+TREND_CONFIDENCE_TERM_WEIGHTS: dict[str, float] = {
+    "length":   0.50,
+    "span":     0.25,
+    "coverage": 0.25,
+}
+# Window length (days) at/above which the span-term saturates to 1.0 — a
+# year of data carries full statistical power in the span sense.
+TREND_CONFIDENCE_SPAN_SATURATION_DAYS: int = 365
+
+# M-TREND-A2 (UT7) — series-eligible indicators: the ones with a real per-day
+# site series (so a Theil–Sen slope is meaningful). These are the only
+# indicators that carry a "view trend" affordance and a saved trend record.
+# Base IDs (pillar.slug); the entry points pass select_keys like
+# "air.no2.score", so eligibility matches on the base prefix. ODIAC CO₂
+# (standing-exposure), KBA, Dynamic World, and Hansen are deliberately absent
+# — they have no per-day slope (decision-log U6).
+TREND_SERIES_INDICATOR_IDS: frozenset[str] = frozenset({
+    "air.no2", "air.so2", "air.co", "air.hcho", "air.o3",
+    "air.aai", "air.pm25", "air.pm10", "air.aod",
+    "ghg.ch4", "ghg.viirs",
+    "nature.ndvi",
+})

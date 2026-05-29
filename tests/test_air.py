@@ -29,7 +29,6 @@ from engine.air import (
     compute_pollutant_snapshot,
     compute_smoke_dust_regional_transport,
     compute_spatiotemporal_anomaly_score,
-    compute_trend_score,
     compute_voc_photochemical,
     run_pillar,
 )
@@ -495,44 +494,19 @@ class TestPillarAggregateRenormalisation:
 
 
 # ---------------------------------------------------------------------------
-# compute_trend_score mode handling
-# ---------------------------------------------------------------------------
-
-class TestTrendScoreModeHandling:
-    def test_screening_mode_returns_zero(self) -> None:
-        # Zero regardless of inputs — the Trend term contributes nothing to
-        # follow-up priority in screening mode.
-        out = compute_trend_score(payload={}, selected=set(), mode="screening")
-        assert out["air.trend_score"] == 0.0
-
-    def test_screening_mode_returns_zero_even_with_trend_values_present(self) -> None:
-        payload = {"air.no2.trend": 0.123}
-        selected = {"air.no2.score"}
-        out = compute_trend_score(payload, selected, mode="screening")
-        assert out["air.trend_score"] == 0.0
-
-    def test_trend_mode_returns_none_when_all_trend_values_are_none(self) -> None:
-        # Trend values are still None pending engine/core/trend.py (M5+).
-        payload = {"air.no2.trend": None, "air.so2.trend": None}
-        selected = {"air.no2.score", "air.so2.score"}
-        out = compute_trend_score(payload, selected, mode="trend")
-        assert out["air.trend_score"] is None
-
-
-# ---------------------------------------------------------------------------
 # compute_air_audit_followup_priority — strict-None propagation
-# (M-FOLLOWUP-FALLBACK)
+# (M-FOLLOWUP-FALLBACK). M-TREND-A1 (TR10): the aggregate trend term is
+# removed; the priority is now a weighted sum of proxy + anomaly + quality.
 # ---------------------------------------------------------------------------
 
 class TestAirAuditFollowupPartialMissing:
-    def test_returns_none_when_trend_aggregate_missing(self) -> None:
+    def test_returns_none_when_sub_aggregate_missing(self) -> None:
         """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
         None. The prior renormalise-over-survivors behaviour produced
         misleading headlines when most inputs had silently failed."""
         payload = {
-            "air.pollution_proxy_score":          0.5,
+            "air.pollution_proxy_score":          None,
             "air.spatiotemporal_anomaly_score":   0.4,
-            "air.trend_score":                    None,
             "air.measurement_quality_score":      0.7,  # M-ATTRIB-A1 (AT16)
         }
         out = compute_air_audit_followup_priority(payload, mode="trend")
@@ -633,15 +607,16 @@ class TestRunPillar:
             for measurement in _MEASUREMENT_KEYS_FULL:
                 assert f"air.{pol}.{measurement}" in result, f"missing air.{pol}.{measurement}"
 
-        # All five pillar aggregates present.
+        # Pillar aggregates present. M-TREND-A1 (TR10): air.trend_score is
+        # no longer emitted (trend is a per-indicator drill-down only).
         for agg_id in (
             "air.pollution_proxy_score",
             "air.spatiotemporal_anomaly_score",
-            "air.trend_score",
             "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             "air.audit_followup_priority",
         ):
             assert agg_id in result
+        assert "air.trend_score" not in result
 
         # Sub-aggregates: those whose deps are present should be non-None.
         # no2+co both present → industrial_combustion_proxy non-None.

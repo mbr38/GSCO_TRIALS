@@ -429,10 +429,7 @@ with right_col:
                 "**Pollution proxy score**  \n"
                 f"{_fmt(rresult.get('air.pollution_proxy_score'), 2)}"
             )
-            st.markdown(
-                "**Trend score**  \n"
-                f"{_fmt(rresult.get('air.trend_score'), 2)}"
-            )
+            # M-TREND-A1 (TR10): air.trend_score removed (drill-down-only).
         with col_b:
             st.markdown(
                 "**Spatiotemporal anomaly**  \n"
@@ -500,10 +497,7 @@ with right_col:
                 "**Core audit support**  \n"
                 f"{_fmt(rresult.get('ghg.core_audit_support'), 2)}"
             )
-            st.markdown(
-                "**Trend**  \n"
-                f"{_fmt(rresult.get('ghg.trend'), 2)}"
-            )
+            # M-TREND-A1 (TR10): ghg.trend removed (drill-down-only).
         with gcol_b:
             st.markdown(
                 "**Spatiotemporal anomaly**  \n"

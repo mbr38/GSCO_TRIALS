@@ -671,6 +671,35 @@ When leaving via "Save as report", `screeningResult` must be fully formed (or ma
 
 ## P-06 — Inspect — Results — Trend View
 
+> **⚠️ SUPERSEDED by M-TREND-A2 (29 May 2026 — UT8 / decision-log U7).** The
+> P-06 "Trend mode" framing below is **retired**. Trend is no longer a separate
+> mode reached via "Run Trend" / "Switch to Trend"; it is a **per-indicator,
+> on-demand drill-down** reached from a screening via a "view trend →"
+> affordance on C4b severity tiles and a "View trend" button in the
+> single-indicator map view. Disposition of the old P-06 components:
+>
+> | Old P-06 component | Disposition |
+> |---|---|
+> | C2 — per-pillar trend score cards | **Retire** — no aggregate trend exists (M-TREND-A1 removed it). |
+> | C3 — multi-indicator time-series panel | **Replace** — becomes the single-indicator plot (per-day scatter + Theil–Sen line). |
+> | C4 — trend map (spatial rate-of-change) | **Retire** — implies a per-pixel trend; misleading for coarse pillars. |
+> | C5 — alert panel | **Retire** — the worsening-trend signal is now the per-indicator verdict badge. |
+> | C6 — anomaly-frequency mini-charts | **Retire** (optionally folded into the anomaly-day markers overlay). |
+> | "Switch to Trend" / "Run Trend" mode framing | **Retire** — trend is a drill-down, not a mode. |
+>
+> P-06 is **rebuilt** as a dedicated **per-indicator trend page**
+> (`pages/06_Trend_View.py`) — reached only by drilling into one series
+> indicator from a screening (or re-opening a saved trend from P-10), never as
+> a standalone "trend mode" with its own setup. It shows one indicator's
+> per-day scatter + Theil–Sen line, the verdict badge, and the separate
+> confidence / significance / seasonal surfaces. The live implementation is
+> `ui/components/trend_view.py` (view), `…/trend_svg.py` (inline-SVG plot,
+> shared with the P-11 report's `trend_graph` section), and `…/trend_compute.py`
+> (on-demand `engine.core.trend.compute_trend`). Saved trend analyses are a
+> distinct `type="trend"` record in the shared Saved Analyses store. The prose
+> below is kept for historical context only; it does not describe the shipped
+> behaviour.
+
 ### Summary
 
 | Field | Value |
@@ -1578,9 +1607,7 @@ Tests: [tests/test_persistent_nav.py](../tests/test_persistent_nav.py) (5 tests)
 
 **Engine.** Each pillar's `compute_*_followup_priority` ([engine/air.py](../engine/air.py), [engine/ghg.py](../engine/ghg.py), [engine/nature.py](../engine/nature.py)) now uses strict-None propagation: any None among the sub-aggregates takes the priority to None. The same fix is applied to `_compute_composite` and `_compute_composite_confidence` in [engine/orchestrator.py](../engine/orchestrator.py) — a missing pillar priority takes the composite to None instead of the prior survivor-mean.
 
-**Known-zero handling.** Two sub-aggregates are intentionally 0.0 in v1 (not real failures):
-- Air `air.trend_score` and GHG `ghg.trend` already returned `0.0` in screening mode (M5+ TODO for trend.py).
-- Nature `nature.vegetation_condition` depended on `nature.ndvi.negative_trend` which is always None until M-TREND-ENGINE. `compute_vegetation_condition` now substitutes `0.0` for the known-zero negative_trend term up front, so the aggregate computes from the three real components — distinguishes "known v1 gap" from "real upstream failure" (e.g. NDVI indicator skipped on this AOI), which still propagates None.
+**Known-zero handling.** *(Superseded by M-TREND-A1 — TR10/TR17.)* The former known-zero trend terms no longer exist: trend is now a per-indicator on-demand drill-down ([engine/core/trend.py](../engine/core/trend.py)), never a screening-mode aggregate. The aggregate `air.trend_score` / `ghg.trend` terms were removed from the Air/GHG Follow-Up Priority (the surviving three terms renormalised to 1.00), and Nature's `nature.ndvi.negative_trend` slope term was removed from `Vegetation_Condition` (renormalised across the positive terms). The prior `0.0` substitution is therefore gone and every surviving sub-aggregate keeps strict-None semantics — any None is a real upstream failure that propagates to the priority.
 
 **UI.** [ui/components/c3_summary.py](../ui/components/c3_summary.py) now renders a "No data" chip variant (empty grey fill bar, "—" in the score slot, label "No data") when the priority is None, instead of a band-coloured chip with "—" labels. [ui/components/c5_drilldown.py](../ui/components/c5_drilldown.py) renders the C5 headline's score pill as a grey "—" with "Not available" caption when priority is None.
 
@@ -1817,9 +1844,9 @@ The `DERIVED_INDICATOR_IDS` constant in [demo/indicator_library.py](../demo/indi
 
 **Card variant rendering.** `_render_card` dispatches on `kind`: raw cards keep the M-P09 right-column technical metadata (asset ID, scale, frequency, data type); derived cards render formula + weights when available, or a *"computed from upstream inputs (single-input passthrough in v1)"* marker for component scores that are 1-input passthroughs in v1. The `IndicatorCardContent` dataclass gained `kind`, `formula`, and `weights` fields (all with defaults so existing raw construction is unchanged).
 
-**Narrative content quality.** All 16 derived entries carry hand-authored definitions cross-referenced against the M-FOLLOWUP-FALLBACK rules, the M5.5b ODIAC demotion, and the screening-mode trend-score-= 0 simplification — limitations sections name the strict-None propagation and the known-zero trend handling explicitly, so reviewers don't misread an `air.trend_score = 0.00` as a real assessment.
+**Narrative content quality.** All derived entries carry hand-authored definitions cross-referenced against the M-FOLLOWUP-FALLBACK rules and the M5.5b ODIAC demotion — limitations sections name the strict-None propagation explicitly. *(M-TREND-A1: the two aggregate trend-score cards (`air.trend_score`, `ghg.trend`) were removed — trend is now a per-indicator drill-down — so the derived count is **14**, not 16, and the former screening-mode trend-score-= 0 framing no longer applies.)*
 
-**Honest "no alignment" signal.** The trend-score and confidence sub-aggregates carry `esg_alignment: "—"` (the en-dash sentinel) — they don't map to any external framework. The narrative-content test specifically allows this for the `esg_alignment` field while rejecting `"—"` everywhere else, so legitimate "no mapping" doesn't get mistaken for stub fallthrough.
+**Honest "no alignment" signal.** The confidence / measurement-quality sub-aggregates carry `esg_alignment: "—"` (the en-dash sentinel) — they don't map to any external framework. The narrative-content test specifically allows this for the `esg_alignment` field while rejecting `"—"` everywhere else, so legitimate "no mapping" doesn't get mistaken for stub fallthrough.
 
 Tests added (12 net new on top of the M-P09 suite):
 

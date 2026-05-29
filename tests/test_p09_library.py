@@ -25,8 +25,10 @@ def test_filter_cards_empty_filters_returns_all_in_pillar():
     cards = _filter_cards(
         library, pillar_id="air", search_query="", esg_filter="(all)",
     )
-    # M-P09-COMPOSITES: 9 raw + 4 component scores + 1 aggregate = 14.
-    assert len(cards) == 14
+    # M-P09-COMPOSITES: 9 raw + component scores + 1 aggregate.
+    # M-TREND-A1 (TR10): air.trend_score removed → 3 component scores, so
+    # 9 raw + 3 component + 1 aggregate = 13.
+    assert len(cards) == 13
     assert all(c.pillar == "air" for c in cards)
 
 

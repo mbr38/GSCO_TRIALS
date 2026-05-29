@@ -1,3 +1,0 @@
-[     294ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/scope_setup/_stcore/host-config:0
-[     297ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8765/scope_setup/_stcore/health:0
-[     473ms] [ERROR] The page that you have requested does not seem to exist. Running the app's main page. @ http://localhost:8765/static/js/index.D2ZqaFuW.js:21

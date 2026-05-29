@@ -21,7 +21,6 @@ from engine.constants import (
     KBA_DISTANCE_DECAY_KM,
     NATURE_FOLLOWUP_WEIGHTS,
     NATURE_MEASUREMENT_QUALITY_WEIGHTS,
-    NDVI_NEGATIVE_TREND_THRESHOLD,
     VEGETATION_CONDITION_WEIGHTS,
     WATER_FLOODED_VEG_SATURATION_PCT,
 )
@@ -33,7 +32,6 @@ from engine.nature import (
     _buffer_area_ha,
     _format_kba_result,
     _ndvi_inverted_anomaly,
-    _ndvi_negative_trend,
     _normalise_dw_histogram,
     compute_biodiversity_exposure,
     compute_habitat_conversion,
@@ -108,12 +106,17 @@ def test_weights_sum_to_one(name: str, weights: dict, expected_sum: float) -> No
     assert math.isclose(total, expected_sum, abs_tol=1e-9), f"{name} sum was {total}"
 
 
-def test_vegetation_condition_weights_sum_to_eighty() -> None:
-    # IC §7.4 — Vegetation_Condition_v1 has weights 0.45 + 0.25 + 0.20 − 0.10 = 0.80.
-    # The −0.10 recovery term is intentional (positive recovery reduces concern),
-    # so the absolute-value sum is 1.00 but the signed sum is 0.80.
-    assert sum(VEGETATION_CONDITION_WEIGHTS.values()) == pytest.approx(0.80)
-    assert sum(abs(v) for v in VEGETATION_CONDITION_WEIGHTS.values()) == pytest.approx(1.00)
+def test_vegetation_condition_weights() -> None:
+    # M-TREND-A1 (TR17): the NDVI slope term (was 0.25) is demoted to
+    # drill-down-only and its weight redistributed across the positive
+    # terms (0.45/0.65, 0.20/0.65), keeping recovery's −0.10. The positive
+    # terms now sum to 1.00, so the signed sum is 0.90 and abs sum 1.10.
+    assert "nature.ndvi.negative_trend" not in VEGETATION_CONDITION_WEIGHTS
+    assert VEGETATION_CONDITION_WEIGHTS["nature.ndvi.inverted_anomaly"] == pytest.approx(0.45 / 0.65)
+    assert VEGETATION_CONDITION_WEIGHTS["nature.low_ndvi.pct_norm"] == pytest.approx(0.20 / 0.65)
+    assert VEGETATION_CONDITION_WEIGHTS["nature.recovery.score"] == pytest.approx(-0.10)
+    positive = sum(v for v in VEGETATION_CONDITION_WEIGHTS.values() if v > 0)
+    assert positive == pytest.approx(1.00)
 
 
 # ---------------------------------------------------------------------------
@@ -298,19 +301,10 @@ class TestNdviSubScores:
     def test_inverted_anomaly_none_when_score_missing(self) -> None:
         assert _ndvi_inverted_anomaly({}) is None
 
-    def test_negative_trend_at_threshold_returns_one(self) -> None:
-        # NDVI_NEGATIVE_TREND_THRESHOLD = −0.01. A slope of −0.01 → clamp(1, 0, 1) = 1.
-        assert _ndvi_negative_trend(NDVI_NEGATIVE_TREND_THRESHOLD) == pytest.approx(1.0)
-
-    def test_negative_trend_zero_slope_returns_zero(self) -> None:
-        assert _ndvi_negative_trend(0.0) == 0.0
-
-    def test_negative_trend_positive_slope_returns_zero(self) -> None:
-        # Positive slope means greening — clamps negative half to 0.
-        assert _ndvi_negative_trend(0.05) == 0.0
-
-    def test_negative_trend_none_when_slope_missing(self) -> None:
-        assert _ndvi_negative_trend(None) is None
+    # M-TREND-A1 (TR17): the _ndvi_negative_trend tests are removed — the
+    # function is deleted (the NDVI slope is demoted to drill-down-only).
+    # The slope→severity normalisation now lives in engine/core/trend.py and
+    # is covered by tests/test_trend.py::TestTrendSeverity.
 
 
 # ---------------------------------------------------------------------------
@@ -501,50 +495,49 @@ class TestHabitatConversionScore:
 
 
 class TestVegetationCondition:
+    # M-TREND-A1 (TR17): the NDVI slope term is demoted to drill-down-only.
+    # Vegetation_Condition is now 0.6923·inv_anom + 0.3077·low_pct − 0.10·recovery.
+    _W = VEGETATION_CONDITION_WEIGHTS
+
     def test_formula_with_synthetic_components(self) -> None:
-        # IC §3.2 §7.4 — 0.45·inv_anom + 0.25·neg_trend + 0.20·low_pct − 0.10·recovery
         payload = {
             "nature.ndvi.inverted_anomaly": 0.6,
-            "nature.ndvi.negative_trend":   0.5,
             "nature.low_ndvi.pct_norm":     0.4,
             "nature.recovery.score":        0.2,
         }
         out = compute_vegetation_condition(payload)
-        expected = 0.45 * 0.6 + 0.25 * 0.5 + 0.20 * 0.4 - 0.10 * 0.2
+        expected = (
+            self._W["nature.ndvi.inverted_anomaly"] * 0.6
+            + self._W["nature.low_ndvi.pct_norm"]     * 0.4
+            + self._W["nature.recovery.score"]        * 0.2
+        )
         assert out["nature.vegetation_condition"] == pytest.approx(expected)
-        # And the value lives in [0, 1].
         assert 0.0 <= out["nature.vegetation_condition"] <= 1.0
 
     def test_clamps_above_one_to_one(self) -> None:
-        # Force the unclamped sum above 1.0.
+        # Positive terms at max sum to 1.0 exactly; recovery 0 → result 1.0.
         payload = {
             "nature.ndvi.inverted_anomaly": 1.0,
-            "nature.ndvi.negative_trend":   1.0,
             "nature.low_ndvi.pct_norm":     1.0,
             "nature.recovery.score":        0.0,
         }
         out = compute_vegetation_condition(payload)
-        # raw sum = 0.45 + 0.25 + 0.20 = 0.90 — already in range — no clamp needed.
-        assert out["nature.vegetation_condition"] == pytest.approx(0.90)
+        assert out["nature.vegetation_condition"] == pytest.approx(1.0)
 
     def test_clamps_below_zero_to_zero(self) -> None:
-        # With a large recovery signal and small concerns, the recovery
-        # subtraction could push below 0.
+        # Large recovery, no concern → −0.10 → clamped to 0.
         payload = {
             "nature.ndvi.inverted_anomaly": 0.0,
-            "nature.ndvi.negative_trend":   0.0,
             "nature.low_ndvi.pct_norm":     0.0,
             "nature.recovery.score":        1.0,
         }
         out = compute_vegetation_condition(payload)
-        # Raw = -0.10 → clamped to 0.
         assert out["nature.vegetation_condition"] == 0.0
 
     def test_returns_none_when_any_dependency_missing(self) -> None:
-        # Missing recovery.
+        # Missing recovery → strict-None.
         payload = {
             "nature.ndvi.inverted_anomaly": 0.6,
-            "nature.ndvi.negative_trend":   0.5,
             "nature.low_ndvi.pct_norm":     0.4,
         }
         out = compute_vegetation_condition(payload)
@@ -782,7 +775,6 @@ def _patch_all_indicators(monkeypatch, *, fail: set[str] | None = None) -> None:
             "nature.ndvi.score":            0.35,
             "nature.ndvi.confidence":       expected_confidence,
             "nature.ndvi.inverted_anomaly": 0.35,
-            "nature.ndvi.negative_trend":   0.50,
             "nature.low_ndvi.ha":           5.0,
             "nature.low_ndvi.pct":          2.0,
             "nature.low_ndvi.pct_norm":     0.02,

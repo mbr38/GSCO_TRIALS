@@ -1,5 +1,5 @@
 {
-  "id": "3a795e7f-74c9-4b22-8d7a-e55d03ec3208",
+  "id": "5fe49675-72ec-4a8b-a633-64803104b251",
   "name": "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso",
   "type": "screening",
   "screening_setup": {
@@ -40,7 +40,7 @@
       "2026-05-23"
     ]
   },
-  "date_saved": "2026-05-29T14:56:36.514201+00:00",
+  "date_saved": "2026-05-29T18:32:33.570078+00:00",
   "payload": {
     "air.aai.site": -0.649756261912722,
     "air.aai.background": -0.6474493589758484,
@@ -443,10 +443,9 @@
     "air.industrial_air_pollution_burden": 0.01383554466320098,
     "air.pollution_proxy_score": 0.07839309333788737,
     "air.spatiotemporal_anomaly_score": 0.07820758034388124,
-    "air.trend_score": 0.0,
     "air.measurement_quality_score": 0.7522031010758473,
     "air.attribution_confidence_score": 0.7522031010758473,
-    "air.audit_followup_priority": 0.16373032193280204,
+    "air.audit_followup_priority": 0.20466290241600252,
     "nature.kba.dist_km": 7.332712104334817,
     "nature.kba.overlap_ha": 0.0,
     "nature.kba.overlap_pct": 0.0,
@@ -621,7 +620,6 @@
     "nature.ndvi.score": 0.16997860053073224,
     "nature.ndvi.confidence": 0.5033333333333333,
     "nature.ndvi.inverted_anomaly": 0.16997860053073224,
-    "nature.ndvi.negative_trend": null,
     "nature.low_ndvi.ha": 0.0,
     "nature.low_ndvi.pct": 0.0,
     "nature.low_ndvi.pct_norm": 0.0,
@@ -801,13 +799,13 @@
     "nature.habitat.annualised_rate_score": 0.0,
     "nature.biodiversity_exposure": 0.37570547611564115,
     "nature.habitat.conversion_score": 0.037132353400742765,
-    "nature.vegetation_condition": 0.07649037023882951,
+    "nature.vegetation_condition": 0.11767749267512231,
     "nature.valid_pixel_coverage": 0.9142857142857144,
     "nature.cloud_observation_quality": 0.8,
     "nature.seasonal_comparability": 1.0,
     "nature.measurement_quality": 0.8131659620338381,
     "nature.spatiotemporal_anomaly_score": 0.0,
-    "nature.followup_priority": 0.26494883571969824,
+    "nature.followup_priority": 0.2752456163287714,
     "ghg.ch4.site": 1901.1643353289678,
     "ghg.ch4.background": 1908.8389169152522,
     "ghg.ch4.anomaly": -7.674581586284376,
@@ -957,10 +955,9 @@
     "ghg.activity_adjusted_co2": 0.3683065354859242,
     "ghg.core_audit_support": 0.02777751215636258,
     "ghg.spatiotemporal_anomaly": 0.13888756078181289,
-    "ghg.trend": 0.0,
     "ghg.data_quality_attribution": 0.7858905461833279,
-    "ghg.audit_followup_priority": 0.16371647698549743,
-    "composite.overall_screening": 0.19746521154599925,
+    "ghg.audit_followup_priority": 0.20464559623187178,
+    "composite.overall_screening": 0.22818470499221524,
     "composite.confidence": 0.7522031010758473,
     "_failures": {
       "air": [
@@ -994,7 +991,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-29T14:56:36.513716+00:00",
+      "computed_at": "2026-05-29T18:33:02.303261+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",
@@ -1022,6 +1019,5 @@
         "nature"
       ]
     }
-  },
-  "expected_attributability": "moderate"
+  }
 }

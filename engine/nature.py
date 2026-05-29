@@ -1373,7 +1373,6 @@ def compute_ndvi_condition(
 
     Also derives:
     - `nature.ndvi.inverted_anomaly` — clamp((bg − site) / (3·σ), 0, 1).
-    - `nature.ndvi.negative_trend`   — clamp(−slope / threshold, 0, 1).
     - `nature.low_ndvi.pct`          — % pixels with NDVI < 0.3 (IC §3.1).
     - `nature.low_ndvi.pct_norm`     — clamp(pct / 100, 0, 1) for the
       vegetation_condition aggregate.
@@ -1419,7 +1418,11 @@ def compute_ndvi_condition(
     )
 
     inverted_anomaly = _ndvi_inverted_anomaly(raw)
-    negative_trend = _ndvi_negative_trend(raw.get("trend"))
+    # M-TREND-A1 (TR17): the NDVI slope term is demoted to drill-down-only.
+    # `nature.ndvi.slope` / `slope_p` are still surfaced below as display
+    # values (fed by the on-demand trend pass, not screening — they are None
+    # in the screening payload), but the scored `negative_trend` component is
+    # gone from `Vegetation_Condition`.
     low_ndvi_pct = _ndvi_low_area_pct(aoi, ic, time_range, scale_m)
     low_ndvi_ha = low_ndvi_pct / 100.0 * _buffer_area_ha(radius_km)
     low_ndvi_pct_norm = _clamp01(low_ndvi_pct / 100.0)
@@ -1457,7 +1460,6 @@ def compute_ndvi_condition(
         "nature.ndvi.score":            raw.get("score"),
         "nature.ndvi.confidence":       raw.get("confidence"),
         "nature.ndvi.inverted_anomaly": inverted_anomaly,
-        "nature.ndvi.negative_trend":   negative_trend,
         "nature.low_ndvi.ha":           low_ndvi_ha,
         "nature.low_ndvi.pct":          low_ndvi_pct,
         "nature.low_ndvi.pct_norm":     low_ndvi_pct_norm,
@@ -1491,18 +1493,13 @@ def _ndvi_inverted_anomaly(raw: dict) -> float | None:
     return raw.get("score")
 
 
-def _ndvi_negative_trend(slope: float | None) -> float | None:
-    """IC §3.2 sub-formula: `clamp(−slope / |threshold|, 0, 1)`.
-
-    `NDVI_NEGATIVE_TREND_THRESHOLD = −0.01 NDVI/yr` is stored as a signed
-    constant so its sign documents the direction (negative = decline). The
-    sub-formula treats it as a magnitude, so we divide by `abs(threshold)`:
-    a slope at −0.01 NDVI/yr saturates to 1.0; a positive slope (greening)
-    clamps to 0. Returns None when slope is unavailable (M5+ trend wiring).
-    """
-    if slope is None:
-        return None
-    return _clamp01(-slope / abs(NDVI_NEGATIVE_TREND_THRESHOLD))
+# M-TREND-A1 (TR17 / decision-log N2): `_ndvi_negative_trend` is removed.
+# The NDVI slope is demoted to drill-down-only — `engine/core/trend.py`
+# now normalises the NDVI slope to a display severity (direction-aware,
+# `lower_is_worse`) in the long-window trend view, the only context where an
+# NDVI slope is environmentally valid rather than dominated by phenology
+# (N2-ENV). `NDVI_NEGATIVE_TREND_THRESHOLD` is retained as the documented
+# slope threshold surfaced in `nature.ndvi`'s provenance.extra.
 
 
 def _ndvi_low_area_pct(
@@ -1780,35 +1777,23 @@ def compute_habitat_conversion_score(payload: dict) -> dict:
 
 
 def compute_vegetation_condition(payload: dict) -> dict:
-    """IC §3.2 §7.4 — Vegetation_Condition_v1 (EVI removed, weights rescaled).
+    """IC §3.2 §7.4 — Vegetation_Condition_v1 (EVI removed, slope demoted).
 
-    `0.45·Inverted_NDVI_anomaly + 0.25·Negative_Vegetation_Trend
-    + 0.20·Low_Vegetation_Area_pct − 0.10·Recovery_Signal`, clamped to [0, 1].
+    `0.6923·Inverted_NDVI_anomaly + 0.3077·Low_Vegetation_Area_pct
+    − 0.10·Recovery_Signal`, clamped to [0, 1].
 
-    M-FOLLOWUP-FALLBACK: ``nature.ndvi.negative_trend`` is always None in
-    v1 because the slope is computed inside ``six_step`` only when
-    ``engine/core/trend.py`` is available — that module is the
-    M-TREND-ENGINE deliverable. Substituting 0.0 lets the aggregate
-    compute from the three components that DO exist; without the
-    substitution, strict-null propagation would leave
-    ``nature.vegetation_condition`` perpetually None (a known v1 gap
-    masquerading as a real upstream failure).
-
-    Strict null propagation on the other three terms still holds —
-    real failures (e.g. NDVI indicator skipped on this AOI) take the
-    aggregate to None, which the strict-None pillar priority handles
-    correctly.
-
-    TODO(M-TREND-ENGINE): drop the substitution once
-    ``engine/core/trend.py`` lands and ``nature.ndvi.negative_trend``
-    starts returning real slope values.
+    M-TREND-A1 (TR17 / decision-log N2): the NDVI *slope* term
+    (``nature.ndvi.negative_trend``, was 0.25) is removed — an NDVI slope is
+    environmentally valid only over the long-window trend drill-down, not
+    the seasonally-honest screening snapshot (N2-ENV). The freed weight was
+    redistributed across the positive terms (see
+    ``VEGETATION_CONDITION_WEIGHTS``). The old M-FOLLOWUP-FALLBACK
+    zero-substitution is therefore gone: with the term removed, all three
+    surviving components keep strict-None semantics — a real failure (e.g.
+    NDVI skipped on this AOI) takes the aggregate to None, which the
+    strict-None pillar priority handles correctly.
     """
-    # Substitute the known v1 zero up front. Other terms keep strict
-    # semantics — if any is None it's a real failure.
-    components = dict(payload)
-    if components.get("nature.ndvi.negative_trend") is None:
-        components["nature.ndvi.negative_trend"] = 0.0
-    raw = _weighted_sum_strict(components, VEGETATION_CONDITION_WEIGHTS)
+    raw = _weighted_sum_strict(payload, VEGETATION_CONDITION_WEIGHTS)
     if raw is None:
         return {"nature.vegetation_condition": None}
     return {"nature.vegetation_condition": _clamp01(raw)}

@@ -29,7 +29,6 @@ from engine.ghg import (
     compute_ghg_audit_followup_priority,
     compute_ghg_data_quality_attribution,
     compute_ghg_spatiotemporal_anomaly,
-    compute_ghg_trend,
     compute_core_ghg_audit_support,
     compute_temporal_coverage,
     compute_spatial_resolution_suitability,
@@ -552,15 +551,15 @@ class TestCh4ContextAdjusted:
 # ---------------------------------------------------------------------------
 
 class TestAuditFollowupPartialMissing:
-    def test_returns_none_when_trend_aggregate_missing(self) -> None:
+    def test_returns_none_when_sub_aggregate_missing(self) -> None:
         """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
         None. The prior renormalise-over-survivors behaviour silently
         rebalanced the formula and produced misleading scores when
-        upstream signals had failed."""
+        upstream signals had failed. M-TREND-A1 (TR10): the aggregate
+        trend term is removed; priority = core_support + anomaly + quality."""
         payload = {
             "ghg.core_audit_support":          0.50,
-            "ghg.spatiotemporal_anomaly":      0.40,
-            "ghg.trend":                       None,
+            "ghg.spatiotemporal_anomaly":      None,
             "ghg.data_quality_attribution":    0.70,
         }
         out = compute_ghg_audit_followup_priority(payload, mode="trend")
@@ -1165,18 +1164,9 @@ class TestCoreGhgAuditSupport:
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
 
-class TestGhgTrendModeHandling:
-    def test_screening_returns_zero(self) -> None:
-        out = compute_ghg_trend(payload={}, selected=set(), mode="screening")
-        assert out["ghg.trend"] == 0.0
-
-    def test_trend_mode_returns_none_when_all_trends_none(self) -> None:
-        out = compute_ghg_trend(
-            payload={"ghg.ch4.trend": None},
-            selected={"ghg.ch4.score"},
-            mode="trend",
-        )
-        assert out["ghg.trend"] is None
+# M-TREND-A1 (TR10): TestGhgTrendModeHandling removed — the aggregate
+# `compute_ghg_trend` no longer exists. Trend is a per-indicator drill-down
+# (engine/core/trend.py), exercised by tests/test_trend.py.
 
 
 # ---------------------------------------------------------------------------

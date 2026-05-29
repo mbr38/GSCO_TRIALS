@@ -73,17 +73,19 @@ class _FormulaTerm:
 # Internal-key → (display name, payload key) bindings, paired with the
 # weight dicts in engine.constants. The internal keys MUST match the
 # engine's dict keys exactly — see _build_formula().
+# M-TREND-A1 (TR10): the "trend" term is removed from both follow-up
+# formulas — trend is a per-indicator drill-down only. The dead `air.trend_score`
+# / `ghg.trend` bindings are dropped here so `_build_formula` (which zips the
+# weight dict with these bindings) stays in lock-step with the engine.
 _AIR_TERMS: dict[str, tuple[str, str]] = {
     "proxy":      ("Pollution proxy score",   "air.pollution_proxy_score"),
     "anomaly":    ("Spatiotemporal anomaly",  "air.spatiotemporal_anomaly_score"),
-    "trend":      ("Trend (screening = 0)",   "air.trend_score"),
     # M-ATTRIB-A1 (AT16): renamed — measurement quality, not attribution.
     "confidence": ("Measurement quality",     "air.measurement_quality_score"),
 }
 _GHG_TERMS: dict[str, tuple[str, str]] = {
     "core_support": ("Core audit support",          "ghg.core_audit_support"),
     "anomaly":      ("Spatiotemporal anomaly",      "ghg.spatiotemporal_anomaly"),
-    "trend":        ("Trend (screening = 0)",       "ghg.trend"),
     "quality":      ("Data-quality attribution",    "ghg.data_quality_attribution"),
 }
 _NATURE_TERMS: dict[str, tuple[str, str]] = {

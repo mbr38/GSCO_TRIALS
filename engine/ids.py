@@ -83,7 +83,8 @@ AIR_SUB_AGGREGATES: tuple[str, ...] = (
 AIR_AGGREGATES: tuple[str, ...] = (
     "air.pollution_proxy_score",
     "air.spatiotemporal_anomaly_score",
-    "air.trend_score",
+    # M-TREND-A1 (TR10): air.trend_score removed — no cross-indicator
+    # aggregate trend exists; trend is a per-indicator drill-down only.
     # M-ATTRIB-A1 (AT16): renamed measurement-quality ID. The legacy
     # `air.attribution_confidence_score` is kept valid for the 1-milestone
     # dual-emit window (remove it next milestone, per spec §4.6).
@@ -118,7 +119,7 @@ GHG_SUB_AGGREGATES: tuple[str, ...] = (
 GHG_AGGREGATES: tuple[str, ...] = (
     "ghg.core_audit_support",
     "ghg.spatiotemporal_anomaly",
-    "ghg.trend",
+    # M-TREND-A1 (TR10): ghg.trend removed (drill-down-only, see Air).
     "ghg.data_quality_attribution",
     "ghg.audit_followup_priority",
 )

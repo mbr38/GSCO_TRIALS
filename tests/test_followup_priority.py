@@ -38,7 +38,7 @@ _AIR_CONFIG = (
     {
         "proxy":      "air.pollution_proxy_score",
         "anomaly":    "air.spatiotemporal_anomaly_score",
-        "trend":      "air.trend_score",
+        # M-TREND-A1 (TR10): "trend" term removed.
         "confidence": "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
     },
     "air.audit_followup_priority",
@@ -50,7 +50,7 @@ _GHG_CONFIG = (
     {
         "core_support": "ghg.core_audit_support",
         "anomaly":      "ghg.spatiotemporal_anomaly",
-        "trend":        "ghg.trend",
+        # M-TREND-A1 (TR10): "trend" term removed.
         "quality":      "ghg.data_quality_attribution",
     },
     "ghg.audit_followup_priority",
@@ -152,48 +152,57 @@ class TestStrictNonePropagation:
 
 
 # ---------------------------------------------------------------------------
-# Vegetation condition known-zero substitution (Nature only)
+# Vegetation condition (Nature only). M-TREND-A1 (TR17): the NDVI slope
+# term is demoted to drill-down-only — the aggregate is now a strict
+# weighted sum of inverted_anomaly + low_ndvi.pct_norm − recovery, with no
+# negative_trend term and no zero-substitution.
 # ---------------------------------------------------------------------------
 
-class TestVegetationConditionKnownZero:
-    def test_negative_trend_none_substituted_with_zero(self):
-        """M-FOLLOWUP-FALLBACK: ``nature.ndvi.negative_trend`` is always
-        None in v1 (trend.py / M-TREND-ENGINE not built). The aggregate
-        must still compute by substituting 0.0 for that term — otherwise
-        ``nature.vegetation_condition`` would be perpetually None and
-        the pillar priority would always be None under strict-None.
-        """
+class TestVegetationCondition:
+    def test_computes_from_three_surviving_terms(self):
+        """With the slope term gone, the aggregate is the strict weighted
+        sum of the three surviving components."""
         payload = {
             "nature.ndvi.inverted_anomaly": 0.4,
-            "nature.ndvi.negative_trend":   None,  # always None in v1
             "nature.low_ndvi.pct_norm":     0.2,
             "nature.recovery.score":        0.1,
         }
         out = compute_vegetation_condition(payload)
-        # The 0.25 weight on negative_trend × 0.0 contributes nothing,
-        # but the other three terms feed normally — aggregate is not None.
         assert out["nature.vegetation_condition"] is not None
         expected_raw = (
             VEGETATION_CONDITION_WEIGHTS["nature.ndvi.inverted_anomaly"] * 0.4
-            + VEGETATION_CONDITION_WEIGHTS["nature.ndvi.negative_trend"]   * 0.0
             + VEGETATION_CONDITION_WEIGHTS["nature.low_ndvi.pct_norm"]     * 0.2
             + VEGETATION_CONDITION_WEIGHTS["nature.recovery.score"]        * 0.1
         )
-        # The function clamps to [0, 1] — for these inputs the raw is
-        # already in range, so the result equals the raw weighted sum.
         assert out["nature.vegetation_condition"] == pytest.approx(
             max(0.0, min(1.0, expected_raw)),
         )
 
+    def test_slope_term_no_longer_in_weights(self):
+        """TR17 guard: the demoted slope term is gone from the weights, so
+        a stray ``negative_trend`` value in the payload is simply ignored."""
+        assert "nature.ndvi.negative_trend" not in VEGETATION_CONDITION_WEIGHTS
+        base = compute_vegetation_condition({
+            "nature.ndvi.inverted_anomaly": 0.4,
+            "nature.low_ndvi.pct_norm":     0.2,
+            "nature.recovery.score":        0.1,
+        })
+        with_stray = compute_vegetation_condition({
+            "nature.ndvi.inverted_anomaly": 0.4,
+            "nature.ndvi.negative_trend":   0.9,  # ignored
+            "nature.low_ndvi.pct_norm":     0.2,
+            "nature.recovery.score":        0.1,
+        })
+        assert base["nature.vegetation_condition"] == pytest.approx(
+            with_stray["nature.vegetation_condition"]
+        )
+
     def test_real_upstream_failure_still_returns_none(self):
-        """A genuinely missing dependency (e.g. NDVI indicator skipped
-        on this AOI → ``nature.ndvi.inverted_anomaly`` is None) still
-        propagates strict-null. The known-zero substitution only covers
-        the ``negative_trend`` term that's documented v1 gap.
-        """
+        """A genuinely missing dependency (e.g. NDVI indicator skipped on
+        this AOI → ``nature.ndvi.inverted_anomaly`` is None) still
+        propagates strict-null."""
         payload = {
             "nature.ndvi.inverted_anomaly": None,  # real upstream failure
-            "nature.ndvi.negative_trend":   None,
             "nature.low_ndvi.pct_norm":     0.2,
             "nature.recovery.score":        0.1,
         }
