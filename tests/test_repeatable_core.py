@@ -1347,3 +1347,208 @@ class TestSixStepFilterBoundsScope:
 
         # min(5 * 5.0, 200.0) = 25.0 — the unclamped 5× branch.
         assert captured_radius_km == [25.0]
+
+
+# ===========================================================================
+# M-DIAG-A2 Step E.2 — _server_side_hf per_image integration tests
+# ===========================================================================
+
+
+class TestServerSideHfPerImageIntegration:
+    """M-DIAG-A2 §4.5 — exercise the `per_image` closure end-to-end
+    against realistic combined-reducer dict shapes.
+
+    Why this matters. M-DIAG-A1 found a key-naming bug in `_server_side_hf`:
+    the consumer read the bare-band key `band` but the combined `mean +
+    count` reducer emits `band_mean`. The bug stayed hidden because:
+
+      1. The unit test for chunked union (D3.2 elsewhere in this file)
+         mocked the chunk processor wholesale, so `per_image` was never
+         exercised against a realistic reducer dict.
+      2. The mock fixture in
+         `test_server_side_hf_handles_zero_valid_pixels_with_missing_key`
+         encoded the SAME wrong key shape (`{band: value}`) as production
+         code — both were "wrong in the same way", giving mutual validation.
+
+    This test class fixes both gaps by feeding `_server_side_hf`:
+
+      - mock images whose `reduceRegion(...).getInfo()` returns the
+        actual EE combined-reducer dict shape (`{band_mean: ..., band_count: ...}`)
+      - a mix of positive-bg_median (NO₂-like) and negative-bg_median
+        (AAI-like) scenarios, so the post-fix hf comes out non-trivially
+        (intermediate, not exactly 0 or 1)
+
+    A regression that reverts the M-DIAG-A1 fix (changing `mean_key =
+    f"{band}_mean"` back to `mean_key = band`) would silently zero
+    every `site_mean` and these tests would observe hf=0 for the
+    positive-bg_median path and hf=1 for the negative-bg_median path —
+    matching the M-DIAG-A1 bug signature.
+    """
+
+    _AOI = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 5.0}
+    _BAND = "NO2"
+
+    @staticmethod
+    def _build_realistic_images(
+        band: str,
+        per_day_means: list[float | None],
+        per_day_counts: list[int],
+    ) -> list[_FakeImage]:
+        """One ``_FakeImage`` per day with the LIVE EE combined-reducer
+        dict shape — keys are `{band}_mean` and `{band}_count`.
+
+        Pre-M-DIAG-A1 production code expected `{band: value, band_count:
+        count}` (bare-band key for mean). Post-fix expects `{band_mean:
+        value, band_count: count}`. This helper produces the post-fix
+        shape — the regression-against-bug test asserts that.
+        """
+        ms_day = 86_400_000
+        images: list[_FakeImage] = []
+        for i, (mean_v, count) in enumerate(zip(per_day_means, per_day_counts)):
+            reduction = {f"{band}_mean": mean_v, f"{band}_count": count}
+            images.append(_FakeImage(reduction, time_start=i * ms_day))
+        return images
+
+    def test_positive_bg_median_no2_like_produces_intermediate_hf(
+        self, patched_ee,
+    ) -> None:
+        """NO₂-like positive concentration values. Mix of below-threshold
+        and above-threshold days. Post-fix the per-day detector reads the
+        real site_mean and produces an intermediate hf reflecting the
+        mix. Pre-fix the bug would read 0 for every day and produce
+        hf=0 universally (sign-of-bg_median oracle).
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        # bg_median=50, bg_std=10 → hot threshold at z>=2 means
+        # site_mean >= 50 + 2*10 = 70. Five of these 10 days qualify.
+        per_day_means = [40.0, 55.0, 72.0, 65.0, 80.0, 95.0, 60.0, 45.0, 75.0, 78.0]
+        per_day_counts = [4] * 10
+        images = self._build_realistic_images(
+            self._BAND, per_day_means, per_day_counts,
+        )
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=50.0,
+            bg_std=10.0,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 10
+        assert result.hf == pytest.approx(0.5), (
+            f"Expected hf=0.5 (5 of 10 days above threshold); got {result.hf}. "
+            "A regression of the M-DIAG-A1 fix would produce hf=0 here "
+            "(every site_mean silently zero, never crossing the positive "
+            "bg_median + 2σ gate)."
+        )
+
+    def test_negative_bg_median_aai_like_does_not_universally_fire(
+        self, patched_ee,
+    ) -> None:
+        """AAI-like negative-bg_median values. Mix of below-threshold
+        and above-threshold per-day means. Post-fix the per-day detector
+        reads the real site_mean. Pre-fix the bug would silently zero
+        every site_mean and produce hf=1 universally (because 0 - (-0.6)
+        / 0.05 = +12 >= 2σ).
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        # bg_median=-0.6, bg_std=0.05 → hot threshold at site_mean >= -0.5.
+        per_day_means = [-0.65, -0.55, -0.48, -0.62, -0.40, -0.70, -0.45]
+        per_day_counts = [4] * 7
+        images = self._build_realistic_images(
+            self._BAND, per_day_means, per_day_counts,
+        )
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=-0.6,
+            bg_std=0.05,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 7
+        # Days qualifying: -0.48 YES, -0.40 YES, -0.45 YES → 3 of 7.
+        assert result.hf == pytest.approx(3 / 7), (
+            f"Expected hf=3/7 (3 of 7 above threshold); got {result.hf}. "
+            "A regression of the M-DIAG-A1 fix would produce hf=1.0 here "
+            "(every site_mean silently zero, which exceeds the negative "
+            "bg_median + 2σ gate trivially)."
+        )
+
+    def test_combined_reducer_emits_suffixed_mean_key_not_bare(
+        self, patched_ee,
+    ) -> None:
+        """Direct contract test. Documents the EE convention: when
+        ``Reducer.mean()`` is combined with ``Reducer.count()`` via
+        ``sharedInputs=True``, the mean output key is suffixed
+        ``{band}_mean``. Production code reads
+        ``mean_key = f"{band}_mean"`` per the M-DIAG-A1 fix.
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        per_day_means = [100.0]
+        per_day_counts = [4]
+        images = self._build_realistic_images(
+            self._BAND, per_day_means, per_day_counts,
+        )
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=50.0,
+            bg_std=10.0,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 1
+        assert result.hf == pytest.approx(1.0), (
+            f"Expected hf=1.0 (1 of 1 valid day above threshold). "
+            "If `mean_key` reverted to `band` (bare), the mean lookup "
+            "would miss its key, default to 0.0, and hf would be 0.0."
+        )
+
+    def test_bare_band_key_would_now_miss_proving_the_fix_is_active(
+        self, patched_ee,
+    ) -> None:
+        """Negative-evidence test. Feeding the PRE-M-DIAG-A1 mock shape
+        (bare-band key for mean) should now produce hf=0 because the
+        post-fix code looks for ``{band}_mean`` which is absent. This
+        test is the mirror of M-DIAG-A1's mock-fix correction: any
+        regression that reverts ``mean_key`` to ``band`` would make
+        this test flip to hf=1.0.
+        """
+        from engine.core.repeatable_core import _server_side_hf
+
+        # Pre-fix mock shape: BARE-band key for mean.
+        ms_day = 86_400_000
+        pre_fix_shape = {self._BAND: 100.0, f"{self._BAND}_count": 4}
+        images = [_FakeImage(pre_fix_shape, time_start=0 * ms_day)]
+        ic = _FakeImageCollection(images)
+
+        result = _server_side_hf(
+            aoi=self._AOI,
+            image_collection=ic,
+            band=self._BAND,
+            bg_median=50.0,
+            bg_std=10.0,
+            z_threshold=2.0,
+            scale=1113.2,
+        )
+        assert result.n_valid_dates == 1, "count=4 → valid day"
+        assert result.hf == pytest.approx(0.0), (
+            f"Expected hf=0.0 — the post-fix code reads `{self._BAND}_mean` "
+            f"which is absent from this pre-fix mock dict, so site_mean "
+            f"defaults to 0 and doesn't cross the threshold. A regression "
+            f"that reverts `mean_key = band` would read the bare-band 100 "
+            f"correctly and produce hf=1.0 here."
+        )
