@@ -567,7 +567,16 @@ class TestServerSideHfEEBugCoverage:
         from engine.core.repeatable_core import _server_side_hf
 
         # 3 images with valid mean + count; 7 with key entirely absent.
-        valid_reduction = {self._BAND: 7.5e-5, f"{self._BAND}_count": 4}
+        # M-DIAG-A1 (29 May 2026): the pre-fix mock used `{self._BAND:
+        # 7.5e-5}` as the mean key. That shape never matched what EE
+        # actually returns from the combined `Reducer.mean().combine(
+        # Reducer.count(), sharedInputs=True)` reducer — the live key is
+        # `f"{band}_mean"`. Production code read the bare-band key and
+        # the mock encoded the same wrong shape, so the two mutually
+        # validated each other. Once `_server_side_hf` was fixed to read
+        # `f"{band}_mean"`, this mock had to be corrected too. See
+        # docs/M-DIAG-A1_diagnosis_report.md §7.
+        valid_reduction = {f"{self._BAND}_mean": 7.5e-5, f"{self._BAND}_count": 4}
         # KEY OBSERVATION: mean_key is *missing entirely* in this dict
         # (not present-and-None). That's the bug-2 shape EE produces
         # when its Mean reducer omits the band on zero pixels.

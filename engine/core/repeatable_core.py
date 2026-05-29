@@ -552,7 +552,14 @@ def _server_side_hf(
         reducer2=ee.Reducer.count(),
         sharedInputs=True,
     )
-    mean_key  = band
+    # M-DIAG-A1 FIX (29 May 2026). EE auto-suffixes outputs when reducers
+    # are combined via `sharedInputs=True` — the mean output's actual key
+    # is `{band}_mean`, not the bare band name. The legacy code read
+    # `{band}` and hit the absent-key default 0.0, silently zeroing every
+    # per-day site_mean and turning the per-day HF detector into a
+    # sign-of-bg_median oracle for the M-TIER-A1 Step 8 path. See
+    # docs/M-DIAG-A1_diagnosis_report.md §7.
+    mean_key  = f"{band}_mean"
     count_key = f"{band}_count"
 
     def per_image(image: ee.Image) -> ee.Feature:
