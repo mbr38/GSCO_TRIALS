@@ -1,7 +1,7 @@
 # GHG ↔ ODIAC + OCO-2/OCO-3 — Empirical Validation Report
 
-*Investigation milestone. Status: DRAFT (Step G complete; pending operator review of §9).*
-*Date authored: 30 May 2026.*
+*Investigation milestone. Status: DRAFT (Steps A–H complete; Response B AOI-widening follow-up added as §10; pending operator review of §9).*
+*Date authored: 30 May 2026 (Response B §10 appended same day).*
 *Authority pointer: GHG↔ODIAC+OCO-2/OCO-3 Validation brief (operator-side, 30 May 2026).*
 *Scope guard: empirical validation only. No engine code, thresholds, score logic, or seeds were changed. Analysis artefacts live in `analysis/` and `docs/`, never in `engine/` or `ui/`.*
 *Supporting evidence: `analysis/ghg_odiac_validation.ipynb` (executed), `analysis/ghg_odiac_validation.csv` (the data table), `analysis/plots/*.png` (the seven figures).*
@@ -199,7 +199,7 @@ The honest framing: **ODIAC and OCO measure different things, and neither is gro
 
 For the upcoming calibration sweep spec:
 
-1. **CH₄ anomaly z needs re-thresholding or re-scoping.** At a 5 km radius the z>1.5 bar is unreachable for the diffuse/sub-pixel CH₄ sources it targets (1/25 firing rate). Options for the sweep to weigh: (a) lower the threshold and re-characterise the false-positive rate; (b) widen the CH₄ AOI to match the ~7 km TROPOMI footprint so site and background stop cancelling; (c) demote CH₄ z to a context indicator and stop treating non-firing as "clean", the way ODIAC was demoted. The current behaviour quietly reports CH₄-heavy landfills and well-fields as unremarkable.
+1. **CH₄ anomaly z needs re-thresholding or re-scoping.** At a 5 km radius the z>1.5 bar is unreachable for the diffuse/sub-pixel CH₄ sources it targets (1/25 firing rate). Options for the sweep to weigh: (a) lower the threshold and re-characterise the false-positive rate; (b) widen the CH₄ AOI to match the ~7 km TROPOMI footprint so site and background stop cancelling — **tested directly in §10 (Response B) and rejected: widening to 15 km did not restore firing (1/25 → 0/25)**; (c) demote CH₄ z to a context indicator and stop treating non-firing as "clean", the way ODIAC was demoted. The current behaviour quietly reports CH₄-heavy landfills and well-fields as unremarkable. With (b) eliminated, the live options are (a) and (c).
 2. **VIIRS buckets appear defensible.** VIIRS tracks ODIAC (0.70) and tracks XCO₂ at coal sites (1.0). The sweep should still confirm the *bucket boundaries* against this continuous evidence, but the signal itself is sound.
 3. **Flag known-weak regimes explicitly in the M-UX-A1 parameter-transparency surface.** The score should declare, for landfill/waste and oil/gas sites, that the CH₄ channel is operating below its detection floor at this radius — i.e. surface "CH₄ proxy known-weak for this source type" rather than implying a confident low reading.
 4. **Do not build an ODIAC- or XCO₂-severity score.** Both benchmarks have disqualifying limitations for scoring (ODIAC vintage + allocation circularity; XCO₂ transport-decoupling + coverage gaps). They are validation evidence, not score inputs.
@@ -219,7 +219,46 @@ These feed the calibration-sweep spec, the next milestone after this validation.
 
 ---
 
-## §10. Reproducibility
+## §10. Response B — AOI widening (5 km → 15 km)
+
+*Follow-up test, 30 May 2026. Sibling extraction: `analysis/ghg_odiac_validation_widened_aoi.csv`; comparison: `analysis/response_b_compare.py` → `analysis/response_b_comparison.md`.*
+
+### 10.1 Test and rationale
+
+§1/§6.1 diagnosed the CH₄ proxy's 1/25 firing rate as **site-minus-background self-cancellation**: at the 5 km screening radius, the AOI sits *inside* Sentinel-5P TROPOMI's ~7 km native CH₄ footprint, so the site disc and the background ring sample largely the same pixels and the `(site − background)` numerator collapses. Response B tests the direct remedy: **re-run the CH₄ extraction at a 15 km AOI** — clearly exceeding the 7 km footprint, so the site disc spans multiple distinct CH₄ pixels and separates from the background ring — holding everything else constant (same 25 locations, same 2025-06→2025-12 window, same band, same per-day reducer, same engine path). At 15 km the background ring scales to 15–75 km (`BACKGROUND_RING_RADIUS_MULTIPLE=5`, uncapped below the 200 km ceiling). Step-A reconnaissance confirmed the engine runs cleanly at 15 km with no radius-dependent breakage; the ring/site geometry scales geodesically and the pixel-size guard passes trivially.
+
+### 10.2 Findings
+
+![Plot 8 — CH4 anomaly z (15 km AOI) vs ODIAC](../analysis/plots/plot8_ch4z15_vs_odiac.png)
+
+| Metric | 5 km | 15 km |
+|---|---|---|
+| Sites firing (z > 1.5) | **1/25** (Mpumalanga) | **0/25** (none) |
+| Max z across all 25 | 1.76 | **1.46** (Bordo Poniente) |
+| Mean \|z\| | 0.88 | 0.76 |
+| CH₄ vs log₁₀(ODIAC) Spearman | −0.20 | −0.02 |
+| Sites moved toward firing (Δz > 0) | — | 14 / 23 |
+
+Per regime at 15 km, **no site in any regime fired** — including the two target regimes:
+
+- **Oil/gas:** Permian −0.79→+0.15, Bakken +0.52→−0.05, Hassi Messaoud −4.03→−2.75, Tengiz +0.70→+0.46, Comodoro −2.52→−4.09. Range tops out at +0.46. None fire.
+- **Landfill:** Sudokwon +0.21→+0.75, Bordo Poniente +0.83→**+1.46**, Apex +1.01→+0.52, Puente Hills +0.15→+0.36. Bordo Poniente gets closest of any site in the set, but still short of 1.5.
+
+### 10.3 Verdict — **No** (does not restore the CH₄ proxy signal)
+
+Widening the AOI to 15 km **did not restore firing** — the firing rate went *down*, from 1/25 to 0/25, and the maximum achievable z *fell* from 1.76 to 1.46. The CH₄↔ODIAC correlation stayed at ~0 (−0.20 → −0.02). The hypothesised mechanism is real but the remedy is self-defeating: separating the site from the background does remove the pathological *negative* z artifacts (14 of 23 sites moved toward zero/positive; the deeply negative oil/gas readings lifted — Permian, Hassi Messaoud, Comodoro's neighbours), so the widened distribution is *healthier* and centred nearer zero. But a 15 km disc averages the genuinely **sub-pixel** point-source plume over ~16× more area, diluting the very enhancement the detector needs faster than it gains separation from the background. Net effect: the z-distribution **regresses toward zero**, not toward the firing band.
+
+A qualified **Partial** observation sits underneath the No: widening is directionally healthier (it kills the false-negative-looking deep-negative artifacts, and the closest-to-firing site is now correctly a landfill), but "healthier distribution" is not "restored signal", and zero sites firing is the operative result. The honest read is that **column CH₄ from TROPOMI cannot resolve these diffuse/sub-pixel sources at any AOI radius in this stack** — widening trades one failure mode (self-cancellation) for another (plume dilution).
+
+### 10.4 Implications
+
+Response B **eliminates option (b)** from §8.1 (widen the AOI). The CH₄ channel cannot be repaired by geometry alone. The next step is **Response A — reframe CH₄ anomaly z as a context-only indicator** (not a firing detector), and surface "CH₄ proxy known-weak for this source type" in the M-UX-A1 transparency layer (§8.3) rather than reporting CH₄-heavy landfills and well-fields as unremarkable. Option (a) (lower the threshold) remains available but is weakened by Response B: with the max achievable z at 1.46 and the distribution centred near zero, any threshold low enough to fire at landfills would also fire across rural and urban noise — a poor separability trade the calibration sweep would have to characterise explicitly.
+
+This test changed no production code, thresholds, or the production AOI radius; CH₄ is not yet reframed as context-only (that is Response A, now the recommended next step).
+
+---
+
+## §11. Reproducibility
 
 ```
 # 1. Activity extraction (Earth Engine; writes the CSV)
@@ -232,6 +271,9 @@ python analysis/analysis_plots.py
 # 4. (Re)build + execute the notebook
 python analysis/build_notebook.py
 jupyter nbconvert --to notebook --execute --inplace analysis/ghg_odiac_validation.ipynb
+# 5. Response B (§10) — CH4 re-extraction at 15 km AOI + comparison
+python analysis/extract_ch4_widened.py     # → ghg_odiac_validation_widened_aoi.csv
+python analysis/response_b_compare.py       # → plot8 + response_b_comparison.md
 ```
 
 Figures embed from `analysis/plots/*.png` (referenced relatively as `../analysis/plots/…` from this report); regenerate them with step 3 before re-exporting the `.docx`. The committed `analysis/ghg_odiac_validation.csv` is the single data table behind every number above.

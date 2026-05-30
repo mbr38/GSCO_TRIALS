@@ -93,6 +93,21 @@ cells.append(new_markdown_cell(
     "evidence."
 ))
 
+cells.append(new_markdown_cell(
+    "## §10 — Response B: AOI widening (5 km → 15 km)\n\n"
+    "Tests whether widening the CH₄ AOI beyond TROPOMI's ~7 km footprint "
+    "restores the anomaly-z signal. Re-extraction at 15 km is in "
+    "`ghg_odiac_validation_widened_aoi.csv` (run `extract_ch4_widened.py` "
+    "first). **Verdict: No** — firing went 1/25 → 0/25; widening dilutes the "
+    "sub-pixel plume faster than it separates site from background. See report "
+    "§10."
+))
+cells.append(new_code_cell(
+    "from analysis import response_b_compare as rb\n"
+    "rb.main()\n"
+    "display(Image(filename='plots/plot8_ch4z15_vs_odiac.png'))"
+))
+
 nb["cells"] = cells
 nb["metadata"] = {
     "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
