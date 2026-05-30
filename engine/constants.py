@@ -982,25 +982,87 @@ EARLIEST_SCREENING_DATE: str = "2019-01-01"
 # hard floor no slope is emitted ("trend unavailable"); between hard and
 # soft the slope is emitted but the confidence length-term drives the score
 # toward zero. Soft floor = 12 matches Wireframes P-06.
+# @parameter
+# tier: first-pass
+# rationale: Hard floor on the number of valid per-day points below which no
+#     Theil–Sen slope is emitted at all (the trend drill-down reads "trend
+#     unavailable"). Four points is the bare minimum for a slope to be more
+#     than line-fitting noise; a first-pass judgment, the obvious calibration
+#     target alongside the rest of the trend thresholds.
+# source: M-TREND_Decision_Log B4 / TR4; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_HARD_FLOOR_POINTS: int = 4
+# @parameter
+# tier: first-pass
+# rationale: Soft floor on valid per-day points: between the hard floor (4)
+#     and this value the slope is shown but the confidence length-term drives
+#     the trend score toward zero, flagging the result as low-reliability.
+#     Soft floor = 12 matches the Wireframes P-06 guidance; a first-pass value
+#     pending calibration.
+# source: M-TREND_Decision_Log B4 / TR4; Wireframes_All_v4.md §P-06; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_SOFT_FLOOR_POINTS: int = 12
 
 # Display-severity cap (decision-log E-SEV / TR12). The slope is normalised
 # to background-sigmas-per-year (sibling of IC §0.4); k_trend is the σ/yr
 # that saturates severity to 1.0. 1.0 σ/yr is a large year-on-year drift —
 # a first-pass judgement, the obvious calibration target.
+# @parameter
+# tier: first-pass
+# rationale: The σ/yr drift at which the trend drill-down's display severity
+#     saturates to 1.0 (the trend equivalent of NORMALISATION_K's k). The
+#     slope is normalised to background-sigmas-per-year — a sibling of the
+#     IC §0.4 normalisation convention — and 1.0 σ/yr is a large year-on-year
+#     drift. The value is a first-pass judgment and the obvious calibration
+#     target; the normalisation *method* follows the spec.
+# source: M-TREND_Decision_Log E-SEV / TR12 (method per IC §0.4); calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_SEVERITY_K_SIGMA_PER_YEAR: float = 1.0
 
 # Seasonal flag (decision-log C-ii / TR15). A SEPARATE categorical signal,
 # never folded into the confidence scalar. Fires when the window spans less
 # than ~one year, where an un-deseasonalised slope risks reading phenology
 # as trend.
+# @parameter
+# tier: first-pass
+# rationale: Window span (days) below which the trend drill-down raises a
+#     separate "seasonal caveat" flag — under roughly one year an
+#     un-deseasonalised slope risks reading phenology (the seasonal cycle) as
+#     a real trend. 365 days is the natural one-cycle cutoff; the choice to
+#     gate the caveat exactly there is a first-pass judgment.
+# source: M-TREND_Decision_Log C-ii / TR15; calibration pending
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_SEASONAL_FLAG_MIN_DAYS: int = 365
 
 # Significance buckets (decision-log D2 / TR9). Presentation-layer constants,
 # NOT a gate — the raw slope + p-value are always emitted above the hard
 # floor; these only choose the displayed bucket.
+# @parameter
+# tier: spec-mandated
+# rationale: Mann–Kendall p-value at/below which a trend is displayed as
+#     "significant". p < 0.05 is the standard statistical-significance
+#     convention; using it as the display-bucket boundary is prescribed by the
+#     trend decision-log, not tuned per indicator. Changing it is a
+#     methodology decision (it redefines what "significant trend" means to the
+#     user across every series indicator).
+# source: M-TREND_Decision_Log D2 / TR9; standard p<0.05 significance convention
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_SIGNIFICANT_P: float = 0.05
+# @parameter
+# tier: spec-mandated
+# rationale: Upper p-value bound for the "weak / emerging" trend bucket:
+#     p in [0.05, 0.10) reads as weak-emerging, p >= 0.10 as not significant.
+#     The p < 0.10 marginal-significance convention and the bucketing scheme
+#     are prescribed by the trend decision-log; a change is a methodology
+#     decision, not a calibration tweak.
+# source: M-TREND_Decision_Log D2 / TR9; standard p<0.10 marginal-significance convention
+# last_reviewed: 2026-05-29
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
 TREND_WEAK_EMERGING_P: float = 0.10
 
 # Trend-confidence base terms (decision-log C-TERMS / TR13). Additive base

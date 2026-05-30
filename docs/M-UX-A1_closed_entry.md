@@ -78,3 +78,22 @@ To bring a new user-facing threshold under the P-09 parameter-transparency surfa
 3. **Run the lint:** `pytest tests/test_parameter_registry.py`. A constant in `_INVENTORY` without a well-formed annotation is reported by `lint_inventory()` (a warning, not a hard failure — but `test_inventory_is_fully_annotated_warns_only` asserts the list is empty, so a gap is visible in CI output).
 
 Scope rule (UX8): only **user-facing thresholds** belong in the inventory — values a user, auditor, or reviewer would want to see and understand. Internal decision-influencing constants (weight dicts, QA tables, normalisation factors, fallback multipliers) stay out.
+
+---
+
+## Follow-on — M-TREND-A1 backfill (29 May 2026)
+
+The M-TREND-A1 trend drill-down constants shipped (commit `50bf366`) *before* being enrolled in the registry, so they carried only prose comments — the UX12 lint did not flag them because the lint enforces the curated `_INVENTORY`, not auto-discovery. Backfilled the **6 user-facing** trend thresholds:
+
+| Constant | Tier | Note |
+|---|---|---|
+| `TREND_HARD_FLOOR_POINTS` | first-pass | "trend unavailable" gate |
+| `TREND_SOFT_FLOOR_POINTS` | first-pass | low-reliability gate |
+| `TREND_SEVERITY_K_SIGMA_PER_YEAR` | first-pass | display-severity saturation (trend sibling of `NORMALISATION_K`) |
+| `TREND_SEASONAL_FLAG_MIN_DAYS` | first-pass | seasonal caveat flag |
+| `TREND_SIGNIFICANT_P` | spec-mandated | p<0.05 display bucket (decision-log D2/TR9) |
+| `TREND_WEAK_EMERGING_P` | spec-mandated | p<0.10 display bucket (decision-log D2/TR9) |
+
+Deliberately **out** of scope (consistent with the original UX8 boundary): `TREND_CONFIDENCE_TERM_WEIGHTS` (weight dict), `TREND_CONFIDENCE_SPAN_SATURATION_DAYS` (confidence-internal saturation, like the excluded `SPATIAL_CONTEXT_THRESHOLD`), `TREND_SERIES_INDICATOR_IDS` (membership frozenset, like the excluded `WIND_ATTRIBUTABILITY_INDICATORS`). All 6 `applies_to` the 12 series indicators (`TREND_SERIES_INDICATOR_IDS`), so they render under each on P-09 with the "(shared)" note.
+
+Inventory: **17 → 23**. Tier distribution after the M-DIAG-A2 re-tiering + this backfill: **17 first-pass / 5 spec-mandated / 1 calibrated** (regression-locked in `test_parameter_registry.py::test_honest_tier_distribution`).

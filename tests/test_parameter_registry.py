@@ -27,13 +27,30 @@ from engine.parameter_registry import (
 
 
 # ---------------------------------------------------------------------------
-# Inventory scope (UX8) — 17 constants locked at Step B.
+# Inventory scope (UX8) — 17 at Step B; +6 M-TREND-A1 backfill (29 May 2026)
+# brings the total to 23.
 # ---------------------------------------------------------------------------
 
 class TestInventoryScope:
     def test_inventory_size_in_target_range(self) -> None:
-        # UX8: ~15-30 user-facing thresholds. Step B locked 17.
+        # UX8: ~15-30 user-facing thresholds. Step B locked 17; the M-TREND-A1
+        # backfill (29 May 2026) added 6, for 23.
         assert 15 <= len(inventory_names()) <= 30
+        assert len(inventory_names()) == 23
+
+    def test_trend_constants_backfilled(self) -> None:
+        # M-TREND-A1 backfill — the 6 user-facing trend thresholds are
+        # enrolled; the weight dict, span saturation, and membership set are not.
+        names = inventory_names()
+        for n in (
+            "TREND_HARD_FLOOR_POINTS", "TREND_SOFT_FLOOR_POINTS",
+            "TREND_SEVERITY_K_SIGMA_PER_YEAR", "TREND_SEASONAL_FLAG_MIN_DAYS",
+            "TREND_SIGNIFICANT_P", "TREND_WEAK_EMERGING_P",
+        ):
+            assert n in names
+        assert "TREND_CONFIDENCE_TERM_WEIGHTS" not in names
+        assert "TREND_CONFIDENCE_SPAN_SATURATION_DAYS" not in names
+        assert "TREND_SERIES_INDICATOR_IDS" not in names
 
     def test_step_b_locked_set(self) -> None:
         # 15 UX8-named + TRAFFIC_LIGHT_THRESHOLDS + NORMALISATION_K.
@@ -91,13 +108,17 @@ class TestParser:
 
     def test_honest_tier_distribution(self) -> None:
         # UX16 — most thresholds ship first-pass (the honest current state).
-        # M-DIAG-A2 Step C.3 (29 May 2026) shifted the distribution by:
+        # M-DIAG-A2 Step C.3 (29 May 2026) shifted the original 17 by:
         #   - ANOMALY_Z_THRESHOLD: first-pass → spec-mandated (IC §0.4)
         #   - WIND_SPEED_LOW_MIN_MS: first-pass → calibrated (5.0 → 3.5)
-        # Net: -2 first-pass, +1 spec-mandated, +1 calibrated.
+        #   → 13 first-pass / 3 spec-mandated / 1 calibrated.
+        # The M-TREND-A1 backfill (29 May 2026) then added 6 trend thresholds:
+        #   - 4 first-pass (floors, severity-k, seasonal flag)
+        #   - 2 spec-mandated (TREND_SIGNIFICANT_P, TREND_WEAK_EMERGING_P)
+        #   → 17 first-pass / 5 spec-mandated / 1 calibrated (23 total).
         tiers = [r.tier for r in load_registry()]
-        assert tiers.count("first-pass") == 13
-        assert tiers.count("spec-mandated") == 3
+        assert tiers.count("first-pass") == 17
+        assert tiers.count("spec-mandated") == 5
         assert tiers.count("calibrated") == 1
 
 

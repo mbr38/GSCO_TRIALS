@@ -95,6 +95,16 @@ _INVENTORY: tuple[tuple[str, str], ...] = (
     ("KBA_DISTANCE_DECAY_KM", "engine.constants"),
     ("CONVERSION_SATURATION_PCT", "engine.constants"),
     ("WATER_FLOODED_VEG_SATURATION_PCT", "engine.constants"),
+    # Trend drill-down thresholds (M-TREND-A1) — backfilled 29 May 2026. The
+    # confidence-term weight dict, the confidence-internal span saturation, and
+    # the series-membership frozenset are deliberately out of scope (weight
+    # dict / internal / not a user-facing threshold).
+    ("TREND_HARD_FLOOR_POINTS", "engine.constants"),
+    ("TREND_SOFT_FLOOR_POINTS", "engine.constants"),
+    ("TREND_SEVERITY_K_SIGMA_PER_YEAR", "engine.constants"),
+    ("TREND_SEASONAL_FLAG_MIN_DAYS", "engine.constants"),
+    ("TREND_SIGNIFICANT_P", "engine.constants"),
+    ("TREND_WEAK_EMERGING_P", "engine.constants"),
 )
 
 
