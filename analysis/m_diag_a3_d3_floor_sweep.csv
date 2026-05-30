@@ -1,0 +1,7 @@
+floor,control_fp_days,controls_with_fp,n_controls,tp_events_kept,tp_events_total
+0.05,44,5,5,9,9
+0.1,39,5,5,9,9
+0.2,33,5,5,9,9
+0.3,21,5,5,8,9
+0.5,4,3,5,7,9
+1.0,1,1,5,4,9
