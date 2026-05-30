@@ -681,12 +681,15 @@ class TestRunPillar:
         for measurement in ("site", "anomaly", "z", "trend", "confidence", "score"):
             assert f"ghg.viirs.{measurement}" in result
 
-        # Five computable sub-aggregates non-None (borrow chain worked).
-        assert result["ghg.ch4_hotspot_signal"] is not None
+        # M-CH4-A1: CH₄ extraction is preserved (all nine ghg.ch4.* measurements
+        # asserted above), but the two CH₄ scored sub-aggregates are no longer
+        # computed — CH₄ is reference data.
+        assert "ghg.ch4_hotspot_signal" not in result
+        assert "ghg.ch4_context_adjusted" not in result
+        # The surviving (non-CH₄) sub-aggregates still compute (borrow chain).
         assert result["ghg.combustion_proxy"] == 0.70
         assert result["ghg.activity_score"] == 0.50
         assert result["ghg.fire_or_regional_transport_risk"] == 0.40
-        assert result["ghg.ch4_context_adjusted"] is not None
 
         # Three CO₂-dependent sub-aggregates are None — CO₂ isn't in the
         # selection here so ghg.co2.score never lands in the payload, and
@@ -726,7 +729,8 @@ class TestRunPillar:
         )
         assert result["ghg.combustion_proxy"] is None
         assert result["ghg.fire_or_regional_transport_risk"] is None
-        assert result["ghg.ch4_context_adjusted"] is None
+        # M-CH4-A1: ch4_context_adjusted is no longer computed at all.
+        assert "ghg.ch4_context_adjusted" not in result
 
     def test_single_indicator_failure_degrades_gracefully(self, monkeypatch) -> None:
         def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
@@ -993,8 +997,9 @@ class TestQualitySubScores:
         }
 
     def test_temporal_coverage_skips_missing_indicators(self) -> None:
-        # Only ch4 emitted → use what's there; ignore the rest.
-        payload = self._payload_with_terms(ch4={"n_valid": 0.9})
+        # M-CH4-A1: QA aggregates over (co2, viirs) only. Only co2 emitted →
+        # use what's there; ignore the rest.
+        payload = self._payload_with_terms(co2={"n_valid": 0.9})
         assert compute_temporal_coverage(payload) == {
             "ghg.temporal_coverage": pytest.approx(0.9),
         }
@@ -1005,19 +1010,20 @@ class TestQualitySubScores:
 
     def test_spatial_resolution_suitability_is_mean_of_per_indicator_terms(self) -> None:
         # Spec §4.2: mean of spatial_context terms across GHG indicators.
-        # Pre-A1 the helper was CH4-only; now it averages all three.
+        # M-CH4-A1: CH₄ is reference data, so the scored quality aggregates over
+        # (co2, viirs) only — a CH₄ term in the payload is ignored.
         payload = self._payload_with_terms(
-            ch4={"spatial_context": 0.5},
+            ch4={"spatial_context": 0.5},   # reference data — must be ignored
             co2={"spatial_context": 1.0},
-            viirs={"spatial_context": 1.0},
+            viirs={"spatial_context": 0.8},
         )
         assert compute_spatial_resolution_suitability(payload) == {
-            "ghg.spatial_resolution_suitability": pytest.approx((0.5 + 1.0 + 1.0) / 3),
+            "ghg.spatial_resolution_suitability": pytest.approx((1.0 + 0.8) / 2),
         }
 
     def test_spatial_resolution_suitability_aoi_kwarg_accepted_but_unused(self) -> None:
         # Signature parity with pre-A1 call sites; aoi argument is ignored.
-        payload = self._payload_with_terms(ch4={"spatial_context": 0.5})
+        payload = self._payload_with_terms(co2={"spatial_context": 0.5})
         out = compute_spatial_resolution_suitability(
             payload, {"centre": {"lat": 0, "lon": 0}, "radius_km": 50},
         )
@@ -1025,16 +1031,14 @@ class TestQualitySubScores:
 
     def test_retrieval_inventory_quality_is_mean_of_per_indicator_qa(self) -> None:
         # Spec §4.2: mean of QA terms across GHG indicators.
-        # Each per-indicator QA comes from QA_PER_INDICATOR (e.g. CH4 = 0.85,
-        # ODIAC = 1.00, VIIRS = 0.85) — those exact values get tested
-        # end-to-end in the canary test_pillar_confidence_rollup tests.
+        # M-CH4-A1: aggregates over (co2, viirs) only; a CH₄ qa term is ignored.
         payload = self._payload_with_terms(
-            ch4={"qa": 0.85},
+            ch4={"qa": 0.85},   # reference data — must be ignored
             co2={"qa": 1.00},
             viirs={"qa": 0.85},
         )
         assert compute_retrieval_inventory_quality(payload) == {
-            "ghg.retrieval_inventory_quality": pytest.approx((0.85 + 1.00 + 0.85) / 3),
+            "ghg.retrieval_inventory_quality": pytest.approx((1.00 + 0.85) / 2),
         }
 
     def test_nearby_source_isolation_is_fixed_placeholder(self) -> None:
@@ -1110,20 +1114,29 @@ class TestCoreGhgAuditSupport:
     the full rationale.
     """
 
-    def test_full_three_term_weighted_sum_post_m55b(self) -> None:
-        # M5.5b — CO₂ no longer in the live composite; the three surviving
-        # terms (CH₄ + combustion + activity) carry the full weight.
+    def test_two_term_weighted_sum_post_m_ch4_a1(self) -> None:
+        # M-CH4-A1 — CH₄ reclassified as reference data; the two surviving
+        # live terms (combustion + activity) carry the full weight
+        # (0.815 / 0.185). A ch4_context_adjusted value in the payload is
+        # ignored — it is no longer in CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
         payload = {
-            "ghg.ch4_context_adjusted": 0.50,
+            "ghg.ch4_context_adjusted": 0.99,   # reference data — must be ignored
             "ghg.combustion_proxy":     0.40,
             "ghg.activity_score":       0.30,
         }
         selected = set(payload.keys())
         out = compute_core_ghg_audit_support(payload, selected)
-        expected = (
-            0.46 * 0.50 + 0.44 * 0.40 + 0.10 * 0.30
-        )
+        expected = 0.815 * 0.40 + 0.185 * 0.30
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
+
+    def test_ch4_not_in_composite_weights(self) -> None:
+        # M-CH4-A1 regression-lock: CH₄ must never re-enter the GHG composite.
+        from engine.constants import CORE_GHG_AUDIT_SUPPORT_WEIGHTS
+        assert "ghg.ch4_context_adjusted" not in CORE_GHG_AUDIT_SUPPORT_WEIGHTS
+        assert set(CORE_GHG_AUDIT_SUPPORT_WEIGHTS) == {
+            "ghg.combustion_proxy", "ghg.activity_score",
+        }
+        assert sum(CORE_GHG_AUDIT_SUPPORT_WEIGHTS.values()) == pytest.approx(1.0)
 
     def test_co2_context_in_payload_does_not_affect_composite(self) -> None:
         # Regression guard: post-M5.5b, including ghg.co2_context in the
@@ -1147,21 +1160,19 @@ class TestCoreGhgAuditSupport:
         )
 
     def test_renormalises_when_one_live_term_missing(self) -> None:
-        # Activity missing (None) → drop the 0.10 weight, renormalise the rest.
+        # M-CH4-A1: activity missing (None) → drop the 0.185 weight; combustion
+        # is the only surviving term, so it renormalises to weight 1.0.
         payload = {
-            "ghg.ch4_context_adjusted": 0.50,
             "ghg.combustion_proxy":     0.40,
             "ghg.activity_score":       None,
         }
         selected = {
-            "ghg.ch4_context_adjusted",
             "ghg.combustion_proxy",
             "ghg.activity_score",
         }
         out = compute_core_ghg_audit_support(payload, selected)
-        # Surviving sum: 0.46 + 0.44 = 0.90
-        expected = (0.46 * 0.50 + 0.44 * 0.40) / 0.90
-        assert out["ghg.core_audit_support"] == pytest.approx(expected)
+        # Only combustion survives → weight renormalises to 1.0 → value 0.40.
+        assert out["ghg.core_audit_support"] == pytest.approx(0.40)
 
 
 # M-TREND-A1 (TR10): TestGhgTrendModeHandling removed — the aggregate

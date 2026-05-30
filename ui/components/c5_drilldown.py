@@ -338,8 +338,12 @@ class _GhgRow:
     value_key:    str           # CO₂ uses .mean; CH₄/VIIRS use .site
 
 
+# M-CH4-A1 (30 May 2026): CH₄ removed from the scored "Per-indicator values"
+# panel — it is reference data now and renders as a muted reference card in the
+# "Reference datasets" section below (alongside Hansen + ODIAC), not as a scored
+# row with a z/score. The CH₄ provenance still appears in "Datasets used"
+# (_GHG_DATASET_KEYS keeps "ch4").
 _GHG_ROWS: tuple[_GhgRow, ...] = (
-    _GhgRow("CH₄",              "ch4",   "ghg.ch4.site"),
     _GhgRow("CO₂ (ODIAC)",      "co2",   "ghg.co2.mean"),
     _GhgRow("Nighttime lights", "viirs", "ghg.viirs.site"),
 )
@@ -1457,6 +1461,29 @@ _ODIAC_UNAVAILABLE_INTERPRETATION: str = (
     "ODIAC data is not available for the requested year range."
 )
 
+# §4.3 — CH₄ reference card (M-CH4-A1, 30 May 2026). CH₄ joins Hansen + ODIAC
+# as reference data after the GHG↔ODIAC+OCO-2/OCO-3 validation showed the
+# anomaly-z proxy does not work as a screening detector at the TROPOMI
+# footprint (1/25 sites firing at 5 km, 0/25 at 15 km — see §10 of the report).
+# Unlike Hansen (annual) / ODIAC (annual), CH₄'s cadence is the live screening
+# window, so its date-stamp shows the window range rather than a single year.
+_CH4_SOURCE_LINE: str = "Sentinel-5P TROPOMI methane column (Copernicus / ESA)"
+_CH4_AUDIT_FOOTNOTE: str = (
+    "CH₄ was validated against ODIAC and OCO-2/OCO-3 and does not reliably "
+    "detect landfill or oil/gas emissions at the ~7 km TROPOMI footprint vs "
+    "the screening AOI; it is shown as a raw observational reading, not used "
+    "in the composite score."
+)
+_CH4_INTERPRETATION: str = (
+    "Total atmospheric methane column over the AOI for the screening window. "
+    "A well-mixed column reading — read as regional context, not as a "
+    "quantitative local-emission claim."
+)
+_CH4_UNAVAILABLE_INTERPRETATION: str = (
+    "CH₄ data is not available for this AOI (Sentinel-5P retrieval requires "
+    "cloud-free, sunlit conditions)."
+)
+
 # RD12 — common missing-data headline replacement.
 _DATA_UNAVAILABLE_TEXT: str = "Data not available for this AOI"
 
@@ -1466,22 +1493,25 @@ _DATA_UNAVAILABLE_TEXT: str = "Data not available for this AOI"
 # latest-available window that need not align with the analysis period.
 _REFERENCE_SECTION_HEADER_COPY: str = (
     "The following data are shown for context and are not part of the "
-    "composite score. They reflect cumulative or inventory-allocated values "
-    "over a fixed, latest-available window — not your analysis window — so "
-    "use them to cross-reference the live signals rather than as "
-    "measurements of the screening period."
+    "composite score. Hansen and ODIAC reflect cumulative or "
+    "inventory-allocated values over a fixed, latest-available window (not "
+    "your analysis window); CH₄ is a well-mixed atmospheric column read over "
+    "the screening window itself. Use them to cross-reference the live scored "
+    "signals rather than as scored measurements of the screening period."
 )
 
 # §5.3 / RD11 — "Why reference data?" explainer (sub-section-level per the
 # Step B decision on Q-A6-1).
 _WHY_REFERENCE_DATA_COPY: str = (
-    "Hansen forest loss and ODIAC CO₂ aren't included in the composite "
-    "score because they measure different things from the live indicators. "
-    "Hansen is a cumulative tally of forest cover loss over a multi-year "
-    "window; ODIAC is an annual inventory of estimated fossil-fuel "
-    "emissions allocated to grid cells. Both are shown here as **context** — "
-    "useful background that complements the live screening signals without "
-    "competing with them on the same scale."
+    "Hansen forest loss, ODIAC CO₂, and CH₄ aren't included in the composite "
+    "score because they measure different things from the live scored "
+    "indicators. Hansen is a cumulative tally of forest cover loss over a "
+    "multi-year window; ODIAC is an annual inventory of estimated fossil-fuel "
+    "emissions allocated to grid cells; CH₄ is a well-mixed atmospheric "
+    "column that the validation showed does not reliably resolve local "
+    "emissions at the screening scale. All three are shown here as "
+    "**context** — useful background that complements the live screening "
+    "signals without competing with them on the same scale."
 )
 
 
@@ -1638,6 +1668,42 @@ def _odiac_card_fields(payload: dict) -> _ReferenceCardFields:
     )
 
 
+def _ch4_window_line(payload: dict) -> str:
+    """CH₄ date-stamp (M-CH4-A1) — the live screening window from the CH₄
+    provenance ``time_range`` (e.g. ``["2026-02-22", "2026-05-23"]``). Unlike
+    Hansen/ODIAC's single vintage year, CH₄ updates on the screening cadence,
+    so the card shows the window range. Falls back to a generic label when the
+    provenance window is absent."""
+    provenance = payload.get("_provenance.ghg.ch4") or {}
+    window = provenance.get("time_range")
+    if window and len(window) >= 2 and window[0] and window[1]:
+        return f"Data window: {window[0]} – {window[1]}"
+    return "Data window: live screening window"
+
+
+def _ch4_card_fields(payload: dict) -> _ReferenceCardFields:
+    """§4.3 (M-CH4-A1) — resolve the CH₄ reference card content from the
+    payload. CH₄ is reference data: the raw column reading (ppb), date-stamped
+    to the live screening window, with no severity badge or confidence dot."""
+    ch4_site = payload.get("ghg.ch4.site")
+    value_str = None if ch4_site is None else f"{ch4_site:,.0f} ppb"
+    interpretation = (
+        _CH4_INTERPRETATION if ch4_site is not None
+        else _CH4_UNAVAILABLE_INTERPRETATION
+    )
+    return _ReferenceCardFields(
+        display_name="CH₄ (methane)",
+        indicator_id="ghg.ch4.score",            # P-09 card key
+        key_prefix="c5_ref_ch4",
+        value_str=value_str,
+        unit_line="atmospheric column average",
+        vintage_line=_ch4_window_line(payload),
+        source_line=_CH4_SOURCE_LINE,
+        interpretation=interpretation,
+        audit_footnote=_CH4_AUDIT_FOOTNOTE,
+    )
+
+
 def _render_reference_card(fields: _ReferenceCardFields) -> None:
     """Render one reference card per the RD7 standardised structure.
 
@@ -1713,15 +1779,17 @@ def _render_reference_card(fields: _ReferenceCardFields) -> None:
 def _render_reference_datasets_section(payload: dict) -> None:
     """RD2 — the "Reference datasets" sub-section in C5.
 
-    Hansen + ODIAC cards (RD1), rendered after the scored Nature deep-dive
-    and before C6. Presented as a **collapsed expander**, consistent with the
-    three pillar drill-down panels above, so it reads as a peer item rather
-    than an always-open block; the §4.3 disclaimer caption is the first thing
-    shown on expand. Both cards always render (RD12) — the missing-data state
-    lives inside each card so the examiner knows the dataset was queried.
-    Two-column on desktop, stacks on narrow viewports (RD §5.2). The
-    structure is reusable for future reference datasets (RD14): add a field
-    helper + a card column.
+    Hansen + ODIAC + CH₄ cards (RD1), rendered after the scored Nature
+    deep-dive and before C6. Presented as a **collapsed expander**, consistent
+    with the three pillar drill-down panels above, so it reads as a peer item
+    rather than an always-open block; the §4.3 disclaimer caption is the first
+    thing shown on expand. All cards always render (RD12) — the missing-data
+    state lives inside each card so the examiner knows the dataset was queried.
+    Three-column on desktop, stacks on narrow viewports (RD §5.2).
+
+    M-CH4-A1 (30 May 2026): CH₄ added as the third reference card. Unlike
+    Hansen/ODIAC (annual vintage), CH₄'s date-stamp is the live screening
+    window (cadence asymmetry — CH4 lock).
     """
     st.divider()
     with st.expander("Reference datasets", expanded=False):
@@ -1752,11 +1820,13 @@ def _render_reference_datasets_section(payload: dict) -> None:
             """,
             unsafe_allow_html=True,
         )
-        col_hansen, col_odiac = st.columns(2)
+        col_hansen, col_odiac, col_ch4 = st.columns(3)
         with col_hansen:
             _render_reference_card(_hansen_card_fields(payload))
         with col_odiac:
             _render_reference_card(_odiac_card_fields(payload))
+        with col_ch4:
+            _render_reference_card(_ch4_card_fields(payload))
         # RD11 / Q-A6-1 — single sub-section-level explainer.
         with st.expander("Why reference data?", expanded=False):
             st.markdown(_WHY_REFERENCE_DATA_COPY)

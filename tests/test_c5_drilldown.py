@@ -24,6 +24,7 @@ from ui.components.c5_drilldown import (
     _GHG_ROWS,
     _NATURE_DATASET_KEYS,
     _NATURE_FORMULA,
+    _ch4_card_fields,
     _build_confidence_terms_rows,
     _compute_final_confidence,
     _fmt,
@@ -129,8 +130,12 @@ def test_air_rows_first_entry_is_no2():
     assert _AIR_ROWS[0].indicator == "no2"
 
 
-def test_ghg_rows_has_three_entries():
-    assert len(_GHG_ROWS) == 3
+def test_ghg_rows_has_two_entries():
+    # M-CH4-A1: CH₄ removed from the scored per-indicator panel (now reference
+    # data, rendered as a card in the "Reference datasets" section). Only CO₂
+    # and VIIRS remain as scored rows.
+    assert len(_GHG_ROWS) == 2
+    assert {r.indicator for r in _GHG_ROWS} == {"co2", "viirs"}
 
 
 def test_ghg_co2_row_reads_mean_not_site():
@@ -141,8 +146,8 @@ def test_ghg_co2_row_reads_mean_not_site():
 
 
 def test_other_ghg_rows_read_site():
-    """CH₄ and VIIRS use the standard six-step .site key."""
-    for slug in ("ch4", "viirs"):
+    """VIIRS uses the standard six-step .site key (CH₄ removed — reference data)."""
+    for slug in ("viirs",):
         row = next(r for r in _GHG_ROWS if r.indicator == slug)
         assert row.value_key == f"ghg.{slug}.site"
 
@@ -171,8 +176,39 @@ def test_air_row_slugs_match_dataset_keys():
 
 
 def test_ghg_row_slugs_match_dataset_keys():
+    # M-CH4-A1: scored rows are a subset of the dataset keys. CH₄ stays in
+    # _GHG_DATASET_KEYS (its provenance still surfaces in "Datasets used") but
+    # is no longer a scored row — it renders as a reference card instead.
     row_slugs = {r.indicator for r in _GHG_ROWS}
-    assert row_slugs == set(_GHG_DATASET_KEYS)
+    assert row_slugs <= set(_GHG_DATASET_KEYS)
+    assert "ch4" in _GHG_DATASET_KEYS
+    assert "ch4" not in row_slugs
+
+
+# ---------------------------------------------------------------------------
+# CH₄ reference card (M-CH4-A1)
+# ---------------------------------------------------------------------------
+
+def test_ch4_reference_card_fields():
+    """M-CH4-A1 — CH₄ renders as a reference card: raw ppb column reading,
+    date-stamped to the screening window, pointing at the P-09 entry, with no
+    severity/score framing."""
+    payload = {
+        "ghg.ch4.site": 1901.0,
+        "_provenance.ghg.ch4": {"time_range": ["2026-02-22", "2026-05-23"]},
+    }
+    fields = _ch4_card_fields(payload)
+    assert fields.indicator_id == "ghg.ch4.score"   # P-09 card key
+    assert fields.value_str == "1,901 ppb"
+    assert "2026-02-22" in fields.vintage_line and "2026-05-23" in fields.vintage_line
+    assert "TROPOMI" in fields.source_line
+
+
+def test_ch4_reference_card_missing_value():
+    """RD12 — the card still resolves when CH₄ is unavailable (value_str None)."""
+    fields = _ch4_card_fields({})
+    assert fields.value_str is None
+    assert fields.vintage_line == "Data window: live screening window"
 
 
 # ---------------------------------------------------------------------------

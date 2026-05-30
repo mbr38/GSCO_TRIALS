@@ -141,9 +141,12 @@ _AIR_DOMINANT_CANDIDATES: dict[str, tuple[float, str]] = {
 # the GHG signal", and ODIAC's standing-exposure contribution is part
 # of that narrative even though it doesn't feed core_audit_support
 # after M5.5b).
+# M-CH4-A1 (30 May 2026): ghg.ch4_context_adjusted removed — CH₄ is reference
+# data and is no longer named as a dominant GHG contributor in the verbal
+# summary (matching Hansen, which never competes). The surviving candidates
+# keep their relative priority ordering.
 _GHG_DOMINANT_CANDIDATES: dict[str, tuple[float, str]] = {
     "ghg.co2_context":          (0.39, "fossil CO₂ context (ODIAC)"),
-    "ghg.ch4_context_adjusted": (0.28, "atmospheric methane"),
     "ghg.combustion_proxy":     (0.22, "combustion proxy (NO₂ + CO)"),
     "ghg.activity_score":       (0.11, "nighttime-light activity"),
 }
@@ -278,7 +281,6 @@ def _ghg_dominant_slots(
     """GHG slots — doc §4.2. Heterogeneous formatters per dominant term.
 
     - co2_context: total t CO₂ + "× the regional median" via relative_intensity
-    - ch4_context_adjusted: ppb site + "X ppb above background" + direction None
     - combustion_proxy: "score 0.XX" + canned "combined NO₂ + CO signal" + None
     - activity_score: viirs site nW + "X.Xσ above background" + None
     """
@@ -297,17 +299,9 @@ def _ghg_dominant_slots(
         return _DominantSlots(
             indicator=display, value=value, z=z, direction="above",
         )
-    if term_id == "ghg.ch4_context_adjusted":
-        site = payload.get("ghg.ch4.site")
-        anomaly = payload.get("ghg.ch4.anomaly")
-        value = f"{site:.0f} ppb" if site is not None else "—"
-        z = (
-            f"{anomaly:.2f} ppb above background"
-            if anomaly is not None else "—"
-        )
-        return _DominantSlots(
-            indicator=display, value=value, z=z, direction=None,
-        )
+    # M-CH4-A1: the ghg.ch4_context_adjusted slot formatter is removed — CH₄ is
+    # reference data and is never a dominant GHG contributor (see
+    # _GHG_DOMINANT_CANDIDATES above).
     if term_id == "ghg.combustion_proxy":
         score = payload.get("ghg.combustion_proxy")
         value = (
@@ -421,7 +415,7 @@ _AIR_LIMITING_FACTOR_PROSE: dict[str, str] = {
 # Doc §5.2 — GHG quality sub-scores keyed by their canonical IDs.
 _GHG_LIMITING_FACTOR_PROSE: dict[str, str] = {
     "ghg.temporal_coverage":              "sparse temporal coverage over the analysis window",
-    "ghg.spatial_resolution_suitability": "the coarse spatial resolution of methane retrievals relative to the buffer",
+    "ghg.spatial_resolution_suitability": "the coarse spatial resolution of the GHG retrievals relative to the buffer",
     "ghg.retrieval_inventory_quality":    "weak retrieval quality flags",
     # M-ATTRIB-A1 (AT15): nearby_source_isolation removed — it's no longer a
     # measurement-quality sub-score, so it can't be a measurement-quality

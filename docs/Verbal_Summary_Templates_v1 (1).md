@@ -83,9 +83,13 @@ From `Core_GHG_Audit_Support` v1-rescaled (Indicators_Computation §2.3):
 | Term ID | Weight | Display name |
 |---|---|---|
 | `ghg.co2_context` | 0.39 | fossil CO₂ context (ODIAC) |
-| `ghg.ch4_context_adjusted` | 0.28 | atmospheric methane |
 | `ghg.combustion_proxy` | 0.22 | combustion proxy (NO₂ + CO) |
 | `ghg.activity_score` | 0.11 | nighttime-light activity |
+
+> **M-CH4-A1 (30 May 2026):** `ghg.ch4_context_adjusted` (was 0.28, "atmospheric
+> methane") is removed — CH₄ is reclassified as reference data and is no longer
+> a dominant GHG contributor in the verbal summary (it is never named in the
+> prose, like Hansen). See `docs/ghg_odiac_validation.md` §10.
 
 ### 3.3 Nature/Land candidates
 
@@ -120,12 +124,8 @@ def format_ghg_dominant(dominant_id, payload):
             "z":         f"{ratio:.1f}× the regional median",
             "direction": "above",
         }
-    elif dominant_id == "ghg.ch4_context_adjusted":
-        return {
-            "value":     f"{payload['ghg.ch4.site']:.0f} ppb",
-            "z":         f"{payload['ghg.ch4.anomaly']:.2f} ppb above background",
-            "direction": None,    # z field already names the comparison; renderer drops the trailing phrase
-        }
+    # M-CH4-A1: the ghg.ch4_context_adjusted branch is removed (CH₄ is reference
+    # data, never a dominant GHG contributor).
     elif dominant_id == "ghg.combustion_proxy":
         return {
             "value":     f"score {payload['ghg.combustion_proxy']:.2f}",
@@ -191,7 +191,7 @@ From `GHG_Data_Quality_Attribution` v1-rescaled (Indicators_Computation §2.3) �
 | Sub-score | Weight | Display name |
 |---|---|---|
 | `Temporal_Coverage` | 0.33 | sparse temporal coverage over the analysis window |
-| `Spatial_Resolution_Suitability` | 0.27 | the coarse spatial resolution of methane retrievals relative to the buffer |
+| `Spatial_Resolution_Suitability` | 0.27 | the coarse spatial resolution of the GHG retrievals relative to the buffer |
 | `Retrieval_or_Inventory_Quality` | 0.27 | weak retrieval quality flags |
 | `Nearby_Source_Isolation` | 0.13 | background contamination from nearby industrial activity |
 
@@ -458,9 +458,9 @@ air.audit_followup_priority    = 0.72 (high), confidence 0.41 (moderate)
   lowest air sub-confidence: SO₂ (0.31) → "weak retrieval quality for SO₂ at these concentrations"
 
 ghg.audit_followup_priority    = 0.48 (moderate), confidence 0.62 (moderate)
-  dominant: atmospheric methane (share 0.49)
-  ghg.ch4.site 1888 ppb; ghg.ch4.anomaly 0.42 ppb; direction None
-  lowest ghg quality sub-score: Spatial_Resolution_Suitability (0.34) → "the coarse spatial resolution of methane retrievals relative to the buffer"
+  dominant: fossil CO₂ context (ODIAC) (share 0.49)
+  ghg.co2.total 12,000 t CO₂ yr⁻¹; relative_intensity 1.8× regional median; direction "above"
+  lowest ghg quality sub-score: Spatial_Resolution_Suitability (0.34) → "the coarse spatial resolution of the GHG retrievals relative to the buffer"
 
 nature.followup_priority       = 0.21 (low), confidence 0.71 (high)
 ```
@@ -471,7 +471,7 @@ Output:
 >
 > Air pollution is elevated at this location, driven primarily by NO₂ (42 µmol m⁻², 2.3σ above background). Confidence is moderate — interpretation is limited by weak retrieval quality for SO₂ at these concentrations.
 >
-> Greenhouse gases show moderate elevation at this location, with atmospheric methane contributing most (1888 ppb, 0.42 ppb above background). Confidence is mixed — the coarse spatial resolution of methane retrievals relative to the buffer is a limiting factor.
+> Greenhouse gases show moderate elevation at this location, with fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, 1.8× the regional median above background). Confidence is mixed — the coarse spatial resolution of the GHG retrievals relative to the buffer is a limiting factor.
 >
 > Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.
 

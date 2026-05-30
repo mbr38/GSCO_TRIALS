@@ -169,9 +169,11 @@ _TILES: tuple[_TileSpec, ...] = (
               z_key="air.aod.z", value_key="air.aod.site", value_format="{:.2f}",
               unit="", background_key="air.aod.background"),
     # --- GHG ---
-    _TileSpec("CH₄", "ghg", "ch4", "zscore", "ghg.ch4.score", "ghg.ch4.confidence",
-              z_key="ghg.ch4.z", value_key="ghg.ch4.site", value_format="{:.0f}",
-              unit="ppb", background_key="ghg.ch4.background"),
+    # M-CH4-A1 (30 May 2026): CH₄ removed from the headline severity grid —
+    # reclassified as reference data (joins Hansen + ODIAC), per the GHG↔ODIAC
+    # +OCO-2/OCO-3 validation (docs/ghg_odiac_validation.md §10: the CH₄
+    # anomaly-z proxy fired at 1/25 sites at 5 km, 0/25 at 15 km). It now
+    # renders as a muted reference card in the C5 drill-down, not a scored tile.
     _TileSpec("Nightlights", "ghg", "viirs", "zscore", "ghg.viirs.score", "ghg.viirs.confidence",
               z_key="ghg.viirs.z", value_key="ghg.viirs.site", value_format="{:.1f}",
               unit="nW cm⁻² sr⁻¹"),   # VIIRS emits no background

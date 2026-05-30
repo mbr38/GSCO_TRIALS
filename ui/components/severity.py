@@ -56,7 +56,7 @@ Severity = Literal["High", "Concern", "Normal", "Sparse"]
 #     against the demo AOIs is a deferred follow-up (M-UI-A4 spec §4.6 / R1).
 # source: docs/M-UI-A4_severity_thresholds.md; M-UI-A4 spec §4.5; calibration pending
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi, nature.dw, nature.kba]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.viirs, nature.ndvi, nature.dw, nature.kba]
 SEVERITY_BANDS: dict[str, dict] = {
     "zscore": {"High": 2.0, "Concern": 1.0},
     "distance": {"High_km": 1.0, "Concern_km": 10.0, "High_overlap_pct": 0.0},

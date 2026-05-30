@@ -193,10 +193,18 @@ class TestLookup:
 
     def test_shared_constant_renders_under_each_indicator(self) -> None:
         # UX19 — NORMALISATION_K applies to many indicators; it must appear
-        # under each of them.
-        for cid in ["air.no2.score", "ghg.ch4.score", "nature.ndvi.score"]:
+        # under each of them. (M-CH4-A1: ghg.ch4 removed from the shared
+        # applies_to lists — reference data carries no scored parameters — so
+        # use ghg.viirs here instead.)
+        for cid in ["air.no2.score", "ghg.viirs.score", "nature.ndvi.score"]:
             names = [r.name for r in get_parameters_for_indicator(cid)]
             assert "NORMALISATION_K" in names
+
+    def test_ch4_has_no_scored_parameters(self) -> None:
+        # M-CH4-A1: CH₄ is reference data — it was removed from every shared
+        # applies_to list, so the P-09 "Parameters & calibration" section is
+        # omitted entirely (no parameters resolve for ghg.ch4.score).
+        assert get_parameters_for_indicator("ghg.ch4.score") == []
 
     def test_shared_count_for_multi_indicator_constant(self) -> None:
         rec = _by_name("NORMALISATION_K")

@@ -100,41 +100,44 @@ class TestGhgDqaSubScoreRecompute:
         }
 
     def test_temporal_coverage_means_n_valid_across_indicators(self) -> None:
+        # M-CH4-A1: scored GHG quality aggregates over (co2, viirs) only;
+        # a CH₄ term is ignored (reference data).
         payload = self._payload(
-            ch4={"n_valid": 0.8},
+            ch4={"n_valid": 0.2},   # reference data — must be ignored
             co2={"n_valid": 1.0},
             viirs={"n_valid": 0.6},
         )
         assert compute_temporal_coverage(payload) == {
-            "ghg.temporal_coverage": pytest.approx((0.8 + 1.0 + 0.6) / 3),
+            "ghg.temporal_coverage": pytest.approx((1.0 + 0.6) / 2),
         }
 
     def test_spatial_resolution_suitability_means_spatial_context(self) -> None:
         payload = self._payload(
-            ch4={"spatial_context": 0.4},
+            ch4={"spatial_context": 0.4},   # ignored (M-CH4-A1)
             co2={"spatial_context": 1.0},
-            viirs={"spatial_context": 1.0},
+            viirs={"spatial_context": 0.8},
         )
         out = compute_spatial_resolution_suitability(payload)
         assert out["ghg.spatial_resolution_suitability"] == pytest.approx(
-            (0.4 + 1.0 + 1.0) / 3
+            (1.0 + 0.8) / 2
         )
 
     def test_retrieval_inventory_quality_means_per_indicator_qa(self) -> None:
         payload = self._payload(
-            ch4={"qa": 0.85},
+            ch4={"qa": 0.50},   # ignored (M-CH4-A1)
             co2={"qa": 1.0},
             viirs={"qa": 0.85},
         )
         out = compute_retrieval_inventory_quality(payload)
         assert out["ghg.retrieval_inventory_quality"] == pytest.approx(
-            (0.85 + 1.0 + 0.85) / 3
+            (1.0 + 0.85) / 2
         )
 
     def test_sub_scores_survive_when_only_some_indicators_emit(self) -> None:
-        # Only ch4 emitted (ODIAC skipped via coverage_window; VIIRS not
-        # selected) — temporal_coverage still produces a real value.
-        payload = self._payload(ch4={"n_valid": 0.9, "qa": 0.85, "spatial_context": 0.5})
+        # M-CH4-A1: only co2 emitted (VIIRS not selected; CH₄ is reference data
+        # and never feeds these scored quality sub-scores) — they still produce
+        # a real value from the single surviving scored indicator.
+        payload = self._payload(co2={"n_valid": 0.9, "qa": 0.85, "spatial_context": 0.5})
         assert compute_temporal_coverage(payload) == {
             "ghg.temporal_coverage": pytest.approx(0.9),
         }
@@ -282,41 +285,42 @@ class TestGhgDqaRederivationStrictNone:
     def test_ghg_spatial_resolution_suitability_recomputes_from_per_indicator_spatial_context(
         self,
     ) -> None:
+        # M-CH4-A1: aggregates over (co2, viirs) only — ch4's term is ignored.
         payload = {
             f"_provenance.ghg.{ind}": {"extra": {"confidence_terms": {"spatial_context": v}}}
             for ind, v in [("ch4", 0.5), ("co2", 1.0), ("viirs", 0.8)]
         }
         out = compute_spatial_resolution_suitability(payload)
         assert out["ghg.spatial_resolution_suitability"] == pytest.approx(
-            (0.5 + 1.0 + 0.8) / 3
+            (1.0 + 0.8) / 2
         )
 
     def test_ghg_retrieval_inventory_quality_recomputes_from_per_indicator_qa(
         self,
     ) -> None:
+        # M-CH4-A1: aggregates over (co2, viirs) only — ch4's qa is ignored.
         payload = {
             f"_provenance.ghg.{ind}": {"extra": {"confidence_terms": {"qa": v}}}
-            for ind, v in [("ch4", 0.85), ("co2", 1.00), ("viirs", 0.85)]
+            for ind, v in [("ch4", 0.50), ("co2", 1.00), ("viirs", 0.85)]
         }
         out = compute_retrieval_inventory_quality(payload)
         assert out["ghg.retrieval_inventory_quality"] == pytest.approx(
-            (0.85 + 1.00 + 0.85) / 3
+            (1.00 + 0.85) / 2
         )
 
     def test_strict_none_propagation_when_one_indicator_has_no_confidence_terms(
         self,
     ) -> None:
-        # ch4 has confidence_terms; co2 has provenance but no extra dict;
-        # viirs has provenance with extra={} but no confidence_terms key.
-        # All three "missing" shapes should produce the same result: drop
-        # that indicator from the rollup via survivor-renormalise rather
-        # than crash or silently zero.
+        # M-CH4-A1: co2 has confidence_terms; viirs has provenance but no extra
+        # dict. Both "missing" shapes should drop that indicator from the rollup
+        # via survivor-renormalise rather than crash or silently zero. CH₄ is
+        # reference data — its terms never feed these scored quality sub-scores.
         payload = self._payload_with_raw_provenance(
-            ch4={"extra": {"confidence_terms": {"n_valid": 0.7, "qa": 0.85, "spatial_context": 0.6}}},
-            co2={},                                # no extra dict at all
-            viirs={"extra": {}},                   # extra dict empty
+            ch4={"extra": {"confidence_terms": {"n_valid": 0.1, "qa": 0.1, "spatial_context": 0.1}}},  # ignored
+            co2={"extra": {"confidence_terms": {"n_valid": 0.7, "qa": 0.85, "spatial_context": 0.6}}},
+            viirs={},                              # no extra dict at all
         )
-        # Only ch4 contributes a survivor.
+        # Only co2 contributes a survivor (ch4 ignored, viirs missing).
         assert compute_temporal_coverage(payload) == {
             "ghg.temporal_coverage": pytest.approx(0.7),
         }
@@ -332,23 +336,25 @@ class TestGhgDqaRederivationStrictNone:
         # specific term is missing OR explicitly None. The reader's
         # type check `isinstance(value, (int, float))` is what filters
         # this out; verify it does.
+        # M-CH4-A1: demonstrated among the scored indicators (co2, viirs); CH₄
+        # is reference data and never feeds these sub-scores.
         payload = self._payload_with_raw_provenance(
-            ch4={"extra": {"confidence_terms": {
+            co2={"extra": {"confidence_terms": {
                 "n_valid": None,         # explicitly None — should drop
                 "qa":      0.85,
                 "spatial_context": 0.6,
             }}},
-            co2={"extra": {"confidence_terms": {
+            viirs={"extra": {"confidence_terms": {
                 "n_valid": 0.9,
                 "qa":      0.95,
                 "spatial_context": 0.7,
             }}},
         )
-        # Only co2 contributes to temporal_coverage; ch4's None n_valid drops.
+        # Only viirs contributes to temporal_coverage; co2's None n_valid drops.
         assert compute_temporal_coverage(payload) == {
             "ghg.temporal_coverage": pytest.approx(0.9),
         }
-        # But ch4's qa is real → contributes to retrieval_inventory_quality.
+        # But co2's qa is real → contributes to retrieval_inventory_quality.
         assert compute_retrieval_inventory_quality(payload) == {
             "ghg.retrieval_inventory_quality": pytest.approx((0.85 + 0.95) / 2),
         }

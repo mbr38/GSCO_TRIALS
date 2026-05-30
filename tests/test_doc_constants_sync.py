@@ -87,7 +87,8 @@ class TestDocConstantsSync:
         )
 
     def test_ic_v4_core_ghg_audit_support_weights_match_engine_constants(self) -> None:
-        # M5.5b post-demotion: 3-key dict, 0.46 / 0.44 / 0.10.
+        # M-CH4-A1 post-reclassification: 2-key dict, 0.815 / 0.185 (CH₄ removed).
+        # Weights are 3-decimal now, so the coefficient regex allows 2–3 dp.
         text = _ic_text()
         m = re.search(
             r"Core_GHG_Audit_Support_v1 =.*?\(sums to 1\.00\)",
@@ -95,7 +96,7 @@ class TestDocConstantsSync:
         )
         assert m is not None, "Could not find Core_GHG_Audit_Support_v1 block"
         block = m.group(0)
-        doc_weights = [float(x) for x in re.findall(r"(\d\.\d{2})·", block)]
+        doc_weights = [float(x) for x in re.findall(r"(\d\.\d{2,3})·", block)]
         assert _approx_set(doc_weights) == _approx_set(
             list(CORE_GHG_AUDIT_SUPPORT_WEIGHTS.values())
         ), (
@@ -103,5 +104,5 @@ class TestDocConstantsSync:
             f"drifted from engine CORE_GHG_AUDIT_SUPPORT_WEIGHTS "
             f"({list(CORE_GHG_AUDIT_SUPPORT_WEIGHTS.values())})"
         )
-        # Three keys after ODIAC demotion.
-        assert len(doc_weights) == 3
+        # M-CH4-A1: two keys after ODIAC demotion + CH₄ reclassification.
+        assert len(doc_weights) == 2

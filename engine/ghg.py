@@ -635,7 +635,10 @@ def _co2_confidence_terms(aoi: dict, n_months: int, score: float | None) -> dict
 # `nearby_source_isolation`, is a spatial-context check (IC_v4 §7.2) that
 # stays independent of per-indicator QA/N_valid/HF/spatial_context inputs.
 
-_GHG_PER_INDICATOR_QA_KEYS: tuple[str, ...] = ("ch4", "co2", "viirs")
+# M-CH4-A1 (30 May 2026): "ch4" removed — CH₄ is reference data, so its
+# per-indicator QA terms no longer feed the scored GHG quality aggregates.
+# The CH₄ snapshot still computes its own confidence for the reference card.
+_GHG_PER_INDICATOR_QA_KEYS: tuple[str, ...] = ("co2", "viirs")
 
 
 def _ghg_confidence_term_for(payload: dict, indicator: str, term: str) -> float | None:
@@ -881,10 +884,15 @@ def compute_ghg_spatiotemporal_anomaly(
 ) -> dict:
     """IC_v4 §2.3 — mean of clamped z-scores across selected indicators.
 
-    In v1 only CH₄ has a `.z` (VIIRS's reduced measurement set omits it).
+    M-CH4-A1 (30 May 2026): CH₄ is excluded — it is reference data, so its `.z`
+    no longer feeds the scored spatiotemporal anomaly. VIIRS carries a `.z`, so
+    this aggregate now reflects the VIIRS nightlight anomaly (CO₂/ODIAC has no
+    `.z`). The CH₄ snapshot still emits `ghg.ch4.z` for the reference card.
     """
     contributions: list[float] = []
     for ind in _SINGLE_VALUE_INDICATORS:
+        if ind == "ch4":  # M-CH4-A1: reference data, not a scored anomaly source
+            continue
         if make_id(PILLAR_GHG, ind, "score") not in selected:
             continue
         z = payload.get(make_id(PILLAR_GHG, ind, "z"))
@@ -1174,13 +1182,19 @@ def recompute_ghg_aggregates(
     payload.update(compute_nearby_source_isolation(payload))
 
     # Sub-aggregates — dependency order: Air-borrowed first (so dependents
-    # downstream see them), then CH₄-side, then the three CO₂-dependent
-    # composites (activated in M5.5 once ODIAC is wired).
+    # downstream see them), then the three CO₂-dependent composites (activated
+    # in M5.5 once ODIAC is wired).
+    #
+    # M-CH4-A1 (30 May 2026): the two CH₄ scored sub-aggregates
+    # (compute_ch4_hotspot_signal, compute_ch4_context_adjusted) are no longer
+    # computed — CH₄ is reference data, so nothing scored consumes it. The
+    # snapshot still emits ghg.ch4.* (incl. .z) for the C5 reference card; only
+    # its downstream scoring consumption is removed (docs/ghg_odiac_validation.md
+    # §10). compute_fire_or_regional_transport_risk stays computed (Air-borrowed,
+    # cheap) but is now unconsumed — reserved for a future attributability surface.
     payload.update(compute_combustion_proxy(payload))
     payload.update(compute_fire_or_regional_transport_risk(payload))
-    payload.update(compute_ch4_hotspot_signal(payload))
     payload.update(compute_activity_score(payload))
-    payload.update(compute_ch4_context_adjusted(payload))
     payload.update(compute_co2_context(payload))
     payload.update(compute_fossil_combustion_score(payload))
     payload.update(compute_activity_adjusted_co2(payload))
@@ -1189,11 +1203,9 @@ def recompute_ghg_aggregates(
     # non-None values contribute to CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
     augmented_selected: set[str] = set(selected_indicators)
     for sub_id in (
-        "ghg.ch4_hotspot_signal",
         "ghg.combustion_proxy",
         "ghg.activity_score",
         "ghg.fire_or_regional_transport_risk",
-        "ghg.ch4_context_adjusted",
         "ghg.co2_context",
         "ghg.fossil_combustion_score",
         "ghg.activity_adjusted_co2",

@@ -117,17 +117,16 @@ class TestResolveDominant:
         assert result[0] == "ghg.co2_context"
 
     def test_ghg_below_threshold_returns_none(self) -> None:
-        # CH₄ contribution 0.28·0.7 = 0.196; co2 0.39·0.4 = 0.156.
-        # Total = 0.196 + 0.156 + 0.22·0.5 + 0.11·0.5 = 0.461. Top share
-        # 0.196/0.461 ≈ 0.425 — just above 0.40, so a *dominant* fires.
-        # Lower CH₄ so the top share dips below 0.40.
+        # M-CH4-A1: candidates are co2 (0.39), combustion (0.22), activity (0.11).
+        # Choose scores that make the three weight×value contributions roughly
+        # equal so the top share stays below the 0.40 dominant threshold:
+        #   co2 0.39·0.28 = 0.1092; combustion 0.22·0.50 = 0.110;
+        #   activity 0.11·1.00 = 0.110; total ≈ 0.329; max share ≈ 0.334 < 0.40.
         payload = {
-            "ghg.co2_context":          0.5,
-            "ghg.ch4_context_adjusted": 0.5,
-            "ghg.combustion_proxy":     0.5,
-            "ghg.activity_score":       0.5,
+            "ghg.co2_context":      0.28,
+            "ghg.combustion_proxy": 0.50,
+            "ghg.activity_score":   1.00,
         }
-        # All equal → top share = 0.39 (the largest weight) → below 0.40.
         result = _resolve_dominant(payload, _GHG_DOMINANT_CANDIDATES)
         assert result is None
 
@@ -208,7 +207,7 @@ class TestQualityLimitingFactor:
         result = _resolve_quality_limiting_factor(
             payload, _GHG_LIMITING_FACTOR_PROSE,
         )
-        assert result == "the coarse spatial resolution of methane retrievals relative to the buffer"
+        assert result == "the coarse spatial resolution of the GHG retrievals relative to the buffer"
 
     def test_nature_picks_lowest_score(self) -> None:
         payload = {
@@ -285,14 +284,9 @@ class TestGhgDominantSlots:
         assert "4.2× the regional median" in slots.z
         assert slots.direction == "above"
 
-    def test_ch4_value_ppb_and_anomaly_z_string(self) -> None:
-        payload = {"ghg.ch4.site": 1888.0, "ghg.ch4.anomaly": 0.42}
-        slots = _ghg_dominant_slots(
-            payload, "ghg.ch4_context_adjusted", "atmospheric methane",
-        )
-        assert slots.value == "1888 ppb"
-        assert slots.z == "0.42 ppb above background"
-        assert slots.direction is None
+    # M-CH4-A1: test_ch4_value_ppb_and_anomaly_z_string removed — CH₄ is
+    # reference data and is no longer a dominant GHG contributor, so the
+    # ghg.ch4_context_adjusted slot formatter no longer exists.
 
     def test_combustion_proxy_canned_phrase(self) -> None:
         payload = {"ghg.combustion_proxy": 0.48}
@@ -461,14 +455,16 @@ class TestPillarTemplateSelection:
         assert "background levels" in rendered
 
     def test_high_priority_no_dominant_picks_fallback(self) -> None:
-        # All four GHG terms balanced → no dominant → fallback path.
+        # M-CH4-A1: three GHG candidates (co2/combustion/activity). Balance the
+        # weight×value contributions so no single term's share clears 0.40 →
+        # no dominant → fallback path. (Equal scores would let co2 dominate at
+        # 0.39/0.72; instead make the contributions roughly equal.)
         payload = {
             "ghg.audit_followup_priority":  0.80,
             "ghg.data_quality_attribution": 0.80,
-            "ghg.co2_context":              0.5,
-            "ghg.ch4_context_adjusted":     0.5,
-            "ghg.combustion_proxy":         0.5,
-            "ghg.activity_score":           0.5,
+            "ghg.co2_context":              0.28,
+            "ghg.combustion_proxy":         0.50,
+            "ghg.activity_score":           1.00,
         }
         _, template_id, _ = _render_pillar("ghg", payload)
         assert template_id == "ghg/high/high/fallback"
@@ -626,15 +622,16 @@ _WORKED_EXAMPLE_PAYLOAD: dict = {
     "air.o3.score":      0.05,
     "air.pm_or_aerosol": 0.05,
 
-    # GHG — moderate priority, moderate confidence, CH₄ dominant.
+    # GHG — moderate priority, moderate confidence, CO₂ (ODIAC) dominant.
+    # M-CH4-A1: CH₄ is reference data and is never a dominant contributor; with
+    # CH₄ out, fossil CO₂ context (ODIAC) is the dominant GHG term here.
     "ghg.audit_followup_priority":   0.48,
     "ghg.data_quality_attribution":  0.62,
     "ghg.co2_context":               0.30,
-    "ghg.ch4_context_adjusted":      0.50,
     "ghg.combustion_proxy":          0.20,
     "ghg.activity_score":            0.10,
-    "ghg.ch4.site":                  1888.0,
-    "ghg.ch4.anomaly":               0.42,
+    "ghg.co2.total":                 12000.0,
+    "ghg.co2.relative_intensity":    1.8,
     "ghg.spatial_resolution_suitability": 0.34,  # Lowest → limiting.
     "ghg.temporal_coverage":              0.80,
     "ghg.retrieval_inventory_quality":    0.70,
@@ -656,10 +653,10 @@ _WORKED_EXAMPLE_OUTPUT = (
     "these concentrations.\n\n"
 
     "Greenhouse gases show moderate elevation at this location, with "
-    "atmospheric methane contributing most (1888 ppb, 0.42 ppb above "
-    "background). Confidence is mixed — the coarse spatial resolution "
-    "of methane retrievals relative to the buffer is a limiting factor."
-    "\n\n"
+    "fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, "
+    "1.8× the regional median above background). Confidence is mixed — the "
+    "coarse spatial resolution of the GHG retrievals relative to the buffer "
+    "is a limiting factor.\n\n"
 
     "Nature/Land is at baseline across the monitored land-cover "
     "indicators at this location. Data quality is high."

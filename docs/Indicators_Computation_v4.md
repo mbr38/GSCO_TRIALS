@@ -14,7 +14,7 @@
 **Changes from v4.0 (M-V1x-RECONCILE, 22 May 2026).**
 - **§1.1 CAMS band names corrected.** `particulate_matter_2.5um` → `particulate_matter_d_less_than_25_um_surface`; same form for PM₁₀. Existing engine code already uses the correct names; the doc was drifted. (M-CAMS-BAND-FIX.)
 - **New §1.5 — Column-to-surface uncertainty framing.** Condensed from `Indicators_Audit_and_v1x_Roadmap.md` §1.5: the science behind why column densities don't equal surface concentrations, how the Z-score mitigates this, the "context not measurement" framing, the O₃ cap rationale, and the per-gas uncertainty table. Surfaced as the `column_to_surface_uncertainty` provenance field — see `Indicator_ID_Schema_v2.md` §6.1.
-- **§2.3 Core_GHG_Audit_Support_v1 — updated to engine-actual M5.5b form.** Three-key composite `0.46·CH₄_Context_Adjusted + 0.44·Combustion_Proxy + 0.10·Activity_Score` (sums 1.00). ODIAC demoted to standing exposure per M5.5b; live signals rescaled by 1/0.61. Pre-M5.5b values retained in the method-note for lineage.
+- **§2.3 Core_GHG_Audit_Support_v1 — updated to engine-actual M-CH4-A1 form.** Two-key composite `0.815·Combustion_Proxy + 0.185·Activity_Score` (sums 1.00). ODIAC demoted to standing exposure per M5.5b; **CH₄ reclassified as reference data per M-CH4-A1 (30 May 2026)** — see `docs/ghg_odiac_validation.md` §10. Surviving live signals rescaled by 1/0.54. Pre-M-CH4-A1 (0.46/0.44/0.10) and pre-M5.5b values retained in the method-note for lineage.
 - **§2.3 GHG_Data_Quality_Attribution_v1 method note refined.** `Sector_Match` reclassified from "deferred" to "scrapped" per audit §9.2 — metadata-completeness bias makes any sector-tag-conditioned confidence term invalid. `Wind_Consistency` remains deferred to v1.x Tier C1a.
 - **§3.2 Habitat_Conversion — Hansen demoted per audit §9.3 v1.4.** Four-term post-demotion composite `0.40 / 0.27 / 0.22 / 0.11` (sums 1.00). Hansen's `Forest_Loss_pct` survives only as a standing-exposure reference layer and as input to `regional_loss_evidence`. Calibration note (10 % saturation) unchanged.
 - **§7.1 Rule 1 example updated** from the pre-M5.5b CO₂-rescale to the M5.5b case (ODIAC demoted, three remaining terms rescaled by 1/0.61). Matches engine state.
@@ -230,21 +230,25 @@ PM (CAMS), AOD (MAIAC), ODIAC CO₂, VIIRS NTL, Dynamic World, Hansen, NDVI, KBA
 **v1 (no sector context):**
 
 ```
-Core_GHG_Audit_Support_v1 =                      (M5.5b: ODIAC demoted)
-    0.46·CH₄_Context_Adjusted
-  + 0.44·Combustion_Proxy
-  + 0.10·Activity_Score                          (sums to 1.00)
+Core_GHG_Audit_Support_v1 =                      (M-CH4-A1: CH₄ reclassified)
+    0.815·Combustion_Proxy
+  + 0.185·Activity_Score                          (sums to 1.00)
 
-  Method: ODIAC's CO₂_Context is no longer in the live composite. The
-  1–2-year ODIAC vintage lag means it cannot drive a live screening
-  signal (present-day runs against time ranges outside 2020–2023 fail
-  entirely with CO₂ in the formula). ODIAC still computes and displays
-  as standing-exposure context — see Schema_v2 §6.1 `temporal_mode`.
-  High_GWP_Sector_Risk also stays at 0 in v1 pending sector input
-  (Tier C1a). The three live signals are rescaled by 1/0.61 from the
-  pre-M5.5b values: CO₂ 0.39, CH₄ 0.28, Combustion 0.22, Activity 0.11
-  → drop CO₂, divide each remaining by 0.61, round to two decimals.
-  See audit §3.4 for full trace.
+  Method: ODIAC's CO₂_Context is no longer in the live composite (M5.5b);
+  CH₄_Context_Adjusted is no longer in the live composite either
+  (M-CH4-A1, 30 May 2026). The GHG↔ODIAC+OCO-2/OCO-3 validation
+  (docs/ghg_odiac_validation.md §1, §6.1, §10) showed the CH₄ anomaly-z
+  proxy fired at only 1/25 stratified sites at 5 km AOI, and 0/25 when
+  widened to 15 km (Response B) — the ~7 km TROPOMI footprint vs the
+  screening AOI cannot be reconciled by geometry. CH₄ is reclassified as
+  reference data (joining Hansen + ODIAC); it still computes and displays
+  as a raw column reading but no longer drives the score. High_GWP_Sector_Risk
+  also stays at 0 in v1 pending sector input (Tier C1a). The two surviving
+  live signals are rescaled by 1/0.54 from the pre-M-CH4-A1 values
+  (CH₄ 0.46, Combustion 0.44, Activity 0.10): drop CH₄, divide each
+  remaining by 0.54, round to three decimals → Combustion 0.815,
+  Activity 0.185. Pre-M5.5b lineage: CO₂ 0.39, CH₄ 0.28, Combustion 0.22,
+  Activity 0.11. See audit §3.4 for full trace.
 
 GHG_Data_Quality_Attribution_v1 =
     0.34·Temporal_Coverage + 0.33·Spatial_Resolution_Suitability
@@ -597,10 +601,11 @@ When these are not available, the v1 follows two rules:
 **Rule 1 — set the term to zero and rescale the remaining weights so they sum to 1.0.**
 This preserves the [0, 1] range of every score and keeps comparisons across suppliers fair.
 
-Example for `Core_GHG_Audit_Support` (engine-actual M5.5b form):
+Example for `Core_GHG_Audit_Support` (engine-actual M-CH4-A1 form):
 - Original: 0.35·CO₂ + 0.25·CH₄ + 0.20·Combustion + 0.10·Activity + 0.10·Sector = 1.00
 - Step 1 — drop Sector (deferred): rescale by 1/(1 − 0.10) = 1.111 → 0.39·CO₂ + 0.28·CH₄ + 0.22·Combustion + 0.11·Activity ≈ 1.00
 - Step 2 — M5.5b demotes ODIAC CO₂ to standing exposure (not in live composite): drop CO₂'s 0.39, rescale the remaining three by 1/(1 − 0.39) = 1/0.61 ≈ 1.639 → 0.46·CH₄ + 0.44·Combustion + 0.10·Activity = 1.00.
+- Step 3 — M-CH4-A1 reclassifies CH₄ as reference data (not in live composite): drop CH₄'s 0.46, rescale the remaining two by 1/(1 − 0.46) = 1/0.54 ≈ 1.852 → 0.815·Combustion + 0.185·Activity = 1.00.
 
 The engine ships the post-Step-2 weights. CO₂ still computes and displays as standing-exposure context — see Schema_v2 §6.1 `temporal_mode`.
 

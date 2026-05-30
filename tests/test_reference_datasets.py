@@ -354,7 +354,22 @@ def test_pdf_section_handles_missing_values():
     html = _render_reference_datasets(
         None, [_screening_source({})]
     )
-    assert html.count("Data not available for this AOI") == 2
+    # M-CH4-A1: three reference rows now (Hansen, ODIAC, CH₄), each with the
+    # missing-data fallback when the payload is empty.
+    assert html.count("Data not available for this AOI") == 3
+
+
+def test_pdf_section_includes_ch4_reference_row():
+    """M-CH4-A1 — CH₄ appears as a reference row in the PDF (operator decision
+    overriding spec CH7: treated identically to Hansen/ODIAC)."""
+    from ui.components.p11_sections import _render_reference_datasets
+
+    html = _render_reference_datasets(
+        None, [_screening_source({"ghg.ch4.site": 1901.0})]
+    )
+    assert "CH₄ (methane)" in html
+    assert "1,901 ppb" in html
+    assert "TROPOMI" in html
 
 
 def test_pdf_section_omitted_when_no_screening_source():

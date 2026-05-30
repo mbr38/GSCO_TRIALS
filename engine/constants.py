@@ -46,7 +46,7 @@ TRAFFIC_LIGHT_THRESHOLDS: tuple[float, float] = (0.33, 0.66)
 #     IC §0.4's 2σ convention now that the detector is functional.
 # source: docs/Indicators_Computation_v4.md §0.4; M-DIAG-A1 fix; M-DIAG-A2 §4.2 calibration record
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.viirs, nature.ndvi]
 ANOMALY_Z_THRESHOLD: float = 2.0
 
 # @parameter
@@ -58,7 +58,7 @@ ANOMALY_Z_THRESHOLD: float = 2.0
 #     changing it is a cross-cutting methodology decision.
 # source: docs/Indicators_Computation_v4.md §0.4
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.viirs, nature.ndvi]
 NORMALISATION_K: float = 3.0
 
 # ---------------------------------------------------------------------------
@@ -186,14 +186,22 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
 # the deferred validation-harness work that justifies the CH4 + combustion
 # + activity trio as a live CO₂ proxy.
 #
-# Pre-M5.5b values (kept for reference): co2 0.39, ch4_adj 0.28,
-# combustion 0.27, activity 0.06 (sum non-CO₂ = 0.61). Each non-CO₂
-# weight is divided by 0.61, then rounded to two decimals so the dict
-# reads cleanly: 0.46 + 0.44 + 0.10 = 1.00 exactly.
+# M-CH4-A1 (30 May 2026): CH₄ reclassified from severity scoring to
+# reference data (alongside Hansen + ODIAC), per the GHG↔ODIAC+OCO-2/OCO-3
+# validation (docs/ghg_odiac_validation.md §1, §6.1, §10): the CH₄ anomaly-z
+# proxy fired at only 1/25 stratified sites at 5 km AOI, and §10 Response B
+# showed widening to 15 km drops that to 0/25 — the TROPOMI ~7 km footprint
+# vs screening-AOI ratio cannot be fixed by geometry. CH₄_Context_Adjusted is
+# therefore removed from this composite; the surviving two live signals
+# renormalise over 0.54 → 0.815 / 0.185. VIIRS-driven combustion now
+# dominates, which the validation supports (VIIRS↔ODIAC Spearman 0.70).
+#
+# Pre-M-CH4-A1 values (kept for reference): ch4_adj 0.46, combustion 0.44,
+# activity 0.10. Pre-M5.5b: co2 0.39, ch4_adj 0.28, combustion 0.27,
+# activity 0.06.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
-    "ghg.ch4_context_adjusted": 0.46,   # M5.5b: 0.28 / 0.61 ≈ 0.459 → 0.46
-    "ghg.combustion_proxy":     0.44,   # M5.5b: 0.27 / 0.61 ≈ 0.443 → 0.44
-    "ghg.activity_score":       0.10,   # M5.5b: 0.06 / 0.61 ≈ 0.098 → 0.10
+    "ghg.combustion_proxy":     0.815,   # M-CH4-A1: 0.44 / 0.54 ≈ 0.8148 → 0.815
+    "ghg.activity_score":       0.185,   # M-CH4-A1: 0.10 / 0.54 ≈ 0.1851 → 0.185
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).
@@ -551,10 +559,15 @@ INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
     "air.aod":     "live_revisit",
     "air.pm25":    "live_revisit",
     "air.pm10":    "live_revisit",
-    "ghg.ch4":     "live_revisit",
     "ghg.viirs":   "live_revisit",
     "nature.ndvi": "live_revisit",
     # Raw — single-snapshot (base form).
+    # M-CH4-A1: ghg.ch4 reclassified as reference data — its P-09 entry shows
+    # the single-snapshot confidence explanation (matching Hansen/ODIAC). This
+    # tag drives only the P-09 explanatory text; CH₄ is NOT added to
+    # SINGLE_SNAPSHOT_INDICATORS (it retains genuine per-day TROPOMI data, so
+    # its N_valid→confidence math stays on the live-revisit path).
+    "ghg.ch4":                       "single_snapshot",  # M-CH4-A1 reference data
     "ghg.co2":                       "single_snapshot",  # ODIAC annual
     "nature.kba":                    "single_snapshot",
     "nature.habitat":                "single_snapshot",
@@ -991,7 +1004,7 @@ EARLIEST_SCREENING_DATE: str = "2019-01-01"
 #     target alongside the rest of the trend thresholds.
 # source: M-TREND_Decision_Log B4 / TR4; calibration pending
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_HARD_FLOOR_POINTS: int = 4
 # @parameter
 # tier: first-pass
@@ -1002,7 +1015,7 @@ TREND_HARD_FLOOR_POINTS: int = 4
 #     pending calibration.
 # source: M-TREND_Decision_Log B4 / TR4; Wireframes_All_v4.md §P-06; calibration pending
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_SOFT_FLOOR_POINTS: int = 12
 
 # Display-severity cap (decision-log E-SEV / TR12). The slope is normalised
@@ -1019,7 +1032,7 @@ TREND_SOFT_FLOOR_POINTS: int = 12
 #     target; the normalisation *method* follows the spec.
 # source: M-TREND_Decision_Log E-SEV / TR12 (method per IC §0.4); calibration pending
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_SEVERITY_K_SIGMA_PER_YEAR: float = 1.0
 
 # Seasonal flag (decision-log C-ii / TR15). A SEPARATE categorical signal,
@@ -1035,7 +1048,7 @@ TREND_SEVERITY_K_SIGMA_PER_YEAR: float = 1.0
 #     gate the caveat exactly there is a first-pass judgment.
 # source: M-TREND_Decision_Log C-ii / TR15; calibration pending
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_SEASONAL_FLAG_MIN_DAYS: int = 365
 
 # Significance buckets (decision-log D2 / TR9). Presentation-layer constants,
@@ -1051,7 +1064,7 @@ TREND_SEASONAL_FLAG_MIN_DAYS: int = 365
 #     user across every series indicator).
 # source: M-TREND_Decision_Log D2 / TR9; standard p<0.05 significance convention
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_SIGNIFICANT_P: float = 0.05
 # @parameter
 # tier: spec-mandated
@@ -1062,7 +1075,7 @@ TREND_SIGNIFICANT_P: float = 0.05
 #     decision, not a calibration tweak.
 # source: M-TREND_Decision_Log D2 / TR9; standard p<0.10 marginal-significance convention
 # last_reviewed: 2026-05-29
-# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.ch4, ghg.viirs, nature.ndvi]
+# applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.pm25, air.pm10, air.aod, ghg.viirs, nature.ndvi]
 TREND_WEAK_EMERGING_P: float = 0.10
 
 # Trend-confidence base terms (decision-log C-TERMS / TR13). Additive base
@@ -1086,9 +1099,13 @@ TREND_CONFIDENCE_SPAN_SATURATION_DAYS: int = 365
 # "air.no2.score", so eligibility matches on the base prefix. ODIAC CO₂
 # (standing-exposure), KBA, Dynamic World, and Hansen are deliberately absent
 # — they have no per-day slope (decision-log U6).
+# M-CH4-A1 (30 May 2026): ghg.ch4 removed — CH₄ is now reference data (not a
+# scored severity series), so it carries no trend affordance, matching Hansen
+# and ODIAC. The engine still computes the CH₄ snapshot, but it is shown as a
+# raw observational reading only (docs/ghg_odiac_validation.md §10).
 TREND_SERIES_INDICATOR_IDS: frozenset[str] = frozenset({
     "air.no2", "air.so2", "air.co", "air.hcho", "air.o3",
     "air.aai", "air.pm25", "air.pm10", "air.aod",
-    "ghg.ch4", "ghg.viirs",
+    "ghg.viirs",
     "nature.ndvi",
 })

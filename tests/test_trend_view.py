@@ -52,13 +52,16 @@ def _result(**over) -> dict:
 
 class TestSeriesEligibility:
     @pytest.mark.parametrize("sid", [
-        "air.no2.score", "air.aod.z", "ghg.ch4.score", "ghg.viirs.score",
+        "air.no2.score", "air.aod.z", "ghg.viirs.score",
         "nature.ndvi.score", "nature.ndvi",
     ])
     def test_series_indicators_eligible(self, sid) -> None:
         assert is_series_indicator(sid) is True
 
     @pytest.mark.parametrize("sid", [
+        # M-CH4-A1: ghg.ch4.score is now reference data — no trend affordance
+        # (joins ODIAC/Hansen as non-series).
+        "ghg.ch4.score", "ghg.ch4.z", "ghg.ch4",
         "ghg.co2.mean", "nature.kba.dist_km", "nature.dw.dominant_class",
         "nature.forest_loss.pct", "nature.habitat.conversion_score", None, "",
     ])

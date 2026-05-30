@@ -39,14 +39,17 @@ def _tile(indicator: str):
 # Tile registry integrity (SR4, SR6, SR7)
 # ---------------------------------------------------------------------------
 
-def test_tile_count_is_fourteen():
+def test_tile_count_is_thirteen():
     # Spec v1.1: 9 air + 2 ghg + 3 nature (Hansen + ODIAC removed).
-    assert len(_TILES) == 14
+    # M-CH4-A1: CH₄ removed from the headline grid (reference data) → 9+1+3=13.
+    assert len(_TILES) == 13
 
 
 def test_pillar_split():
     counts = {p: sum(1 for t in _TILES if t.pillar == p) for p in ("air", "ghg", "nature")}
-    assert counts == {"air": 9, "ghg": 2, "nature": 3}
+    # M-CH4-A1: ghg drops from 2 to 1 (only VIIRS remains scored; CH₄ + ODIAC
+    # are reference data).
+    assert counts == {"air": 9, "ghg": 1, "nature": 3}
 
 
 def test_nature_tiles_present_in_headline_registry():
@@ -67,10 +70,13 @@ def test_hansen_and_odiac_not_in_headline_grid():
     indicators = {(t.pillar, t.indicator) for t in _TILES}
     assert ("nature", "forest_loss") not in indicators
     assert ("ghg", "co2") not in indicators
+    # M-CH4-A1: CH₄ is reference data too — must not appear as a headline tile.
+    assert ("ghg", "ch4") not in indicators
     # Also by select-key, since that's what selection/rendering keys on.
     select_keys = {t.select_key for t in _TILES}
     assert "nature.forest_loss.ha" not in select_keys
     assert "ghg.co2.score" not in select_keys
+    assert "ghg.ch4.score" not in select_keys
 
 
 def test_every_tile_has_select_key_and_confidence_key():
@@ -194,9 +200,17 @@ def test_failed_tile_reports_sparse_for_filter():
 # ---------------------------------------------------------------------------
 
 def test_visible_tiles_keeps_only_selected():
-    selected = {"air.no2.score", "ghg.ch4.score", "nature.kba.proximity_score"}
+    selected = {"air.no2.score", "ghg.viirs.score", "nature.kba.proximity_score"}
     visible = {t.indicator for t in _visible_tiles(selected)}
-    assert visible == {"no2", "ch4", "kba"}
+    assert visible == {"no2", "viirs", "kba"}
+
+
+def test_visible_tiles_ch4_yields_no_tile():
+    """M-CH4-A1 — selecting CH₄ yields no headline tile (reference data in C5),
+    mirroring Hansen/ODIAC."""
+    selected = {"air.no2.score", "ghg.ch4.score"}
+    visible = {t.indicator for t in _visible_tiles(selected)}
+    assert visible == {"no2"}
 
 
 def test_visible_tiles_nature_select_keys_resolve():

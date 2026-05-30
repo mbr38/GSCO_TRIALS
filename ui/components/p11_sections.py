@@ -399,11 +399,17 @@ def _render_reference_dataset_block(payload) -> str:
     """One reference-dataset table for a single screening payload.
 
     Mirrors the C5 cards' headline metrics (Hansen cumulative loss %, ODIAC
-    annual emissions intensity), with the same RD12 "Data not available"
-    fallback when a value is missing.
+    annual emissions intensity, CH₄ column average), with the same RD12 "Data
+    not available" fallback when a value is missing.
+
+    M-CH4-A1 (30 May 2026): CH₄ added as a third reference row — it is now
+    reference data alongside Hansen + ODIAC and appears in the PDF's reference
+    section (operator decision, overriding spec CH7/Q-4). It is shown as a raw
+    column reading, not a scored finding.
     """
     loss_pct = payload.get("nature.forest_loss.pct")
     co2_mean = payload.get("ghg.co2.mean")
+    ch4_site = payload.get("ghg.ch4.site")
     hansen_val = (
         f"{loss_pct:.2f}% of buffer area lost (5-year cumulative)"
         if loss_pct is not None else "Data not available for this AOI"
@@ -413,6 +419,10 @@ def _render_reference_dataset_block(payload) -> str:
         "(annual emissions intensity)"
         if co2_mean is not None else "Data not available for this AOI"
     )
+    ch4_val = (
+        f"{ch4_site:,.0f} ppb column average (screening window)"
+        if ch4_site is not None else "Data not available for this AOI"
+    )
     return "\n".join([
         "<table>",
         "<tr><th>Reference dataset</th><th>Value</th><th>Source</th></tr>",
@@ -420,6 +430,8 @@ def _render_reference_dataset_block(payload) -> str:
         "<td>Hansen Global Forest Change (University of Maryland)</td></tr>",
         f"<tr><td>ODIAC CO₂</td><td>{html.escape(odiac_val)}</td>"
         "<td>ODIAC fossil-fuel CO₂ (NIES, Japan)</td></tr>",
+        f"<tr><td>CH₄ (methane)</td><td>{html.escape(ch4_val)}</td>"
+        "<td>Sentinel-5P TROPOMI (Copernicus / ESA)</td></tr>",
         "</table>",
         f"<p><em>{html.escape(_REFERENCE_DATASETS_FOOTNOTE)}</em></p>",
     ])
