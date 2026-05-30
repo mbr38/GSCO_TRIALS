@@ -1,0 +1,22 @@
+# Analysis-only dependencies for the GHG ↔ ODIAC + OCO validation.
+# These are NOT part of the production stack — keep them out of the repo-root
+# requirements.txt (which pins the Streamlit/geemap demo). Install into the
+# project venv to reproduce analysis/ and the docs/ghg_odiac_validation report.
+#
+#   pip install -r analysis/requirements-analysis.txt
+#
+# earthaccess additionally requires a NASA Earthdata login (~/.netrc) with the
+# "NASA GESDISC DATA ARCHIVE" application authorised — OCO-2/OCO-3 XCO2 is not
+# available via Earth Engine and is downloaded from NASA GES DISC.
+
+earthaccess>=0.17        # NASA Earthdata search + download (OCO-2/OCO-3 Lite FP)
+h5py>=3.16               # read OCO Lite FP HDF5/netCDF granules
+netCDF4>=1.7             # OCO granule introspection
+h5netcdf>=1.8            # xarray HDF5 backend
+xarray>=2024.0           # (optional) array handling for granule reads
+matplotlib>=3.7          # the seven scatter plots
+scipy>=1.10              # Pearson / Spearman correlations
+pandas>=2.0              # the CSV data table
+nbformat>=5.10           # build the analysis notebook
+nbconvert>=7.0           # execute the notebook headless
+pypandoc_binary>=1.17    # bundled pandoc for the .docx export (Step H)
