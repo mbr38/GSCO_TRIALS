@@ -105,27 +105,27 @@ class TestResolveDominant:
         }
         assert _resolve_dominant(payload, _AIR_DOMINANT_CANDIDATES) is None
 
-    def test_ghg_co2_dominant_when_share_above_threshold(self) -> None:
+    def test_ghg_combustion_dominant_when_share_above_threshold(self) -> None:
+        # M-ODIAC-A1: candidates are combustion (0.22) and activity (0.11);
+        # ODIAC (co2_context) is no longer a candidate.
         payload = {
-            "ghg.co2_context":          0.9,
-            "ghg.ch4_context_adjusted": 0.1,
-            "ghg.combustion_proxy":     0.1,
+            "ghg.combustion_proxy":     0.9,
             "ghg.activity_score":       0.1,
         }
         result = _resolve_dominant(payload, _GHG_DOMINANT_CANDIDATES)
         assert result is not None
-        assert result[0] == "ghg.co2_context"
+        assert result[0] == "ghg.combustion_proxy"
 
-    def test_ghg_below_threshold_returns_none(self) -> None:
-        # M-CH4-A1: candidates are co2 (0.39), combustion (0.22), activity (0.11).
-        # Choose scores that make the three weight×value contributions roughly
-        # equal so the top share stays below the 0.40 dominant threshold:
-        #   co2 0.39·0.28 = 0.1092; combustion 0.22·0.50 = 0.110;
-        #   activity 0.11·1.00 = 0.110; total ≈ 0.329; max share ≈ 0.334 < 0.40.
+    def test_ghg_returns_none_when_no_candidate_present(self) -> None:
+        # M-ODIAC-A1: with only two live-trio candidates remaining, any single
+        # present term has a share ≥ 0.5 (> the 0.40 threshold), so the
+        # genuine "no dominant driver" case is now when *neither* term has a
+        # value — e.g. a GHG run where both combustion and activity are absent.
+        # (ODIAC, demoted, no longer competes here.)
         payload = {
-            "ghg.co2_context":      0.28,
-            "ghg.combustion_proxy": 0.50,
-            "ghg.activity_score":   1.00,
+            "ghg.co2_context":      0.9,   # present but NOT a candidate → ignored
+            "ghg.combustion_proxy": None,
+            "ghg.activity_score":   None,
         }
         result = _resolve_dominant(payload, _GHG_DOMINANT_CANDIDATES)
         assert result is None
@@ -272,21 +272,14 @@ class TestAirDominantSlots:
 
 
 class TestGhgDominantSlots:
-    def test_co2_uses_total_and_relative_intensity(self) -> None:
-        payload = {
-            "ghg.co2.total":              1_250_000.0,
-            "ghg.co2.relative_intensity": 4.2,
-        }
-        slots = _ghg_dominant_slots(
-            payload, "ghg.co2_context", "fossil CO₂ context (ODIAC)",
-        )
-        assert "1,250,000 t CO₂ yr⁻¹" in slots.value
-        assert "4.2× the regional median" in slots.z
-        assert slots.direction == "above"
-
     # M-CH4-A1: test_ch4_value_ppb_and_anomaly_z_string removed — CH₄ is
     # reference data and is no longer a dominant GHG contributor, so the
     # ghg.ch4_context_adjusted slot formatter no longer exists.
+    # M-ODIAC-A1: test_co2_uses_total_and_relative_intensity removed for the
+    # same reason — ODIAC (ghg.co2_context) is standing-exposure reference
+    # data, no longer a dominant GHG contributor, so its slot formatter is
+    # gone. ODIAC's value still surfaces in the C5 reference card / P-11
+    # reference row, not in the verbal summary's dominant-driver slot.
 
     def test_combustion_proxy_canned_phrase(self) -> None:
         payload = {"ghg.combustion_proxy": 0.48}
@@ -456,16 +449,17 @@ class TestPillarTemplateSelection:
         assert "consistent with its surrounding region" in rendered
 
     def test_high_priority_no_dominant_picks_fallback(self) -> None:
-        # M-CH4-A1: three GHG candidates (co2/combustion/activity). Balance the
-        # weight×value contributions so no single term's share clears 0.40 →
-        # no dominant → fallback path. (Equal scores would let co2 dominate at
-        # 0.39/0.72; instead make the contributions roughly equal.)
+        # M-ODIAC-A1: two GHG candidates remain (combustion, activity); with two
+        # terms any single present value has share ≥ 0.5, so the no-dominant
+        # fallback now fires only when *neither* live term is present — a
+        # high-priority GHG run carried by quality/other terms with combustion
+        # and activity both absent. (ODIAC is present but not a candidate.)
         payload = {
             "ghg.audit_followup_priority":  0.80,
             "ghg.data_quality_attribution": 0.80,
-            "ghg.co2_context":              0.28,
-            "ghg.combustion_proxy":         0.50,
-            "ghg.activity_score":           1.00,
+            "ghg.co2_context":              0.90,   # not a candidate → ignored
+            "ghg.combustion_proxy":         None,
+            "ghg.activity_score":           None,
         }
         _, template_id, _ = _render_pillar("ghg", payload)
         assert template_id == "ghg/high/high/fallback"
@@ -546,18 +540,18 @@ class TestPillarTemplateSelection:
 # ---------------------------------------------------------------------------
 
 class TestDirectionStripping:
-    def test_ghg_ch4_strips_orphan_background(self) -> None:
-        # CH₄ slot has direction=None — the rendered prose must not
-        # contain "  background" or " None background".
+    def test_ghg_combustion_strips_orphan_background(self) -> None:
+        # M-ODIAC-A1: combustion_proxy is now the lead GHG dominant term and
+        # its slot has direction=None (its z-phrase is the canned
+        # "combined NO₂ + CO signal"). The rendered prose must not contain an
+        # orphan "  background" or " None background", and must not emit the
+        # "above background" direction phrase at all for this slot.
         payload = {
             "ghg.audit_followup_priority":  0.70,
             "ghg.data_quality_attribution": 0.70,
-            "ghg.co2_context":              0.10,
-            "ghg.ch4_context_adjusted":     0.50,
-            "ghg.combustion_proxy":         0.10,
+            "ghg.co2_context":              0.90,   # not a candidate → ignored
+            "ghg.combustion_proxy":         0.50,
             "ghg.activity_score":           0.10,
-            "ghg.ch4.site":                 1900.0,
-            "ghg.ch4.anomaly":              5.0,
             "ghg.temporal_coverage":        0.80,
             "ghg.spatial_resolution_suitability": 0.85,
             "ghg.retrieval_inventory_quality":    0.80,
@@ -566,8 +560,9 @@ class TestDirectionStripping:
         rendered, _, _ = _render_pillar("ghg", payload)
         assert "  background" not in rendered
         assert "None background" not in rendered
-        # The CH₄ z-phrase ends at "above background)" — once, not twice.
-        assert rendered.count("above background") == 1
+        assert "above background" not in rendered
+        # The combustion z-phrase closes cleanly, no orphan trailing word.
+        assert "combined NO₂ + CO signal)" in rendered
 
     def test_nature_strips_when_direction_none(self) -> None:
         payload = {
@@ -623,16 +618,14 @@ _WORKED_EXAMPLE_PAYLOAD: dict = {
     "air.o3.score":      0.05,
     "air.pm_or_aerosol": 0.05,
 
-    # GHG — moderate priority, moderate confidence, CO₂ (ODIAC) dominant.
-    # M-CH4-A1: CH₄ is reference data and is never a dominant contributor; with
-    # CH₄ out, fossil CO₂ context (ODIAC) is the dominant GHG term here.
+    # GHG — moderate priority, moderate confidence, combustion-proxy dominant.
+    # M-CH4-A1 removed CH₄; M-ODIAC-A1 removed ODIAC (ghg.co2_context) as a
+    # dominant contributor — both are reference data. The combustion proxy
+    # (NO₂ + CO) is the dominant live-trio GHG term here.
     "ghg.audit_followup_priority":   0.48,
     "ghg.data_quality_attribution":  0.62,
-    "ghg.co2_context":               0.30,
     "ghg.combustion_proxy":          0.20,
     "ghg.activity_score":            0.10,
-    "ghg.co2.total":                 12000.0,
-    "ghg.co2.relative_intensity":    1.8,
     "ghg.spatial_resolution_suitability": 0.34,  # Lowest → limiting.
     "ghg.temporal_coverage":              0.80,
     "ghg.retrieval_inventory_quality":    0.70,
@@ -655,10 +648,9 @@ _WORKED_EXAMPLE_OUTPUT = (
     "quality for SO₂ at these concentrations.\n\n"
 
     "Greenhouse gases show moderate elevation at this location, with "
-    "fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, "
-    "1.8× the regional median above background). Confidence is mixed — the "
-    "coarse spatial resolution of the GHG retrievals relative to the buffer "
-    "is a limiting factor.\n\n"
+    "combustion proxy (NO₂ + CO) contributing most (score 0.20, combined "
+    "NO₂ + CO signal). Confidence is mixed — the coarse spatial resolution "
+    "of the GHG retrievals relative to the buffer is a limiting factor.\n\n"
 
     "Nature/Land is at baseline across the monitored land-cover "
     "indicators at this location. Data quality is high."

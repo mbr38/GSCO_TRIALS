@@ -136,17 +136,21 @@ _AIR_DOMINANT_CANDIDATES: dict[str, tuple[float, str]] = {
     "air.o3.score":      (0.10, "ozone (context)"),
 }
 
-# Doc §3.2 — GHG. Notional pre-M5.5b weights (the verbal summary still
-# picks among all four terms because users want to know "what's driving
-# the GHG signal", and ODIAC's standing-exposure contribution is part
-# of that narrative even though it doesn't feed core_audit_support
-# after M5.5b).
+# Doc §3.2 — GHG. Notional weights used only to pick the dominant GHG term
+# for the verbal summary (relative ordering; they need not sum to 1 — the
+# share threshold in _resolve_dominant self-normalises over the present
+# terms).
 # M-CH4-A1 (30 May 2026): ghg.ch4_context_adjusted removed — CH₄ is reference
-# data and is no longer named as a dominant GHG contributor in the verbal
-# summary (matching Hansen, which never competes). The surviving candidates
-# keep their relative priority ordering.
+# data and is no longer named as a dominant GHG contributor (matching Hansen,
+# which never competes).
+# M-ODIAC-A1 (31 May 2026): ghg.co2_context (ODIAC) removed for the same
+# reason — ODIAC was demoted to standing-exposure reference data in M5.5b and
+# does not feed the live GHG score, so it must not be named as the *driver* of
+# a GHG severity finding. ODIAC remains visible as a reference-dataset surface
+# (P-05 C5 reference card, P-11 reference row, P-09 library) — only its verbal
+# dominant-driver role is removed. No score change (already out of scoring), so
+# no seed regeneration. The two surviving live-trio terms keep their ordering.
 _GHG_DOMINANT_CANDIDATES: dict[str, tuple[float, str]] = {
-    "ghg.co2_context":          (0.39, "fossil CO₂ context (ODIAC)"),
     "ghg.combustion_proxy":     (0.22, "combustion proxy (NO₂ + CO)"),
     "ghg.activity_score":       (0.11, "nighttime-light activity"),
 }
@@ -280,28 +284,14 @@ def _ghg_dominant_slots(
 ) -> _DominantSlots:
     """GHG slots — doc §4.2. Heterogeneous formatters per dominant term.
 
-    - co2_context: total t CO₂ + "× the regional median" via relative_intensity
     - combustion_proxy: "score 0.XX" + canned "combined NO₂ + CO signal" + None
     - activity_score: viirs site nW + "X.Xσ above background" + None
     """
-    if term_id == "ghg.co2_context":
-        total = payload.get("ghg.co2.total")
-        # M5.5b/c rename: relative_intensity replaces the doc's
-        # `ghg.co2.background_median` ratio. It IS the ratio.
-        rel_intensity = payload.get("ghg.co2.relative_intensity")
-        value = (
-            f"{total:,.0f} t CO₂ yr⁻¹" if total is not None else "—"
-        )
-        z = (
-            f"{rel_intensity:.1f}× the regional median"
-            if rel_intensity is not None else "—"
-        )
-        return _DominantSlots(
-            indicator=display, value=value, z=z, direction="above",
-        )
     # M-CH4-A1: the ghg.ch4_context_adjusted slot formatter is removed — CH₄ is
-    # reference data and is never a dominant GHG contributor (see
-    # _GHG_DOMINANT_CANDIDATES above).
+    # reference data and is never a dominant GHG contributor.
+    # M-ODIAC-A1: the ghg.co2_context (ODIAC) slot formatter is likewise
+    # removed — ODIAC is standing-exposure reference data, not a severity
+    # driver (see _GHG_DOMINANT_CANDIDATES above).
     if term_id == "ghg.combustion_proxy":
         score = payload.get("ghg.combustion_proxy")
         value = (

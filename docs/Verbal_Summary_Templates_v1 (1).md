@@ -82,7 +82,6 @@ From `Core_GHG_Audit_Support` v1-rescaled (Indicators_Computation §2.3):
 
 | Term ID | Weight | Display name |
 |---|---|---|
-| `ghg.co2_context` | 0.39 | fossil CO₂ context (ODIAC) |
 | `ghg.combustion_proxy` | 0.22 | combustion proxy (NO₂ + CO) |
 | `ghg.activity_score` | 0.11 | nighttime-light activity |
 
@@ -90,6 +89,14 @@ From `Core_GHG_Audit_Support` v1-rescaled (Indicators_Computation §2.3):
 > methane") is removed — CH₄ is reclassified as reference data and is no longer
 > a dominant GHG contributor in the verbal summary (it is never named in the
 > prose, like Hansen). See `docs/ghg_odiac_validation.md` §10.
+>
+> **M-ODIAC-A1 (31 May 2026):** `ghg.co2_context` (was 0.39, "fossil CO₂ context
+> (ODIAC)") is likewise removed. ODIAC was demoted to standing-exposure
+> reference data in M5.5b and does not feed the live GHG score, so it must not
+> be named as the *driver* of a GHG severity finding. ODIAC remains visible as a
+> reference-dataset surface (P-05 C5 reference card, P-11 reference row, P-09
+> library) — only its verbal dominant-driver role is removed. Weights are used
+> only for relative ordering, so no rescaling is needed. No score change.
 
 ### 3.3 Nature/Land candidates
 
@@ -117,16 +124,12 @@ Direct read from the dominant indicator's `.site` (with unit conversion to the d
 
 ```python
 def format_ghg_dominant(dominant_id, payload):
-    if dominant_id == "ghg.co2_context":
-        ratio = payload["ghg.co2.total"] / payload["ghg.co2.background_median"]
-        return {
-            "value":     f"{payload['ghg.co2.total']:,.0f} t CO₂ yr⁻¹",
-            "z":         f"{ratio:.1f}× the regional median",
-            "direction": "above",
-        }
     # M-CH4-A1: the ghg.ch4_context_adjusted branch is removed (CH₄ is reference
     # data, never a dominant GHG contributor).
-    elif dominant_id == "ghg.combustion_proxy":
+    # M-ODIAC-A1: the ghg.co2_context (ODIAC) branch is likewise removed —
+    # ODIAC is standing-exposure reference data, not a severity driver. It
+    # surfaces in the C5/P-11/P-09 reference surfaces, not in this slot.
+    if dominant_id == "ghg.combustion_proxy":
         return {
             "value":     f"score {payload['ghg.combustion_proxy']:.2f}",
             "z":         "combined NO₂ + CO signal",
@@ -321,8 +324,9 @@ bucket:
 lookup (fallback phrase "the live nature signals" when no term dominates).
 **ODIAC is deliberately never referenced by this clause** (M-UI-A6 §6.4): its
 inventory framing needs regional contextualisation this version doesn't
-supply. Note the GHG paragraph may still name ODIAC as a live-pillar driver
-(§3.2) — that is a separate, pre-existing surface.
+supply. As of M-ODIAC-A1 (31 May 2026) ODIAC is no longer named as a driver in
+the GHG paragraph either (§3.2) — it now appears only in the C5/P-11/P-09
+reference-dataset surfaces, consistent with this clause's treatment.
 
 ---
 
@@ -464,8 +468,8 @@ air.audit_followup_priority    = 0.72 (high), confidence 0.41 (moderate)
   lowest air sub-confidence: SO₂ (0.31) → "weak retrieval quality for SO₂ at these concentrations"
 
 ghg.audit_followup_priority    = 0.48 (moderate), confidence 0.62 (moderate)
-  dominant: fossil CO₂ context (ODIAC) (share 0.49)
-  ghg.co2.total 12,000 t CO₂ yr⁻¹; relative_intensity 1.8× regional median; direction "above"
+  dominant: combustion proxy (NO₂ + CO) (share 0.80; ODIAC removed per M-ODIAC-A1)
+  ghg.combustion_proxy 0.20 → "score 0.20", z "combined NO₂ + CO signal"; direction None
   lowest ghg quality sub-score: Spatial_Resolution_Suitability (0.34) → "the coarse spatial resolution of the GHG retrievals relative to the buffer"
 
 nature.followup_priority       = 0.21 (low), confidence 0.71 (high)
@@ -477,7 +481,7 @@ Output:
 >
 > This site shows substantially higher air pollution than its surrounding region, driven primarily by NO₂ (42 µmol m⁻², 2.3σ above background) — a site-specific contribution worth investigating. Confidence is moderate — interpretation is limited by weak retrieval quality for SO₂ at these concentrations.
 >
-> Greenhouse gases show moderate elevation at this location, with fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, 1.8× the regional median above background). Confidence is mixed — the coarse spatial resolution of the GHG retrievals relative to the buffer is a limiting factor.
+> Greenhouse gases show moderate elevation at this location, with combustion proxy (NO₂ + CO) contributing most (score 0.20, combined NO₂ + CO signal). Confidence is mixed — the coarse spatial resolution of the GHG retrievals relative to the buffer is a limiting factor.
 >
 > Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.
 
