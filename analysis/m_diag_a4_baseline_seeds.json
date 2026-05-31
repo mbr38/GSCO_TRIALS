@@ -1,0 +1,955 @@
+{
+  "_meta": {
+    "milestone": "M-DIAG-A4",
+    "step": "A",
+    "captured": "2026-05-31",
+    "purpose": "pre-fix numerical baseline (z/hf/score/confidence) per seed/indicator for Step E composite-stability comparison (DGC7)"
+  },
+  "seeds": {
+    "high_priority_amazon.json": {
+      "type": "screening",
+      "indicators": {
+        "air.aai": {
+          "z": -0.04848333658370132,
+          "hf": 0.4606741573033708,
+          "score": 0.0,
+          "confidence": 0.8201685393258427,
+          "site": -0.649756261912722,
+          "background": -0.6474493589758484
+        },
+        "air.aod": {
+          "z": -0.529792623617162,
+          "hf": 0.3333333333333333,
+          "score": 0.0,
+          "confidence": 0.8033333333333335,
+          "site": 67.20124216649783,
+          "background": 76.25104908392522
+        },
+        "air.co": {
+          "z": -0.8541915629358098,
+          "hf": 0.34285714285714286,
+          "score": 0.0,
+          "confidence": 0.6325714285714286,
+          "site": 27.176529466270107,
+          "background": 27.52420025231925
+        },
+        "air.hcho": {
+          "z": 1.1816864601753567,
+          "hf": 0.352112676056338,
+          "score": 0.3938954867251188,
+          "confidence": 0.7533767605633802,
+          "site": 120.53492154527113,
+          "background": 105.79058149005742
+        },
+        "air.no2": {
+          "z": -0.027748785867708986,
+          "hf": 0.4117647058823529,
+          "score": 0.0,
+          "confidence": 0.7817941176470589,
+          "site": 40.800420221287546,
+          "background": 40.82267541790474
+        },
+        "air.o3": {
+          "z": 0.3420823442187123,
+          "hf": 0.47191011235955055,
+          "score": 0.1140274480729041,
+          "confidence": 0.8229775280898876,
+          "site": 256.2611965314859,
+          "background": 256.1832490597932
+        },
+        "air.pm10": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.pm25": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.so2": {
+          "z": 0.11859038282743699,
+          "hf": 0.26,
+          "score": 0.03953012760914566,
+          "confidence": 0.6511999999999999,
+          "site": 8.735514277288939,
+          "background": 5.48323262362013
+        },
+        "ghg.ch4": {
+          "z": -0.4953629802540363,
+          "hf": 0.0,
+          "score": 0.0,
+          "confidence": 0.27241931637507827,
+          "site": 1901.1643353289678,
+          "background": 1908.8389169152522
+        },
+        "ghg.co2": {
+          "z": null,
+          "hf": null,
+          "score": 0.40710571288119496,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "ghg.viirs": {
+          "z": 0.8333253646908773,
+          "hf": null,
+          "score": 0.27777512156362577,
+          "confidence": 0.6716666666666667,
+          "site": 3.523467092399094,
+          "background": null
+        },
+        "nature.dw": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        },
+        "nature.flooded_veg": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.forest_loss": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.habitat": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.kba": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.low_ndvi": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.ndvi": {
+          "z": -0.5099358015921968,
+          "hf": null,
+          "score": 0.16997860053073224,
+          "confidence": 0.5033333333333333,
+          "site": null,
+          "background": null
+        },
+        "nature.recovery": {
+          "z": null,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.regional_loss_evidence": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.supplier_spatial_link": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.water": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        }
+      }
+    },
+    "low_priority_brasilia.json": {
+      "type": "screening",
+      "indicators": {
+        "air.aai": {
+          "z": -0.17719661115371155,
+          "hf": 0.449438202247191,
+          "score": 0.0,
+          "confidence": 0.8173595505617978,
+          "site": -0.4779189737365163,
+          "background": -0.4667895535262914
+        },
+        "air.aod": {
+          "z": 0.2789427710585185,
+          "hf": 0.7536231884057971,
+          "score": 0.09298092368617285,
+          "confidence": 0.9084057971014493,
+          "site": 47.96626253572654,
+          "background": 45.47998352041942
+        },
+        "air.co": {
+          "z": -0.7431510092449951,
+          "hf": 0.2840909090909091,
+          "score": 0.0,
+          "confidence": 0.6208181818181818,
+          "site": 22.725046118802915,
+          "background": 23.26537424073214
+        },
+        "air.hcho": {
+          "z": -0.36936000496532995,
+          "hf": 0.12359550561797752,
+          "score": 0.0,
+          "confidence": 0.6991039325842696,
+          "site": 106.30266461915714,
+          "background": 113.49183499845643
+        },
+        "air.no2": {
+          "z": 1.06975610818836,
+          "hf": 0.3764705882352941,
+          "score": 0.35658536939612,
+          "confidence": 0.7734117647058824,
+          "site": 46.01707019659402,
+          "background": 44.061865426322264
+        },
+        "air.o3": {
+          "z": -0.7071846948831565,
+          "hf": 0.449438202247191,
+          "score": 0.0,
+          "confidence": 0.8173595505617978,
+          "site": 257.6018672085291,
+          "background": 257.99221376240956
+        },
+        "air.pm10": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.pm25": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.so2": {
+          "z": -0.10446277930511706,
+          "hf": 0.07407407407407407,
+          "score": 0.0,
+          "confidence": 0.6102962962962962,
+          "site": 2.779876555259239,
+          "background": 6.018096726790085
+        },
+        "ghg.ch4": {
+          "z": 0.25293659681639497,
+          "hf": 0.0,
+          "score": 0.08431219893879832,
+          "confidence": 0.3684444444444445,
+          "site": 1888.9006685279592,
+          "background": 1885.492082707111
+        },
+        "ghg.co2": {
+          "z": null,
+          "hf": null,
+          "score": 1.0,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "ghg.viirs": {
+          "z": 1.1403320301205948,
+          "hf": null,
+          "score": 0.38011067670686494,
+          "confidence": 0.6716666666666667,
+          "site": 12.777687492505684,
+          "background": null
+        },
+        "nature.dw": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        },
+        "nature.flooded_veg": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.forest_loss": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.habitat": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.kba": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.low_ndvi": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.ndvi": {
+          "z": -0.52706763864471,
+          "hf": null,
+          "score": 0.17568921288157,
+          "confidence": 0.5033333333333333,
+          "site": null,
+          "background": null
+        },
+        "nature.recovery": {
+          "z": null,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.regional_loss_evidence": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.supplier_spatial_link": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.water": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        }
+      }
+    },
+    "wind_low_attribution_norilsk.json": {
+      "type": "screening",
+      "indicators": {
+        "air.aai": {
+          "z": -1.5592130945805984,
+          "hf": 0.8444444444444444,
+          "score": 0.0,
+          "confidence": 0.9161111111111111,
+          "site": -0.12629219431284622,
+          "background": 0.013645023559861382
+        },
+        "air.aod": {
+          "z": 0.9761735780188585,
+          "hf": 0.0,
+          "score": 0.32539119267295286,
+          "confidence": 0.19399999999999998,
+          "site": 163.4,
+          "background": 99.8552
+        },
+        "air.co": {
+          "z": 0.34496801042700403,
+          "hf": 0.5238095238095238,
+          "score": 0.11498933680900134,
+          "confidence": 0.6687619047619048,
+          "site": 31.974404604438583,
+          "background": 31.6718600078344
+        },
+        "air.hcho": {
+          "z": 1.7476225889026746,
+          "hf": 0.7471264367816092,
+          "score": 0.5825408629675582,
+          "confidence": 0.8471925287356321,
+          "site": 46.121954131080244,
+          "background": 39.87034127831002
+        },
+        "air.no2": {
+          "z": 3.2516851493149,
+          "hf": 0.6746987951807228,
+          "score": 1.0,
+          "confidence": 0.8442409638554217,
+          "site": 104.22797102707531,
+          "background": 67.3703536095933
+        },
+        "air.o3": {
+          "z": 1.6218966799247774,
+          "hf": 0.5777777777777777,
+          "score": 0.5,
+          "confidence": 0.8494444444444443,
+          "site": 445.63916420222125,
+          "background": 443.890581253345
+        },
+        "air.pm10": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.pm25": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.so2": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "ghg.ch4": {
+          "z": -1.1755580527873506,
+          "hf": 0.16666666666666666,
+          "score": 0.0,
+          "confidence": 0.4452830771946009,
+          "site": 1858.882303967459,
+          "background": 1868.2378509676278
+        },
+        "ghg.co2": {
+          "z": null,
+          "hf": null,
+          "score": 1.0,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "ghg.viirs": {
+          "z": 3.0980542992260065,
+          "hf": null,
+          "score": 1.0,
+          "confidence": 0.9216666666666667,
+          "site": 17.255878311803336,
+          "background": null
+        },
+        "nature.dw": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        },
+        "nature.flooded_veg": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.forest_loss": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.habitat": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.kba": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.low_ndvi": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.ndvi": {
+          "z": 0.663289386967888,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.5533333333333333,
+          "site": null,
+          "background": null
+        },
+        "nature.recovery": {
+          "z": null,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.regional_loss_evidence": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.supplier_spatial_link": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.water": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        }
+      }
+    },
+    "wind_low_attribution_patagonia.json": {
+      "type": "screening",
+      "indicators": {
+        "air.aai": {
+          "z": -0.7692126707532169,
+          "hf": 0.5113636363636364,
+          "score": 0.0,
+          "confidence": 0.832840909090909,
+          "site": 0.06502566630862051,
+          "background": 0.12702515204139891
+        },
+        "air.aod": {
+          "z": 1.9315719180492559,
+          "hf": 0.5846153846153846,
+          "score": 0.6438573060164186,
+          "confidence": 0.8661538461538463,
+          "site": 48.72005290564031,
+          "background": 31.738687941000016
+        },
+        "air.co": {
+          "z": 2.0410661709553746,
+          "hf": 0.5416666666666666,
+          "score": 0.6803553903184583,
+          "confidence": 0.6723333333333333,
+          "site": 16.006099027128812,
+          "background": 14.929799404726232
+        },
+        "air.hcho": {
+          "z": 0.07582989796342014,
+          "hf": 0.3684210526315789,
+          "score": 0.02527663265447338,
+          "confidence": 0.7572499999999999,
+          "site": 55.45762003366631,
+          "background": 54.266993151527586
+        },
+        "air.no2": {
+          "z": 1.8171564393886948,
+          "hf": 0.6341463414634146,
+          "score": 0.6057188131295649,
+          "confidence": 0.834609756097561,
+          "site": 54.11330200591604,
+          "background": 51.657629471475474
+        },
+        "air.o3": {
+          "z": 1.4350141845534683,
+          "hf": 0.5,
+          "score": 0.4783380615178228,
+          "confidence": 0.83,
+          "site": 290.9317630337141,
+          "background": 290.1171508131558
+        },
+        "air.pm10": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.pm25": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.so2": {
+          "z": 0.2246615393477128,
+          "hf": 0.1891891891891892,
+          "score": 0.07488717978257094,
+          "confidence": 0.6356216216216215,
+          "site": 53.24864612123871,
+          "background": 39.17776799127417
+        },
+        "ghg.ch4": {
+          "z": -1.9297020950974326,
+          "hf": 0.08333333333333333,
+          "score": 0.0,
+          "confidence": 0.535283077194601,
+          "site": 1822.0278262813,
+          "background": 1839.2516903319804
+        },
+        "ghg.co2": {
+          "z": null,
+          "hf": null,
+          "score": 1.0,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "ghg.viirs": {
+          "z": 5.838823961219244,
+          "hf": null,
+          "score": 1.0,
+          "confidence": 0.9216666666666667,
+          "site": 21.163032263887867,
+          "background": null
+        },
+        "nature.dw": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        },
+        "nature.flooded_veg": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.forest_loss": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.habitat": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.kba": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.low_ndvi": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.ndvi": {
+          "z": -0.5220470744667662,
+          "hf": null,
+          "score": 0.17401569148892207,
+          "confidence": 0.5033333333333333,
+          "site": null,
+          "background": null
+        },
+        "nature.recovery": {
+          "z": null,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.regional_loss_evidence": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.supplier_spatial_link": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.water": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        }
+      }
+    },
+    "wind_priority_suape.json": {
+      "type": "screening",
+      "indicators": {
+        "air.aai": {
+          "z": 0.14654727072931015,
+          "hf": 0.36363636363636365,
+          "score": 0.04884909024310339,
+          "confidence": 0.7959090909090909,
+          "site": -0.4085558478335604,
+          "background": -0.4237639033866265
+        },
+        "air.aod": {
+          "z": 0.43991546743080095,
+          "hf": 0.4897959183673469,
+          "score": 0.1466384891436003,
+          "confidence": 0.8424489795918368,
+          "site": 90.66052306894031,
+          "background": 78.4061854227131
+        },
+        "air.co": {
+          "z": -0.06486501398915866,
+          "hf": 0.36923076923076925,
+          "score": 0.0,
+          "confidence": 0.6378461538461538,
+          "site": 25.981351297296673,
+          "background": 26.006946617987346
+        },
+        "air.hcho": {
+          "z": 0.3402546656558536,
+          "hf": 0.2625,
+          "score": 0.11341822188528451,
+          "confidence": 0.73209375,
+          "site": 79.66954872239194,
+          "background": 75.21141077796312
+        },
+        "air.no2": {
+          "z": -1.1941002448828586,
+          "hf": 0.08333333333333333,
+          "score": 0.0,
+          "confidence": 0.7037916666666667,
+          "site": 43.67028866560981,
+          "background": 45.46802770848465
+        },
+        "air.o3": {
+          "z": 1.6459909006273004,
+          "hf": 0.5,
+          "score": 0.5,
+          "confidence": 0.83,
+          "site": 265.25899961937614,
+          "background": 264.63352590845926
+        },
+        "air.pm10": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.pm25": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "air.so2": {
+          "z": 0.4919906404342663,
+          "hf": 0.2222222222222222,
+          "score": 0.16399688014475544,
+          "confidence": 0.6428888888888888,
+          "site": 33.666909682727045,
+          "background": 18.511015678495756
+        },
+        "ghg.ch4": {
+          "z": -2.0417599945128457,
+          "hf": 0.09090909090909091,
+          "score": 0.0,
+          "confidence": 0.42124267315419694,
+          "site": 1838.3922716299257,
+          "background": 1881.2312220476283
+        },
+        "ghg.co2": {
+          "z": null,
+          "hf": null,
+          "score": 0.035677135677439804,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "ghg.viirs": {
+          "z": 0.5770166176360718,
+          "hf": null,
+          "score": 0.19233887254535728,
+          "confidence": 0.6683333333333333,
+          "site": 14.625506140221386,
+          "background": null
+        },
+        "nature.dw": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        },
+        "nature.flooded_veg": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.forest_loss": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.habitat": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.kba": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 1.0,
+          "site": null,
+          "background": null
+        },
+        "nature.low_ndvi": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.ndvi": {
+          "z": -1.1639039801401985,
+          "hf": null,
+          "score": 0.38796799338006616,
+          "confidence": 0.5033333333333333,
+          "site": null,
+          "background": null
+        },
+        "nature.recovery": {
+          "z": null,
+          "hf": null,
+          "score": 0.0,
+          "confidence": 0.955,
+          "site": null,
+          "background": null
+        },
+        "nature.regional_loss_evidence": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.supplier_spatial_link": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": null,
+          "site": null,
+          "background": null
+        },
+        "nature.water": {
+          "z": null,
+          "hf": null,
+          "score": null,
+          "confidence": 0.9700000000000001,
+          "site": null,
+          "background": null
+        }
+      }
+    }
+  }
+}
