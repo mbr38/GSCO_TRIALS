@@ -1,5 +1,5 @@
 {
-  "id": "63f0cc12-26a3-46de-817c-7b9f38240f40",
+  "id": "28fc237c-75e8-4916-a3c9-64c653d47797",
   "name": "Distrito Federal, Brazil — Region screening",
   "type": "screening",
   "screening_setup": {
@@ -40,7 +40,7 @@
       "2026-05-23"
     ]
   },
-  "date_saved": "2026-05-31T15:03:19.510687+00:00",
+  "date_saved": "2026-05-31T16:45:28.037560+00:00",
   "payload": {
     "air.aai.site": -0.4779189737365163,
     "air.aai.background": -0.4667895535262914,
@@ -284,15 +284,15 @@
         "bg_std_spatial": 19.463857165515517
       }
     },
-    "air.no2.site": 46.00963999000928,
-    "air.no2.background": 44.06188855812712,
-    "air.no2.anomaly": 1.9477514318821605,
-    "air.no2.z": 0.3468529099345845,
-    "air.no2.hf": 0.022988505747126436,
+    "air.no2.site": 45.905483711778075,
+    "air.no2.background": 44.06317895225081,
+    "air.no2.anomaly": 1.8423047595272664,
+    "air.no2.z": 0.32807511080142154,
+    "air.no2.hf": 0.022727272727272728,
     "air.no2.trend": null,
     "air.no2.trend_p": null,
-    "air.no2.confidence": 0.6894597701149426,
-    "air.no2.score": 0.1156176366448615,
+    "air.no2.confidence": 0.6893977272727274,
+    "air.no2.score": 0.10935837026714051,
     "_provenance.air.no2": {
       "indicator_id": "air.no2",
       "asset_id": "COPERNICUS/S5P/OFFL/L3_NO2",
@@ -315,12 +315,12 @@
         "confidence_terms": {
           "qa": 0.9,
           "n_valid": 1.0,
-          "anomaly_strength": 0.022988505747126436,
+          "anomaly_strength": 0.022727272727272728,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "moderate"
         },
-        "n_valid_dates": 87,
-        "granule_count": 1106,
+        "n_valid_dates": 88,
+        "granule_count": 1118,
         "ring_land_fraction": 0.994973813014411,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
@@ -343,7 +343,7 @@
         "clim_baseline_valid_days": 89,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 5.6154968751725365,
-        "bg_std_spatial": 1.8188081005557009
+        "bg_std_spatial": 1.7915454074615518
       }
     },
     "air.o3.site": 257.6018672085291,
@@ -485,16 +485,16 @@
     "_provenance.air.pm_or_aerosol": {
       "formula": "fallback_aai_only"
     },
-    "air.industrial_combustion_proxy": 0.0693705819869169,
-    "air.voc_photochemical": 0.03468529099345845,
-    "air.heavy_industry_score": 0.03468529099345845,
+    "air.industrial_combustion_proxy": 0.06561502216028431,
+    "air.voc_photochemical": 0.032807511080142154,
+    "air.heavy_industry_score": 0.032807511080142154,
     "air.smoke_dust_regional_transport": 0.0,
-    "air.industrial_air_pollution_burden": 0.0462470546579446,
-    "air.pollution_proxy_score": 0.03468529099345845,
-    "air.spatiotemporal_anomaly_score": 0.01903079662726657,
-    "air.measurement_quality_score": 0.671505877423903,
-    "air.attribution_confidence_score": 0.671505877423903,
-    "air.audit_followup_priority": 0.14821871556184485,
+    "air.industrial_air_pollution_burden": 0.043743348106856206,
+    "air.pollution_proxy_score": 0.032807511080142154,
+    "air.spatiotemporal_anomaly_score": 0.01813661571616357,
+    "air.measurement_quality_score": 0.6714970141607294,
+    "air.attribution_confidence_score": 0.6714970141607294,
+    "air.audit_followup_priority": 0.14706020714626028,
     "nature.kba.dist_km": 9.395672626226776,
     "nature.kba.overlap_ha": 65830.15840577548,
     "nature.kba.overlap_pct": 11.28029577231136,
@@ -952,12 +952,11 @@
         }
       }
     },
-    "ghg.viirs.site": 12.776247481898896,
-    "ghg.viirs.anomaly": 12.53052760914149,
-    "ghg.viirs.z": 1.1456250493711881,
-    "ghg.viirs.trend": null,
-    "ghg.viirs.confidence": 0.675,
-    "ghg.viirs.score": 0.38187501645706273,
+    "ghg.viirs.site": 11.756397529547527,
+    "ghg.viirs.contrast": 0.8894724605807862,
+    "ghg.viirs.persistence": 1.0,
+    "ghg.viirs.confidence": 0.955,
+    "ghg.viirs.score": 0.8894724605807862,
     "_provenance.ghg.viirs": {
       "indicator_id": "ghg.viirs",
       "asset_id": "NASA/VIIRS/002/VNP46A2",
@@ -965,61 +964,48 @@
       "data_type": "satellite_observation",
       "data_source": "NASA / NOAA (VIIRS VNP46A2)",
       "native_scale_m": 463.83,
-      "method_note": null,
+      "method_note": "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained contrast: per-timestep Michelson contrast (site vs. background ring), lit fraction = persistence, score = pct(contrast | lit)·persistence_factor(persistence). No z-score / no anomaly-vs-baseline grammar (intentionally different from the Air pillar — sustained activity stock, not transient event).",
       "time_range": [
         "2026-02-22",
         "2026-05-23"
       ],
       "coverage_window": null,
       "skipped_reason": null,
-      "observations": null,
+      "observations": {
+        "count": 5199,
+        "unit": "daily_images"
+      },
       "column_to_surface_uncertainty": "n_a",
       "temporal_mode": "live_window",
       "sector_signal_anomaly": null,
       "extra": {
+        "n_valid_timesteps": 5146,
+        "n_lit_timesteps": 5146,
+        "granule_count": 5199,
         "confidence_terms": {
           "qa": 0.85,
-          "n_valid": 0.9,
-          "anomaly_strength": 0.0,
+          "n_valid": 1.0,
+          "anomaly_strength": 1.0,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
-        },
-        "n_valid_dates": 81,
-        "granule_count": 84,
-        "ring_land_fraction": 0.994973813014411,
-        "land_mask_applied": true,
-        "land_mask_asset": "MODIS/006/MOD44W",
-        "aoi_scale_class": "regional",
-        "temporal_fallback_used": false,
-        "temporal_fallback_strategy": null,
-        "temporal_fallback_source_window": null,
-        "climatology_fallback_used": false,
-        "climatology_fallback_vintage": null,
-        "clim_baseline_applied": false,
-        "clim_baseline_excluded": true,
-        "clim_baseline_days": null,
-        "clim_baseline_valid_days": 0,
-        "clim_baseline_sparse": false,
-        "bg_std_temporal": null,
-        "bg_std_spatial": 10.93772139149651
+        }
       }
     },
-    "ghg.temporal_coverage": 0.95,
+    "ghg.temporal_coverage": 1.0,
     "ghg.spatial_resolution_suitability": 1.0,
     "ghg.retrieval_inventory_quality": 0.925,
     "ghg.nearby_source_isolation": 1.0,
-    "ghg.combustion_proxy": 0.0693705819869169,
+    "ghg.combustion_proxy": 0.06561502216028431,
     "ghg.fire_or_regional_transport_risk": 0.0,
-    "ghg.activity_score": 0.38187501645706273,
+    "ghg.activity_score": 0.8894724605807862,
     "ghg.co2_context": 1.0,
-    "ghg.fossil_combustion_score": 0.5971861778874876,
-    "ghg.activity_adjusted_co2": 0.8145625049371188,
-    "ghg.core_audit_support": 0.12718390236389387,
-    "ghg.spatiotemporal_anomaly": 0.38187501645706273,
-    "ghg.data_quality_attribution": 0.95825,
-    "ghg.audit_followup_priority": 0.362599768824779,
-    "composite.overall_screening": 0.27469025976965056,
-    "composite.confidence": 0.671505877423903,
+    "ghg.fossil_combustion_score": 0.6975789987642426,
+    "ghg.activity_adjusted_co2": 0.9668417381742358,
+    "ghg.core_audit_support": 0.5599294852125855,
+    "ghg.data_quality_attribution": 0.9752500000000001,
+    "ghg.audit_followup_priority": 0.673198716518244,
+    "composite.overall_screening": 0.37783707286227736,
+    "composite.confidence": 0.6714970141607294,
     "_failures": {
       "air": [
         {
@@ -1052,7 +1038,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-31T15:05:29.103488+00:00",
+      "computed_at": "2026-05-31T16:50:16.485055+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",

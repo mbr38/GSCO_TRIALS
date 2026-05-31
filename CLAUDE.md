@@ -121,6 +121,8 @@ Engine milestones 1 through 4 should ship before the result-page UI (P-05/P-06) 
 
 **Pillar order.** Always `air → ghg → nature → composite`. The UI assumes this, the verbal summary assumes this, the CSV exports assume this.
 
+**Scoring grammars differ by pillar — do NOT harmonise.** The pillars deliberately use different scoring grammars because they ask different physical questions. The Air indicators (and the per-indicator severity tiles for most others) use the repeatable-core **z-score anomaly** grammar (transient event vs. the regional baseline). The **GHG VIIRS** term uses a **persistence-weighted ring-relative sustained-contrast** grammar (M-GHG-REDESIGN-A1) — sustained activity *stock*, not a transient anomaly — and is intentionally NOT routed through `six_step`; it has its own `engine.ghg.compute_viirs_sustained_contrast` and a `score_band` severity grammar. Cross-pillar normalisation consistency is **not** a goal. See `Indicators_Computation_v4.md §2.2a`. Don't "unify" VIIRS back onto the z-score path.
+
 **Errors.** Use the exception hierarchy in `engine/exceptions.py` — `IndicatorComputeError` for single-indicator failures, `PillarComputeError` for non-recoverable pillar failures. The orchestrator catches `PillarComputeError` to render the partial-result UI (Wireframes P-05 S2_Partial).
 
 **No silent defaults.** If a value is missing in a payload, mark it `None` and surface it in the failures list — do not substitute a default.
@@ -172,4 +174,4 @@ These are the prompts that match the structured docs well:
 
 ---
 
-*Last reviewed: 14 May 2026. If the doc set evolves (new versions of PLFS, Wireframes, etc.), update §2 of this file before starting work against the new versions.*
+*Last reviewed: 31 May 2026 (M-GHG-REDESIGN-A1). If the doc set evolves (new versions of PLFS, Wireframes, etc.), update §2 of this file before starting work against the new versions.*

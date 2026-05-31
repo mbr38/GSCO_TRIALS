@@ -359,15 +359,15 @@ def test_sapezal_snapshot_respects_min_three(sapezal_payload):
     assert len(snapshot) >= _MIN_SNAPSHOT_TILES
 
 
-def test_sapezal_viirs_classifies_normally(sapezal_payload):
-    # The M-V1x-STANDING-WINDOW regeneration (28 May 2026) refreshed this
-    # fixture, so it now includes ghg.viirs.z (the M-UI-A4 emitted-set
-    # addition). VIIRS is therefore no longer a stale-fixture failure — it
-    # classifies to a real severity (Normal for this AOI's z=0.84). The
-    # graceful-degradation-on-missing-z path is covered by test_severity.py.
-    # (ODIAC is not a tile in spec v1.1, so it's not asserted here.)
+def test_sapezal_viirs_classifies_high(sapezal_payload):
+    # M-GHG-REDESIGN-A1 — VIIRS is now scored as persistence-weighted ring-
+    # relative sustained contrast (score-band grammar), not a z-score. The
+    # regenerated Sapezal seed lands at score≈0.68 (persistence≈0.96) — a
+    # sustained, locally-bright plantation against its Amazon-forest ring —
+    # which bands to High (≥0.66). The graceful-degradation-on-missing-score
+    # path is covered by test_severity.py. (ODIAC is not a tile in spec v1.1.)
     assert _is_failed(_tile("viirs"), sapezal_payload) is False
-    assert _tile_severity(_tile("viirs"), sapezal_payload) == "Normal"
+    assert _tile_severity(_tile("viirs"), sapezal_payload) == "High"
 
 
 def test_brasilia_kba_overlap_fires_high(brasilia_payload):

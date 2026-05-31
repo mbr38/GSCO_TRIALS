@@ -4,7 +4,13 @@
 
 **Authority.** Names and groupings derive from `Indicators_Computation_v4.md`. Any new indicator must first be added there, then surfaced here.
 
-**Date.** 22 May 2026 (v2.2 — M-TIER-A1).
+**Date.** 31 May 2026 (v2.3 — M-GHG-REDESIGN-A1).
+
+**Changes from v2.2 (M-GHG-REDESIGN-A1, 31 May 2026).** GHG VIIRS re-grammar + composite reweight. Four patches:
+- **Patch 11:** §3.1 — `ghg.viirs` emitted set changed from `.site, .anomaly, .z, .trend, .confidence, .score` to `.site, .contrast, .persistence, .confidence, .score`. VIIRS is re-grammared as persistence-weighted ring-relative sustained contrast (no z-score); the M-UI-A4 `ghg.viirs.z` footnote is superseded. See `Indicators_Computation_v4.md §2.2a`.
+- **Patch 12:** §3.3 — `ghg.spatiotemporal_anomaly` annotated **RETIRED** (reserved canonical ID, no longer computed/emitted/scored; removed from `GHG_Audit_FollowUp_Priority`). The GHG pillar has no spatiotemporal-anomaly source after CH₄'s reference-data reclassification and the VIIRS re-grammar.
+- **Patch 13:** §2.3 / §3.2 — `ghg.core_audit_support` reweighted VIIRS-led (`0.60·activity_score + 0.40·combustion_proxy`); `ghg.activity_score` note updated.
+- **Patch 14:** §3.4 — GHG DQA weight annotations corrected to the live engine values (0.34 / 0.33 / 0.33 over three terms; `ghg.nearby_source_isolation` removed from the aggregate per M-ATTRIB-A1, retained as an emitted reserved field). This fixes a pre-existing v2.0 drift surfaced during the M-GHG-REDESIGN-A1 consistency pass.
 
 **Changes from v2.1 (M-TIER-A1, 22 May 2026).** Single-line footnote in §6.1 noting that the `column_to_surface_uncertainty` field doubles as the A1 confidence multiplier — same enum value drives both the audit-§1.5 provenance honesty tag and the IC_v4.2 §8.1 confidence formula's `[1.00 / 0.95 / 0.88 / 0.80 / 1.00]` multiplier lookup. One source of truth for the per-gas penalty.
 
@@ -122,11 +128,11 @@ Every pollutant below produces the full measurement set: `.site`, `.background`,
 |---|---|---|---|
 | `ghg.ch4` | Sentinel-5P `CH4_column_volume_mixing_ratio_dry_air` | ppb | `.site`, `.background`, `.anomaly`, `.z`, `.hf`, `.trend`, `.trend_p`, `.confidence`, `.score` |
 | `ghg.co2` | ODIAC (uploaded asset) | kg CO₂ m⁻² yr⁻¹ (flux); t CO₂ yr⁻¹ (total) | `.mean`, `.total`, `.relative_intensity`, `.trend`, `.confidence`, `.score` |
-| `ghg.viirs` | VIIRS Black Marble NTL | nW cm⁻² sr⁻¹ | `.site`, `.anomaly`, `.z`, `.trend`, `.confidence`, `.score` |
+| `ghg.viirs` | VIIRS Black Marble NTL | nW cm⁻² sr⁻¹ | `.site`, `.contrast`, `.persistence`, `.confidence`, `.score` |
 
 CO₂ uses `.mean` and `.total` (annual flux mean and annual area-integrated total) instead of `.site` because ODIAC is an emissions inventory, not a column density.
 
-**Footnote (M-UI-A4, 27 May 2026).** `ghg.viirs.z` was added to the VIIRS emitted set. The spatiotemporal-anomaly z-score is computed by the repeatable core for every six-step indicator (`z = anomaly / bg_std`); for VIIRS it was previously filtered out of the result payload. The C4b indicator-snapshot redesign (M-UI-A4) reads it to place VIIRS on the z-score severity grammar alongside CH₄. VIIRS still omits `.background`, `.hf`, and `.trend_p` — only the z consumed by the severity grammar was surfaced; no new value is computed.
+**Footnote (M-GHG-REDESIGN-A1, 31 May 2026).** VIIRS is no longer scored as a z-score anomaly. It is re-grammared as **persistence-weighted ring-relative sustained contrast** (`Indicators_Computation_v4.md §2.2a`): `.score = contrast_over_lit_window · persistence_factor(persistence)`, where `.contrast` is the lit-window ring-relative Michelson contrast and `.persistence` is the lit fraction of the window. The old `.anomaly` / `.z` / `.trend` keys are therefore dropped; `.contrast` and `.persistence` replace them. `.site` is retained for the C4b tile value. Severity bands the [0,1] `.score` directly (score-band grammar), not a z-score. The prior M-UI-A4 footnote (which surfaced `ghg.viirs.z` for the z-score severity grammar) is superseded.
 
 **Footnote (v2.1 patch 3).** `ghg.co2.anomaly` was renamed to `ghg.co2.relative_intensity` to reflect the engine-canonical measurement name introduced in M5.5b. The renamed measurement is the ratio of site flux to background flux, clamped at 10× as a CARMA-overlap proxy (see IC_v4 §2.1). The `.anomaly` form is no longer emitted; consumers (Indicator Library, Reports, CSV/JSON exports) must use `.relative_intensity`. The audit doc §1.4 flagged this drift between v2.0 of this schema and `engine/ghg.py`.
 
@@ -135,7 +141,7 @@ CO₂ uses `.mean` and `.total` (annual flux mean and annual area-integrated tot
 | ID | Defined in | Notes |
 |---|---|---|
 | `ghg.combustion_proxy` | Indicators_Computation §2.2 | Same formula as `air.industrial_combustion_proxy`; aliased here for clarity in GHG context |
-| `ghg.activity_score` | §2.2 | Alias of `ghg.viirs.score` |
+| `ghg.activity_score` | §2.2 | Alias of `ghg.viirs.score` (persistence-weighted ring-relative sustained contrast; M-GHG-REDESIGN-A1). Leads `ghg.core_audit_support` at weight 0.60. |
 | `ghg.co2_context` | §2.2 | Alias of `ghg.co2.score` |
 | `ghg.ch4_hotspot_signal` | §2.2 | Alias of `ghg.ch4.score` (pre-adjustment) |
 | `ghg.fire_or_regional_transport_risk` | §2.2 / §7.3 | Same value as `air.smoke_dust_regional_transport` |
@@ -147,9 +153,9 @@ CO₂ uses `.mean` and `.total` (annual flux mean and annual area-integrated tot
 
 | ID | Defined in |
 |---|---|
-| `ghg.core_audit_support` | §2.3 — v1 rescaled form |
-| `ghg.spatiotemporal_anomaly` | §2.3 |
-| `ghg.data_quality_attribution` | §2.3 — v1 rescaled form (Wind_Consistency, Sector_Match deferred); weights 0.33 / 0.27 / 0.27 / 0.13 over the four terms in §3.4 below |
+| `ghg.core_audit_support` | §2.3 — v1 rescaled form (M-GHG-REDESIGN-A1: `0.60·activity_score + 0.40·combustion_proxy`) |
+| `ghg.spatiotemporal_anomaly` | §2.3 — **RETIRED (M-GHG-REDESIGN-A1).** Reserved canonical ID, no longer computed/emitted/scored. The GHG pillar has no spatiotemporal-anomaly source after CH₄'s reference-data reclassification and the VIIRS sustained-contrast re-grammar (VIIRS no longer carries a `.z`; CO₂/ODIAC never did). Removed from `GHG_Audit_FollowUp_Priority`. ID kept reserved so legacy saved analyses / seeds carrying the key still resolve. |
+| `ghg.data_quality_attribution` | §2.3 — v1 rescaled form (Wind_Consistency, Sector_Match deferred); weights 0.34 / 0.33 / 0.33 over the three measurement-quality terms in §3.4 below (Nearby_Source_Isolation removed from the aggregate per M-ATTRIB-A1) |
 | `ghg.audit_followup_priority` | §2.3 — the pillar Follow-Up Priority |
 
 ### 3.4 Quality sub-scores (v1)
@@ -158,10 +164,10 @@ These are the four terms in the v1 `GHG_Data_Quality_Attribution` formula. All a
 
 | ID | Type | Defined in | Notes |
 |---|---|---|---|
-| `ghg.temporal_coverage` | 0–1 | IC_v4 §2.3, weight 0.33 | Fraction of expected observations actually present in the analysis window. Goes down for cloud-heavy regions and short windows. |
-| `ghg.spatial_resolution_suitability` | 0–1 | IC_v4 §2.3, weight 0.27 | How well the indicator's pixel size matches the buffer. Penalises CH₄ at sub-pixel buffers; rewarded when buffer covers ≥ 3 native pixels. |
-| `ghg.retrieval_inventory_quality` | 0–1 | IC_v4 §2.3, weight 0.27 | Aggregate of per-source QA flags (TROPOMI retrieval QA for CH₄; ODIAC vintage lag for CO₂; VIIRS cloud / sun-glint flags). |
-| `ghg.nearby_source_isolation` | 0–1 | IC_v4 §2.3 (weight 0.13) and IC_v4 §7.2 (formula) | "Is the background ring clean, or is the signal contaminated by other emitters?" v1 uses the satellite-only proxy: `0.5 · isolation_from_no2 + 0.5 · isolation_from_viirs`. v1.x will upgrade the implementation using E-PRTR / GHGRP registries; the indicator ID stays the same. |
+| `ghg.temporal_coverage` | 0–1 | IC_v4 §2.3, weight 0.34 | Fraction of expected observations actually present in the analysis window. Goes down for cloud-heavy regions and short windows. |
+| `ghg.spatial_resolution_suitability` | 0–1 | IC_v4 §2.3, weight 0.33 | How well the indicator's pixel size matches the buffer. Penalises CH₄ at sub-pixel buffers; rewarded when buffer covers ≥ 3 native pixels. |
+| `ghg.retrieval_inventory_quality` | 0–1 | IC_v4 §2.3, weight 0.33 | Aggregate of per-source QA flags (TROPOMI retrieval QA for CH₄; ODIAC vintage lag for CO₂; VIIRS cloud / sun-glint flags). |
+| `ghg.nearby_source_isolation` | 0–1 | IC_v4 §7.2 (formula); **removed from the DQA aggregate per M-ATTRIB-A1 (AT15)** | "Is the background ring clean, or is the signal contaminated by other emitters?" An *attributability* concept, not a measurement-quality one — as of M-ATTRIB-A1 it no longer enters `ghg.data_quality_attribution` (its v1 value is a fixed 1.0 placeholder that inflated the score). The field is still emitted (reserved for a future GHG attributability surface). v1 formula: `0.5 · isolation_from_no2 + 0.5 · isolation_from_viirs`. |
 
 ### 3.5 Deferred (v1.x — not exposed in v1)
 
