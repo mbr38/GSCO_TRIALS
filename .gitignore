@@ -22,6 +22,8 @@ Thumbs.db
 
 # Environment
 .env
+.env.local
+.env.*.local
 
 # Earth Engine auth (lives in ~/.config/earthengine, but include here as a guard)
 .earthengine/

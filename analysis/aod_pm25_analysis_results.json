@@ -1,0 +1,736 @@
+{
+  "overall": {
+    "pearson_r": 0.78,
+    "pearson_p": 0.0,
+    "spearman_rho": 0.75,
+    "n": 23
+  },
+  "per_regime_window_corr": [
+    {
+      "regime": "industrial",
+      "n": 4,
+      "pearson_r": 0.67,
+      "pearson_p": 0.327,
+      "spearman_rho": 0.4,
+      "AOD_mean": 0.451,
+      "PM25_mean": 38.5
+    },
+    {
+      "regime": "coal",
+      "n": 5,
+      "pearson_r": 0.62,
+      "pearson_p": 0.264,
+      "spearman_rho": 0.3,
+      "AOD_mean": 0.283,
+      "PM25_mean": 35.1
+    },
+    {
+      "regime": "biomass",
+      "n": 5,
+      "pearson_r": 0.95,
+      "pearson_p": 0.013,
+      "spearman_rho": 0.7,
+      "AOD_mean": 0.213,
+      "PM25_mean": 20.9
+    },
+    {
+      "regime": "dust",
+      "n": 4,
+      "pearson_r": 0.96,
+      "pearson_p": 0.036,
+      "spearman_rho": 1.0,
+      "AOD_mean": 0.193,
+      "PM25_mean": 32.7
+    },
+    {
+      "regime": "clean",
+      "n": 5,
+      "pearson_r": -0.11,
+      "pearson_p": 0.86,
+      "spearman_rho": 0.0,
+      "AOD_mean": 0.062,
+      "PM25_mean": 4.7
+    }
+  ],
+  "aod_per_pm25_ratio": {
+    "industrial": 0.0092,
+    "coal": 0.0088,
+    "biomass": 0.0095,
+    "dust": 0.0065,
+    "clean": 0.0159
+  },
+  "daily_corr": [
+    {
+      "location": "Chiang Mai, TH",
+      "regime": "biomass",
+      "paired_days": 119,
+      "daily_pearson_r": 0.87,
+      "daily_p": 0.0,
+      "sufficient": true
+    },
+    {
+      "location": "Manaus (Amazon), BR",
+      "regime": "biomass",
+      "paired_days": 15,
+      "daily_pearson_r": 0.62,
+      "daily_p": 0.014,
+      "sufficient": true
+    },
+    {
+      "location": "Athens, GR",
+      "regime": "biomass",
+      "paired_days": 73,
+      "daily_pearson_r": 0.23,
+      "daily_p": 0.052,
+      "sufficient": true
+    },
+    {
+      "location": "Chico CA, US",
+      "regime": "biomass",
+      "paired_days": 76,
+      "daily_pearson_r": -0.02,
+      "daily_p": 0.837,
+      "sufficient": true
+    },
+    {
+      "location": "Abuja, NG",
+      "regime": "biomass",
+      "paired_days": 51,
+      "daily_pearson_r": -0.04,
+      "daily_p": 0.789,
+      "sufficient": true
+    },
+    {
+      "location": "Hilo HI, US",
+      "regime": "clean",
+      "paired_days": 17,
+      "daily_pearson_r": 0.57,
+      "daily_p": 0.017,
+      "sufficient": true
+    },
+    {
+      "location": "Christchurch, NZ",
+      "regime": "clean",
+      "paired_days": 67,
+      "daily_pearson_r": 0.3,
+      "daily_p": 0.015,
+      "sufficient": true
+    },
+    {
+      "location": "Hobart, AU",
+      "regime": "clean",
+      "paired_days": 51,
+      "daily_pearson_r": 0.09,
+      "daily_p": 0.546,
+      "sufficient": true
+    },
+    {
+      "location": "Bergen, NO",
+      "regime": "clean",
+      "paired_days": 21,
+      "daily_pearson_r": -0.11,
+      "daily_p": 0.648,
+      "sufficient": true
+    },
+    {
+      "location": "Reykjavik, IS",
+      "regime": "clean",
+      "paired_days": 2,
+      "daily_pearson_r": NaN,
+      "daily_p": NaN,
+      "sufficient": false
+    },
+    {
+      "location": "Nagpur (Koradi), IN",
+      "regime": "coal",
+      "paired_days": 125,
+      "daily_pearson_r": 0.34,
+      "daily_p": 0.0,
+      "sufficient": true
+    },
+    {
+      "location": "Ostrava, CZ",
+      "regime": "coal",
+      "paired_days": 33,
+      "daily_pearson_r": 0.31,
+      "daily_p": 0.078,
+      "sufficient": true
+    },
+    {
+      "location": "Pittsburgh PA, US",
+      "regime": "coal",
+      "paired_days": 33,
+      "daily_pearson_r": 0.18,
+      "daily_p": 0.324,
+      "sufficient": true
+    },
+    {
+      "location": "Korba, IN",
+      "regime": "coal",
+      "paired_days": 137,
+      "daily_pearson_r": -0.0,
+      "daily_p": 0.988,
+      "sufficient": true
+    },
+    {
+      "location": "Katowice (Silesia), PL",
+      "regime": "coal",
+      "paired_days": 30,
+      "daily_pearson_r": -0.04,
+      "daily_p": 0.82,
+      "sufficient": true
+    },
+    {
+      "location": "Jaipur, IN",
+      "regime": "dust",
+      "paired_days": 112,
+      "daily_pearson_r": 0.27,
+      "daily_p": 0.004,
+      "sufficient": true
+    },
+    {
+      "location": "El Paso TX, US",
+      "regime": "dust",
+      "paired_days": 128,
+      "daily_pearson_r": 0.12,
+      "daily_p": 0.179,
+      "sufficient": true
+    },
+    {
+      "location": "Dubai, AE",
+      "regime": "dust",
+      "paired_days": 125,
+      "daily_pearson_r": 0.07,
+      "daily_p": 0.408,
+      "sufficient": true
+    },
+    {
+      "location": "Phoenix AZ, US",
+      "regime": "dust",
+      "paired_days": 121,
+      "daily_pearson_r": -0.21,
+      "daily_p": 0.02,
+      "sufficient": true
+    },
+    {
+      "location": "Kolkata, IN",
+      "regime": "industrial",
+      "paired_days": 101,
+      "daily_pearson_r": 0.36,
+      "daily_p": 0.0,
+      "sufficient": true
+    },
+    {
+      "location": "Lagos, NG",
+      "regime": "industrial",
+      "paired_days": 7,
+      "daily_pearson_r": 0.34,
+      "daily_p": 0.453,
+      "sufficient": false
+    },
+    {
+      "location": "Mexico City, MX",
+      "regime": "industrial",
+      "paired_days": 113,
+      "daily_pearson_r": 0.32,
+      "daily_p": 0.001,
+      "sufficient": true
+    },
+    {
+      "location": "Beijing, CN",
+      "regime": "industrial",
+      "paired_days": 100,
+      "daily_pearson_r": 0.3,
+      "daily_p": 0.003,
+      "sufficient": true
+    }
+  ],
+  "daily_corr_summary": {
+    "n_sufficient": 21,
+    "median_r": 0.23,
+    "frac_r_above_0.5": 0.14,
+    "frac_r_below_0.3": 0.57
+  },
+  "aod_high_pm25_low": [
+    {
+      "location": "Lagos, NG",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.524,
+      "pm25_mean_ugm3": 14.44,
+      "aod_per_pm25": 0.036,
+      "engine_z": 1.35,
+      "engine_severity": "Concern",
+      "aod_n_days": 16
+    },
+    {
+      "location": "Manaus (Amazon), BR",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.134,
+      "pm25_mean_ugm3": 3.82,
+      "aod_per_pm25": 0.035,
+      "engine_z": 1.928,
+      "engine_severity": "Concern",
+      "aod_n_days": 15
+    },
+    {
+      "location": "Hobart, AU",
+      "regime": "clean",
+      "aod_mean_scaled": 0.06,
+      "pm25_mean_ugm3": 1.9,
+      "aod_per_pm25": 0.031,
+      "engine_z": 0.592,
+      "engine_severity": "Normal",
+      "aod_n_days": 51
+    },
+    {
+      "location": "Korba, IN",
+      "regime": "coal",
+      "aod_mean_scaled": 0.547,
+      "pm25_mean_ugm3": 31.21,
+      "aod_per_pm25": 0.018,
+      "engine_z": 0.031,
+      "engine_severity": "Normal",
+      "aod_n_days": 147
+    },
+    {
+      "location": "Reykjavik, IS",
+      "regime": "clean",
+      "aod_mean_scaled": 0.061,
+      "pm25_mean_ugm3": 3.53,
+      "aod_per_pm25": 0.017,
+      "engine_z": 0.675,
+      "engine_severity": "Normal",
+      "aod_n_days": 2
+    },
+    {
+      "location": "Hilo HI, US",
+      "regime": "clean",
+      "aod_mean_scaled": 0.063,
+      "pm25_mean_ugm3": 3.94,
+      "aod_per_pm25": 0.016,
+      "engine_z": 1.254,
+      "engine_severity": "Concern",
+      "aod_n_days": 18
+    },
+    {
+      "location": "Christchurch, NZ",
+      "regime": "clean",
+      "aod_mean_scaled": 0.067,
+      "pm25_mean_ugm3": 5.0,
+      "aod_per_pm25": 0.013,
+      "engine_z": 0.433,
+      "engine_severity": "Normal",
+      "aod_n_days": 69
+    },
+    {
+      "location": "Pittsburgh PA, US",
+      "regime": "coal",
+      "aod_mean_scaled": 0.094,
+      "pm25_mean_ugm3": 7.37,
+      "aod_per_pm25": 0.013,
+      "engine_z": 1.014,
+      "engine_severity": "Concern",
+      "aod_n_days": 33
+    }
+  ],
+  "pm25_high_aod_low": [
+    {
+      "location": "Katowice (Silesia), PL",
+      "regime": "coal",
+      "aod_mean_scaled": 0.082,
+      "pm25_mean_ugm3": 43.97,
+      "aod_per_pm25": 0.002,
+      "engine_z": -0.309,
+      "engine_severity": "Normal",
+      "aod_n_days": 32
+    },
+    {
+      "location": "Ostrava, CZ",
+      "regime": "coal",
+      "aod_mean_scaled": 0.09,
+      "pm25_mean_ugm3": 24.18,
+      "aod_per_pm25": 0.004,
+      "engine_z": -0.274,
+      "engine_severity": "Normal",
+      "aod_n_days": 33
+    },
+    {
+      "location": "Dubai, AE",
+      "regime": "dust",
+      "aod_mean_scaled": 0.122,
+      "pm25_mean_ugm3": 32.59,
+      "aod_per_pm25": 0.004,
+      "engine_z": -0.037,
+      "engine_severity": "Normal",
+      "aod_n_days": 125
+    },
+    {
+      "location": "Jaipur, IN",
+      "regime": "dust",
+      "aod_mean_scaled": 0.459,
+      "pm25_mean_ugm3": 69.85,
+      "aod_per_pm25": 0.007,
+      "engine_z": -0.154,
+      "engine_severity": "Normal",
+      "aod_n_days": 120
+    },
+    {
+      "location": "Beijing, CN",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.304,
+      "pm25_mean_ugm3": 37.62,
+      "aod_per_pm25": 0.008,
+      "engine_z": -0.207,
+      "engine_severity": "Normal",
+      "aod_n_days": 117
+    },
+    {
+      "location": "Mexico City, MX",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.212,
+      "pm25_mean_ugm3": 25.28,
+      "aod_per_pm25": 0.008,
+      "engine_z": 1.067,
+      "engine_severity": "Concern",
+      "aod_n_days": 116
+    },
+    {
+      "location": "Nagpur (Koradi), IN",
+      "regime": "coal",
+      "aod_mean_scaled": 0.6,
+      "pm25_mean_ugm3": 68.55,
+      "aod_per_pm25": 0.009,
+      "engine_z": 1.185,
+      "engine_severity": "Concern",
+      "aod_n_days": 134
+    },
+    {
+      "location": "Abuja, NG",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.443,
+      "pm25_mean_ugm3": 46.63,
+      "aod_per_pm25": 0.01,
+      "engine_z": -0.05,
+      "engine_severity": "Normal",
+      "aod_n_days": 63
+    }
+  ],
+  "engine_table": [
+    {
+      "location": "Kolkata, IN",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.765,
+      "pm25_mean_ugm3": 76.75,
+      "engine_site_dn": 724.351,
+      "engine_background_dn": 708.476,
+      "engine_z": 0.616,
+      "engine_confidence": 0.819,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Nagpur (Koradi), IN",
+      "regime": "coal",
+      "aod_mean_scaled": 0.6,
+      "pm25_mean_ugm3": 68.55,
+      "engine_site_dn": 601.952,
+      "engine_background_dn": 570.48,
+      "engine_z": 1.185,
+      "engine_confidence": 0.827,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Korba, IN",
+      "regime": "coal",
+      "aod_mean_scaled": 0.547,
+      "pm25_mean_ugm3": 31.21,
+      "engine_site_dn": 532.528,
+      "engine_background_dn": 530.911,
+      "engine_z": 0.031,
+      "engine_confidence": 0.816,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Lagos, NG",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.524,
+      "pm25_mean_ugm3": 14.44,
+      "engine_site_dn": 593.475,
+      "engine_background_dn": 484.19,
+      "engine_z": 1.35,
+      "engine_confidence": 0.701,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Jaipur, IN",
+      "regime": "dust",
+      "aod_mean_scaled": 0.459,
+      "pm25_mean_ugm3": 69.85,
+      "engine_site_dn": 429.076,
+      "engine_background_dn": 433.561,
+      "engine_z": -0.154,
+      "engine_confidence": 0.8,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Abuja, NG",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.443,
+      "pm25_mean_ugm3": 46.63,
+      "engine_site_dn": 486.221,
+      "engine_background_dn": 489.143,
+      "engine_z": -0.05,
+      "engine_confidence": 0.78,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Chiang Mai, TH",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.322,
+      "pm25_mean_ugm3": 31.17,
+      "engine_site_dn": 306.622,
+      "engine_background_dn": 307.478,
+      "engine_z": -0.043,
+      "engine_confidence": 0.793,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Beijing, CN",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.304,
+      "pm25_mean_ugm3": 37.62,
+      "engine_site_dn": 269.654,
+      "engine_background_dn": 273.49,
+      "engine_z": -0.207,
+      "engine_confidence": 0.814,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Mexico City, MX",
+      "regime": "industrial",
+      "aod_mean_scaled": 0.212,
+      "pm25_mean_ugm3": 25.28,
+      "engine_site_dn": 211.949,
+      "engine_background_dn": 183.47,
+      "engine_z": 1.067,
+      "engine_confidence": 0.847,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Manaus (Amazon), BR",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.134,
+      "pm25_mean_ugm3": 3.82,
+      "engine_site_dn": 145.373,
+      "engine_background_dn": 94.916,
+      "engine_z": 1.928,
+      "engine_confidence": 0.746,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Dubai, AE",
+      "regime": "dust",
+      "aod_mean_scaled": 0.122,
+      "pm25_mean_ugm3": 32.59,
+      "engine_site_dn": 130.926,
+      "engine_background_dn": 131.983,
+      "engine_z": -0.037,
+      "engine_confidence": 0.763,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Athens, GR",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.103,
+      "pm25_mean_ugm3": 12.32,
+      "engine_site_dn": 96.681,
+      "engine_background_dn": 78.462,
+      "engine_z": 1.094,
+      "engine_confidence": 0.856,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "El Paso TX, US",
+      "regime": "dust",
+      "aod_mean_scaled": 0.102,
+      "pm25_mean_ugm3": 14.59,
+      "engine_site_dn": 99.707,
+      "engine_background_dn": 90.721,
+      "engine_z": 0.51,
+      "engine_confidence": 0.839,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Pittsburgh PA, US",
+      "regime": "coal",
+      "aod_mean_scaled": 0.094,
+      "pm25_mean_ugm3": 7.37,
+      "engine_site_dn": 78.119,
+      "engine_background_dn": 70.856,
+      "engine_z": 1.014,
+      "engine_confidence": 0.87,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Ostrava, CZ",
+      "regime": "coal",
+      "aod_mean_scaled": 0.09,
+      "pm25_mean_ugm3": 24.18,
+      "engine_site_dn": 84.501,
+      "engine_background_dn": 86.629,
+      "engine_z": -0.274,
+      "engine_confidence": 0.818,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Phoenix AZ, US",
+      "regime": "dust",
+      "aod_mean_scaled": 0.089,
+      "pm25_mean_ugm3": 13.71,
+      "engine_site_dn": 76.391,
+      "engine_background_dn": 63.756,
+      "engine_z": 1.145,
+      "engine_confidence": 0.854,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Katowice (Silesia), PL",
+      "regime": "coal",
+      "aod_mean_scaled": 0.082,
+      "pm25_mean_ugm3": 43.97,
+      "engine_site_dn": 78.55,
+      "engine_background_dn": 80.645,
+      "engine_z": -0.309,
+      "engine_confidence": 0.829,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Christchurch, NZ",
+      "regime": "clean",
+      "aod_mean_scaled": 0.067,
+      "pm25_mean_ugm3": 5.0,
+      "engine_site_dn": 70.341,
+      "engine_background_dn": 65.761,
+      "engine_z": 0.433,
+      "engine_confidence": 0.845,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Chico CA, US",
+      "regime": "biomass",
+      "aod_mean_scaled": 0.064,
+      "pm25_mean_ugm3": 10.66,
+      "engine_site_dn": 57.211,
+      "engine_background_dn": 50.348,
+      "engine_z": 0.82,
+      "engine_confidence": 0.858,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Hilo HI, US",
+      "regime": "clean",
+      "aod_mean_scaled": 0.063,
+      "pm25_mean_ugm3": 3.94,
+      "engine_site_dn": 76.008,
+      "engine_background_dn": 55.26,
+      "engine_z": 1.254,
+      "engine_confidence": 0.832,
+      "engine_severity": "Concern"
+    },
+    {
+      "location": "Reykjavik, IS",
+      "regime": "clean",
+      "aod_mean_scaled": 0.061,
+      "pm25_mean_ugm3": 3.53,
+      "engine_site_dn": 59.703,
+      "engine_background_dn": 49.459,
+      "engine_z": 0.675,
+      "engine_confidence": 0.768,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Hobart, AU",
+      "regime": "clean",
+      "aod_mean_scaled": 0.06,
+      "pm25_mean_ugm3": 1.9,
+      "engine_site_dn": 60.766,
+      "engine_background_dn": 53.498,
+      "engine_z": 0.592,
+      "engine_confidence": 0.828,
+      "engine_severity": "Normal"
+    },
+    {
+      "location": "Bergen, NO",
+      "regime": "clean",
+      "aod_mean_scaled": 0.059,
+      "pm25_mean_ugm3": 9.12,
+      "engine_site_dn": 67.127,
+      "engine_background_dn": 71.517,
+      "engine_z": -0.295,
+      "engine_confidence": 0.674,
+      "engine_severity": "Normal"
+    }
+  ],
+  "engine_band_vs_aod_quartile": {
+    "Concern": {
+      "Q1-low": 1,
+      "Q2": 3,
+      "Q3": 2,
+      "Q4-high": 2
+    },
+    "Normal": {
+      "Q1-low": 5,
+      "Q2": 3,
+      "Q3": 3,
+      "Q4-high": 4
+    }
+  },
+  "aod_coverage_by_regime": {
+    "industrial": {
+      "min": 16,
+      "median": 112,
+      "max": 117
+    },
+    "coal": {
+      "min": 32,
+      "median": 33,
+      "max": 147
+    },
+    "biomass": {
+      "min": 15,
+      "median": 76,
+      "max": 120
+    },
+    "dust": {
+      "min": 120,
+      "median": 123,
+      "max": 128
+    },
+    "clean": {
+      "min": 2,
+      "median": 23,
+      "max": 69
+    }
+  },
+  "worst_coverage": [
+    {
+      "location": "Reykjavik, IS",
+      "aod_n_days": 2
+    },
+    {
+      "location": "Manaus (Amazon), BR",
+      "aod_n_days": 15
+    },
+    {
+      "location": "Lagos, NG",
+      "aod_n_days": 16
+    },
+    {
+      "location": "Hilo HI, US",
+      "aod_n_days": 18
+    },
+    {
+      "location": "Bergen, NO",
+      "aod_n_days": 23
+    }
+  ]
+}
