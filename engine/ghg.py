@@ -1288,6 +1288,12 @@ def _format_result(
     fallback_extra = raw.get("fallback_extra")
     if fallback_extra is not None:
         extra.update(fallback_extra)
+    # M-DIAG-A4 — merge the climatology-baseline denominator provenance. CH₄
+    # still gets the new denominator (extraction unchanged per M-CH4-A1) even
+    # though its severity is no longer surfaced; the fix applies uniformly.
+    clim_denominator_extra = raw.get("clim_denominator_extra")
+    if clim_denominator_extra is not None:
+        extra.update(clim_denominator_extra)
 
     result[f"_provenance.ghg.{indicator}"] = build_provenance(
         indicator_id=f"ghg.{indicator}",

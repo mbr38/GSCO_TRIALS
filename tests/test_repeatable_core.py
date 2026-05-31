@@ -1233,6 +1233,14 @@ class TestSixStepFilterBoundsScope:
             rc, "_server_side_hf",
             lambda *a, **kw: rc.ServerSideHfResult(5, 0.0, 100),
         )
+        # M-DIAG-A4 — stub the climatology-baseline denominator so it doesn't
+        # exercise the spy IC (it has its own trailing filterDate/filterBounds
+        # over the prior window; this test guards only six_step's own
+        # *screening-window* filterDate/filterBounds scope).
+        monkeypatch.setattr(
+            rc, "_climatology_bg_std",
+            lambda *a, **kw: (None, 0, 90),
+        )
         monkeypatch.setattr(
             rc, "_confidence_terms_from_six_step_state",
             lambda **kw: {

@@ -983,6 +983,45 @@ EARLIEST_SCREENING_DATE: str = "2019-01-01"
 
 
 # ---------------------------------------------------------------------------
+# M-DIAG-A4 — climatology-baseline denominator (engine/core/repeatable_core.py)
+# ---------------------------------------------------------------------------
+# The per-day / aggregate anomaly detector's denominator (`bg_std`) is the
+# *temporal* standard deviation of the site's per-day value series over a
+# trailing clean prior period — NOT the spatial std of the time-averaged ring
+# (the M-DIAG-A3 H1c scale mismatch). The fix is numerical-correctness: the
+# spatial std of a time-averaged field is the wrong scale to normalise per-day
+# temporal deviations. See docs/M-DIAG-A4_spec.md and the M-DIAG-A3 addendum.
+
+# DGC1 — baseline window = max(90, screening_window_length) trailing. When the
+# screening window is ≤ 90 days the baseline is 90 trailing days; when it is
+# longer the baseline grows to match. The floor gives a strong σ estimate even
+# for short (30-day) screenings.
+CLIMATOLOGY_BASELINE_MIN_DAYS: int = 90
+
+# §4.4 — sparse-coverage flag. When the trailing prior period yields fewer than
+# this many valid per-day site observations, the temporal σ is still used (we
+# use what's available) but the indicator's provenance is flagged
+# `clim_baseline_sparse=True` so auditors can see the estimate rests on thin
+# data (e.g. early-2019 screenings near the S5P/AAI archive floor).
+CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS: int = 30
+
+# A standard deviation needs at least two observations. Below this the temporal
+# denominator cannot be computed at all; the detector then leaves `bg_std`
+# unchanged (the spatial std) and flags `clim_baseline_applied=False` — a loud
+# fallback, never a silent default (CLAUDE.md §7 "no silent defaults").
+CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS: int = 2
+
+# Engine methodology version (M-DIAG-A4 / DGC5, Q-DGC-B → numeric integer).
+# Bumped whenever a change to the anomaly-detection methodology means a saved
+# trend record computed under an older engine is no longer directly comparable
+# to a fresh screening. Saved trend records written before this field existed
+# default to 0 on read → the stale-data banner fires. Version map:
+#   0 — pre-M-DIAG-A4 (spatial-std denominator)
+#   1 — M-DIAG-A4 (climatology-baseline temporal denominator)
+ENGINE_METHODOLOGY_VERSION: int = 1
+
+
+# ---------------------------------------------------------------------------
 # M-TREND-A1 — per-indicator trend drill-down (engine/core/trend.py)
 # ---------------------------------------------------------------------------
 # Theil–Sen slope + Mann–Kendall significance over a server-side per-day

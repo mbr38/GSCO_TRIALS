@@ -27,6 +27,9 @@ from engine.constants import (
     ANOMALY_Z_THRESHOLD,
     BACKGROUND_RING_MAX_KM,
     BACKGROUND_RING_RADIUS_MULTIPLE,
+    CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS,
+    CLIMATOLOGY_BASELINE_MIN_DAYS,
+    CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS,
     CLIMATOLOGY_INDICATORS,
     LAND_MASK_FRACTION_MIN_THRESHOLD,
     NORMALISATION_K,
@@ -281,6 +284,119 @@ def background_value(
             ),
         )
     return float(median), float(std)
+
+
+# ---------------------------------------------------------------------------
+# M-DIAG-A4 — climatology-baseline temporal denominator
+# ---------------------------------------------------------------------------
+# The anomaly detector's denominator was the *spatial* std of the time-averaged
+# ring (`background_value`'s second return). M-DIAG-A3 (H1c) showed that is the
+# wrong scale: per-day *temporal* deviations were being normalised by a spatial
+# spread 2-14× too small, inflating per-day z into magnitude artefacts. The fix
+# replaces that denominator with the *temporal* std of the site's per-day value
+# series over a trailing clean prior period. `bg_median` (the spatial median of
+# the ring) is unchanged — only the normalisation scale becomes temporal.
+
+def _climatology_window(
+    time_range: tuple[str, str],
+    *,
+    min_days: int = CLIMATOLOGY_BASELINE_MIN_DAYS,
+) -> tuple[str, str, int] | None:
+    """Trailing climatology window for the temporal denominator (DGC1).
+
+    Baseline length = ``max(min_days, screening_window_length)`` trailing,
+    ending at the screening-window start (exclusive). Returns
+    ``(clim_start_iso, clim_end_iso, baseline_days)`` or ``None`` when
+    ``time_range`` is not a parseable ISO pair (e.g. the ``("static",
+    "static")`` sentinel reference-data indicators use — those never reach
+    here via six_step, but the guard keeps the helper total).
+    """
+    try:
+        start = _date.fromisoformat(time_range[0])
+    except (TypeError, ValueError, IndexError):
+        return None
+    win_days = _window_days(time_range)
+    baseline_days = max(min_days, win_days if win_days is not None else min_days)
+    clim_start = start - _td(days=baseline_days)
+    return clim_start.isoformat(), start.isoformat(), baseline_days
+
+
+def _temporal_std(values: list[float]) -> tuple[float | None, int]:
+    """Population std of a per-day site series (matches EE ``Reducer.stdDev``).
+
+    Returns ``(std, n_valid_days)``. ``std`` is ``None`` when there are fewer
+    than ``CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS`` observations (a std needs
+    at least two). Population (ddof=0) std is used so the temporal denominator
+    matches the EE reducer the spatial std it replaces was computed with.
+    """
+    import statistics as _stats
+    n = len(values)
+    if n < CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS:
+        return None, n
+    return _stats.pstdev(values), n
+
+
+def _climatology_bg_std(
+    aoi: dict,
+    image_collection: ee.ImageCollection,
+    envelope,
+    band: str,
+    time_range: tuple[str, str],
+    scale: float | None,
+    *,
+    indicator_id: str | None,
+) -> tuple[float | None, int, int | None]:
+    """Temporal σ of the site's per-day series over a trailing prior period.
+
+    Site-level (Q-DGC-A: a single per-day series at the site over the clean
+    prior window, not per-ring-pixel). Reuses the tested per-day reducer
+    ``engine.core.trend._server_side_day_means`` (DGC4 — compose with existing
+    infra rather than re-deriving the chunked server-side day aggregation).
+
+    Returns ``(bg_std_temporal | None, n_valid_days, baseline_days | None)``.
+    ``bg_std_temporal`` is ``None`` when the window can't be built or the prior
+    period yields < 2 valid days; callers then leave the spatial std in place.
+    """
+    win = _climatology_window(time_range)
+    if win is None:
+        return None, 0, None
+    clim_start, clim_end, baseline_days = win
+    if clim_end <= clim_start:
+        return None, 0, baseline_days
+
+    # Lazy import — trend.py imports helpers FROM repeatable_core, so a
+    # module-level import here would be circular (mirrors six_step's local
+    # import of engine.core.wind).
+    from engine.core.trend import _server_side_day_means
+
+    try:
+        clim_ic = (
+            image_collection
+            .filterDate(clim_start, clim_end)
+            .filterBounds(envelope.bounds())
+        )
+        series = _server_side_day_means(
+            aoi, clim_ic, band, scale,
+            time_range=(clim_start, clim_end), indicator_id=indicator_id,
+        )
+    except Exception as exc:  # noqa: BLE001 — denominator never crashes the indicator
+        # Mirror six_step's wind-block precedent: a sampling failure degrades
+        # gracefully (caller keeps the spatial std + flags
+        # clim_baseline_applied=False) rather than failing the whole indicator,
+        # but it is LOUD so dev / regen runs surface it — the wind module's
+        # silent-degrade regression is the cautionary tale here.
+        import warnings as _warnings
+        _warnings.warn(
+            f"climatology-baseline denominator degraded to spatial std for "
+            f"{indicator_id!r}: {type(exc).__name__}: {exc}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return None, 0, baseline_days
+
+    values = [value for _iso, value in series]
+    std, n_valid_days = _temporal_std(values)
+    return std, n_valid_days, baseline_days
 
 
 # ---------------------------------------------------------------------------
@@ -857,6 +973,40 @@ def six_step(
             fallback=fallback,
         )
 
+    # M-DIAG-A4 — replace the spatial-std denominator with the temporal σ of
+    # the site's per-day series over a trailing clean prior period (the H1c
+    # fix). `bg_median` (spatial median of the ring) is unchanged; only the
+    # normalisation *scale* becomes temporal. Global (operator decision 31 May
+    # 2026): the replaced `bg_std` flows into the aggregate z (anomaly_z_hf),
+    # the per-day HF detector (_server_side_hf), the composite severity score
+    # (to_score), and the trend severity downstream. Computed for every path
+    # incl. strict-audit — it is the primary denominator now, not a recovery
+    # fallback. When the prior period yields a computable σ (≥ 2 valid days) it
+    # is used unconditionally (a σ of 0 → the existing `bg_std <= 0` guards
+    # strict-None z/hf/score, which is the correct "temporally uniform site"
+    # behaviour); when it can't be computed, `bg_std` is left as the spatial
+    # std and `clim_baseline_applied=False` is surfaced — a loud fallback, not
+    # a silent default (CLAUDE.md §7).
+    bg_std_spatial = bg_std
+    clim_bg_std, clim_valid_days, clim_baseline_days = _climatology_bg_std(
+        aoi, image_collection, analysis_envelope, band, time_range, scale,
+        indicator_id=indicator_id,
+    )
+    clim_applied = clim_bg_std is not None
+    if clim_applied:
+        bg_std = clim_bg_std
+    clim_denominator_extra = {
+        "clim_baseline_applied": clim_applied,
+        "clim_baseline_days": clim_baseline_days,
+        "clim_baseline_valid_days": clim_valid_days,
+        "clim_baseline_sparse": bool(
+            clim_applied
+            and clim_valid_days < CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS
+        ),
+        "bg_std_temporal": clim_bg_std,
+        "bg_std_spatial": bg_std_spatial,
+    }
+
     # M-TIER-A1 Step 8 — server-side N_valid + HF. Replaces the
     # client-side `_per_date_site_series` + `anomaly_z_hf(series)` path
     # which had a 100-image cap that under-reported n_observations for
@@ -1018,6 +1168,13 @@ def six_step(
         # out-of-scope indicators (so pillar `_format_result` can skip the
         # merge for non-wind pollutants without further branching).
         "wind_extra": wind_extra,
+        # M-DIAG-A4 — climatology-baseline denominator provenance. Records
+        # whether the temporal σ replaced the spatial std, the trailing
+        # baseline window length, the valid-day count, the sparse flag, and
+        # both σ values for audit. Always present (the denominator runs on
+        # every six_step path); pillar `_format_result` merges it into
+        # provenance.extra alongside fallback_extra / wind_extra.
+        "clim_denominator_extra": clim_denominator_extra,
     }
 
 

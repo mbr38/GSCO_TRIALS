@@ -396,6 +396,12 @@ def _format_result(
     wind_extra = raw.get("wind_extra")
     if wind_extra is not None:
         extra.update(wind_extra)
+    # M-DIAG-A4 — merge the climatology-baseline denominator provenance
+    # (clim_baseline_applied / _days / _valid_days / _sparse + both σ values).
+    # Absent for non-six_step paths; consumers handle absence.
+    clim_denominator_extra = raw.get("clim_denominator_extra")
+    if clim_denominator_extra is not None:
+        extra.update(clim_denominator_extra)
 
     result[f"_provenance.air.{pollutant}"] = build_provenance(
         indicator_id=f"air.{pollutant}",

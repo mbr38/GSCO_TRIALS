@@ -9,6 +9,8 @@ U5/U6/U8).
 
 from __future__ import annotations
 
+from engine.constants import ENGINE_METHODOLOGY_VERSION
+
 
 # ---------------------------------------------------------------------------
 # Verdict badge (UT6 / decision-log U5)
@@ -118,7 +120,29 @@ def make_trend_entry(
         # The full per-indicator trend result, incl. the per-day series.
         "trend_result":  result,
         "date_saved":    date_saved_iso,
+        # M-DIAG-A4 / DGC5 — the engine methodology version this trend was
+        # computed under. Read on render: when it is older than the current
+        # ENGINE_METHODOLOGY_VERSION (or absent → defaults to 0 for pre-fix
+        # records), the saved view shows a stale-data banner. Numeric integer
+        # per Q-DGC-B; version map lives in engine.constants.
+        "methodology_version": ENGINE_METHODOLOGY_VERSION,
     }
+
+
+def is_stale_trend_record(record: dict) -> bool:
+    """True when a saved trend pre-dates the current engine methodology (DGC5).
+
+    Pure predicate so the banner decision is unit-testable without Streamlit.
+    Records written before the field existed have no ``methodology_version``;
+    ``.get(..., 0)`` then yields 0 < current → stale. New records carry the
+    current ``ENGINE_METHODOLOGY_VERSION`` and read as fresh.
+    """
+    return record.get("methodology_version", 0) < ENGINE_METHODOLOGY_VERSION
+
+
+STALE_TREND_BANNER: str = (
+    "Computed before a methodology update — re-run screening for current results."
+)
 
 
 def trend_search_indicator(save: dict) -> str:

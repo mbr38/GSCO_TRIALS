@@ -27,6 +27,8 @@ from engine.core.trend import base_indicator_id
 from ui.components.trend_compute import compute_trend_for_indicator
 from ui.components.trend_plot import build_trend_figure
 from ui.components.trend_record import (
+    STALE_TREND_BANNER,
+    is_stale_trend_record,
     make_trend_entry,
     seasonal_caveat,
     significance_text,
@@ -107,6 +109,12 @@ def render_saved_trend(record: dict) -> None:
     lat = (setup.get("centre") or {}).get("lat")
     st.subheader(f"Trend — {display_name}")
     st.caption("Saved trend analysis (rendered from the stored per-day series).")
+    # M-DIAG-A4 / DGC5 — stale-data banner for trends computed under an older
+    # engine methodology (e.g. the pre-fix spatial-std denominator). The stored
+    # series is still rendered (UT9: no recompute) but the user is told the
+    # numbers don't reflect the current detector.
+    if is_stale_trend_record(record):
+        st.warning(STALE_TREND_BANNER)
     _render_trend_body(result_trend, display_name, lat, key_prefix="saved")
 
 
