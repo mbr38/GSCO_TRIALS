@@ -1,0 +1,7 @@
+id,lat,lon,window,note,firms_fire_px_pm30d,n_aai_days,max_daily_aai,mean_daily_aai,looks_clean
+patagonia_chile,-51.0,-72.9,2021-06-01/2021-06-30,"Patagonian steppe, austral winter",0.0,29,0.030943721119497336,-1.7164502078903159,True
+amazon_wet,-4.0,-63.0,2021-03-01/2021-03-31,"Central Amazon, wet season (min. burning)",14.0,30,-0.4583458737246014,-1.7770671158216909,False
+nz_south,-45.5,170.0,2021-06-01/2021-06-30,"NZ South Island, maritime winter",34.0,29,-0.3118754412694004,-1.5491485124148603,False
+appalachia_us,35.5,-82.5,2021-04-01/2021-04-30,"W. North Carolina forest, spring",86.0,29,-0.7169665460784181,-1.6613022345323571,False
+tasmania,-42.0,146.5,2021-06-01/2021-06-30,"Tasmania interior, winter",104.0,29,-0.6553559159493951,-1.5416748966106126,False
+congo_wet,1.0,23.0,2021-04-01/2021-04-30,"Congo basin, wet season",1350.0,29,-0.5576243837628797,-1.6558179613077446,False

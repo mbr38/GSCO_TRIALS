@@ -401,7 +401,7 @@ _DW_CLASSES: tuple[tuple[str, str], ...] = (
 
 
 def _render_nature_panel(payload: dict) -> None:
-    """C5c — Nature/Land details (deep-dive). Four sub-sections + DW composition.
+    """C5c — Nature/Land drill-down. Four sub-sections + DW composition.
 
     M-UI-A4 (SR13, spec v1.1): the scored Nature *headline* metrics — KBA
     proximity, Dynamic World dominant class, NDVI deviation — now lead the
@@ -416,7 +416,7 @@ def _render_nature_panel(payload: dict) -> None:
     are NOT snapshot tiles per spec v1.1); their reference-dataset visual
     treatment is M-UI-A6's job, not this milestone's.
     """
-    with st.expander("Nature/Land — details (deep-dive)"):
+    with st.expander("Nature/Land — drill-down"):
         st.caption(
             "Scored headline Nature indicators (biodiversity proximity, land "
             "cover, vegetation) now lead the Indicator snapshot above. This "
