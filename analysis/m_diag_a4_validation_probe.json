@@ -1,0 +1,54 @@
+[
+  {
+    "location": "Patagonia control (clean)",
+    "indicator": "air.aai",
+    "bg_std_spatial": 0.053618938633292604,
+    "bg_std_temporal": 0.517797889765793,
+    "ratio_temporal_over_spatial": 9.656996258487789,
+    "z": -0.0030537391376325145,
+    "hf": 0.021739130434782608,
+    "score": 0.0,
+    "clim_baseline_applied": true,
+    "clim_baseline_valid_days": 91,
+    "clim_baseline_sparse": false
+  },
+  {
+    "location": "Patagonia control (clean)",
+    "indicator": "air.o3",
+    "bg_std_spatial": 0.5012601038863541,
+    "bg_std_temporal": 22.917583258537142,
+    "ratio_temporal_over_spatial": 45.719942761957824,
+    "z": 0.035352491994271686,
+    "hf": 0.08791208791208792,
+    "score": 0.011784163998090562,
+    "clim_baseline_applied": true,
+    "clim_baseline_valid_days": 91,
+    "clim_baseline_sparse": false
+  },
+  {
+    "location": "Quebec 2023 wildfire (event)",
+    "indicator": "air.aai",
+    "bg_std_spatial": 0.09381396383879728,
+    "bg_std_temporal": 0.40501925266567357,
+    "ratio_temporal_over_spatial": 4.317259777676888,
+    "z": -0.15698059354371802,
+    "hf": 0.18181818181818182,
+    "score": 0.0,
+    "clim_baseline_applied": true,
+    "clim_baseline_valid_days": 90,
+    "clim_baseline_sparse": false
+  },
+  {
+    "location": "Quebec 2023 wildfire (event)",
+    "indicator": "air.o3",
+    "bg_std_spatial": 1.1620846112154415,
+    "bg_std_temporal": 41.56124830884861,
+    "ratio_temporal_over_spatial": 35.76439091244749,
+    "z": -2.0410432670097124e-05,
+    "hf": 0.0,
+    "score": 0.0,
+    "clim_baseline_applied": true,
+    "clim_baseline_valid_days": 90,
+    "clim_baseline_sparse": false
+  }
+]

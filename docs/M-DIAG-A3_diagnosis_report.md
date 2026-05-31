@@ -156,3 +156,31 @@ This is a recommendation, not a lock (DGB5). Operator + supervisor confirm the p
 ---
 
 *Investigation only. No engine code modified — `engine/` diff vs `main` is empty. Numerator-side M-DIAG-A1 fix and M-DIAG-A2 calibration untouched (DGB8). Fix implementation deferred to M-DIAG-A4.*
+
+---
+
+## Addendum — Framing reread (30 May 2026)
+
+*Additive note (M-DIAG-A4 DGC9/DGC14). The main report above is unchanged; this addendum documents a framing reread, not a revision of the diagnosis or the fix recommendation.*
+
+Following the AOD → PM2.5 validation findings on 30 May 2026 and operator review of the tool's stated purpose ("pollution attributable to a supplier, screening over a set time period for behaviour anomalous compared to surroundings"), the diagnosis report's framing was reconsidered.
+
+**What stands:**
+- The mechanism (H1c spatial-vs-temporal scale mismatch) is real and produces numerical artefacts — per-day z magnitudes that are not interpretable as "anomalous against surroundings" (the Beijing control's per-day z of 31.6 is a denominator-collapse artefact, not a 31σ event).
+- The climatology-baseline fix corrects the scale categorically.
+- The fix recommendation stands.
+
+**What the reread changed:**
+- The "5/5 false-positive rate at clean controls" was partly a **control-selection artefact** — 3 of the 5 "clean" control windows contained genuine transient absorbing-aerosol days (§7 caveat) — and partly a **framing artefact**: under the tool's attributability framing, a control firing per-day hot days is not intrinsically wrong if there was genuine local contrast.
+- The "improved event detection" finding (4/5 dust vs 0/5) is real but partly reflects regional-event sensitivity that may or may not align with the supplier-attributability framing; separating local-contrast events from regional-context events would need further analysis the validation didn't do.
+- The fix's justification (in M-DIAG-A4) is therefore reframed: **numerical scale correction, not event-detection improvement.**
+
+**What did not change:**
+- The diagnostic process (H1a/H1b/H1c hypotheses, D1–D4 probes).
+- The mechanism finding (spatial-vs-temporal mismatch).
+- The fix recommendation (climatology baseline).
+- The cross-indicator generic-collapse finding (D2).
+
+**M-DIAG-A4 implementation note (31 May 2026).** The shipped fix keeps `bg_median` as the spatial median of the ring (the "compared to surroundings" reference) and replaces only the **denominator** `bg_std` with the temporal σ of the site's per-day series over a trailing clean prior period — exactly the scale correction H1c calls for, nothing more. A live post-fix check (`analysis/m_diag_a4_validation_probe.py`) reproduces the §4 mechanism directly: at the Patagonia clean control the AAI spatial denominator is 0.054 while the temporal denominator is 0.518 — a **9.7× correction** inside this report's documented 2.2–14.2× range — and the clean-control per-day hot-fraction falls to 0.02 (from a pre-fix median control hf of 0.33). O3 shows the same correction (45.7×), confirming the generic-collapse finding (D2). Because the numerator stays spatial, low aggregate z under a regionally-uniform event (e.g. Quebec 2023 smoke) is the **intended** attributability behaviour, not a regression — consistent with the numerical-correctness reframe above.
+
+Reference: this addendum documents the framing nuance; M-DIAG-A4 ships the fix on numerical-correctness grounds.

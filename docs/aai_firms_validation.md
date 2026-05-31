@@ -169,3 +169,27 @@ The **driver is a collapsing `bg_std`** (0.04–0.27 across cases; e.g. Beijing 
 ---
 
 *Deliverables: this report (`docs/aai_firms_validation.md`), the notebook (`analysis/aai_firms_validation.ipynb`), the per-day table (`analysis/aai_firms_validation.csv`), the per-event summary (`analysis/aai_firms_event_summary.csv`), and the extraction harness (`analysis/aai_firms_extract.py`). No engine code was modified. Word export at `docs/aai_firms_validation.docx` (Step F).*
+
+---
+
+## §10 — Post-M-DIAG-A4 re-run findings (31 May 2026)
+
+Following M-DIAG-A4's denominator fix (climatology baseline replacing the spatial std of the time-averaged ring), AAI behaviour was re-checked against the **post-fix engine** at a re-selected clean control and a strong event. The check runs the production code path (`engine.air.compute_pollutant_snapshot` → `six_step`); the harness is `analysis/m_diag_a4_validation_probe.py` and the raw output is `analysis/m_diag_a4_validation_probe.json`.
+
+**Numerical findings (the fix's operative win — interpretable scale, not zero firing).**
+
+| Case | indicator | `bg_std` spatial (old) | `bg_std` temporal (new) | ratio (temporal/spatial) | per-day `hf` |
+|---|---|--:|--:|--:|--:|
+| Patagonia control (clean) | AAI | 0.054 | 0.518 | **9.7×** | 0.02 |
+| Patagonia control (clean) | O3 | 0.501 | 22.92 | 45.7× | 0.09 |
+| Quebec 2023 wildfire (event) | AAI | 0.094 | 0.405 | 4.3× | 0.18 |
+
+- The spatial denominator at the clean AAI control (0.054) sits exactly in the §4 collapse range (0.04–0.27); the temporal denominator (0.518) sits in the §4 site-temporal-std range (0.35–0.57). The **9.7× ratio** is the §4 inflation factor made concrete — pre-fix per-day z was inflated ~10×, the mechanism behind magnitude artefacts like the Beijing control's per-day z of 31.6.
+- Post-fix, the clean control's per-day hot-fraction is **0.02** — down from the pre-fix median control hf of 0.33 (§5). The event/control hf separation is now ~8× (0.18 vs 0.02), where pre-fix the denominator collapse left some clean controls firing *above* this event's rate.
+- The same correction holds for O3 (45.7×), confirming the §5/D2 generic-collapse finding: the fix is not AAI-specific.
+
+**Methodological note.** The v1.0 framing of "5/5 false-positive rate at clean controls" was partly a control-selection artefact (3/5 of the original controls contained transient absorbing-aerosol days, per §7 and the M-DIAG-A3 §7 caveat) and partly a framing artefact under the tool's supplier-attributability framing. The fix corrects a real numerical scale error in the per-day z denominator; the post-fix detector produces interpretable z-values. Event-detection performance changes are real but should **not** be read as the fix's primary justification — see the M-DIAG-A3 addendum for the framing discussion.
+
+**Residual caveat.** M-DIAG-A4 keeps `bg_median` as the spatial median of the ring (the "anomalous vs surroundings" reference); only the denominator becomes temporal. So during a **regionally-uniform** event (the whole ring is smoky, e.g. Quebec) the site is genuinely not anomalous *against its surroundings* and the aggregate z stays low by design — the per-day detector still surfaces the elevated days (event hf 0.18 ≫ control 0.02). This is the intended attributability behaviour, not a regression; chronic/regional elevation is the trend view's job (M-TREND-A1/A2), not the per-day screening detector's.
+
+*Re-run deliverables: `analysis/m_diag_a4_validation_probe.py` + `.json`. Word re-export at `docs/aai_firms_validation.docx` pending (Step D5).*
