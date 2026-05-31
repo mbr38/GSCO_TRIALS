@@ -7,6 +7,26 @@
 > Items listed here are now consolidated under the audit doc's Tier A–F
 > roadmap. Future entries should be added to the audit doc, not here.
 >
+> **VIIRS anomaly method redesign (logged 31 May 2026, M-DIAG-A4 / E2 operator decision).**
+> M-DIAG-A4 replaced the per-day anomaly denominator (spatial σ of the
+> time-mean ring) with the temporal σ of the site's per-day series — the
+> correct scale for the column/gridded air pollutants (the H1c diagnosis).
+> Seed regeneration surfaced that this is **wrong for VIIRS night-lights**:
+> a stably-lit site has near-zero *temporal* variance, so the temporal
+> denominator collapses (bg_std_temporal 0.24–1.7 vs spatial 4–23 across the
+> seeds), saturating VIIRS z/score to High at 3/5 demo seeds — the mirror of
+> the spatial collapse M-DIAG-A3 §5 foreshadowed. VIIRS is therefore
+> **excluded** from the temporal swap (`engine.constants.CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS`)
+> and keeps its prior spatial-std denominator as a stopgap. **The real fix is
+> a purpose-built VIIRS method:** if VIIRS is a GHG-activity proxy, the signal
+> is the *correlation between how often / how brightly an area is lit and GHG
+> emissions* — a lit-frequency ↔ emission model — not a per-day z-score on
+> either axis. Neither spatial nor temporal normalisation models that.
+> Scope: a dedicated milestone (define the lit-frequency feature, calibrate
+> against an emissions reference, decide whether VIIRS feeds the GHG composite
+> at all under the new method). Until then VIIRS severity should be read as a
+> placeholder.
+>
 > **One open follow-up logged after the rename (not in the audit doc):**
 > `Indicator_ID_Schema_v2.md` §4.6 declares engine-orphan IDs that the
 > engine doesn't emit — `nature.bare.area_now_ha` / `.area_now_pct` /

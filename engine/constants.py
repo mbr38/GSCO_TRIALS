@@ -1011,6 +1011,22 @@ CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS: int = 30
 # fallback, never a silent default (CLAUDE.md §7 "no silent defaults").
 CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS: int = 2
 
+# Indicators EXCLUDED from the temporal-denominator swap (operator decision,
+# Phase 3 / E2, 31 May 2026). The H1c diagnosis (spatial σ collapses, temporal
+# σ is the honest scale) holds for the column/gridded air pollutants. It does
+# NOT hold for VIIRS night-lights: a stably-lit site has near-zero *temporal*
+# variance, so the temporal denominator collapses (the mirror of the spatial
+# collapse — M-DIAG-A3 §5 foreshadowed this), saturating VIIRS z/score to High
+# at most lit sites. VIIRS's meaningful scale is the spatial lit-vs-dark
+# contrast; its anomaly model needs a purpose-built lit-frequency ↔ GHG-emission
+# method (tracked in docs/v1x_followups.md), not a per-day z-score. Until that
+# lands, VIIRS keeps its prior spatial-std denominator (unchanged behaviour).
+# This narrows the spec's DGC2 "generic across 9" to 8 indicators for the
+# denominator swap; VIIRS extraction is otherwise untouched.
+CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS: tuple[str, ...] = (
+    "ghg.viirs",
+)
+
 # Engine methodology version (M-DIAG-A4 / DGC5, Q-DGC-B → numeric integer).
 # Bumped whenever a change to the anomaly-detection methodology means a saved
 # trend record computed under an older engine is no longer directly comparable

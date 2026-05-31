@@ -1,0 +1,405 @@
+{
+  "_meta": {
+    "milestone": "M-DIAG-A4",
+    "phase": 3,
+    "comparison": "Step A pre-fix baseline vs final post-fix seeds (VIIRS excluded per E2)",
+    "note": "true before = analysis/m_diag_a4_baseline_seeds.json (captured before any change)"
+  },
+  "seeds": {
+    "high_priority_amazon.json": {
+      "composite_after": 0.23057168986044196,
+      "indicators": {
+        "air.aai": {
+          "z_before": -0.04848333658370132,
+          "z_after": -0.0032664888254154505,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.4606741573033708,
+          "hf_after": 0.0
+        },
+        "air.aod": {
+          "z_before": -0.529792623617162,
+          "z_after": -0.16694453752402336,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.3333333333333333,
+          "hf_after": 0.030303030303030304
+        },
+        "air.co": {
+          "z_before": -0.8541915629358098,
+          "z_after": -0.08155480098636107,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.34285714285714286,
+          "hf_after": 0.0
+        },
+        "air.hcho": {
+          "z_before": 1.1816864601753567,
+          "z_after": 0.21259167620658614,
+          "score_before": 0.3938954867251188,
+          "score_after": 0.07086389206886204,
+          "hf_before": 0.352112676056338,
+          "hf_after": 0.09859154929577464
+        },
+        "air.no2": {
+          "z_before": -0.027748785867708986,
+          "z_after": -0.0138292248960464,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.4117647058823529,
+          "hf_after": 0.04597701149425287
+        },
+        "air.o3": {
+          "z_before": 0.3420823442187123,
+          "z_after": 0.015286550656455249,
+          "score_before": 0.1140274480729041,
+          "score_after": 0.005095516885485083,
+          "hf_before": 0.47191011235955055,
+          "hf_after": 0.02247191011235955
+        },
+        "air.so2": {
+          "z_before": 0.11859038282743699,
+          "z_after": 0.050058179092257314,
+          "score_before": 0.03953012760914566,
+          "score_after": 0.0166860596974191,
+          "hf_before": 0.26,
+          "hf_after": 0.08
+        },
+        "ghg.ch4": {
+          "z_before": -0.4953629802540363,
+          "z_after": -0.4953629802540363,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.0,
+          "hf_after": 0.0
+        },
+        "ghg.viirs": {
+          "z_before": 0.8333253646908773,
+          "z_after": 0.8331076168414883,
+          "score_before": 0.27777512156362577,
+          "score_after": 0.27770253894716274,
+          "hf_before": null,
+          "hf_after": null
+        }
+      },
+      "composite_before": 0.2572417171037919,
+      "composite_delta": -0.0267
+    },
+    "low_priority_brasilia.json": {
+      "composite_after": 0.27469025976965056,
+      "indicators": {
+        "air.aai": {
+          "z_before": -0.17719661115371155,
+          "z_after": -0.017473068688416686,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.449438202247191,
+          "hf_after": 0.02247191011235955
+        },
+        "air.aod": {
+          "z_before": 0.2789427710585185,
+          "z_after": 0.052793819238013476,
+          "score_before": 0.09298092368617285,
+          "score_after": 0.01759793974600449,
+          "hf_before": 0.7536231884057971,
+          "hf_after": 0.13043478260869565
+        },
+        "air.co": {
+          "z_before": -0.7431510092449951,
+          "z_after": -0.19166106774616995,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.2840909090909091,
+          "hf_after": 0.03409090909090909
+        },
+        "air.hcho": {
+          "z_before": -0.36936000496532995,
+          "z_after": -0.13914764828422094,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.12359550561797752,
+          "hf_after": 0.011235955056179775
+        },
+        "air.no2": {
+          "z_before": 1.06975610818836,
+          "z_after": 0.3468529099345845,
+          "score_before": 0.35658536939612,
+          "score_after": 0.1156176366448615,
+          "hf_before": 0.3764705882352941,
+          "hf_after": 0.022988505747126436
+        },
+        "air.o3": {
+          "z_before": -0.7071846948831565,
+          "z_after": -0.08428561454328644,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.449438202247191,
+          "hf_after": 0.02247191011235955
+        },
+        "air.so2": {
+          "z_before": -0.10446277930511706,
+          "z_after": -0.03454675692324518,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.07407407407407407,
+          "hf_after": 0.0
+        },
+        "ghg.ch4": {
+          "z_before": 0.25293659681639497,
+          "z_after": 0.25293659681639497,
+          "score_before": 0.08431219893879832,
+          "score_after": 0.08431219893879832,
+          "hf_before": 0.0,
+          "hf_after": 0.0
+        },
+        "ghg.viirs": {
+          "z_before": 1.1403320301205948,
+          "z_after": 1.1456250493711881,
+          "score_before": 0.38011067670686494,
+          "score_after": 0.38187501645706273,
+          "hf_before": null,
+          "hf_after": null
+        }
+      },
+      "composite_before": 0.30756474995129185,
+      "composite_delta": -0.0329
+    },
+    "wind_low_attribution_norilsk.json": {
+      "composite_after": 0.37837091276898893,
+      "indicators": {
+        "air.aai": {
+          "z_before": -1.5592130945805984,
+          "z_after": -0.5162761420579222,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.8444444444444444,
+          "hf_after": 0.4777777777777778
+        },
+        "air.aod": {
+          "z_before": 0.9761735780188585,
+          "z_after": 0.9761735780188585,
+          "score_before": 0.32539119267295286,
+          "score_after": 0.32539119267295286,
+          "hf_before": 0.0,
+          "hf_after": 0.0
+        },
+        "air.co": {
+          "z_before": 0.34496801042700403,
+          "z_after": 0.34496801042700403,
+          "score_before": 0.11498933680900134,
+          "score_after": 0.11498933680900134,
+          "hf_before": 0.5238095238095238,
+          "hf_after": 0.5238095238095238
+        },
+        "air.hcho": {
+          "z_before": 1.7476225889026746,
+          "z_after": 1.7476225889026746,
+          "score_before": 0.5825408629675582,
+          "score_after": 0.5825408629675582,
+          "hf_before": 0.7471264367816092,
+          "hf_after": 0.7471264367816092
+        },
+        "air.no2": {
+          "z_before": 3.2516851493149,
+          "z_after": 0.45455278213925976,
+          "score_before": 1.0,
+          "score_after": 0.1515175940464199,
+          "hf_before": 0.6746987951807228,
+          "hf_after": 0.12790697674418605
+        },
+        "air.o3": {
+          "z_before": 1.6218966799247774,
+          "z_after": 0.05162548336910499,
+          "score_before": 0.5,
+          "score_after": 0.01720849445636833,
+          "hf_before": 0.5777777777777777,
+          "hf_after": 0.14444444444444443
+        },
+        "air.so2": {
+          "z_before": null,
+          "z_after": null,
+          "score_before": null,
+          "score_after": null,
+          "hf_before": null,
+          "hf_after": null
+        },
+        "ghg.ch4": {
+          "z_before": -1.1755580527873506,
+          "z_after": -1.1755580527873506,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.16666666666666666,
+          "hf_after": 0.16666666666666666
+        },
+        "ghg.viirs": {
+          "z_before": 3.0980542992260065,
+          "z_after": 3.0980542992260065,
+          "score_before": 1.0,
+          "score_after": 1.0,
+          "hf_before": null,
+          "hf_after": null
+        }
+      },
+      "composite_before": 0.5347419486366426,
+      "composite_delta": -0.1564
+    },
+    "wind_low_attribution_patagonia.json": {
+      "composite_after": 0.4805478174752961,
+      "indicators": {
+        "air.aai": {
+          "z_before": -0.7692126707532169,
+          "z_after": -0.1102167317993036,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.5113636363636364,
+          "hf_after": 0.011363636363636364
+        },
+        "air.aod": {
+          "z_before": 1.9315719180492559,
+          "z_after": 0.40153756648610023,
+          "score_before": 0.6438573060164186,
+          "score_after": 0.13384585549536676,
+          "hf_before": 0.5846153846153846,
+          "hf_after": 0.16923076923076924
+        },
+        "air.co": {
+          "z_before": 2.0410661709553746,
+          "z_after": 0.4728027248839415,
+          "score_before": 0.6803553903184583,
+          "score_after": 0.15760090829464715,
+          "hf_before": 0.5416666666666666,
+          "hf_after": 0.06944444444444445
+        },
+        "air.hcho": {
+          "z_before": 0.07582989796342014,
+          "z_after": 0.01614544838804643,
+          "score_before": 0.02527663265447338,
+          "score_after": 0.0053818161293488105,
+          "hf_before": 0.3684210526315789,
+          "hf_after": 0.039473684210526314
+        },
+        "air.no2": {
+          "z_before": 1.8171564393886948,
+          "z_after": 0.3819469569156992,
+          "score_before": 0.6057188131295649,
+          "score_after": 0.12731565230523306,
+          "hf_before": 0.6341463414634146,
+          "hf_after": 0.16666666666666666
+        },
+        "air.o3": {
+          "z_before": 1.4350141845534683,
+          "z_after": 0.04352092702824979,
+          "score_before": 0.4783380615178228,
+          "score_after": 0.014506975676083264,
+          "hf_before": 0.5,
+          "hf_after": 0.07954545454545454
+        },
+        "air.so2": {
+          "z_before": 0.2246615393477128,
+          "z_after": 0.16236581903592157,
+          "score_before": 0.07488717978257094,
+          "score_after": 0.05412193967864052,
+          "hf_before": 0.1891891891891892,
+          "hf_after": 0.13513513513513514
+        },
+        "ghg.ch4": {
+          "z_before": -1.9297020950974326,
+          "z_after": -0.7452798306313828,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.08333333333333333,
+          "hf_after": 0.0
+        },
+        "ghg.viirs": {
+          "z_before": 5.838823961219244,
+          "z_after": 5.84360310528238,
+          "score_before": 1.0,
+          "score_after": 1.0,
+          "hf_before": null,
+          "hf_after": null
+        }
+      },
+      "composite_before": 0.581954120225371,
+      "composite_delta": -0.1014
+    },
+    "wind_priority_suape.json": {
+      "composite_after": 0.2783892612262995,
+      "indicators": {
+        "air.aai": {
+          "z_before": 0.14654727072931015,
+          "z_after": 0.02963640613336965,
+          "score_before": 0.04884909024310339,
+          "score_after": 0.00987880204445655,
+          "hf_before": 0.36363636363636365,
+          "hf_after": 0.045454545454545456
+        },
+        "air.aod": {
+          "z_before": 0.43991546743080095,
+          "z_after": 0.24710037777720537,
+          "score_before": 0.1466384891436003,
+          "score_after": 0.08236679259240179,
+          "hf_before": 0.4897959183673469,
+          "hf_after": 0.14285714285714285
+        },
+        "air.co": {
+          "z_before": -0.06486501398915866,
+          "z_after": -0.010748776113111834,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.36923076923076925,
+          "hf_after": 0.13846153846153847
+        },
+        "air.hcho": {
+          "z_before": 0.3402546656558536,
+          "z_after": 0.09060192493279348,
+          "score_before": 0.11341822188528451,
+          "score_after": 0.030200641644264493,
+          "hf_before": 0.2625,
+          "hf_after": 0.025
+        },
+        "air.no2": {
+          "z_before": -1.1941002448828586,
+          "z_after": -0.44434276920792654,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.08333333333333333,
+          "hf_after": 0.023255813953488372
+        },
+        "air.o3": {
+          "z_before": 1.6459909006273004,
+          "z_after": 0.16769016505250808,
+          "score_before": 0.5,
+          "score_after": 0.05589672168416936,
+          "hf_before": 0.5,
+          "hf_after": 0.19318181818181818
+        },
+        "air.so2": {
+          "z_before": 0.4919906404342663,
+          "z_after": 0.16859447879118314,
+          "score_before": 0.16399688014475544,
+          "score_after": 0.05619815959706105,
+          "hf_before": 0.2222222222222222,
+          "hf_after": 0.013888888888888888
+        },
+        "ghg.ch4": {
+          "z_before": -2.0417599945128457,
+          "z_after": -0.49478014878051696,
+          "score_before": 0.0,
+          "score_after": 0.0,
+          "hf_before": 0.09090909090909091,
+          "hf_after": 0.0
+        },
+        "ghg.viirs": {
+          "z_before": 0.5770166176360718,
+          "z_after": 0.5772830743972521,
+          "score_before": 0.19233887254535728,
+          "score_after": 0.19242769146575073,
+          "hf_before": null,
+          "hf_after": null
+        }
+      },
+      "composite_before": 0.2715555771360896,
+      "composite_delta": 0.0068
+    }
+  }
+}

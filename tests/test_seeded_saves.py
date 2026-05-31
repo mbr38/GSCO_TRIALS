@@ -222,14 +222,22 @@ class TestMDiagA1RegressionLocks:
             return json.load(f)
 
     def test_norilsk_no2_hf_above_half(self):
-        """The Norilsk silence regression lock. Pre-fix: hf=0.000.
-        Post-fix: hf~=0.675. Threshold: > 0.5.
+        """The Norilsk silence regression lock. Pre-M-DIAG-A1: hf=0.000 (the
+        silent-zero per-day site_mean bug). Post-M-DIAG-A1: hf~=0.675 under the
+        old spatial-std denominator. Post-M-DIAG-A4 (31 May 2026): the temporal
+        denominator is larger than the collapsed spatial std at Norilsk, so the
+        per-day hot-fraction moderates to ~0.13 — a *defensible* movement (the
+        pre-fix hf was partly inflated by denominator collapse). The lock's
+        intent is unchanged: guard that the per-day site_mean is NOT silently
+        zeroed (a `mean_key` regression collapses hf back to 0.000). The
+        threshold is lowered to 0.05 to track the post-fix denominator while
+        still catching that collapse.
         """
         envelope = self._load("norilsk")
         hf = envelope["payload"].get("air.no2.hf")
         assert hf is not None, "air.no2.hf must be populated at Norilsk"
-        assert hf > 0.5, (
-            f"Norilsk NO₂ hf={hf:.3f} <= 0.5. Pre-M-DIAG-A1 value was "
+        assert hf > 0.05, (
+            f"Norilsk NO₂ hf={hf:.3f} <= 0.05. Pre-M-DIAG-A1 value was "
             "0.000 due to the silent-zero per-day site_mean bug. A "
             "regression of `mean_key = f\"{band}_mean\"` would collapse "
             "this value back toward zero. Inspect "

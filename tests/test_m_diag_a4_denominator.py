@@ -92,7 +92,7 @@ class TestTemporalStd:
 # ---------------------------------------------------------------------------
 
 def _run_six_step(monkeypatch, clim_return, *, site=10.0, bg_median=5.0,
-                  spatial_std=0.1):
+                  spatial_std=0.1, indicator_id="air.no2"):
     """Run six_step with all EE-touching internals stubbed and a controllable
     `_climatology_bg_std` return. Returns the result dict."""
 
@@ -144,7 +144,7 @@ def _run_six_step(monkeypatch, clim_return, *, site=10.0, bg_median=5.0,
     return rc.six_step(
         aoi=aoi, image_collection=_SpyIc(), band="b",
         time_range=("2026-01-01", "2026-04-01"), ee_client=None,
-        indicator_id="air.no2",
+        indicator_id=indicator_id,
     )
 
 
@@ -198,6 +198,23 @@ class TestSixStepDenominatorOverride:
         result = _run_six_step(monkeypatch, (0.0, 40, 90))
         assert result["z"] is None
         assert result["clim_denominator_extra"]["clim_baseline_applied"] is True
+
+    def test_viirs_excluded_keeps_spatial_denominator(self, monkeypatch) -> None:
+        # Operator decision (Phase 3 / E2): VIIRS is excluded from the temporal
+        # swap (its temporal σ collapses at stably-lit sites). Even if the clim
+        # sample WOULD return a value, VIIRS keeps the spatial std and is flagged
+        # excluded. z falls back to spatial: (10 − 5) / 0.1 = 50.
+        result = _run_six_step(monkeypatch, (2.0, 40, 90), indicator_id="ghg.viirs")
+        extra = result["clim_denominator_extra"]
+        assert extra["clim_baseline_excluded"] is True
+        assert extra["clim_baseline_applied"] is False
+        assert extra["bg_std_temporal"] is None       # EE sample skipped entirely
+        assert extra["bg_std_spatial"] == 0.1
+        assert result["z"] == pytest.approx(50.0)
+
+    def test_non_excluded_indicator_not_flagged_excluded(self, monkeypatch) -> None:
+        result = _run_six_step(monkeypatch, (2.0, 40, 90), indicator_id="air.no2")
+        assert result["clim_denominator_extra"]["clim_baseline_excluded"] is False
 
 
 class TestClimatologyBgStdGracefulDegrade:

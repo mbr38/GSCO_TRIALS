@@ -30,6 +30,7 @@ from engine.constants import (
     CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS,
     CLIMATOLOGY_BASELINE_MIN_DAYS,
     CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS,
+    CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS,
     CLIMATOLOGY_INDICATORS,
     LAND_MASK_FRACTION_MIN_THRESHOLD,
     NORMALISATION_K,
@@ -988,15 +989,25 @@ def six_step(
     # std and `clim_baseline_applied=False` is surfaced — a loud fallback, not
     # a silent default (CLAUDE.md §7).
     bg_std_spatial = bg_std
-    clim_bg_std, clim_valid_days, clim_baseline_days = _climatology_bg_std(
-        aoi, image_collection, analysis_envelope, band, time_range, scale,
-        indicator_id=indicator_id,
-    )
-    clim_applied = clim_bg_std is not None
+    # VIIRS exclusion (operator decision, Phase 3 / E2): night-lights have
+    # near-zero temporal variance at stably-lit sites, so the temporal
+    # denominator collapses (the mirror of the H1c spatial collapse). VIIRS
+    # keeps its spatial-std denominator until a purpose-built lit-frequency ↔
+    # GHG method lands (docs/v1x_followups.md). Skip the EE sample entirely.
+    clim_excluded = indicator_id in CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS
+    if clim_excluded:
+        clim_bg_std, clim_valid_days, clim_baseline_days = None, 0, None
+    else:
+        clim_bg_std, clim_valid_days, clim_baseline_days = _climatology_bg_std(
+            aoi, image_collection, analysis_envelope, band, time_range, scale,
+            indicator_id=indicator_id,
+        )
+    clim_applied = (not clim_excluded) and clim_bg_std is not None
     if clim_applied:
         bg_std = clim_bg_std
     clim_denominator_extra = {
         "clim_baseline_applied": clim_applied,
+        "clim_baseline_excluded": clim_excluded,
         "clim_baseline_days": clim_baseline_days,
         "clim_baseline_valid_days": clim_valid_days,
         "clim_baseline_sparse": bool(
