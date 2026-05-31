@@ -193,3 +193,31 @@ Following M-DIAG-A4's denominator fix (climatology baseline replacing the spatia
 **Residual caveat.** M-DIAG-A4 keeps `bg_median` as the spatial median of the ring (the "anomalous vs surroundings" reference); only the denominator becomes temporal. So during a **regionally-uniform** event (the whole ring is smoky, e.g. Quebec) the site is genuinely not anomalous *against its surroundings* and the aggregate z stays low by design — the per-day detector still surfaces the elevated days (event hf 0.18 ≫ control 0.02). This is the intended attributability behaviour, not a regression; chronic/regional elevation is the trend view's job (M-TREND-A1/A2), not the per-day screening detector's.
 
 *Re-run deliverables: `analysis/m_diag_a4_validation_probe.py` + `.json`. Word re-export at `docs/aai_firms_validation.docx` pending (Step D5).*
+
+---
+
+## §11 — Methodological reframe under attributability framing (M-DOCS-CLEANUP-A1, 31 May 2026)
+
+Following the methodology consolidation across 30–31 May 2026 (M-CH4-A1, M-DIAG-A4 v2.0, M-ATTRIB-A2, M-GHG-REDESIGN-A1) and the establishment of the canonical supplier-attributability framing in `Indicators_Computation_v4.md` §0.7, this validation's findings can be reread. This addendum is **additive** — it mirrors the M-DIAG-A3 diagnosis-report addendum pattern. The original report body (§1–§10) stands unchanged as a record of what the spatial-std denominator produced; the reinterpretation lives here. §10 already covers the numerical reframe under the climatology baseline; this section completes the reread by reframing the original "5/5 false-positive" headline narrative itself.
+
+The original headline of "5/5 false-positive rate at clean controls" (§5) was over-broad. It conflated two distinct issues:
+
+1. **Control selection.** As §7's caveat and the M-DIAG-A3 §7 caveat both acknowledge, 3 of the 5 original "clean" control windows contained transient absorbing-aerosol days. The detector was correctly firing on real events that the control selection had mislabelled as clean. M-DIAG-A4's Phase 2 re-selected controls (Patagonia, Amazon wet season, NZ South Island, Appalachia, retained Puerto Rico) addressed this.
+
+2. **Framing.** Under the supplier-attributability framing established in M-ATTRIB-A2 and codified in `Indicators_Computation_v4.md` §0.7, severity measures a supplier-attributable anomaly against regional context — **not** regional absolute pollution. A site firing per-day hot days at a "clean" control window is not intrinsically wrong if there was genuine local contrast that day. The control's *regional* context being clean does not preclude site-specific anomalies; the detector flagging them is correct attributability behaviour.
+
+**What stands from the original validation.**
+
+- The M-DIAG-A1 numerator-side fix (the `mean_key` bug at `_server_side_hf`) was necessary and remains correct.
+- The aggregate z's failure to detect Dakar dust events (-3.39) reflects that regional dust events affect the whole region uniformly, leaving no local contrast. Under the attributability framing this is **correct** behaviour — the supplier was not the source of the regional dust storm. (§10's residual caveat documents the same mechanism for the Quebec event.)
+- M-DIAG-A4 v2.0's climatology-baseline denominator fix corrects a real numerical scale error in the per-day z denominator (the spatial std of the time-averaged field was the wrong scale); the fix is justified on numerical-correctness grounds independent of any framing interpretation. §10 quantifies this (the 9.7× / 45.7× / 4.3× spatial-vs-temporal denominator ratios).
+
+**What changed in interpretation.**
+
+- The "5/5 false-positive rate" framing was over-broad — some firings were correct attributability behaviour, others were magnitude artefacts of the denominator collapse. The two should not be pooled into a single "false-positive" count.
+- The "aggregate z fails to detect real events" framing was framing-sensitive — regional events are correctly invisible to an attributability detector when no local contrast exists.
+- The fix recommendation (climatology baseline) stands on numerical grounds; the event-detection improvement was incidental to the justification, not its basis.
+
+**Reference.** This addendum brings the validation into alignment with the attributability framing canonically established in `Indicators_Computation_v4.md` §0.7. The layering is deliberate: §10 (M-DIAG-A4) covers the **numerical** re-validation under the new denominator; the M-DIAG-A3 diagnosis addendum (shipped under M-DIAG-A4) covers the same framing reread at the **diagnostic** level; this §11 covers the **framing** reframe of the validation report's headline narrative. The three are related layers of one reread, not orthogonal claims.
+
+*Addendum deliverable: this §11. Word re-export at `docs/aai_firms_validation.docx` (Step C3).*
