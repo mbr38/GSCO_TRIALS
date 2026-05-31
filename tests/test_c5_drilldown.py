@@ -130,23 +130,17 @@ def test_air_rows_first_entry_is_no2():
     assert _AIR_ROWS[0].indicator == "no2"
 
 
-def test_ghg_rows_has_two_entries():
-    # M-CH4-A1: CH₄ removed from the scored per-indicator panel (now reference
-    # data, rendered as a card in the "Reference datasets" section). Only CO₂
-    # and VIIRS remain as scored rows.
-    assert len(_GHG_ROWS) == 2
-    assert {r.indicator for r in _GHG_ROWS} == {"co2", "viirs"}
-
-
-def test_ghg_co2_row_reads_mean_not_site():
-    """ODIAC's headline value lives at ghg.co2.mean (not .site) per
-    the M5.5/M5.6 GHG schema."""
-    co2 = next(r for r in _GHG_ROWS if r.indicator == "co2")
-    assert co2.value_key == "ghg.co2.mean"
+def test_ghg_rows_has_one_entry():
+    # M-CH4-A1 removed CH₄; M-ODIAC-A1 removed CO₂ (ODIAC) — both are reference
+    # data, rendered as cards in the "Reference datasets" section, not as scored
+    # rows. Only VIIRS nighttime lights remains as a scored raw GHG row.
+    assert len(_GHG_ROWS) == 1
+    assert {r.indicator for r in _GHG_ROWS} == {"viirs"}
 
 
 def test_other_ghg_rows_read_site():
-    """VIIRS uses the standard six-step .site key (CH₄ removed — reference data)."""
+    """VIIRS uses the standard six-step .site key (CH₄ and ODIAC removed —
+    both reference data)."""
     for slug in ("viirs",):
         row = next(r for r in _GHG_ROWS if r.indicator == slug)
         assert row.value_key == f"ghg.{slug}.site"
@@ -176,13 +170,14 @@ def test_air_row_slugs_match_dataset_keys():
 
 
 def test_ghg_row_slugs_match_dataset_keys():
-    # M-CH4-A1: scored rows are a subset of the dataset keys. CH₄ stays in
-    # _GHG_DATASET_KEYS (its provenance still surfaces in "Datasets used") but
-    # is no longer a scored row — it renders as a reference card instead.
+    # M-CH4-A1 / M-ODIAC-A1: scored rows are a subset of the dataset keys. CH₄
+    # and CO₂ (ODIAC) stay in _GHG_DATASET_KEYS (their provenance still surfaces
+    # in "Datasets used") but are no longer scored rows — both render as
+    # reference cards instead.
     row_slugs = {r.indicator for r in _GHG_ROWS}
     assert row_slugs <= set(_GHG_DATASET_KEYS)
-    assert "ch4" in _GHG_DATASET_KEYS
-    assert "ch4" not in row_slugs
+    assert "ch4" in _GHG_DATASET_KEYS and "ch4" not in row_slugs
+    assert "co2" in _GHG_DATASET_KEYS and "co2" not in row_slugs
 
 
 # ---------------------------------------------------------------------------

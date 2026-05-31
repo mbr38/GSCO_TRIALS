@@ -343,8 +343,16 @@ class _GhgRow:
 # "Reference datasets" section below (alongside Hansen + ODIAC), not as a scored
 # row with a z/score. The CH₄ provenance still appears in "Datasets used"
 # (_GHG_DATASET_KEYS keeps "ch4").
+# M-ODIAC-A1 (31 May 2026): CO₂ (ODIAC) removed from this scored panel for the
+# same reason and for consistency with CH₄/Hansen. ODIAC is demoted
+# standing-exposure reference data (its ghg.co2.score is not a live severity),
+# so showing it here — with a z/score column — misrepresented it as scored. It
+# now appears only in the "Reference datasets" section (inventory-allocated
+# value + vintage + "not used in composite score" badge); its provenance still
+# surfaces in "Datasets used" (_GHG_DATASET_KEYS keeps "co2"). VIIRS nighttime
+# lights is the only remaining scored raw GHG indicator (it feeds the live
+# activity_score term).
 _GHG_ROWS: tuple[_GhgRow, ...] = (
-    _GhgRow("CO₂ (ODIAC)",      "co2",   "ghg.co2.mean"),
     _GhgRow("Nighttime lights", "viirs", "ghg.viirs.site"),
 )
 
