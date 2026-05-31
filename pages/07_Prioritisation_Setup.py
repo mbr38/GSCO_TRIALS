@@ -32,9 +32,13 @@ require_earth_engine()
 
 from ui.components.persistent_nav import render_persistent_nav
 from ui.components.p07_form import render_prioritisation_setup
+from ui.components.page_tutorial import render_tutorial_trigger
 
 render_persistent_nav()
 st.divider()
+
+# M-TUTORIAL-A1 — manual "Show me around" tour for this setup page.
+render_tutorial_trigger("P-07")
 
 st.title("Prioritisation — Setup")
 st.caption(

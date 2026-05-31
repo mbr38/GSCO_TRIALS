@@ -46,11 +46,15 @@ require_earth_engine()
 
 from ui.components.p04_form import render_setup_form
 from ui.components.persistent_nav import render_persistent_nav
+from ui.components.page_tutorial import render_tutorial_trigger
 
 
 # M-P0103 — shared nav replaces the per-page helper.
 render_persistent_nav()
 st.divider()
+
+# M-TUTORIAL-A1 — manual "Show me around" tour for this setup page.
+render_tutorial_trigger("P-04")
 
 st.title("Inspect — Setup")
 st.caption(
