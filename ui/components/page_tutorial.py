@@ -59,7 +59,7 @@ TUTORIALS: dict[str, dict] = {
                 "body": (
                     "MNC users pick a demo supply chain from the GSCO "
                     "catalogue. Policy Maker users pick a country and then a "
-                    "region. Either user can choose **No scope** to screen "
+                    "region. Either user can choose 'No scope' to screen "
                     "ad-hoc locations later."
                 ),
                 "control_hint": "Mode: Supply chain · Region · No scope",
@@ -75,7 +75,7 @@ TUTORIALS: dict[str, dict] = {
             {
                 "title": "Confirm and continue",
                 "body": (
-                    "Review the preview, then **Confirm** to lock the scope "
+                    "Review the preview, then 'Confirm' to lock the scope "
                     "and move on to the Workflow Hub. You can change the "
                     "scope any time from the top nav."
                 ),
@@ -96,9 +96,8 @@ TUTORIALS: dict[str, dict] = {
             {
                 "title": "Choose a centre",
                 "body": (
-                    "In v1 you set the centre with **Free Coordinates** — "
-                    "search a place name or type a latitude/longitude. The "
-                    "Region and Supplier modes arrive once scope setup lands."
+                    "If you've selected 'No Scope' — "
+                    "search a place name or type a latitude/longitude. "
                 ),
                 "control_hint": "Selection mode: Region · Supplier · Free coordinates",
             },
@@ -117,15 +116,15 @@ TUTORIALS: dict[str, dict] = {
                 "body": (
                     "All indicators are pre-selected by default; deselect any "
                     "you don't need, grouped per pillar. Screening uses the "
-                    "latest valid window automatically; the time range applies "
-                    "to Trend (arriving with P-06)."
+                    "latest valid window automatically, but the time range can "
+                    "be modified."
                 ),
             },
             {
                 "title": "Run",
                 "body": (
-                    "Hit **Run Screening** to compute and move to the results "
-                    "view. Run Trend is disabled until the Trend page lands."
+                    "Hit 'Run Screening' to compute and move to the results "
+                    "view."
                 ),
             },
         ],
@@ -143,9 +142,9 @@ TUTORIALS: dict[str, dict] = {
             {
                 "title": "Choose mode",
                 "body": (
-                    "Pick nodes from your loaded **supply chain**, or paste an "
-                    "**ad-hoc list** of `name, lat, lon` — one location per "
-                    "line. The country supplier database is a v1.x mode."
+                    "Pick nodes from your loaded 'supply chain', or paste an "
+                    "'ad-hoc list' of `name, lat, lon` — one location per "
+                    "line."
                 ),
                 "control_hint": "Mode: Supply chain · Ad hoc list",
             },
@@ -169,7 +168,7 @@ TUTORIALS: dict[str, dict] = {
                 "title": "Indicators & run",
                 "body": (
                     "The same indicator set is applied to every location. "
-                    "Adjust it if needed, then **Run Prioritisation** to land "
+                    "Adjust it if needed, then 'Run Prioritisation' to land "
                     "on the ranked results."
                 ),
             },
