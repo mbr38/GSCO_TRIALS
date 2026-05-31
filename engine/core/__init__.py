@@ -47,6 +47,8 @@ from engine.core.provenance import build_provenance
 from engine.core.repeatable_core import (
     anomaly_z_hf,
     background_value,
+    per_image_site_ring_series,
+    PerImageSiteRingSeries,
     site_value,
     six_step,
 )
@@ -102,6 +104,8 @@ __all__ = [
     "load_climatology",
     "measure_ring_asymmetry",
     "method_note_fragment",
+    "per_image_site_ring_series",
+    "PerImageSiteRingSeries",
     "pixel_size_warning",
     "resolve_fallback_plan",
     "sample_era5_wind_at_overpass",

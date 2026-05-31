@@ -842,6 +842,166 @@ def _day_bucket_to_iso(day_bucket: int) -> str:
 
 
 # ---------------------------------------------------------------------------
+# M-GHG-REDESIGN-A1 — per-image site + ring series
+# ---------------------------------------------------------------------------
+# `six_step` reduces the background ring exactly once (to a static
+# bg_median / bg_std). The VIIRS sustained-contrast re-grammar needs the
+# *per-timestep* contrast of the site against its background ring, so it
+# needs both site_mean AND ring_mean for every image in the window — data
+# the spatial-baseline path never surfaced (recon §3,
+# docs/M-GHG-REDESIGN-A1_step_a_findings.md). This helper provides exactly
+# that: a per-UTC-day series of (site_mean, ring_mean), reusing the same
+# server-side per-image FeatureCollection + chunking machinery as
+# `_server_side_hf` so it stays under EE's 5-minute getInfo wall.
+#
+# Deliberately generic (not VIIRS-specific) so other ring-relative
+# per-timestep signals can reuse it; today only VIIRS calls it. Attributability
+# is preserved by construction — every value is site-vs-its-own-ring, never
+# absolute regional brightness (spec §0 invariant).
+
+
+class PerImageSiteRingSeries(NamedTuple):
+    """Return shape for ``per_image_site_ring_series``.
+
+    ``timesteps`` is a list of ``(iso_date, site_mean, ring_mean)`` tuples,
+    one per distinct UTC day on which BOTH the site buffer and the
+    (land-masked) background ring had at least one valid pixel, sorted by
+    date. ``granule_count`` is the raw image count before per-day dedup
+    (informational, mirrors ServerSideHfResult). When a day carries more
+    than one granule the per-day value is the mean of that day's granules
+    (VIIRS VNP46A2 is a daily product, so this is normally 1:1).
+    """
+
+    timesteps:     list[tuple[str, float, float]]
+    granule_count: int
+
+
+def per_image_site_ring_series(
+    aoi: dict,
+    image_collection: ee.ImageCollection,
+    band: str,
+    time_range: tuple[str, str],
+    *,
+    scale: float | None = None,
+    ring: dict | None = None,
+    indicator_id: str | None = None,
+) -> PerImageSiteRingSeries:
+    """Per-UTC-day series of (site_mean, ring_mean) over the window.
+
+    Mirrors ``_server_side_hf``'s per-image FeatureCollection + day-bucket +
+    chunked-getInfo design, but emits the raw per-image site and ring means
+    instead of collapsing them to a scalar HF. The background ring is
+    land-masked exactly as ``_background_value_reduction`` does (so site and
+    ring share the same land-pixel convention).
+
+    A timestep is included only when BOTH reductions saw at least one valid
+    pixel (site_count > 0 AND ring_count > 0) — a one-sided observation
+    can't yield a ring-relative contrast. Per-day collapse averages any
+    same-day granules.
+
+    Returns an empty ``timesteps`` list (not an error) when no day had both
+    site and ring coverage; the VIIRS caller maps that to a None score
+    ("no data, no claim", CLAUDE.md §7). Raising is the caller's choice.
+    """
+    site_geom = site_buffer(aoi["centre"], aoi["radius_km"])
+    if ring is None:
+        ring = background_ring(aoi["centre"], aoi["radius_km"])
+    ring_geom = ring["geometry"]
+    ring_mask = ring["mask"]
+
+    mean_count_reducer = ee.Reducer.mean().combine(
+        reducer2=ee.Reducer.count(), sharedInputs=True,
+    )
+    mean_key  = f"{band}_mean"
+    count_key = f"{band}_count"
+
+    def per_image(image: ee.Image) -> ee.Feature:
+        img = image.select(band)
+        site_red = img.reduceRegion(
+            reducer=mean_count_reducer, geometry=site_geom, scale=scale,
+            bestEffort=True, maxPixels=int(1e9),
+        )
+        # Land-mask the ring read so it matches background_value's land
+        # convention (M-TIER-A3). The site buffer is intentionally NOT
+        # land-masked — site coverage is judged on raw pixels.
+        ring_img = img.updateMask(ring_mask) if ring_mask is not None else img
+        ring_red = ring_img.reduceRegion(
+            reducer=mean_count_reducer, geometry=ring_geom, scale=scale,
+            bestEffort=True, maxPixels=int(1e9),
+        )
+        site_count = ee.Number(site_red.get(count_key, 0))
+        ring_count = ee.Number(ring_red.get(count_key, 0))
+        is_valid = site_count.gt(0).And(ring_count.gt(0))
+        site_mean = ee.Number(
+            ee.Algorithms.If(site_count.gt(0), site_red.get(mean_key, 0.0), 0.0)
+        )
+        ring_mean = ee.Number(
+            ee.Algorithms.If(ring_count.gt(0), ring_red.get(mean_key, 0.0), 0.0)
+        )
+        day_bucket = ee.Number(image.get("system:time_start")).divide(
+            _MS_PER_UTC_DAY,
+        ).floor()
+        return ee.Feature(None, {
+            "is_valid":   is_valid,
+            "site_mean":  site_mean,
+            "ring_mean":  ring_mean,
+            "day_bucket": day_bucket,
+        })
+
+    # Chunk identically to _server_side_hf so we stay under EE's getInfo wall.
+    if time_range is None:
+        chunks: list[tuple[str, str] | None] = [None]
+    else:
+        chunk_days = SERVER_SIDE_HF_CHUNK_DAYS_PER_INDICATOR.get(
+            indicator_id or "", SERVER_SIDE_HF_CHUNK_DAYS_DEFAULT,
+        )
+        win_days = _window_days(time_range)
+        if win_days is None or chunk_days >= win_days:
+            chunks = [None]
+        else:
+            chunks = list(_date_chunks_iso(time_range, chunk_days=chunk_days))
+
+    selected = image_collection.select(band)
+    # day_bucket -> list of (site_mean, ring_mean) for same-day granules.
+    by_day: dict[int, list[tuple[float, float]]] = {}
+    granule_total = 0
+
+    def _process(chunk: tuple[str, str] | None) -> dict:
+        chunk_ic = selected if chunk is None else selected.filterDate(chunk[0], chunk[1])
+        valid_fc = chunk_ic.map(per_image).filter(ee.Filter.eq("is_valid", 1))
+        return ee.Dictionary({
+            "day":  valid_fc.aggregate_array("day_bucket"),
+            "site": valid_fc.aggregate_array("site_mean"),
+            "ring": valid_fc.aggregate_array("ring_mean"),
+            "granule_count": chunk_ic.size(),
+        }).getInfo() or {}
+
+    if len(chunks) > 1:
+        max_workers = min(_SERVER_SIDE_HF_MAX_CONCURRENCY, len(chunks))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
+            results = list(ex.map(_process, chunks))
+    else:
+        results = [_process(chunks[0])]
+
+    for res in results:
+        granule_total += int(res.get("granule_count") or 0)
+        days  = res.get("day")  or []
+        sites = res.get("site") or []
+        rings = res.get("ring") or []
+        for d, s, r in zip(days, sites, rings):
+            by_day.setdefault(int(d), []).append((float(s), float(r)))
+
+    timesteps: list[tuple[str, float, float]] = []
+    for day in sorted(by_day):
+        pairs = by_day[day]
+        site_avg = sum(p[0] for p in pairs) / len(pairs)
+        ring_avg = sum(p[1] for p in pairs) / len(pairs)
+        timesteps.append((_day_bucket_to_iso(day), site_avg, ring_avg))
+
+    return PerImageSiteRingSeries(timesteps=timesteps, granule_count=granule_total)
+
+
+# ---------------------------------------------------------------------------
 # Orchestration — all six steps in one call
 # ---------------------------------------------------------------------------
 

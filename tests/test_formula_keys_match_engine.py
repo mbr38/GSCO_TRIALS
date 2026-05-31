@@ -28,7 +28,6 @@ from engine.air import (
 from engine.ghg import (
     compute_core_ghg_audit_support,
     compute_ghg_data_quality_attribution,
-    compute_ghg_spatiotemporal_anomaly,
 )
 from engine.nature import (
     compute_biodiversity_exposure,
@@ -71,9 +70,10 @@ _AIR_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_spatiotemporal_anomaly_score({}, set()),
     lambda: compute_attribution_confidence_score({}, set()),
 ])
+# M-GHG-REDESIGN-A1 (GATE B): compute_ghg_spatiotemporal_anomaly is retired —
+# the GHG spatiotemporal-anomaly aggregate is no longer computed or emitted.
 _GHG_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_core_ghg_audit_support({}, set()),
-    lambda: compute_ghg_spatiotemporal_anomaly({}, set()),
     lambda: compute_ghg_data_quality_attribution({}),
 ])
 _NATURE_AGGREGATE_KEYS: set[str] = _harvest_keys([
@@ -131,11 +131,12 @@ def test_nature_formula_payload_keys_emitted_by_engine(term) -> None:
 @pytest.mark.parametrize(
     "name,formula,expected",
     [
-        # M-TREND-A1 (TR10): Air/GHG drop the aggregate trend term → 3 terms
-        # each (proxy/anomaly/quality, core_support/anomaly/quality). Nature
-        # never had a trend term and keeps its 4 (IC §3.3).
+        # M-TREND-A1 (TR10): Air/GHG drop the aggregate trend term. Air → 3
+        # (proxy/anomaly/quality). M-GHG-REDESIGN-A1 (GATE B): GHG also drops
+        # the retired anomaly term → 2 (core_support/quality). Nature never had
+        # a trend term and keeps its 4 (IC §3.3).
         ("_AIR_FORMULA",    _AIR_FORMULA,    3),
-        ("_GHG_FORMULA",    _GHG_FORMULA,    3),
+        ("_GHG_FORMULA",    _GHG_FORMULA,    2),
         ("_NATURE_FORMULA", _NATURE_FORMULA, 4),
     ],
 )

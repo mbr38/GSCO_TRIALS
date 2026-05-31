@@ -93,7 +93,10 @@ from engine.constants import (
     CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
     GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
-    NORMALISATION_K,
+    VIIRS_CONTRAST_PERCENTILE,
+    VIIRS_LIT_CONTRAST_THRESHOLD,
+    VIIRS_PERSISTENCE_FLOOR,
+    VIIRS_PERSISTENCE_FLOOR_DISCOUNT,
 )
 from engine.core import (
     build_provenance,
@@ -102,6 +105,7 @@ from engine.core import (
     compute_n_valid_term,
     compute_qa_term,
     compute_spatial_context_term,
+    per_image_site_ring_series,
     six_step,
 )
 from engine.core.buffers import background_ring, site_buffer
@@ -200,14 +204,17 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         scale_factor=1.0,
         scale_m=463.83,
         display_unit="nW/cm²/sr",
-        # Schema_v2 §3.1 — VIIRS NTL emits a reduced measurement set.
-        # M-UI-A4: `.z` added so the C4b z-score-grammar severity tile can
-        # read VIIRS's spatiotemporal anomaly magnitude. `z` was always
-        # computed by six_step (z = anomaly / bg_std); it was previously
-        # filtered out here. VIIRS still omits `.background`/`.hf`/`.trend_p`
-        # — only the z used by the severity grammar is surfaced.
+        # M-GHG-REDESIGN-A1 — VIIRS is no longer scored as a per-day anomaly
+        # z-score. It is re-grammared as persistence-weighted ring-relative
+        # sustained contrast (compute_viirs_sustained_contrast), so the old
+        # `.anomaly`/`.z`/`.trend` keys are dropped and replaced by `.contrast`
+        # (the lit-window ring-relative contrast) and `.persistence` (lit
+        # fraction of the window). `.site` is retained for the C4b tile's
+        # headline value; `.score` (= contrast·persistence_factor) still feeds
+        # the composite via ghg.activity_score. Severity now bands `.score`
+        # (score-band grammar), not `.z` — see ui/components/severity.py.
         emitted_measurements=(
-            "site", "anomaly", "z", "trend", "confidence", "score",
+            "site", "contrast", "persistence", "confidence", "score",
         ),
         data_source="NASA / NOAA (VIIRS VNP46A2)",
         skipped_reason_no_data="no_viirs_pixels",  # M-AIR-GHG-DEFENSIVE
@@ -276,10 +283,14 @@ _ACTIVITY_ADJUSTED_CO2_WEIGHTS: dict[str, float] = {
 # the canonical pillar-aggregate IDs they reference.
 _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "core_support": "ghg.core_audit_support",
-    "anomaly":      "ghg.spatiotemporal_anomaly",
     # M-TREND-A1 (TR10): the "trend" term is removed — trend is drill-down-
     # only and never enters the follow-up priority. `ghg.trend` is no longer
     # emitted (see compute_ghg_trend removal below).
+    # M-GHG-REDESIGN-A1 (GATE B): the "anomaly" term
+    # (`ghg.spatiotemporal_anomaly`) is RETIRED — VIIRS is no longer an anomaly
+    # detector and CH₄/CO₂ carry no `.z`, so the GHG pillar has no
+    # spatiotemporal-anomaly source. See compute_ghg_spatiotemporal_anomaly
+    # removal below and CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
     "quality":      "ghg.data_quality_attribution",
 }
 
@@ -354,11 +365,324 @@ def compute_ch4_snapshot(
     return compute_ghg_indicator_snapshot(aoi, "ch4", time_range, mode, ee_client)
 
 
-def compute_viirs_activity(
-    aoi: dict, time_range: tuple[str, str], mode: str, ee_client,
+# ---------------------------------------------------------------------------
+# VIIRS — persistence-weighted ring-relative sustained contrast
+# (M-GHG-REDESIGN-A1)
+# ---------------------------------------------------------------------------
+#
+# Reframe (spec §2.1): VIIRS night-lights are NOT an anomaly detector. The
+# GHG-emissions signal is *sustained brightness of the site relative to its
+# background ring* over the screening window. The old per-day z-score grammar
+# (anomaly / σ_bg, via six_step) is dropped entirely for VIIRS. Consistency is
+# not penalised as "anomaly" — consistency (persistence) is what makes the
+# brightness a credible, attributable emissions signal.
+#
+# This grammar is INTENTIONALLY different from the Air pillar's denominator
+# approach (spec §2.1 / §6): VIIRS asks "is this site a sustained activity
+# stock?", the Air indicators ask "is there a transient anomalous event?".
+# Cross-pillar normalisation consistency is explicitly NOT a requirement.
+#
+# Attributability invariant (spec §0.4): every quantity is the site measured
+# against its OWN background ring, never against absolute regional brightness.
+# A bright supplier inside an equally-bright industrial cluster scores low
+# because its ring-relative contrast is ~0 — exactly the desired behaviour.
+
+
+def _michelson_contrast(site: float, ring: float) -> float:
+    """Bounded ring-relative contrast in [0, 1] (spec §2.2).
+
+    `(site − ring) / (site + ring)`, clamped to [0, 1]. Michelson contrast is
+    naturally bounded for non-negative radiances, needs no tunable saturation
+    constant to bound it, and is ring-relative by construction (attributability
+    preserved). site ≤ ring → 0 (site not brighter than its surroundings).
+    Degenerate `site + ring ≤ 0` → 0.
+    """
+    denom = site + ring
+    if denom <= 0:
+        return 0.0
+    c = (site - ring) / denom
+    return max(0.0, min(1.0, c))
+
+
+def _persistence_factor(persistence: float) -> float:
+    """Saturating, non-zeroing factor that *licenses* the contrast (spec §2.3).
+
+    `D + (1 − D)·min(p / P_FLOOR, 1)` where D = VIIRS_PERSISTENCE_FLOOR_DISCOUNT
+    and P_FLOOR = VIIRS_PERSISTENCE_FLOOR. At/above the floor it returns 1.0
+    (full contrast passes through); at persistence 0 it returns D (> 0), so an
+    intermittent heavy emitter is discounted toward — but never to — zero and
+    stays visible to a human screener. It is deliberately NOT a hard gate.
+    """
+    if VIIRS_PERSISTENCE_FLOOR <= 0:
+        return 1.0
+    ramp = min(persistence / VIIRS_PERSISTENCE_FLOOR, 1.0)
+    return VIIRS_PERSISTENCE_FLOOR_DISCOUNT + (
+        1.0 - VIIRS_PERSISTENCE_FLOOR_DISCOUNT
+    ) * ramp
+
+
+def _percentile(sorted_vals: list[float], pct: float) -> float:
+    """Linear-interpolation percentile over an ascending-sorted list.
+
+    Matches numpy's default ('linear') method so the choice of statistic is
+    reproducible and documented. `pct` in [0, 100].
+    """
+    if not sorted_vals:
+        return 0.0
+    if len(sorted_vals) == 1:
+        return sorted_vals[0]
+    rank = (pct / 100.0) * (len(sorted_vals) - 1)
+    lo = int(math.floor(rank))
+    hi = int(math.ceil(rank))
+    if lo == hi:
+        return sorted_vals[lo]
+    frac = rank - lo
+    return sorted_vals[lo] * (1.0 - frac) + sorted_vals[hi] * frac
+
+
+def viirs_sustained_contrast_from_series(
+    timesteps: list[tuple[str, float, float]],
 ) -> dict:
-    """VIIRS NTL single-value snapshot — wrapper for explicit call sites."""
-    return compute_ghg_indicator_snapshot(aoi, "viirs", time_range, mode, ee_client)
+    """Pure-math core of the VIIRS re-grammar (spec §2.2-§2.3). No EE.
+
+    `timesteps` is a list of `(iso_date, site_mean, ring_mean)` — the output of
+    `engine.core.per_image_site_ring_series`. Returns a dict with:
+
+      - ``score``                    — contrast_over_lit_window · persistence_factor,
+                                       in [0, 1]; None only when there were no
+                                       valid timesteps (no data → no claim).
+      - ``contrast_over_lit_window`` — VIIRS_CONTRAST_PERCENTILE-th percentile of
+                                       per-timestep ring-relative contrast over
+                                       the LIT timesteps; 0.0 when none lit.
+      - ``persistence``              — n_lit / n_valid in [0, 1].
+      - ``n_valid``                  — count of valid timesteps.
+      - ``n_lit``                    — count of timesteps lit above background.
+
+    Separated from the EE call so the §2.3 behavioural cases test pure synthetic
+    per-timestep inputs (CLAUDE.md "tests first for the engine").
+    """
+    n_valid = len(timesteps)
+    if n_valid == 0:
+        return {
+            "score": None,
+            "contrast_over_lit_window": None,
+            "persistence": None,
+            "n_valid": 0,
+            "n_lit": 0,
+        }
+
+    contrasts = [_michelson_contrast(site, ring) for _iso, site, ring in timesteps]
+    lit = [c for c in contrasts if c >= VIIRS_LIT_CONTRAST_THRESHOLD]
+    n_lit = len(lit)
+    persistence = n_lit / n_valid
+
+    if n_lit == 0:
+        # Site never rose above its background ring → a genuine, attributable
+        # "no sustained emissions signal" result (score 0.0), NOT missing data.
+        return {
+            "score": 0.0,
+            "contrast_over_lit_window": 0.0,
+            "persistence": 0.0,
+            "n_valid": n_valid,
+            "n_lit": 0,
+        }
+
+    contrast_over_lit_window = _percentile(sorted(lit), VIIRS_CONTRAST_PERCENTILE)
+    score = contrast_over_lit_window * _persistence_factor(persistence)
+    score = max(0.0, min(1.0, score))
+    return {
+        "score": score,
+        "contrast_over_lit_window": contrast_over_lit_window,
+        "persistence": persistence,
+        "n_valid": n_valid,
+        "n_lit": n_lit,
+    }
+
+
+def compute_viirs_sustained_contrast(
+    aoi: dict, time_range: tuple[str, str], mode: str, ee_client,  # noqa: ARG001
+) -> dict:
+    """VIIRS persistence-weighted ring-relative sustained-contrast snapshot.
+
+    Replaces the old `six_step` z-score path for VIIRS (M-GHG-REDESIGN-A1).
+    Pulls a per-timestep `(site_mean, ring_mean)` series over the window via
+    `engine.core.per_image_site_ring_series`, then applies the pure-math
+    `viirs_sustained_contrast_from_series`. Emits the reduced measurement set
+    `site / contrast / persistence / confidence / score` plus provenance.
+
+    `mode`/`ee_client` are accepted for dispatcher signature parity with the
+    other GHG snapshot functions (the orchestrator owns mode-dependent window
+    selection; EE is initialised process-wide).
+
+    Raises:
+        IndicatorComputeError: pixel-size guard fires (buffer < VIIRS pixel).
+    """
+    cfg = GHG_INDICATOR_CONFIG["viirs"]
+    radius_km = aoi["radius_km"]
+    if cfg.scale_m > radius_km * 1000:
+        raise IndicatorComputeError(
+            indicator_id=make_id(PILLAR_GHG, "viirs"),
+            reason=(
+                f"site buffer ({radius_km} km) smaller than VIIRS native "
+                f"pixel ({cfg.scale_m / 1000:.2f} km) — increase radius or "
+                f"omit VIIRS from selection"
+            ),
+        )
+
+    ic = ee.ImageCollection(cfg.asset_id).select(cfg.band)
+    ring = background_ring(aoi["centre"], radius_km)
+    series = per_image_site_ring_series(
+        aoi, ic, cfg.band, time_range,
+        scale=cfg.scale_m, ring=ring, indicator_id="ghg.viirs",
+    )
+
+    # No timestep had BOTH site and ring coverage → no ring-relative signal is
+    # computable. Route through the established skip path (no_viirs_pixels)
+    # rather than emitting a None-valued snapshot, so the UI renders "Sparse /
+    # no usable observations" and it stays out of _failures (a coverage
+    # statement, not a compute failure) — mirrors the six_step SiteBuffer path.
+    if not series.timesteps:
+        raise SiteBufferNoDataError(
+            indicator_id=make_id(PILLAR_GHG, "viirs"),
+            reason=(
+                "VIIRS had no timestep with both site-buffer and background-"
+                f"ring coverage in {time_range[0]}..{time_range[1]} "
+                f"(buffer={radius_km}km centre={aoi['centre']})"
+            ),
+        )
+
+    metrics = viirs_sustained_contrast_from_series(series.timesteps)
+    site_mean = (
+        sum(s for _iso, s, _r in series.timesteps) / len(series.timesteps)
+        if series.timesteps else None
+    )
+
+    return _format_viirs_result(
+        cfg=cfg,
+        aoi=aoi,
+        site_mean=site_mean,
+        metrics=metrics,
+        granule_count=series.granule_count,
+        time_range=time_range,
+    )
+
+
+def _viirs_window_days(time_range: tuple[str, str]) -> int | None:
+    """Inclusive day count between two ISO dates; None on parse failure.
+
+    Local mirror of engine.core.repeatable_core._window_days (private there)
+    so the VIIRS confidence coverage term has its window denominator.
+    """
+    from datetime import date as _date
+    try:
+        start = _date.fromisoformat(time_range[0])
+        end = _date.fromisoformat(time_range[1])
+    except (TypeError, ValueError):
+        return None
+    return max(1, (end - start).days)
+
+
+def _viirs_confidence_terms(
+    aoi: dict,
+    n_valid: int,
+    persistence: float | None,
+    time_range: tuple[str, str],
+) -> dict:
+    """Four A1 confidence inputs for the re-grammared VIIRS term.
+
+    Reuses the house formula (spec §3 "confirm against how confidence is
+    computed elsewhere") but feeds the new grammar's natural inputs:
+      * ``qa``               = QA_PER_INDICATOR["ghg.viirs"] (0.85).
+      * ``n_valid``          = live-revisit coverage term over the window — the
+                               number of valid per-day timesteps vs. expected.
+      * ``anomaly_strength`` = persistence. Persistence replaces HF as the
+                               "how consistent / credible is the signal" term:
+                               a sustained signal is more attributable, exactly
+                               what this confidence term should reward. Passed
+                               through the existing HF-shaped helper (it clamps
+                               to [0, 1] and is grammar-agnostic).
+      * ``spatial_context``  = buffer-vs-pixel ratio (unchanged).
+    All None only when the snapshot produced no valid timesteps (n_valid == 0),
+    in which case the coverage term strict-Nones the whole confidence.
+    """
+    buffer_area = math.pi * (aoi["radius_km"] * 1000.0) ** 2
+    return {
+        "qa": compute_qa_term("ghg.viirs"),
+        "n_valid": compute_n_valid_term(
+            "ghg.viirs",
+            n_observations=n_valid,
+            window_days=_viirs_window_days(time_range),
+        ),
+        "anomaly_strength": compute_anomaly_strength_term(
+            "ghg.viirs", hf=persistence,
+        ),
+        "spatial_context": compute_spatial_context_term(
+            "ghg.viirs", buffer_area_m2=buffer_area,
+        ),
+    }
+
+
+def _format_viirs_result(
+    cfg: GhgIndicatorConfig,
+    *,
+    aoi: dict,
+    site_mean: float | None,
+    metrics: dict,
+    granule_count: int,
+    time_range: tuple[str, str],
+) -> dict:
+    """Map the VIIRS sustained-contrast metrics onto canonical IDs + provenance.
+
+    Emits `site / contrast / persistence / confidence / score`. `contrast` is
+    the lit-window ring-relative contrast (`contrast_over_lit_window`);
+    `persistence` is the lit fraction; `score` is the persistence-weighted
+    contrast that feeds the composite via `ghg.activity_score`.
+    """
+    confidence_terms = _viirs_confidence_terms(
+        aoi, metrics["n_valid"], metrics["persistence"], time_range,
+    )
+    confidence = compute_indicator_confidence(
+        indicator_id="ghg.viirs",
+        column_to_surface_uncertainty="n_a",
+        **confidence_terms,
+    )
+
+    return {
+        make_id(PILLAR_GHG, "viirs", "site"):        site_mean,
+        make_id(PILLAR_GHG, "viirs", "contrast"):    metrics["contrast_over_lit_window"],
+        make_id(PILLAR_GHG, "viirs", "persistence"): metrics["persistence"],
+        make_id(PILLAR_GHG, "viirs", "confidence"):  confidence,
+        make_id(PILLAR_GHG, "viirs", "score"):       metrics["score"],
+        "_provenance.ghg.viirs": build_provenance(
+            indicator_id="ghg.viirs",
+            asset_id=cfg.asset_id,
+            band=cfg.band,
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained "
+                "contrast: per-timestep Michelson contrast (site vs. background "
+                "ring), lit fraction = persistence, "
+                "score = pct(contrast | lit)·persistence_factor(persistence). "
+                "No z-score / no anomaly-vs-baseline grammar (intentionally "
+                "different from the Air pillar — sustained activity stock, not "
+                "transient event)."
+            ),
+            coverage_window=cfg.coverage_window,
+            observations={"count": granule_count, "unit": "daily_images"},
+            extra={
+                "n_valid_timesteps": metrics["n_valid"],
+                "n_lit_timesteps": metrics["n_lit"],
+                "granule_count": granule_count,
+                "confidence_terms": {
+                    **confidence_terms,
+                    "column_to_surface_uncertainty": "n_a",
+                },
+            },
+        ),
+    }
 
 
 def compute_co2_snapshot(
@@ -879,31 +1203,13 @@ def compute_core_ghg_audit_support(
     return {"ghg.core_audit_support": score}
 
 
-def compute_ghg_spatiotemporal_anomaly(
-    payload: dict, selected: set[str],
-) -> dict:
-    """IC_v4 §2.3 — mean of clamped z-scores across selected indicators.
-
-    M-CH4-A1 (30 May 2026): CH₄ is excluded — it is reference data, so its `.z`
-    no longer feeds the scored spatiotemporal anomaly. VIIRS carries a `.z`, so
-    this aggregate now reflects the VIIRS nightlight anomaly (CO₂/ODIAC has no
-    `.z`). The CH₄ snapshot still emits `ghg.ch4.z` for the reference card.
-    """
-    contributions: list[float] = []
-    for ind in _SINGLE_VALUE_INDICATORS:
-        if ind == "ch4":  # M-CH4-A1: reference data, not a scored anomaly source
-            continue
-        if make_id(PILLAR_GHG, ind, "score") not in selected:
-            continue
-        z = payload.get(make_id(PILLAR_GHG, ind, "z"))
-        if z is None:
-            continue
-        contributions.append(min(max(z / NORMALISATION_K, 0.0), 1.0))
-    if not contributions:
-        return {"ghg.spatiotemporal_anomaly": None}
-    return {
-        "ghg.spatiotemporal_anomaly": sum(contributions) / len(contributions),
-    }
+# M-GHG-REDESIGN-A1 (GATE B): `compute_ghg_spatiotemporal_anomaly` is REMOVED.
+# It averaged clamped per-indicator z-scores, but after M-CH4-A1 (CH₄ → reference
+# data) and M-GHG-REDESIGN-A1 (VIIRS → persistence-weighted sustained contrast,
+# no z-score; CO₂/ODIAC never had a `.z`) the GHG pillar has no spatiotemporal-
+# anomaly source. The aggregate is retired from the follow-up priority
+# (GHG_FOLLOWUP_WEIGHTS) and no longer computed or emitted. `ghg.spatiotemporal_
+# anomaly` is kept as a reserved (retired) canonical ID in engine/ids.py.
 
 
 # M-TREND-A1 (TR10 / decision-log E3): `compute_ghg_trend` is removed — no
@@ -1019,6 +1325,16 @@ def _compute_one_ghg_indicator_outcome(
             snapshot = compute_co2_snapshot(
                 aoi=aoi,
                 time_range=effective_time_range,
+                mode=mode,
+                ee_client=ee_client,
+            )
+        elif ind_key == "viirs":
+            # M-GHG-REDESIGN-A1 — VIIRS has its own per-timestep sustained-
+            # contrast path, off six_step. It owns its empty-series → None
+            # handling, so it doesn't take the six_step `fallback` machinery.
+            snapshot = compute_viirs_sustained_contrast(
+                aoi=aoi,
+                time_range=time_range,
                 mode=mode,
                 ee_client=ee_client,
             )
@@ -1214,8 +1530,9 @@ def recompute_ghg_aggregates(
             augmented_selected.add(sub_id)
 
     payload.update(compute_core_ghg_audit_support(payload, augmented_selected))
-    payload.update(compute_ghg_spatiotemporal_anomaly(payload, augmented_selected))
     # M-TREND-A1 (TR10): no aggregate trend term — trend is drill-down-only.
+    # M-GHG-REDESIGN-A1 (GATE B): no spatiotemporal-anomaly term — retired
+    # (GHG has no anomaly source after the VIIRS re-grammar; see above).
     payload.update(compute_ghg_data_quality_attribution(payload))
     payload.update(compute_ghg_audit_followup_priority(payload, mode))
     return payload

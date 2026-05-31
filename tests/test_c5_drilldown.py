@@ -72,8 +72,10 @@ def test_air_formula_weights_sum_to_one():
     assert sum(t.weight for t in _AIR_FORMULA) == pytest.approx(1.0, abs=0.01)
 
 
-def test_ghg_formula_has_three_terms():
-    assert len(_GHG_FORMULA) == 3
+def test_ghg_formula_has_two_terms():
+    # M-GHG-REDESIGN-A1 (GATE B): the spatiotemporal-anomaly term is retired,
+    # leaving core_support + quality.
+    assert len(_GHG_FORMULA) == 2
 
 
 def test_ghg_formula_weights_sum_to_one():

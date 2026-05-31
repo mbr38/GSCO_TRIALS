@@ -290,21 +290,29 @@ class TestGhgDominantSlots:
         assert slots.z == "combined NO₂ + CO signal"
         assert slots.direction is None
 
-    def test_activity_score_uses_viirs_site_and_z(self) -> None:
-        payload = {"ghg.viirs.site": 18.5, "ghg.viirs.z": 1.7}
+    def test_activity_score_uses_viirs_site_persistence_contrast(self) -> None:
+        # M-GHG-REDESIGN-A1 — sustained-contrast grammar: surfaces lit-fraction
+        # (persistence) and the lit-window contrast, in the attributability
+        # "vs. regional background" voice.
+        payload = {
+            "ghg.viirs.site": 18.5,
+            "ghg.viirs.persistence": 0.80,
+            "ghg.viirs.contrast": 0.62,
+        }
         slots = _ghg_dominant_slots(
             payload, "ghg.activity_score", "nighttime-light activity",
         )
         assert "18.5 nW cm⁻² sr⁻¹" in slots.value
-        assert "1.7σ above background" in slots.z
+        assert "contrast 0.62" in slots.z
+        assert "lit 80% of the window" in slots.z
+        assert "regional background" in slots.z
 
-    def test_activity_score_falls_back_when_viirs_z_missing(self) -> None:
-        # VIIRS lacks z in v1 (Schema_v2 §3.1 reduced 5-key set).
+    def test_activity_score_falls_back_when_metrics_missing(self) -> None:
         payload = {"ghg.viirs.site": 18.5}
         slots = _ghg_dominant_slots(
             payload, "ghg.activity_score", "nighttime-light activity",
         )
-        assert slots.z == "above the regional background"
+        assert slots.z == "sustained brightness vs. the regional background"
 
 
 class TestNatureDominantSlots:

@@ -221,44 +221,108 @@ PM (CAMS), AOD (MAIAC), ODIAC CO₂, VIIRS NTL, Dynamic World, Hansen, NDVI, KBA
 | **CH₄ atmospheric** | `CH₄_site`, anomaly, Z, HF, trend, Conf | Repeatable core method on `CH4_column_volume_mixing_ratio_dry_air` | ppb |
 | **Fossil CO₂ emissions context** | `CO₂_mean` (annual), `CO₂_total` (annual), anomaly, trend, Conf | Sum ODIAC pixel values within `Site_Buffer`; `CO₂_total = Σ_pixels area·flux`; `CO₂_anomaly = CO₂_site − CO₂_bg` | **tonnes CO₂ yr⁻¹** for total; **kg CO₂ m⁻² yr⁻¹** for flux. ESG: ESRS E1 / GHG Protocol reports in t CO₂ |
 | **Atmospheric XCO₂ context** | — | **Not in v1.** OCO-2/3 deferred per `GEE_Database_List_v2.md` §7 | n/a |
-| **Nighttime-light activity** | `VIIRS_mean`, anomaly, trend, Conf | Repeatable core method on `NASA/VIIRS/002/VNP46A2` `Gap_Filled_DNB_BRDF_Corrected_NTL` band | nW cm⁻² sr⁻¹ |
+| **Nighttime-light activity** | `VIIRS_site`, `contrast`, `persistence`, `score`, Conf | **M-GHG-REDESIGN-A1** — persistence-weighted ring-relative sustained contrast on `NASA/VIIRS/002/VNP46A2` `Gap_Filled_DNB_BRDF_Corrected_NTL`; **not** the repeatable-core z-score (see §2.2a) | nW cm⁻² sr⁻¹ |
 
 ### 2.2 Sub-aggregate indicators
 
 | Indicator | Formula | Notes |
 |---|---|---|
 | Combustion_Proxy | `0.60·NO₂_score + 0.40·CO_score` | Borrowed from §1.2; same value, reused inside Core GHG |
-| Activity_Score | `VIIRS_score` (Z-based, normalised against last 3 years background) | Single value used directly |
+| Activity_Score | `VIIRS_score` = persistence-weighted ring-relative sustained contrast (**M-GHG-REDESIGN-A1**; see §2.2a) | Single value used directly; **no longer a Z-score** |
 | Fossil_CO₂_Context | `CO₂_score` (normalised CO₂ flux within Site_Buffer) | Single value, but see §5.2 on data-vintage handling |
 | High_GWP_Sector_Risk | **Deferred to v1.1.** Requires sector input. In v1 set to `0` and rebalance Core_GHG_Audit_Support to sum to 1.0 over the remaining four terms — see §7.1 | n/a in v1 |
 | Fossil_Combustion_Score (optional) | `0.50·Fossil_CO₂_Context + 0.30·NO₂_CO_SO₂_Combustion_Proxy + 0.20·Activity_Score` | Useful for heavy-industry suppliers |
 | CH₄_Context_Adjusted | `CH₄_Hotspot_Score − 0.20·Fire_or_Regional_Transport_Risk` | See §7.3 for `Fire_or_Regional_Transport_Risk` |
 | Activity_Adjusted_CO₂ | `0.70·Fossil_CO₂_Context + 0.30·Nighttime_Light_Activity` | Useful when reported emissions are unavailable |
 
+### 2.2a VIIRS sustained-contrast grammar (M-GHG-REDESIGN-A1, 31 May 2026)
+
+> **Why VIIRS is re-grammared.** VIIRS night-lights are not an anomaly detector.
+> The pre-redesign Activity_Score ran the repeatable-core z-score (`(site−bg)/(k·σ_bg)`)
+> on VIIRS, with a *spatial*-σ denominator. M-DIAG-A3 §5 / M-DIAG-A4 / `v1x_followups.md`
+> showed both spatial and temporal z-normalisations fail for VIIRS: a stably-lit
+> site has near-zero temporal variance (temporal σ collapses) and dark rural
+> terrain has near-zero spatial variance (spatial σ collapses) — either way the
+> z saturates to High. VIIRS was excluded from the M-DIAG-A4 temporal-denominator
+> swap as a stopgap (`CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS`); this milestone
+> replaces the grammar outright. ODIAC is partly VIIRS-derived, so it is a weak
+> independent benchmark for re-validation — re-validation is a separate follow-up.
+
+**The signal.** The GHG-emissions signal is *sustained brightness of the site
+relative to its background ring* over the screening window. Per VIIRS timestep
+`t` with both site-buffer and (land-masked) background-ring coverage, define a
+bounded ring-relative **Michelson contrast**:
+
+```
+contrast_t = clamp( (site_t − ring_t) / (site_t + ring_t), 0, 1 )
+```
+
+A timestep is **lit above background** when `contrast_t ≥ VIIRS_LIT_CONTRAST_THRESHOLD`.
+Two sub-quantities over the window:
+
+- **contrast_over_lit_window** = the `VIIRS_CONTRAST_PERCENTILE`-th percentile of
+  `contrast_t` over the lit timesteps ("how bright vs. background when lit").
+- **persistence** = (lit timesteps) / (valid timesteps) ("how consistently lit").
+
+**Combination — persistence-weighted intensity:**
+
+```
+VIIRS_score = contrast_over_lit_window · persistence_factor(persistence)
+
+persistence_factor(p) = D + (1 − D)·min(p / P_FLOOR, 1)
+    where P_FLOOR = VIIRS_PERSISTENCE_FLOOR, D = VIIRS_PERSISTENCE_FLOOR_DISCOUNT
+```
+
+`persistence_factor` saturates to 1.0 at/above the floor and discounts toward —
+but never to — `D` below it, so an intermittent heavy emitter stays
+**visible-but-discounted**, not erased. All quantities are ring-relative, so the
+**attributability invariant** holds: a bright supplier inside an equally-bright
+industrial cluster scores low (contrast ≈ 0), never high "for the region's
+brightness".
+
+**Tunables (defaults in `engine/constants.py`):** `VIIRS_LIT_CONTRAST_THRESHOLD`
+(0.02), `VIIRS_PERSISTENCE_FLOOR` (0.60), `VIIRS_PERSISTENCE_FLOOR_DISCOUNT`
+(0.30), `VIIRS_CONTRAST_PERCENTILE` (75). All first-pass; calibration pending.
+
+**Severity** bands the [0,1] `VIIRS_score` directly (score-band grammar: ≥0.66
+High, ≥0.33 Concern), not a z-score. **Confidence** uses the house 4-term formula
+with *persistence* in place of HF as the consistency term.
+
+> **Cross-pillar divergence (intentional).** This GHG grammar is deliberately
+> different from the Air pillar's z-score denominator approach. The Air
+> indicators ask "is there a transient anomalous *event* vs. the regional
+> baseline?"; VIIRS here asks "is this site a sustained activity *stock* relative
+> to its surroundings?". These are different physical questions, so
+> cross-pillar normalisation consistency is **not** a goal and the two grammars
+> are not harmonised.
+
 ### 2.3 Pillar aggregates
 
 **v1 (no sector context):**
 
 ```
-Core_GHG_Audit_Support_v1 =                      (M-CH4-A1: CH₄ reclassified)
-    0.815·Combustion_Proxy
-  + 0.185·Activity_Score                          (sums to 1.00)
+Core_GHG_Audit_Support_v1 =                      (M-GHG-REDESIGN-A1: VIIRS-led)
+    0.60·Activity_Score
+  + 0.40·Combustion_Proxy                          (sums to 1.00)
 
   Method: ODIAC's CO₂_Context is no longer in the live composite (M5.5b);
   CH₄_Context_Adjusted is no longer in the live composite either
-  (M-CH4-A1, 30 May 2026). The GHG↔ODIAC+OCO-2/OCO-3 validation
-  (docs/ghg_odiac_validation.md §1, §6.1, §10) showed the CH₄ anomaly-z
-  proxy fired at only 1/25 stratified sites at 5 km AOI, and 0/25 when
-  widened to 15 km (Response B) — the ~7 km TROPOMI footprint vs the
-  screening AOI cannot be reconciled by geometry. CH₄ is reclassified as
-  reference data (joining Hansen + ODIAC); it still computes and displays
-  as a raw column reading but no longer drives the score. High_GWP_Sector_Risk
-  also stays at 0 in v1 pending sector input (Tier C1a). The two surviving
-  live signals are rescaled by 1/0.54 from the pre-M-CH4-A1 values
-  (CH₄ 0.46, Combustion 0.44, Activity 0.10): drop CH₄, divide each
-  remaining by 0.54, round to three decimals → Combustion 0.815,
-  Activity 0.185. Pre-M5.5b lineage: CO₂ 0.39, CH₄ 0.28, Combustion 0.22,
-  Activity 0.11. See audit §3.4 for full trace.
+  (M-CH4-A1, 30 May 2026 — the CH₄ anomaly-z proxy fired at only 1/25
+  stratified sites at 5 km AOI, 0/25 at 15 km; reclassified as reference
+  data joining Hansen + ODIAC). High_GWP_Sector_Risk stays at 0 in v1
+  pending sector input (Tier C1a).
+
+  M-GHG-REDESIGN-A1 (GATE B, 31 May 2026): VIIRS (Activity_Score) is
+  re-grammared to persistence-weighted ring-relative sustained contrast
+  (§2.2a) — a sustained-emissions *presence* signal, not a transient
+  anomaly, and the most directly supplier-attributable, GHG-specific
+  term (VIIRS↔ODIAC Spearman 0.70, docs/ghg_odiac_validation.md §1). Its
+  weight is therefore raised to **lead** the composite at 0.60;
+  Combustion_Proxy (the borrowed Air NO₂/CO transient signal) drops to
+  0.40 as the supporting cross-pollutant check. The prior 0.815/0.185
+  split was an artifact of CH₄'s removal renormalisation (0.44/0.54), not
+  a deliberate "combustion dominates" decision. Pre-M-GHG-REDESIGN-A1:
+  Combustion 0.815, Activity 0.185. See audit §3.4 for full lineage.
 
 GHG_Data_Quality_Attribution_v1 =
     0.34·Temporal_Coverage + 0.33·Spatial_Resolution_Suitability
@@ -287,15 +351,22 @@ GHG_Data_Quality_Attribution_v1 =
   surface.
 
 GHG_Audit_FollowUp_Priority =
-    0.5000·Core_GHG_Audit_Support
-  + 0.3125·GHG_SpatioTemporal_Anomaly
-  + 0.1875·GHG_Data_Quality_Attribution
+    0.7273·Core_GHG_Audit_Support
+  + 0.2727·GHG_Data_Quality_Attribution
 ```
 
-> **M-TREND-A1 (TR10 / decision-log E3).** As with Air, the former
-> `0.20·GHG_Trend` term is **removed** (trend is drill-down-only). The
-> surviving three terms are renormalised over the prior 0.80 so the sum stays
-> 1.00. Pre-change weights: 0.40 / 0.25 / 0.20 / 0.15.
+> **M-TREND-A1 (TR10 / decision-log E3).** The former `0.20·GHG_Trend` term was
+> **removed** (trend is drill-down-only).
+>
+> **M-GHG-REDESIGN-A1 (GATE B, 31 May 2026).** The `GHG_SpatioTemporal_Anomaly`
+> term (was 0.3125) is **retired**. With CH₄ reclassified as reference data and
+> VIIRS re-grammared away from anomaly detection (§2.2a — sustained contrast, not
+> a z-score; CO₂/ODIAC never carried a `.z`), the GHG pillar has no
+> spatiotemporal-anomaly source — the term was structurally empty. The aggregate
+> `ghg.spatiotemporal_anomaly` is no longer computed or emitted (kept as a
+> reserved canonical ID in `Indicator_ID_Schema_v2.md §2.3`). The surviving two
+> terms renormalise over the prior 0.55. Pre-redesign weights:
+> 0.5000 / 0.3125 / 0.1875.
 
 **v1.1+ (with sector and wind context — for reference, not implemented in v1):** restore the original weights from `Final_Indicators_List.pdf`.
 

@@ -164,7 +164,7 @@
   "ghg.audit_followup_priority": {
     "sub_section": "aggregate",
     "display_name": "GHG Follow-Up Priority",
-    "definition": "Headline GHG pillar score. Weighted sum of four sub-aggregates: core audit support (0.40) + spatiotemporal anomaly (0.25) + trend (0.20, screening = 0) + data-quality attribution (0.15). Same tertile-banded display as Air.",
+    "definition": "Headline GHG pillar score. Weighted sum of two sub-aggregates: core audit support (0.73) + data-quality attribution (0.27). The trend term (M-TREND-A1) and the spatiotemporal-anomaly term (M-GHG-REDESIGN-A1, retired — GHG has no anomaly source after the VIIRS sustained-contrast re-grammar) were both removed and the survivors renormalised. Same tertile-banded display as Air.",
     "decision_relevance": "Top-line GHG signal for ranking suppliers by emissions-related audit priority. Combines present-day flux (CH₄ + combustion + activity) with anomaly-detection — a composite that's more actionable than any one indicator alone.",
     "limitations": "Same strict-None propagation as Air. Excludes CO₂ (ODIAC inventory) from the live signal per M5.5b — ODIAC's 2+ year vintage lag would mute present-day variation.",
     "esg_alignment": "Composite — aligns with GHG Protocol Corporate Standard Scope 1/3; Global Methane Pledge (2021); UNFCCC GHG inventory",
@@ -321,9 +321,9 @@
   "ghg.viirs.score": {
     "display_name": "Nighttime Lights (VIIRS)",
     "sub_section":  "single_value",
-    "definition":   "NASA VIIRS Day/Night Band gap-filled nighttime radiance. Proxy for human activity intensity and combustion-driven night-time emissions.",
-    "decision_relevance": "Activity-density proxy for industrial supply-chain nodes. Useful for distinguishing active operations from idle sites and for detecting flaring (gas burn-off).",
-    "limitations": "Proxy only — doesn't measure GHG directly. Bright lights from non-emitting sources (street lighting, sports stadiums) confound the signal. Cloud-cleared composites smooth out night-to-night flaring detection.",
+    "definition":   "NASA VIIRS Day/Night Band gap-filled nighttime radiance, scored (M-GHG-REDESIGN-A1) as persistence-weighted ring-relative sustained contrast: how much brighter the site is than its background ring (contrast), weighted by how consistently it is lit above that ring (persistence). A sustained-emissions activity signal, not a night-to-night anomaly.",
+    "decision_relevance": "Activity-density proxy for industrial supply-chain nodes. Distinguishes a sustained, locally-bright operation from its surroundings (attributable) and surfaces — discounted, not erased — intermittent intense flaring. A bright site inside an equally-bright industrial cluster scores low (no ring-relative contrast).",
+    "limitations": "Proxy only — doesn't measure GHG directly. Bright lights from non-emitting sources (street lighting, sports stadiums) can confound the signal, though the ring-relative contrast cancels region-wide brightness. ODIAC is partly VIIRS-derived, so it is a weak independent benchmark for this signal.",
     "esg_alignment": "GHG Protocol Scope 3 (indicative activity proxy)",
     "tooltip_summary": "**Nighttime Lights (VIIRS).** A satellite measure of how brightly an area is lit at night, used as a proxy for the intensity of human activity and combustion-related operations. It helps distinguish active industrial sites from idle ones and can flag gas flaring around oil-and-gas suppliers."
   },

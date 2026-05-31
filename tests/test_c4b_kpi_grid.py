@@ -58,10 +58,20 @@ def test_nature_tiles_present_in_headline_registry():
     assert nature == {"kba", "dw", "ndvi"}
 
 
-def test_three_grammars_used():
-    """SR7 (v1.1) — three grammars; loss_fraction removed."""
+def test_grammars_used():
+    """SR7 (v1.1) — z-score / categorical / distance, plus the M-GHG-REDESIGN-A1
+    score-band grammar for the re-grammared VIIRS tile (loss_fraction removed)."""
     grammars = {t.grammar for t in _TILES}
-    assert grammars == {"zscore", "categorical", "distance"}
+    assert grammars == {"zscore", "score_band", "categorical", "distance"}
+
+
+def test_viirs_tile_uses_score_band_grammar():
+    """M-GHG-REDESIGN-A1 — VIIRS bands its [0,1] sustained-contrast score, not a
+    z-score; the tile carries no z_key."""
+    viirs = next(t for t in _TILES if t.select_key == "ghg.viirs.score")
+    assert viirs.grammar == "score_band"
+    assert viirs.score_key == "ghg.viirs.score"
+    assert viirs.z_key is None
 
 
 def test_hansen_and_odiac_not_in_headline_grid():

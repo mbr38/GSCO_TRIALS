@@ -85,7 +85,11 @@ _AIR_TERMS: dict[str, tuple[str, str]] = {
 }
 _GHG_TERMS: dict[str, tuple[str, str]] = {
     "core_support": ("Core audit support",          "ghg.core_audit_support"),
-    "anomaly":      ("Spatiotemporal anomaly",      "ghg.spatiotemporal_anomaly"),
+    # M-GHG-REDESIGN-A1 (GATE B): the "anomaly" row is dropped — the GHG
+    # spatiotemporal-anomaly aggregate is retired (no anomaly source after the
+    # VIIRS sustained-contrast re-grammar). `_build_formula` zips this with
+    # GHG_FOLLOWUP_WEIGHTS, which also dropped "anomaly", so they stay in
+    # lock-step.
     "quality":      ("Data-quality attribution",    "ghg.data_quality_attribution"),
 }
 _NATURE_TERMS: dict[str, tuple[str, str]] = {

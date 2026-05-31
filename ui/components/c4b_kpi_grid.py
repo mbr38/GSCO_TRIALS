@@ -62,13 +62,14 @@ from ui.components.severity import (
     severity_categorical,
     severity_distance,
     severity_rank,
+    severity_score_band,
     severity_zscore,
     zscore_direction,
 )
 from ui.components.traffic_light import confidence_glyph
 
 
-Grammar = Literal["zscore", "categorical", "distance"]
+Grammar = Literal["zscore", "score_band", "categorical", "distance"]
 
 # ``MAP_ANCHOR_ID`` now lives in ``ui.components.multi_map_state`` (M-UI-A5):
 # the multi-indicator map host renders the anchor and the C4b tiles scroll to
@@ -116,6 +117,11 @@ class _TileSpec:
     value_format:   str = "{:.0f}"
     unit:           str = ""
     background_key: str | None = None
+
+    # --- score-band grammar (M-GHG-REDESIGN-A1; VIIRS sustained contrast) ---
+    score_key:       str | None = None   # [0,1] component score (the headline)
+    persistence_key: str | None = None   # lit fraction, for the secondary line
+    score_format:    str = "{:.2f}"
 
     # --- categorical grammar ---
     scheme:             Literal["odiac", "dw"] | None = None
@@ -174,9 +180,15 @@ _TILES: tuple[_TileSpec, ...] = (
     # +OCO-2/OCO-3 validation (docs/ghg_odiac_validation.md §10: the CH₄
     # anomaly-z proxy fired at 1/25 sites at 5 km, 0/25 at 15 km). It now
     # renders as a muted reference card in the C5 drill-down, not a scored tile.
-    _TileSpec("Nightlights", "ghg", "viirs", "zscore", "ghg.viirs.score", "ghg.viirs.confidence",
-              z_key="ghg.viirs.z", value_key="ghg.viirs.site", value_format="{:.1f}",
-              unit="nW cm⁻² sr⁻¹"),   # VIIRS emits no background
+    # M-GHG-REDESIGN-A1 — VIIRS re-grammared to persistence-weighted ring-
+    # relative sustained contrast. Severity now bands the [0,1] score
+    # (score_band grammar), NOT a z-score (z dropped). The headline is the
+    # sustained-contrast score; the secondary line surfaces lit-fraction
+    # (persistence) and the site radiance.
+    _TileSpec("Nightlights", "ghg", "viirs", "score_band", "ghg.viirs.score", "ghg.viirs.confidence",
+              score_key="ghg.viirs.score", persistence_key="ghg.viirs.persistence",
+              value_key="ghg.viirs.site", value_format="{:.1f}", unit="nW cm⁻² sr⁻¹",
+              plain_language="sustained brightness vs. regional background"),
     # NOTE (spec v1.1): ODIAC CO₂ removed from the headline grid as a
     # reference dataset — it stays in the C5b GHG drill-down. M-UI-A6 owns
     # its reference-dataset treatment.
@@ -285,6 +297,8 @@ def _tile_severity(tile: _TileSpec, payload: dict) -> Severity:
 
     if tile.grammar == "zscore":
         return severity_zscore(payload.get(tile.z_key), confidence, provenance)
+    if tile.grammar == "score_band":
+        return severity_score_band(payload.get(tile.score_key), confidence, provenance)
     if tile.grammar == "categorical":
         return severity_categorical(
             payload.get(tile.category_key), confidence, provenance,
@@ -302,6 +316,8 @@ def _headline_value(tile: _TileSpec, payload: dict):
     """The grammar's headline value — the one whose absence means 'failed'."""
     if tile.grammar == "zscore":
         return payload.get(tile.z_key)
+    if tile.grammar == "score_band":
+        return payload.get(tile.score_key)
     if tile.grammar == "categorical":
         return payload.get(tile.category_key)
     if tile.grammar == "distance":
@@ -699,6 +715,21 @@ def _natural_metric_centre_and_secondary(
         cc = payload.get(tile.class_confidence_key) if tile.class_confidence_key else None
         secondary = f"Class confidence: {cc:.0%}" if cc is not None else ""
         return centre, secondary
+
+    if tile.grammar == "score_band":
+        # M-GHG-REDESIGN-A1 — headline is the [0,1] sustained-contrast score;
+        # secondary surfaces lit-fraction (persistence) and the site radiance.
+        score = payload.get(tile.score_key)
+        centre = tile.score_format.format(score) if score is not None else "—"
+        bits: list[str] = []
+        persistence = payload.get(tile.persistence_key) if tile.persistence_key else None
+        if persistence is not None:
+            bits.append(f"Lit {persistence:.0%} of nights")
+        site = payload.get(tile.value_key) if tile.value_key else None
+        if site is not None:
+            unit = f" {tile.unit}" if tile.unit else ""
+            bits.append(f"Site {tile.value_format.format(site)}{unit}")
+        return centre, " · ".join(bits)
 
     return "—", ""  # pragma: no cover
 

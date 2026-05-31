@@ -7,7 +7,7 @@
 > Items listed here are now consolidated under the audit doc's Tier A–F
 > roadmap. Future entries should be added to the audit doc, not here.
 >
-> **VIIRS anomaly method redesign (logged 31 May 2026, M-DIAG-A4 / E2 operator decision).**
+> **VIIRS anomaly method redesign — [CLOSED, M-GHG-REDESIGN-A1, 31 May 2026].**
 > M-DIAG-A4 replaced the per-day anomaly denominator (spatial σ of the
 > time-mean ring) with the temporal σ of the site's per-day series — the
 > correct scale for the column/gridded air pollutants (the H1c diagnosis).
@@ -15,17 +15,35 @@
 > a stably-lit site has near-zero *temporal* variance, so the temporal
 > denominator collapses (bg_std_temporal 0.24–1.7 vs spatial 4–23 across the
 > seeds), saturating VIIRS z/score to High at 3/5 demo seeds — the mirror of
-> the spatial collapse M-DIAG-A3 §5 foreshadowed. VIIRS is therefore
+> the spatial collapse M-DIAG-A3 §5 foreshadowed. VIIRS was therefore
 > **excluded** from the temporal swap (`engine.constants.CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS`)
-> and keeps its prior spatial-std denominator as a stopgap. **The real fix is
-> a purpose-built VIIRS method:** if VIIRS is a GHG-activity proxy, the signal
-> is the *correlation between how often / how brightly an area is lit and GHG
-> emissions* — a lit-frequency ↔ emission model — not a per-day z-score on
-> either axis. Neither spatial nor temporal normalisation models that.
-> Scope: a dedicated milestone (define the lit-frequency feature, calibrate
-> against an emissions reference, decide whether VIIRS feeds the GHG composite
-> at all under the new method). Until then VIIRS severity should be read as a
-> placeholder.
+> and kept its prior spatial-std denominator as a stopgap.
+>
+> **RESOLVED by M-GHG-REDESIGN-A1 (GATE A + GATE B approved).** VIIRS is
+> re-grammared off `six_step` entirely as **persistence-weighted ring-relative
+> sustained contrast** (`engine.ghg.compute_viirs_sustained_contrast`; see
+> `Indicators_Computation_v4.md §2.2a`): per-timestep Michelson contrast (site
+> vs. background ring) over a per-image site+ring series
+> (`engine.core.per_image_site_ring_series`), combined as
+> `contrast_over_lit_window · persistence_factor(persistence)`. No z-score; no
+> spatial/temporal denominator. Severity bands the [0,1] score (new score-band
+> grammar). The exclusion constant is retained as a defensive safety net (VIIRS
+> never reaches the `six_step` denominator branch in production). Composite
+> reweighted VIIRS-led (Activity 0.60 / Combustion 0.40, GATE B); the GHG
+> spatiotemporal-anomaly aggregate is retired (no anomaly source left). Tunables:
+> `VIIRS_LIT_CONTRAST_THRESHOLD`, `VIIRS_PERSISTENCE_FLOOR`,
+> `VIIRS_PERSISTENCE_FLOOR_DISCOUNT`, `VIIRS_CONTRAST_PERCENTILE`.
+>
+> **Open follow-ups from this redesign (separate milestones):**
+> (a) **Re-validation** of the new VIIRS score against an emissions reference —
+> the post-redesign entry belongs in `docs/ghg_odiac_validation.md`. NB ODIAC is
+> partly VIIRS-derived, so it is a *weak* independent benchmark; prefer EDGAR /
+> an OCO-2/3 XCO₂ comparison where feasible.
+> (b) **Seed / golden-baseline regeneration** (`tests/baselines/m_perf_a1/*`,
+> `demo/saved_analyses/*`) — the EE-gated regression baselines and demo seeds
+> still carry the old VIIRS keys (`ghg.viirs.z/anomaly`) and the retired
+> `ghg.spatiotemporal_anomaly`; regenerate against the new engine (needs EE).
+> (c) **Calibration** of the four tunables (all first-pass defaults).
 >
 > **One open follow-up logged after the rename (not in the audit doc):**
 > `Indicator_ID_Schema_v2.md` §4.6 declares engine-orphan IDs that the

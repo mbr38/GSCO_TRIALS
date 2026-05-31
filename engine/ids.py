@@ -118,6 +118,11 @@ GHG_SUB_AGGREGATES: tuple[str, ...] = (
 # §3.3 — pillar aggregates.
 GHG_AGGREGATES: tuple[str, ...] = (
     "ghg.core_audit_support",
+    # M-GHG-REDESIGN-A1 (GATE B): `ghg.spatiotemporal_anomaly` is RETIRED — no
+    # longer computed, emitted, or scored (GHG has no anomaly source after the
+    # VIIRS sustained-contrast re-grammar; see engine/ghg.py). Kept here as a
+    # reserved canonical ID (it remains listed in Indicator_ID_Schema_v2.md §2.3)
+    # so legacy saved analyses / seeds carrying the key still resolve.
     "ghg.spatiotemporal_anomaly",
     # M-TREND-A1 (TR10): ghg.trend removed (drill-down-only, see Air).
     "ghg.data_quality_attribution",

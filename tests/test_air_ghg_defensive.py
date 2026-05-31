@@ -286,12 +286,19 @@ def test_air_all_pollutants_site_empty_does_not_raise_pillar_error(
 def test_ghg_site_empty_emits_skipped_payload(
     monkeypatch, fake_ee_ghg, indicator, expected_reason,
 ):
-    def _raise(**_kw):
+    def _raise(*_a, **_kw):
         raise SiteBufferNoDataError(
             indicator_id=f"ghg.{indicator}",
             reason="site buffer has no valid pixels",
         )
-    monkeypatch.setattr("engine.ghg.six_step", _raise)
+    # M-GHG-REDESIGN-A1 — VIIRS no longer routes through six_step; its empty-
+    # data skip is raised from compute_viirs_sustained_contrast itself. CH₄
+    # still uses the six_step path. Both surface SiteBufferNoDataError, which
+    # the dispatcher maps to the indicator's skipped_reason_no_data code.
+    if indicator == "viirs":
+        monkeypatch.setattr("engine.ghg.compute_viirs_sustained_contrast", _raise)
+    else:
+        monkeypatch.setattr("engine.ghg.six_step", _raise)
 
     selected = {f"ghg.{indicator}.score"}
     payload = ghg_run_pillar(

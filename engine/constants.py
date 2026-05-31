@@ -62,6 +62,81 @@ ANOMALY_Z_THRESHOLD: float = 2.0
 NORMALISATION_K: float = 3.0
 
 # ---------------------------------------------------------------------------
+# M-GHG-REDESIGN-A1 — VIIRS persistence-weighted ring-relative sustained
+# contrast  (engine/ghg.py::compute_viirs_sustained_contrast)
+# ---------------------------------------------------------------------------
+# VIIRS night-lights are no longer scored as a per-day anomaly z-score. The
+# GHG-emissions signal is *sustained brightness of the site relative to its
+# background ring* over the screening window (recon §2,
+# docs/M-GHG-REDESIGN-A1_step_a_findings.md). Per timestep we measure a bounded
+# ring-relative Michelson contrast `c = (site − ring)/(site + ring)` in [0,1];
+# a timestep counts as "lit above background" when c ≥ the lit threshold. The
+# score is `contrast_over_lit_window · persistence_factor(persistence)` where
+# `contrast_over_lit_window` is a high percentile of contrast over the lit
+# timesteps and `persistence` is the lit fraction of the valid window. This
+# grammar is INTENTIONALLY different from the Air pillar's denominator approach
+# (different physical question — sustained activity stock vs. transient event);
+# cross-pillar normalisation consistency is explicitly NOT a goal (spec §2.1).
+
+# @parameter
+# tier: first-pass
+# rationale: Michelson-contrast floor at which a VIIRS timestep counts as "lit
+#     above its background ring". c = (site−ring)/(site+ring); 0.02 ≈ site ~4%
+#     brighter than the ring. Kept deliberately LOW so it separates "site above
+#     the ring at all (lit)" from "site at/below ring (dark relative to
+#     surroundings)" — the score's magnitude comes from contrast, not from this
+#     gate. A bright site inside an equally-bright industrial cluster has c≈0
+#     and is correctly never lit (attributability invariant). First-pass; the
+#     obvious calibration target alongside the persistence params.
+# source: M-GHG-REDESIGN-A1 spec §2.2; calibration pending
+# last_reviewed: 2026-05-31
+# applies_to: [ghg.viirs]
+VIIRS_LIT_CONTRAST_THRESHOLD: float = 0.02
+
+# @parameter
+# tier: first-pass
+# rationale: Persistence (lit fraction of the valid window) at/above which the
+#     full lit-window contrast passes through to the score unattenuated — i.e.
+#     the site is lit vs. background often enough that the contrast is a
+#     credible, attributable *sustained* emissions signal. A site lit ≥60% of
+#     observed nights reads as steady. Below the floor the contrast is
+#     discounted (never zeroed — see VIIRS_PERSISTENCE_FLOOR_DISCOUNT) so an
+#     intermittent heavy emitter stays visible-but-discounted, not erased
+#     (spec §2.3). First-pass judgment; calibration pending.
+# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
+# last_reviewed: 2026-05-31
+# applies_to: [ghg.viirs]
+VIIRS_PERSISTENCE_FLOOR: float = 0.60
+
+# @parameter
+# tier: first-pass
+# rationale: The floor (and y-intercept) of the saturating persistence factor:
+#     `persistence_factor(p) = D + (1−D)·min(p/P_FLOOR, 1)`. At persistence 0
+#     the factor is D (not 0) so a brief-but-intense signal is discounted toward
+#     — but never to — zero, keeping intermittent flarers surfaced for a human
+#     screener rather than silently erased (spec §2.3 "visible but discounted").
+#     0.30 = retain 30% of contrast at zero persistence. First-pass; calibration
+#     pending.
+# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
+# last_reviewed: 2026-05-31
+# applies_to: [ghg.viirs]
+VIIRS_PERSISTENCE_FLOOR_DISCOUNT: float = 0.30
+
+# @parameter
+# tier: first-pass
+# rationale: Percentile (0-100) of per-timestep ring-relative contrast, taken
+#     over the LIT timesteps only, used as `contrast_over_lit_window` — "how
+#     bright the site is vs. background when it is lit". A high percentile (75th)
+#     captures the characteristic lit-night intensity while staying robust to a
+#     few dim/marginal nights; the mean would be dragged down by near-threshold
+#     timesteps and a max would be noise-driven. First-pass choice of both the
+#     statistic and the percentile; calibration pending.
+# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
+# last_reviewed: 2026-05-31
+# applies_to: [ghg.viirs]
+VIIRS_CONTRAST_PERCENTILE: float = 75.0
+
+# ---------------------------------------------------------------------------
 # Habitat conversion  (IC_v4 §3.1, §3.2)
 # ---------------------------------------------------------------------------
 HABITAT_BASELINE_YEARS: int = 5
@@ -199,9 +274,19 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
 # Pre-M-CH4-A1 values (kept for reference): ch4_adj 0.46, combustion 0.44,
 # activity 0.10. Pre-M5.5b: co2 0.39, ch4_adj 0.28, combustion 0.27,
 # activity 0.06.
+# M-GHG-REDESIGN-A1 (31 May 2026, GATE B) — VIIRS re-grammared to
+# persistence-weighted ring-relative sustained contrast (a sustained-emissions
+# *presence* signal, not a transient anomaly). It is now the most directly
+# supplier-attributable, GHG-specific term, and is validated against ODIAC
+# (Spearman 0.70, docs/ghg_odiac_validation.md §1). Its weight is therefore
+# raised to lead the composite; `combustion_proxy` (the borrowed Air NO₂/CO
+# transient signal) becomes the supporting cross-pollutant check. The prior
+# 0.815/0.185 split was an artifact of CH₄'s removal (M-CH4-A1 renormalised
+# 0.44/0.54), not a deliberate "combustion dominates" decision. Sums to 1.00.
+# Pre-M-GHG-REDESIGN-A1: combustion 0.815, activity 0.185.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
-    "ghg.combustion_proxy":     0.815,   # M-CH4-A1: 0.44 / 0.54 ≈ 0.8148 → 0.815
-    "ghg.activity_score":       0.185,   # M-CH4-A1: 0.10 / 0.54 ≈ 0.1851 → 0.185
+    "ghg.activity_score":       0.60,   # M-GHG-REDESIGN-A1: VIIRS sustained contrast leads
+    "ghg.combustion_proxy":     0.40,   # M-GHG-REDESIGN-A1: Air NO₂/CO borrow, supporting
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).
@@ -221,13 +306,17 @@ GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
 
 # IC_v4 §2.3 — GHG Audit Follow-Up Priority terms. Sums to 1.00.
 # M-TREND-A1 (TR10 / decision-log E3): the "trend" term (was 0.20) is
-# removed for the same reason as Air — trend is drill-down-only. The
-# surviving three terms are renormalised over the remaining 0.80.
-# Pre-change values: core_support 0.40, anomaly 0.25, trend 0.20, quality 0.15.
+# removed — trend is drill-down-only.
+# M-GHG-REDESIGN-A1 (GATE B): the "anomaly" term (`ghg.spatiotemporal_anomaly`,
+# was 0.3125) is RETIRED. With CH₄ reclassified as reference data and VIIRS
+# re-grammared away from anomaly detection (sustained contrast, not a z-score),
+# the GHG pillar has no spatiotemporal-anomaly source left — the term was
+# structurally empty and conceptually obsolete. Surviving two terms renormalise
+# over the remaining 0.55 (mirrors the M-TREND-A1 removal pattern).
+# Pre-M-GHG-REDESIGN-A1: core_support 0.5000, anomaly 0.3125, quality 0.1875.
 GHG_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "core_support": 0.40 / 0.80,   # 0.5000
-    "anomaly":      0.25 / 0.80,   # 0.3125
-    "quality":      0.15 / 0.80,   # 0.1875
+    "core_support": 0.40 / 0.55,   # 0.7273
+    "quality":      0.15 / 0.55,   # 0.2727
 }
 
 # Schema_v2 §3.4 — Sentinel-5P CH₄'s real on-ground footprint is ~7 km
@@ -1011,18 +1100,22 @@ CLIMATOLOGY_BASELINE_SPARSE_MIN_VALID_DAYS: int = 30
 # fallback, never a silent default (CLAUDE.md §7 "no silent defaults").
 CLIMATOLOGY_BASELINE_MIN_COMPUTABLE_DAYS: int = 2
 
-# Indicators EXCLUDED from the temporal-denominator swap (operator decision,
-# Phase 3 / E2, 31 May 2026). The H1c diagnosis (spatial σ collapses, temporal
-# σ is the honest scale) holds for the column/gridded air pollutants. It does
-# NOT hold for VIIRS night-lights: a stably-lit site has near-zero *temporal*
-# variance, so the temporal denominator collapses (the mirror of the spatial
-# collapse — M-DIAG-A3 §5 foreshadowed this), saturating VIIRS z/score to High
-# at most lit sites. VIIRS's meaningful scale is the spatial lit-vs-dark
-# contrast; its anomaly model needs a purpose-built lit-frequency ↔ GHG-emission
-# method (tracked in docs/v1x_followups.md), not a per-day z-score. Until that
-# lands, VIIRS keeps its prior spatial-std denominator (unchanged behaviour).
-# This narrows the spec's DGC2 "generic across 9" to 8 indicators for the
-# denominator swap; VIIRS extraction is otherwise untouched.
+# Indicators EXCLUDED from the temporal-denominator swap in `six_step`
+# (operator decision, Phase 3 / E2, 31 May 2026). The H1c diagnosis (spatial σ
+# collapses, temporal σ is the honest scale) holds for the column/gridded air
+# pollutants — it does NOT hold for VIIRS night-lights.
+#
+# M-GHG-REDESIGN-A1 (31 May 2026) — the "purpose-built lit-frequency ↔ emission
+# method" foreshadowed here and in M-DIAG-A3 §5 has now landed:
+# `engine.ghg.compute_viirs_sustained_contrast` re-grammars VIIRS as
+# persistence-weighted ring-relative sustained contrast and routes it OFF
+# `six_step` entirely (no z-score, no spatial OR temporal denominator). So in
+# production VIIRS never reaches the `six_step` climatology-denominator branch
+# at all. This membership is now a DEFENSIVE SAFETY NET: should any caller ever
+# dispatch `ghg.viirs` through `six_step` (legacy tooling, a future regression),
+# the gate still prevents the temporal denominator from being applied to a
+# signal whose temporal σ collapses at stably-lit sites. It no longer implies a
+# "stopgap until a method lands" — the method has landed elsewhere.
 CLIMATOLOGY_DENOMINATOR_EXCLUDED_INDICATORS: tuple[str, ...] = (
     "ghg.viirs",
 )

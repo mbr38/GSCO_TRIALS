@@ -87,8 +87,8 @@ class TestDocConstantsSync:
         )
 
     def test_ic_v4_core_ghg_audit_support_weights_match_engine_constants(self) -> None:
-        # M-CH4-A1 post-reclassification: 2-key dict, 0.815 / 0.185 (CH₄ removed).
-        # Weights are 3-decimal now, so the coefficient regex allows 2–3 dp.
+        # M-GHG-REDESIGN-A1 (GATE B): 2-key dict, 0.60 / 0.40 (VIIRS-led).
+        # Weights may be 2–3 dp, so the coefficient regex allows 2–3 dp.
         text = _ic_text()
         m = re.search(
             r"Core_GHG_Audit_Support_v1 =.*?\(sums to 1\.00\)",

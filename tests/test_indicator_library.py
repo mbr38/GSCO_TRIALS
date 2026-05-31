@@ -25,18 +25,18 @@ from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
 # load_library — completeness + content integrity
 # ---------------------------------------------------------------------------
 
-def test_load_library_returns_19_raw_plus_14_derived():
-    """v1 catalogue: 19 raw indicators + 14 derived (10 component
-    scores + 3 pillar aggregates + 1 composite) = 33 entries total.
-    M-TREND-A1 (TR10): the two aggregate trend component scores
-    (air.trend_score, ghg.trend) are removed — trend is drill-down-only —
-    dropping the derived count from 16 to 14."""
+def test_load_library_returns_19_raw_plus_13_derived():
+    """v1 catalogue: 19 raw indicators + 13 derived (9 component
+    scores + 3 pillar aggregates + 1 composite) = 32 entries total.
+    M-TREND-A1 (TR10) removed the two aggregate trend component scores
+    (16 → 14). M-GHG-REDESIGN-A1 (GATE B) retired the GHG
+    spatiotemporal-anomaly component score (14 → 13)."""
     lib = load_library()
-    assert len(lib) == 33
+    assert len(lib) == 32
     raw     = [c for c in lib.values() if c.kind == "raw"]
     derived = [c for c in lib.values() if c.kind == "derived"]
     assert len(raw)     == 19
-    assert len(derived) == 14
+    assert len(derived) == 13
 
 
 def test_load_library_covers_every_raw_canonical_id():
@@ -302,7 +302,7 @@ class TestDerivedEntries:
             # M-TREND-A1 (TR10): air.trend_score / ghg.trend removed.
             "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             "ghg.core_audit_support",
-            "ghg.spatiotemporal_anomaly",
+            # M-GHG-REDESIGN-A1 (GATE B): ghg.spatiotemporal_anomaly retired.
             "ghg.data_quality_attribution",
             "nature.biodiversity_exposure",
             "nature.habitat.conversion_score",
@@ -401,9 +401,11 @@ class TestDerivedEntries:
     def test_derived_indicator_ids_module_constant(self) -> None:
         """Pin the constant for direct importers (renderer, tests)."""
         from demo.indicator_library import DERIVED_INDICATOR_IDS
-        # M-TREND-A1 (TR10): 14 derived (10 component scores after dropping
-        # air.trend_score / ghg.trend + 3 pillar aggregates + 1 composite).
-        assert len(DERIVED_INDICATOR_IDS) == 14
+        # M-TREND-A1 (TR10): dropped air.trend_score / ghg.trend.
+        # M-GHG-REDESIGN-A1 (GATE B): retired ghg.spatiotemporal_anomaly →
+        # 13 derived (9 component scores + 3 pillar aggregates + 1 composite).
+        assert len(DERIVED_INDICATOR_IDS) == 13
+        assert "ghg.spatiotemporal_anomaly" not in DERIVED_INDICATOR_IDS
         assert "composite.overall_screening"   in DERIVED_INDICATOR_IDS
         assert "nature.biodiversity_exposure"  in DERIVED_INDICATOR_IDS
         assert "air.audit_followup_priority"   in DERIVED_INDICATOR_IDS

@@ -273,11 +273,21 @@ class TestGhgRunPillarRoutesSkip:
                 reason="background ring has no valid pixels — over water",
             )
 
+        def fake_viirs(aoi, time_range, mode, ee_client):
+            raise BackgroundRingNoDataError(
+                indicator_id="ghg.viirs",
+                reason="background ring has no valid pixels — over water",
+            )
+
         monkeypatch.setattr(ghg, "compute_ghg_indicator_snapshot", fake_snapshot)
+        # M-GHG-REDESIGN-A1 — VIIRS has its own sustained-contrast path; a ring
+        # failure surfaces from it directly. The dispatcher's BackgroundRing
+        # handler is indicator-agnostic, so both still route to the same skip.
+        monkeypatch.setattr(ghg, "compute_viirs_sustained_contrast", fake_viirs)
 
         aoi = {"centre": {"lat": -22.0, "lon": -43.0}, "radius_km": 281}
-        # Pick CH4 and VIIRS — both go through six_step. CO2 has its own
-        # ODIAC path and would be silently skipped via out_of_coverage.
+        # CH₄ goes through six_step; VIIRS through compute_viirs_sustained_
+        # contrast. CO2 has its own ODIAC path (out_of_coverage skip).
         selected = {"ghg.ch4.score", "ghg.viirs.score"}
         result = ghg.run_pillar(
             aoi=aoi,

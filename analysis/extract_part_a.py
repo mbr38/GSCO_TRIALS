@@ -4,7 +4,8 @@ For each of the 25 locked locations, at the 5 km production radius:
   - CH4 anomaly z (raw z-score)            ghg.ch4.z
   - CH4 raw concentration (window mean)    ghg.ch4.site   [ppb]
   - VIIRS raw activity                     ghg.viirs.site
-  - VIIRS anomaly z                        ghg.viirs.z
+  - VIIRS lit-window contrast              ghg.viirs.contrast      (M-GHG-REDESIGN-A1)
+  - VIIRS persistence (lit fraction)       ghg.viirs.persistence   (M-GHG-REDESIGN-A1)
   - ODIAC point sample at AOI centre       [annualised t CO2 / cell]
   - ODIAC AOI-mean (radius-averaged)       ghg.co2.mean   [annualised t CO2 / cell]
   - ODIAC relative intensity (site/ring)   ghg.co2.relative_intensity
@@ -85,13 +86,16 @@ def extract_location(regime: str, name: str, lat: float, lon: float) -> dict:
             row[k] = None
 
     try:
-        v = ghg.compute_viirs_activity(aoi, WINDOW_NOW, "screening", None)
+        # M-GHG-REDESIGN-A1 — VIIRS re-grammared to persistence-weighted ring-
+        # relative sustained contrast (no z-score). Surface the new sub-quantities.
+        v = ghg.compute_viirs_sustained_contrast(aoi, WINDOW_NOW, "screening", None)
         row["viirs_site"] = _num(v, "ghg.viirs.site")
-        row["viirs_z"] = _num(v, "ghg.viirs.z")
+        row["viirs_contrast"] = _num(v, "ghg.viirs.contrast")
+        row["viirs_persistence"] = _num(v, "ghg.viirs.persistence")
         row["viirs_score"] = _num(v, "ghg.viirs.score")
     except Exception as e:
         flags.append(f"viirs_fail:{type(e).__name__}")
-        for k in ("viirs_site", "viirs_z", "viirs_score"):
+        for k in ("viirs_site", "viirs_contrast", "viirs_persistence", "viirs_score"):
             row[k] = None
 
     # ODIAC: AOI-mean (engine) over the 2023 vintage window + centre-point sample

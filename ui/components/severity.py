@@ -59,6 +59,15 @@ Severity = Literal["High", "Concern", "Normal", "Sparse"]
 # applies_to: [air.no2, air.so2, air.co, air.hcho, air.o3, air.aai, air.aod, air.pm25, air.pm10, ghg.viirs, nature.ndvi, nature.dw, nature.kba]
 SEVERITY_BANDS: dict[str, dict] = {
     "zscore": {"High": 2.0, "Concern": 1.0},
+    # M-GHG-REDESIGN-A1 — score-band grammar for the re-grammared VIIRS term
+    # (and any future [0,1]-component-score indicator that isn't a z-score).
+    # VIIRS no longer carries a z; its severity bands the persistence-weighted
+    # ring-relative sustained-contrast score directly. Thresholds at thirds of
+    # the [0,1] range: High >= 0.66, Concern >= 0.33. These also line up with
+    # the z-score bands under the §0.4 mapping score ≈ z/k (k=3): z=1 → 0.33,
+    # z=2 → 0.66, so VIIRS "Concern/High" keeps the same felt meaning as the
+    # other tiles. First-pass; the obvious calibration target.
+    "score": {"High": 0.66, "Concern": 0.33},
     "distance": {"High_km": 1.0, "Concern_km": 10.0, "High_overlap_pct": 0.0},
     "sparse_confidence": 0.40,
     "sparse_valid_pixel": 0.30,
@@ -163,6 +172,40 @@ def zscore_direction(z: float | None) -> Literal["above", "below", "near"]:
     if z is None or abs(z) < _FLAT_Z_EPS:
         return "near"
     return "above" if z > 0 else "below"
+
+
+# ---------------------------------------------------------------------------
+# §4.1b — Score-band grammar (M-GHG-REDESIGN-A1; VIIRS sustained contrast)
+# ---------------------------------------------------------------------------
+
+def severity_score_band(
+    score: float | None,
+    confidence: float | None,
+    provenance: dict | None,
+) -> Severity:
+    """Severity from a [0,1] component score (M-GHG-REDESIGN-A1).
+
+    Bands on the raw score: ``score >= 0.66`` High, ``0.33 <= score < 0.66``
+    Concern, ``score < 0.33`` Normal. Used by the VIIRS tile, whose score is
+    the persistence-weighted ring-relative sustained contrast (no z-score).
+    The Sparse override (``_is_sparse``) wins over any band; a missing score
+    reads as Sparse (the engine routes genuine no-data to a skip, so a None
+    here means "computed-but-absent", which is correctly Sparse).
+
+    Like the z-score grammar this is a magnitude — there is no direction
+    concept for a sustained-contrast score (it is unsigned: site brighter
+    than its ring or not), so there is no score-band equivalent of
+    ``zscore_direction``.
+    """
+    if _is_sparse(confidence, provenance):
+        return "Sparse"
+    if score is None:
+        return "Sparse"
+    if score >= SEVERITY_BANDS["score"]["High"]:
+        return "High"
+    if score >= SEVERITY_BANDS["score"]["Concern"]:
+        return "Concern"
+    return "Normal"
 
 
 # ---------------------------------------------------------------------------

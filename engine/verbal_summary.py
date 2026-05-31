@@ -302,19 +302,27 @@ def _ghg_dominant_slots(
             z="combined NO₂ + CO signal", direction=None,
         )
     if term_id == "ghg.activity_score":
+        # M-GHG-REDESIGN-A1 — VIIRS is now persistence-weighted ring-relative
+        # sustained contrast (no z-score). The dominant-slot phrasing inherits
+        # the M-ATTRIB-A2 "vs. regional background" voice and surfaces the two
+        # sub-quantities that make the signal credible: lit-fraction
+        # (persistence) and the lit-window contrast.
         viirs_site = payload.get("ghg.viirs.site")
-        viirs_z = payload.get("ghg.viirs.z")
+        persistence = payload.get("ghg.viirs.persistence")
+        contrast = payload.get("ghg.viirs.contrast")
         value = (
             f"median radiance {viirs_site:.1f} nW cm⁻² sr⁻¹"
             if viirs_site is not None else "—"
         )
-        # VIIRS lacks z in v1 (Schema_v2 §3.1 reduced 5-key set); fall
-        # back to a generic phrase if unavailable.
-        z = (
-            f"{viirs_z:.1f}σ above background"
-            if viirs_z is not None
-            else "above the regional background"
-        )
+        if contrast is not None and persistence is not None:
+            z = (
+                f"sustained brightness vs. regional background "
+                f"(contrast {contrast:.2f}, lit {persistence:.0%} of the window)"
+            )
+        elif persistence is not None:
+            z = f"lit {persistence:.0%} of the window vs. regional background"
+        else:
+            z = "sustained brightness vs. the regional background"
         return _DominantSlots(
             indicator=display, value=value, z=z, direction=None,
         )

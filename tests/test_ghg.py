@@ -28,7 +28,6 @@ from engine.ghg import (
     compute_fire_or_regional_transport_risk,
     compute_ghg_audit_followup_priority,
     compute_ghg_data_quality_attribution,
-    compute_ghg_spatiotemporal_anomaly,
     compute_core_ghg_audit_support,
     compute_temporal_coverage,
     compute_spatial_resolution_suitability,
@@ -135,11 +134,14 @@ class TestConfigIntegrity:
             "trend", "trend_p", "confidence", "score",
         )
 
-    def test_viirs_emits_reduced_six_measurement_set(self) -> None:
-        # Per Schema_v2 §3.1 (M-UI-A4 update): VIIRS NTL surfaces `.z` for the
-        # C4b z-score severity grammar but still omits background, hf, trend_p.
+    def test_viirs_emits_sustained_contrast_measurement_set(self) -> None:
+        # M-GHG-REDESIGN-A1 — VIIRS re-grammared to persistence-weighted ring-
+        # relative sustained contrast: the old anomaly/z/trend keys are dropped
+        # and replaced by `.contrast` (lit-window ring-relative contrast) and
+        # `.persistence` (lit fraction). `.site` is kept for the tile value;
+        # `.score` still feeds the composite via ghg.activity_score.
         assert GHG_INDICATOR_CONFIG["viirs"].emitted_measurements == (
-            "site", "anomaly", "z", "trend", "confidence", "score",
+            "site", "contrast", "persistence", "confidence", "score",
         )
 
     def test_co2_emits_seven_measurement_set(self) -> None:
@@ -555,12 +557,12 @@ class TestAuditFollowupPartialMissing:
         """M-FOLLOWUP-FALLBACK: any missing sub-aggregate → priority is
         None. The prior renormalise-over-survivors behaviour silently
         rebalanced the formula and produced misleading scores when
-        upstream signals had failed. M-TREND-A1 (TR10): the aggregate
-        trend term is removed; priority = core_support + anomaly + quality."""
+        upstream signals had failed. M-TREND-A1 (TR10) removed the trend
+        term; M-GHG-REDESIGN-A1 (GATE B) retired the anomaly term, so the
+        priority is now core_support + quality. A None in either → None."""
         payload = {
             "ghg.core_audit_support":          0.50,
-            "ghg.spatiotemporal_anomaly":      None,
-            "ghg.data_quality_attribution":    0.70,
+            "ghg.data_quality_attribution":    None,
         }
         out = compute_ghg_audit_followup_priority(payload, mode="trend")
         assert out["ghg.audit_followup_priority"] is None
@@ -630,14 +632,16 @@ def _fake_ch4_snapshot(include_air_keys: bool = False) -> dict:
     return snap
 
 
-def _fake_viirs_snapshot() -> dict:
+def _fake_viirs_snapshot(*_a, **_kw) -> dict:
+    # M-GHG-REDESIGN-A1 — VIIRS sustained-contrast shape. Accepts/ignores
+    # args so it can stand in for compute_viirs_sustained_contrast(aoi,
+    # time_range, mode, ee_client) under monkeypatch.
     return {
-        "ghg.viirs.site":       25.0,
-        "ghg.viirs.anomaly":    10.0,
-        "ghg.viirs.z":          1.4,                # M-UI-A4: VIIRS now surfaces z
-        "ghg.viirs.trend":      None,
-        "ghg.viirs.confidence": 0.685,              # M-TIER-A1 Step E: n_a × 0.685
-        "ghg.viirs.score":      0.50,
+        "ghg.viirs.site":        25.0,
+        "ghg.viirs.contrast":    0.62,   # lit-window ring-relative contrast
+        "ghg.viirs.persistence": 0.80,   # lit 80% of the window
+        "ghg.viirs.confidence":  0.685,  # n_a × 0.685
+        "ghg.viirs.score":       0.50,   # persistence-weighted contrast
         "_provenance.ghg.viirs": {
             "asset_id":   "NASA/VIIRS/002/VNP46A2",
             "time_range": _TIME_RANGE,
@@ -658,10 +662,12 @@ class TestRunPillar:
         def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
+        # M-GHG-REDESIGN-A1 — VIIRS now dispatches through its own function.
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result = run_pillar(
             aoi=_AOI,
@@ -671,14 +677,14 @@ class TestRunPillar:
             ee_client=None,
         )
 
-        # CH₄ full nine-measurement set + VIIRS reduced six-measurement set
-        # (M-UI-A4 added `.z` to VIIRS for the severity grammar).
+        # CH₄ full nine-measurement set + VIIRS sustained-contrast set
+        # (M-GHG-REDESIGN-A1: site/contrast/persistence/confidence/score).
         for measurement in (
             "site", "background", "anomaly", "z", "hf",
             "trend", "trend_p", "confidence", "score",
         ):
             assert f"ghg.ch4.{measurement}" in result
-        for measurement in ("site", "anomaly", "z", "trend", "confidence", "score"):
+        for measurement in ("site", "contrast", "persistence", "confidence", "score"):
             assert f"ghg.viirs.{measurement}" in result
 
         # M-CH4-A1: CH₄ extraction is preserved (all nine ghg.ch4.* measurements
@@ -701,6 +707,10 @@ class TestRunPillar:
 
         # Pillar aggregates produced something.
         assert result["ghg.core_audit_support"] is not None
+        # M-GHG-REDESIGN-A1 (GATE B): ghg.spatiotemporal_anomaly is retired —
+        # no longer emitted. The follow-up priority is now core_support +
+        # quality (anomaly term removed) and computes normally.
+        assert "ghg.spatiotemporal_anomaly" not in result
         assert result["ghg.audit_followup_priority"] is not None
 
         # No failures.
@@ -715,10 +725,11 @@ class TestRunPillar:
         def fake_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=False)
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result = run_pillar(
             aoi=_AOI,
@@ -739,10 +750,11 @@ class TestRunPillar:
                     indicator_id="ghg.ch4",
                     reason="site buffer has no valid pixels",
                 )
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result = run_pillar(
             aoi=_AOI,
@@ -778,7 +790,13 @@ class TestRunPillar:
                 indicator_id=f"ghg.{indicator}",
                 reason="no valid pixels",
             )
+
+        def fake_viirs(aoi, time_range, mode, ee_client):
+            raise IndicatorComputeError(
+                indicator_id="ghg.viirs", reason="no valid pixels",
+            )
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
+        monkeypatch.setattr("engine.ghg.compute_viirs_sustained_contrast", fake_viirs)
 
         with pytest.raises(PillarComputeError) as excinfo:
             run_pillar(
@@ -791,9 +809,9 @@ class TestRunPillar:
 
         err = excinfo.value
         assert err.pillar == "ghg"
-        # CH₄ contributes 9 measurement IDs, VIIRS contributes 6
-        # (M-UI-A4 added `.z`). 15 total.
-        assert len(err.indicator_ids) == 9 + 6
+        # CH₄ contributes 9 measurement IDs; VIIRS contributes 5 under the
+        # M-GHG-REDESIGN-A1 sustained-contrast set. 14 total.
+        assert len(err.indicator_ids) == 9 + 5
         # Spot-check.
         assert "ghg.ch4.score" in err.indicator_ids
         assert "ghg.viirs.confidence" in err.indicator_ids
@@ -833,14 +851,15 @@ class TestRunPillar:
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
 
         monkeypatch.setattr(
             "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", _fake_co2_snapshot)
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result_high_co2 = run_pillar(
             aoi=_AOI,
@@ -916,8 +935,6 @@ class TestPresentDayScreeningDispatchesOdiac:
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
 
         captured: list[tuple] = []
@@ -930,6 +947,9 @@ class TestPresentDayScreeningDispatchesOdiac:
             "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result = run_pillar(
             aoi=_AOI,
@@ -960,8 +980,11 @@ class TestPresentDayScreeningDispatchesOdiac:
             f"CO₂ should not appear in _failures when skipped; got {co2_failures}"
         )
 
-        # Live composite still computes from CH₄ + combustion + activity.
+        # Live composite still computes from combustion + activity.
         assert result["ghg.core_audit_support"] is not None
+        # M-GHG-REDESIGN-A1 (GATE B): anomaly term retired; follow-up priority
+        # is core_support + quality and computes normally.
+        assert "ghg.spatiotemporal_anomaly" not in result
         assert result["ghg.audit_followup_priority"] is not None
 
 
@@ -1114,11 +1137,11 @@ class TestCoreGhgAuditSupport:
     the full rationale.
     """
 
-    def test_two_term_weighted_sum_post_m_ch4_a1(self) -> None:
-        # M-CH4-A1 — CH₄ reclassified as reference data; the two surviving
-        # live terms (combustion + activity) carry the full weight
-        # (0.815 / 0.185). A ch4_context_adjusted value in the payload is
-        # ignored — it is no longer in CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
+    def test_two_term_weighted_sum_post_m_ghg_redesign_a1(self) -> None:
+        # M-GHG-REDESIGN-A1 (GATE B) — VIIRS sustained contrast leads the
+        # composite: activity 0.60 / combustion 0.40 (was 0.185 / 0.815 under
+        # M-CH4-A1). A ch4_context_adjusted value in the payload is ignored —
+        # it is no longer in CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
         payload = {
             "ghg.ch4_context_adjusted": 0.99,   # reference data — must be ignored
             "ghg.combustion_proxy":     0.40,
@@ -1126,7 +1149,7 @@ class TestCoreGhgAuditSupport:
         }
         selected = set(payload.keys())
         out = compute_core_ghg_audit_support(payload, selected)
-        expected = 0.815 * 0.40 + 0.185 * 0.30
+        expected = 0.40 * 0.40 + 0.60 * 0.30
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
     def test_ch4_not_in_composite_weights(self) -> None:
@@ -1237,8 +1260,6 @@ class TestProvenanceShape:
         def fake_indicator_snapshot(aoi, indicator, time_range, mode, ee_client, fallback=None):
             if indicator == "ch4":
                 return _fake_ch4_snapshot(include_air_keys=True)
-            if indicator == "viirs":
-                return _fake_viirs_snapshot()
             raise AssertionError(f"unexpected indicator {indicator!r}")
 
         captured: list[tuple] = []
@@ -1255,6 +1276,9 @@ class TestProvenanceShape:
             "engine.ghg.compute_ghg_indicator_snapshot", fake_indicator_snapshot,
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
+        monkeypatch.setattr(
+            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+        )
 
         result = run_pillar(
             aoi=_AOI,
