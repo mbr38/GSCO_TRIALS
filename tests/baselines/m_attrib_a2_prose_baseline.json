@@ -1,0 +1,392 @@
+{
+  "sapezal": {
+    "pillar_scores": {
+      "air.audit_followup_priority": 0.20466290241600252,
+      "ghg.audit_followup_priority": 0.29181663256660173,
+      "nature.followup_priority": 0.2752456163287714,
+      "composite.overall_screening": 0.2572417171037919,
+      "composite.confidence": 0.7522031010758473,
+      "air.measurement_quality_score": 0.7522031010758473
+    },
+    "air_severity": {
+      "no2": {
+        "score": 0.0,
+        "z": -0.027748785867708986,
+        "hf": 0.4117647058823529,
+        "confidence": 0.7817941176470589
+      },
+      "so2": {
+        "score": 0.03953012760914566,
+        "z": 0.11859038282743699,
+        "hf": 0.26,
+        "confidence": 0.6511999999999999
+      },
+      "co": {
+        "score": 0.0,
+        "z": -0.8541915629358098,
+        "hf": 0.34285714285714286,
+        "confidence": 0.6325714285714286
+      },
+      "hcho": {
+        "score": 0.3938954867251188,
+        "z": 1.1816864601753567,
+        "hf": 0.352112676056338,
+        "confidence": 0.7533767605633802
+      },
+      "o3": {
+        "score": 0.1140274480729041,
+        "z": 0.3420823442187123,
+        "hf": 0.47191011235955055,
+        "confidence": 0.8229775280898876
+      },
+      "aai": {
+        "score": 0.0,
+        "z": -0.04848333658370132,
+        "hf": 0.4606741573033708,
+        "confidence": 0.8201685393258427
+      },
+      "aod": {
+        "score": 0.0,
+        "z": -0.529792623617162,
+        "hf": 0.3333333333333333,
+        "confidence": 0.8033333333333335
+      },
+      "pm25": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "pm10": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      }
+    },
+    "verbal_summary": {
+      "overview": "All three pillars are at background levels (composite 0.26). Data quality is high.",
+      "air": "Air pollution is at background levels across the monitored pollutants at this location. Data quality is high.",
+      "ghg": "Greenhouse gases are at background levels across the monitored GHG indicators at this location. Data quality is high.",
+      "nature": "Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.",
+      "template_ids": {
+        "overview": "overview/0/high",
+        "air": "air/low/high/main",
+        "ghg": "ghg/low/high/main",
+        "nature": "nature/low/high/main"
+      }
+    }
+  },
+  "brasilia": {
+    "pillar_scores": {
+      "air.audit_followup_priority": 0.21142382062058698,
+      "ghg.audit_followup_priority": 0.4204476552169649,
+      "nature.followup_priority": 0.2908227740163237,
+      "composite.overall_screening": 0.30756474995129185,
+      "composite.confidence": 0.7495364390899535,
+      "air.measurement_quality_score": 0.7495364390899535
+    },
+    "air_severity": {
+      "no2": {
+        "score": 0.35658536939612,
+        "z": 1.06975610818836,
+        "hf": 0.3764705882352941,
+        "confidence": 0.7734117647058824
+      },
+      "so2": {
+        "score": 0.0,
+        "z": -0.10446277930511706,
+        "hf": 0.07407407407407407,
+        "confidence": 0.6102962962962962
+      },
+      "co": {
+        "score": 0.0,
+        "z": -0.7431510092449951,
+        "hf": 0.2840909090909091,
+        "confidence": 0.6208181818181818
+      },
+      "hcho": {
+        "score": 0.0,
+        "z": -0.36936000496532995,
+        "hf": 0.12359550561797752,
+        "confidence": 0.6991039325842696
+      },
+      "o3": {
+        "score": 0.0,
+        "z": -0.7071846948831565,
+        "hf": 0.449438202247191,
+        "confidence": 0.8173595505617978
+      },
+      "aai": {
+        "score": 0.0,
+        "z": -0.17719661115371155,
+        "hf": 0.449438202247191,
+        "confidence": 0.8173595505617978
+      },
+      "aod": {
+        "score": 0.09298092368617285,
+        "z": 0.2789427710585185,
+        "hf": 0.7536231884057971,
+        "confidence": 0.9084057971014493
+      },
+      "pm25": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "pm10": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      }
+    },
+    "verbal_summary": {
+      "overview": "Overall priority is moderate (composite 0.31). Concern centres on GHG emissions. Data quality is high.",
+      "air": "Air pollution is at background levels across the monitored pollutants at this location. Data quality is high.",
+      "ghg": "Greenhouse gases show moderate elevation at this location, with fossil CO₂ context (ODIAC) as the main contributor (11,336,784 t CO₂ yr⁻¹, 10.0× the regional median above background). The signal is within typical regional variability. Data quality is high.",
+      "nature": "Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.",
+      "template_ids": {
+        "overview": "overview/M/high",
+        "air": "air/low/high/main",
+        "ghg": "ghg/moderate/high/main",
+        "nature": "nature/low/high/main"
+      }
+    }
+  },
+  "suape": {
+    "pillar_scores": {
+      "air.audit_followup_priority": 0.23941506587437164,
+      "ghg.audit_followup_priority": 0.25686078504753634,
+      "nature.followup_priority": 0.31839088048636077,
+      "composite.overall_screening": 0.2715555771360896,
+      "composite.confidence": 0.7407112185575196,
+      "air.measurement_quality_score": 0.7407112185575196
+    },
+    "air_severity": {
+      "no2": {
+        "score": 0.0,
+        "z": -1.1941002448828586,
+        "hf": 0.08333333333333333,
+        "confidence": 0.7037916666666667
+      },
+      "so2": {
+        "score": 0.16399688014475544,
+        "z": 0.4919906404342663,
+        "hf": 0.2222222222222222,
+        "confidence": 0.6428888888888888
+      },
+      "co": {
+        "score": 0.0,
+        "z": -0.06486501398915866,
+        "hf": 0.36923076923076925,
+        "confidence": 0.6378461538461538
+      },
+      "hcho": {
+        "score": 0.11341822188528451,
+        "z": 0.3402546656558536,
+        "hf": 0.2625,
+        "confidence": 0.73209375
+      },
+      "o3": {
+        "score": 0.5,
+        "z": 1.6459909006273004,
+        "hf": 0.5,
+        "confidence": 0.83
+      },
+      "aai": {
+        "score": 0.04884909024310339,
+        "z": 0.14654727072931015,
+        "hf": 0.36363636363636365,
+        "confidence": 0.7959090909090909
+      },
+      "aod": {
+        "score": 0.1466384891436003,
+        "z": 0.43991546743080095,
+        "hf": 0.4897959183673469,
+        "confidence": 0.8424489795918368
+      },
+      "pm25": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "pm10": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      }
+    },
+    "verbal_summary": {
+      "overview": "All three pillars are at background levels (composite 0.27). Data quality is high.",
+      "air": "Air pollution is at background levels across the monitored pollutants at this location. Data quality is high.",
+      "ghg": "Greenhouse gases are at background levels across the monitored GHG indicators at this location. Data quality is high.",
+      "nature": "Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.",
+      "template_ids": {
+        "overview": "overview/0/high",
+        "air": "air/low/high/main",
+        "ghg": "ghg/low/high/main",
+        "nature": "nature/low/high/main"
+      }
+    }
+  },
+  "comodoro": {
+    "pillar_scores": {
+      "air.audit_followup_priority": 0.43308251325508784,
+      "ghg.audit_followup_priority": 0.8433138867654206,
+      "nature.followup_priority": 0.46946596065560464,
+      "composite.overall_screening": 0.581954120225371,
+      "composite.confidence": 0.7755442094710387,
+      "air.measurement_quality_score": 0.7755442094710387
+    },
+    "air_severity": {
+      "no2": {
+        "score": 0.6057188131295649,
+        "z": 1.8171564393886948,
+        "hf": 0.6341463414634146,
+        "confidence": 0.834609756097561
+      },
+      "so2": {
+        "score": 0.07488717978257094,
+        "z": 0.2246615393477128,
+        "hf": 0.1891891891891892,
+        "confidence": 0.6356216216216215
+      },
+      "co": {
+        "score": 0.6803553903184583,
+        "z": 2.0410661709553746,
+        "hf": 0.5416666666666666,
+        "confidence": 0.6723333333333333
+      },
+      "hcho": {
+        "score": 0.02527663265447338,
+        "z": 0.07582989796342014,
+        "hf": 0.3684210526315789,
+        "confidence": 0.7572499999999999
+      },
+      "o3": {
+        "score": 0.4783380615178228,
+        "z": 1.4350141845534683,
+        "hf": 0.5,
+        "confidence": 0.83
+      },
+      "aai": {
+        "score": 0.0,
+        "z": -0.7692126707532169,
+        "hf": 0.5113636363636364,
+        "confidence": 0.832840909090909
+      },
+      "aod": {
+        "score": 0.6438573060164186,
+        "z": 1.9315719180492559,
+        "hf": 0.5846153846153846,
+        "confidence": 0.8661538461538463
+      },
+      "pm25": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "pm10": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      }
+    },
+    "verbal_summary": {
+      "overview": "Overall priority is moderate (composite 0.58), driven by GHG emissions. Data quality is high.",
+      "air": "Air pollution shows moderate elevation at this location, with NO₂ as the main contributor (54 µmol m⁻², 1.8σ above background). The signal is within typical regional variability. Data quality is high.",
+      "ghg": "Greenhouse gases are elevated at this location, driven primarily by fossil CO₂ context (ODIAC) (1,344,645 t CO₂ yr⁻¹, 10.0× the regional median above background). Data quality is high.",
+      "nature": "Nature/Land shows moderate exposure at this location, with proximity to Key Biodiversity Areas as the main contributor (18% of buffer overlaps a Key Biodiversity Area). Data quality is high.",
+      "template_ids": {
+        "overview": "overview/1/high",
+        "air": "air/moderate/high/main",
+        "ghg": "ghg/high/high/main",
+        "nature": "nature/moderate/high/main"
+      }
+    }
+  },
+  "norilsk": {
+    "pillar_scores": {
+      "air.audit_followup_priority": 0.5438398426720059,
+      "ghg.audit_followup_priority": 0.8475609702332005,
+      "nature.followup_priority": 0.21282503300472116,
+      "composite.overall_screening": 0.5347419486366426,
+      "composite.confidence": 0.7199584921514189,
+      "air.measurement_quality_score": 0.7199584921514189
+    },
+    "air_severity": {
+      "no2": {
+        "score": 1.0,
+        "z": 3.2516851493149,
+        "hf": 0.6746987951807228,
+        "confidence": 0.8442409638554217
+      },
+      "so2": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "co": {
+        "score": 0.11498933680900134,
+        "z": 0.34496801042700403,
+        "hf": 0.5238095238095238,
+        "confidence": 0.6687619047619048
+      },
+      "hcho": {
+        "score": 0.5825408629675582,
+        "z": 1.7476225889026746,
+        "hf": 0.7471264367816092,
+        "confidence": 0.8471925287356321
+      },
+      "o3": {
+        "score": 0.5,
+        "z": 1.6218966799247774,
+        "hf": 0.5777777777777777,
+        "confidence": 0.8494444444444443
+      },
+      "aai": {
+        "score": 0.0,
+        "z": -1.5592130945805984,
+        "hf": 0.8444444444444444,
+        "confidence": 0.9161111111111111
+      },
+      "aod": {
+        "score": 0.32539119267295286,
+        "z": 0.9761735780188585,
+        "hf": 0.0,
+        "confidence": 0.19399999999999998
+      },
+      "pm25": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      },
+      "pm10": {
+        "score": null,
+        "z": null,
+        "hf": null,
+        "confidence": null
+      }
+    },
+    "verbal_summary": {
+      "overview": "Overall priority is moderate (composite 0.53), driven by GHG emissions. Data quality is high.",
+      "air": "Air pollution shows moderate elevation at this location, with NO₂ as the main contributor (104 µmol m⁻², 3.3σ above background). The signal is within typical regional variability. Data quality is high.",
+      "ghg": "Greenhouse gases are elevated at this location, driven primarily by fossil CO₂ context (ODIAC) (1,360,297 t CO₂ yr⁻¹, 10.0× the regional median above background). Data quality is high.",
+      "nature": "Nature/Land is at baseline across the monitored land-cover indicators at this location. Data quality is high.",
+      "template_ids": {
+        "overview": "overview/1/high",
+        "air": "air/moderate/high/main",
+        "ghg": "ghg/high/high/main",
+        "nature": "nature/low/high/main"
+      }
+    }
+  }
+}

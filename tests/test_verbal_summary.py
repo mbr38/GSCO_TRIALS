@@ -452,7 +452,8 @@ class TestPillarTemplateSelection:
         rendered, template_id, bucket = _render_pillar("air", payload)
         assert bucket == "low"
         assert template_id == "air/low/low/main"
-        assert "background levels" in rendered
+        # M-ATTRIB-A2: Air Normal phrasing frames site-vs-region, not "background levels".
+        assert "consistent with its surrounding region" in rendered
 
     def test_high_priority_no_dominant_picks_fallback(self) -> None:
         # M-CH4-A1: three GHG candidates (co2/combustion/activity). Balance the
@@ -647,10 +648,11 @@ _WORKED_EXAMPLE_OUTPUT = (
     "Overall priority is moderate (composite 0.58), driven by "
     "Air Pollution. Composite confidence is moderate.\n\n"
 
-    "Air pollution is elevated at this location, driven primarily by "
-    "NO₂ (42 µmol m⁻², 2.3σ above background). Confidence is moderate — "
-    "interpretation is limited by weak retrieval quality for SO₂ at "
-    "these concentrations.\n\n"
+    "This site shows substantially higher air pollution than its "
+    "surrounding region, driven primarily by NO₂ (42 µmol m⁻², 2.3σ above "
+    "background) — a site-specific contribution worth investigating. "
+    "Confidence is moderate — interpretation is limited by weak retrieval "
+    "quality for SO₂ at these concentrations.\n\n"
 
     "Greenhouse gases show moderate elevation at this location, with "
     "fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, "
@@ -749,8 +751,10 @@ class TestEngineShapedPayload:
             "nature.measurement_quality":   None,
         }
         result = generate_verbal_summary(payload)
-        # All low/low-shape outputs.
-        assert "background" in result.air
+        # All low/low-shape outputs. M-ATTRIB-A2: the Air Normal template no
+        # longer says "background levels" — it frames the site against its
+        # surrounding region. GHG/Nature low templates are unchanged.
+        assert "surrounding region" in result.air
         assert "background" in result.ghg
         assert "baseline" in result.nature
         # Overview shape is "0" (zero high pillars).
@@ -789,3 +793,59 @@ class TestEngineShapedPayload:
         assert result.template_ids["overview"] == "overview/2/high"
         # Air Pollution comes first, Nature/Land second (PILLAR_ORDER).
         assert "Air Pollution and Nature/Land" in result.overview
+
+
+# ---------------------------------------------------------------------------
+# M-ATTRIB-A2 — attributability framing at the 5 production seeds (Step D)
+# ---------------------------------------------------------------------------
+
+class TestMAttribA2SeedProse:
+    """Locks the Air-pillar attributability framing in the verbal summary
+    against the shipped production seeds (spec §6 string-match test).
+
+    Asserts the post-milestone framing markers are present and the old
+    absolute-level phrasing is gone — without pinning the full string, so
+    legitimate future seed re-runs don't break the lock. GHG prose is
+    deliberately checked to still name ODIAC (its removal is the separate
+    ODIAC-analog milestone, not M-ATTRIB-A2).
+    """
+
+    import json as _json
+    from pathlib import Path as _Path
+
+    _SEED_DIR = _Path(__file__).parent.parent / "demo" / "saved_analyses"
+    _SEEDS = (
+        "high_priority_amazon.json",
+        "low_priority_brasilia.json",
+        "wind_priority_suape.json",
+        "wind_low_attribution_patagonia.json",
+        "wind_low_attribution_norilsk.json",
+    )
+
+    _OLD_AIR_PHRASES = (
+        "Air pollution is elevated at this location",
+        "Air pollution shows moderate elevation at this location",
+        "at background levels across the monitored pollutants",
+    )
+
+    def _air_paragraph(self, filename: str) -> str:
+        import json
+        payload = json.loads((self._SEED_DIR / filename).read_text())["payload"]
+        return generate_verbal_summary(payload).air
+
+    @pytest.mark.parametrize("filename", _SEEDS)
+    def test_air_prose_uses_attributability_framing(self, filename):
+        air = self._air_paragraph(filename)
+        low = air.lower()
+        # New framing references this site against its region/surroundings.
+        assert ("this site" in low) or ("surrounding region" in low), air
+        # Old absolute-level phrasing must be gone.
+        for phrase in self._OLD_AIR_PHRASES:
+            assert phrase not in air, f"stale phrasing in {filename}: {phrase!r}"
+
+    @pytest.mark.parametrize("filename", _SEEDS)
+    def test_normal_air_never_claims_clean_air(self, filename):
+        air = self._air_paragraph(filename)
+        assert "clean" not in air.lower(), (
+            f"{filename}: Normal Air prose must not claim clean air"
+        )

@@ -136,16 +136,27 @@ Ranked by AOD-per-PM2.5, the high-ratio sites are **not** the clean-dust-transpo
 
 Both rest on **15–16 retrieval days** — too few to trust, and both are coastal/humid where MAIAC retrieval is sparse and aerosol may be hygroscopically swollen in the column. The canonical dust version of this failure mode (Saharan/Gobi dust aloft over a moderate surface) **could not be sampled** because its sites had no ground stations — this is the validation's biggest sampling gap (§6), not a finding that the mode is absent in nature.
 
-### 5.3 The engine's anomaly severity is orthogonal to both axes
+### 5.3 The engine's anomaly severity tracks local spatial contrast — by design
 
-Because Air-pillar severity is a local-anomaly z-score, engine band is **uncorrelated with absolute AOD**:
+**(Reframed, M-ATTRIB-A2, 31 May 2026. The numbers below are unchanged; the interpretation is corrected — see §5.4.)** The engine's AOD severity is a local-anomaly z-score (site buffer vs background ring), which means it tracks **supplier-attributable aerosol contribution**, not regional absolute aerosol levels. Its being **uncorrelated with absolute AOD** is therefore the intended behaviour, not a defect:
 
 | AOD quartile | Q1-low | Q2 | Q3 | Q4-high |
 |---|---|---|---|---|
 | engine **Normal** | 5 | 3 | 3 | **4** |
 | engine **Concern** | 1 | 3 | 2 | 2 |
 
-The four highest-AOD sites that read Normal (Kolkata AOD 0.76, Korba 0.55, Abuja 0.44, Beijing 0.30) are all **uniformly hazy regions** — the 5 km site and its background ring sit in the same haze, so `(site − background)` collapses and z ≈ 0 (Korba z = +0.03, Beijing −0.21, Abuja −0.05). Meanwhile Hilo (clean, AOD 0.06) fires **Concern** on a small local anomaly. The engine band therefore tracks **local spatial contrast**, which is neither absolute column loading nor surface PM2.5.
+The four highest-AOD sites that read Normal (Kolkata AOD 0.76, Korba 0.55, Abuja 0.44, Beijing 0.30) are all **uniformly hazy regions** — the 5 km site and its background ring sit in the same haze, so `(site − background)` collapses and z ≈ 0 (Korba z = +0.03, Beijing −0.21, Abuja −0.05). Their suppliers are not anomalously contributing *above* the regional background, so a Normal rating is correct: there is no local contrast to attribute to the site. Conversely, clean Hilo (AOD 0.06) fires **Concern** on a small local anomaly — again correct, because the site stands out from its own clean surroundings. The engine band tracks **local spatial contrast**, which is exactly what supplier attribution requires — and is neither absolute column loading nor surface PM2.5, nor should it be read as either.
+
+### 5.4 Methodological framing — what AOD severity does and does not claim
+
+The §5.3 orthogonality is easy to misread as "the severity is broken because it ignores how polluted the place actually is." It isn't. The tool's job is to detect pollution **attributable to a specific supplier**, not to grade absolute air quality. Read through that lens, every §5.3 row is the engine behaving correctly.
+
+- **What the engine claims to measure.** A supplier-attributable *anomaly*: is this site's aerosol unusual *relative to its own surrounding region*? That is a local spatial-contrast question, answered by the site-vs-background-ring z-score (the §0.2 repeatable core in `Indicators_Computation_v4.md`).
+- **What it does not claim to measure.** Regional absolute aerosol loading, or surface PM2.5. A Normal AOD severity does **not** mean the air is clean — it means the site is not contributing anomalous aerosol versus its surroundings. A uniformly hazy megacity can be deeply unhealthy and still, correctly, contain no single supplier that stands out locally.
+- **Why this matters for the validation findings.** Nothing in §3–§5 changes: the daily AOD↔PM2.5 median r = 0.23 is still true; the column-vs-surface mismatch (§5.1, §6) is still real; the clean-vs-polluted cross-site correlation (§1) is still the weak driver it was. What changes is only how the recommendation reads. The orthogonality of §5.3 is **evidence the attributability detector works**, not evidence it is miscalibrated.
+- **What the AOD severity output means to a user.** "This site's aerosol does / does not stand out from its region." It is a defensible supplier-attributability detector that correctly identifies local aerosol contrast. It is **not** a defensible surface-PM2.5 proxy, and the tool does not present it as one (the column value is shown for context, labelled as column density — see `Indicators_Computation_v4.md` §0.7 and §1.5).
+
+This framing is consistent with the §7 calibration options: reframing AOD as a spatial-contrast / context detector (rather than a surface-PM2.5 severity) is the interpretation §5.4 makes explicit. The remaining open question for the sweep is whether to additionally *regime-tag* AOD (§7 option a) so dust and inversion regimes carry an explicit reliability flag — that is a refinement on top of the attributability framing, not a replacement for it.
 
 ---
 

@@ -82,6 +82,11 @@ def compute_pollutant_snapshot(
         {pillar}.{pollutant}.site / .background / .anomaly / .z / .hf
         / .trend / .trend_p / .confidence / .score
     where pillar = "air" for s5p gases and CAMS, "ghg" for ch4.
+
+    Severity semantics (M-ATTRIB-A2): the resulting `.score` is a
+    site-vs-background-ring *anomaly*, so it measures supplier-attributable
+    contribution against regional context, not absolute pollution. See
+    Indicators_Computation_v4.md §0.7 for the user-facing framing.
     """
 
 def compute_pm25_proxy(aoi, time_range, mode, ee_client) -> dict: ...

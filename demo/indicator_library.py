@@ -71,6 +71,13 @@ class IndicatorCardContent:
     # missing fallback — the popover is omitted rather than rendering a
     # placeholder).
     tooltip_summary:    str       | None  = None
+    # M-ATTRIB-A2: attributability framing — a plain-language "what this
+    # measures" note stating that severity is a site-vs-region anomaly, not
+    # an absolute reading. None when no copy exists (silent-missing, like
+    # tooltip_summary). AOD carries the full anchor text; the other Air
+    # indicators carry a single indicator-specific line (the shared rationale
+    # lives in the Air-tab callout + IC_v4 §0.7, not repeated per card).
+    what_this_measures: str       | None  = None
 
 
 # Canonical-ID → engine-config-key map per pillar. Air and GHG follow
@@ -152,6 +159,7 @@ def _build_raw_card(indicator_id: str, manifest: dict) -> IndicatorCardContent:
         temporal_frequency=_describe_frequency(tech_meta["asset_id"]),
         kind="raw",
         tooltip_summary=entry.get("tooltip_summary"),
+        what_this_measures=entry.get("what_this_measures"),  # M-ATTRIB-A2
     )
 
 

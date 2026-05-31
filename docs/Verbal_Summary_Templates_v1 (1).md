@@ -216,28 +216,34 @@ Three pillars × (9 main + 6 fallback) = 45 templates. Keyed by `(pillar, priori
 
 ### 6.1 Air Pollution — 9 main templates
 
+**M-ATTRIB-A2 (31 May 2026): attributability framing.** Air-pillar severity is a
+site-vs-region anomaly, not absolute pollution (see IC_v4 §0.7). The templates
+reference "this site" against its "surrounding region"/"nearby"; Normal states
+say "no anomalous local contribution detected" and **never** claim the air is
+clean. Slot grammar (§2) is unchanged.
+
 | Key | Template |
 |---|---|
-| (air, high, high, main) | Air pollution is elevated at this location, driven primarily by {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background). Data quality is high. |
-| (air, high, moderate, main) | Air pollution is elevated at this location, driven primarily by {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background). Confidence is moderate — interpretation is limited by {limiting_factor}. |
-| (air, high, low, main) | Air pollution may be elevated at this location based on {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background), but data quality is poor — {limiting_factor} limits the reliability of this score. Investigate before acting. |
-| (air, moderate, high, main) | Air pollution shows moderate elevation at this location, with {dominant_indicator} as the main contributor ({dominant_value}, {dominant_z} {dominant_direction} background). The signal is within typical regional variability. Data quality is high. |
-| (air, moderate, moderate, main) | Air pollution shows moderate elevation at this location, with {dominant_indicator} contributing most ({dominant_value}, {dominant_z} {dominant_direction} background). Confidence is mixed — {limiting_factor} is a limiting factor. |
-| (air, moderate, low, main) | A moderate air-pollution signal is present at this location, with {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background) as the largest contributor, but data quality is poor — {limiting_factor} limits the reliability of this read. |
-| (air, low, high, main) | Air pollution is at background levels across the monitored pollutants at this location. Data quality is high. |
-| (air, low, moderate, main) | Air pollution appears at background levels across the monitored pollutants at this location. Confidence is moderate — {limiting_factor} is a limiting factor. |
-| (air, low, low, main) | Air pollution appears at background levels across the monitored pollutants at this location, but data is sparse — {limiting_factor} limits the reliability of this conclusion. A 'low priority' read here should not be taken as a clear negative. |
+| (air, high, high, main) | This site shows substantially higher air pollution than its surrounding region, driven primarily by {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background) — a site-specific contribution worth investigating. Data quality is high. |
+| (air, high, moderate, main) | This site shows substantially higher air pollution than its surrounding region, driven primarily by {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background) — a site-specific contribution worth investigating. Confidence is moderate — interpretation is limited by {limiting_factor}. |
+| (air, high, low, main) | This site may be standing out from its surrounding region, based on {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background), but data quality is poor — {limiting_factor} limits the reliability of this score. Investigate before acting. |
+| (air, moderate, high, main) | This site shows somewhat higher air pollution than nearby locations, with {dominant_indicator} as the main contributor ({dominant_value}, {dominant_z} {dominant_direction} background). The anomaly is within typical regional variability. Data quality is high. |
+| (air, moderate, moderate, main) | This site shows somewhat higher air pollution than nearby locations, with {dominant_indicator} contributing most ({dominant_value}, {dominant_z} {dominant_direction} background). Confidence is mixed — {limiting_factor} is a limiting factor. |
+| (air, moderate, low, main) | A moderate local anomaly is present at this site, with {dominant_indicator} ({dominant_value}, {dominant_z} {dominant_direction} background) as the largest contributor, but data quality is poor — {limiting_factor} limits the reliability of this read. |
+| (air, low, high, main) | Air pollution at this site is consistent with its surrounding region — no anomalous local contribution detected across the monitored pollutants. Data quality is high. |
+| (air, low, moderate, main) | Air pollution at this site appears consistent with its surrounding region across the monitored pollutants — no anomalous local contribution detected. Confidence is moderate — {limiting_factor} is a limiting factor. |
+| (air, low, low, main) | Air pollution at this site appears consistent with its surrounding region across the monitored pollutants, but data is sparse — {limiting_factor} limits the reliability of this conclusion. A 'low priority' read here should not be taken as a clear negative. |
 
 ### 6.2 Air Pollution — 6 fallback templates
 
 | Key | Template |
 |---|---|
-| (air, high, high, fallback) | Air pollution is elevated at this location across multiple gases, with no single dominant driver. Data quality is high. |
-| (air, high, moderate, fallback) | Air pollution is elevated at this location across multiple gases, with no single dominant driver. Confidence is moderate — interpretation is limited by {limiting_factor}. |
-| (air, high, low, fallback) | Air pollution may be elevated at this location across multiple gases, but data quality is poor — {limiting_factor} limits the reliability of this score. Investigate before acting. |
-| (air, moderate, high, fallback) | Air pollution shows moderate elevation across multiple gases at this location, with no single dominant driver. Data quality is high. |
-| (air, moderate, moderate, fallback) | Air pollution shows moderate elevation across multiple gases at this location. Confidence is mixed — {limiting_factor} is a limiting factor. |
-| (air, moderate, low, fallback) | A moderate air-pollution signal is present at this location across multiple gases, but data quality is poor — {limiting_factor} limits the reliability of this read. |
+| (air, high, high, fallback) | This site shows substantially higher air pollution than its surrounding region across multiple gases, with no single dominant driver — worth investigating. Data quality is high. |
+| (air, high, moderate, fallback) | This site shows substantially higher air pollution than its surrounding region across multiple gases, with no single dominant driver — worth investigating. Confidence is moderate — interpretation is limited by {limiting_factor}. |
+| (air, high, low, fallback) | This site may be standing out from its surrounding region across multiple gases, but data quality is poor — {limiting_factor} limits the reliability of this score. Investigate before acting. |
+| (air, moderate, high, fallback) | This site shows somewhat higher air pollution than nearby locations across multiple gases, with no single dominant driver. Data quality is high. |
+| (air, moderate, moderate, fallback) | This site shows somewhat higher air pollution than nearby locations across multiple gases. Confidence is mixed — {limiting_factor} is a limiting factor. |
+| (air, moderate, low, fallback) | A moderate local anomaly is present at this site across multiple gases, but data quality is poor — {limiting_factor} limits the reliability of this read. |
 
 Low-priority cells have no fallback variant — when priority is low, there's no driver to attribute regardless of share.
 
@@ -469,7 +475,7 @@ Output:
 
 > Overall priority is moderate (composite 0.58), driven by Air Pollution. Composite confidence is moderate.
 >
-> Air pollution is elevated at this location, driven primarily by NO₂ (42 µmol m⁻², 2.3σ above background). Confidence is moderate — interpretation is limited by weak retrieval quality for SO₂ at these concentrations.
+> This site shows substantially higher air pollution than its surrounding region, driven primarily by NO₂ (42 µmol m⁻², 2.3σ above background) — a site-specific contribution worth investigating. Confidence is moderate — interpretation is limited by weak retrieval quality for SO₂ at these concentrations.
 >
 > Greenhouse gases show moderate elevation at this location, with fossil CO₂ context (ODIAC) contributing most (12,000 t CO₂ yr⁻¹, 1.8× the regional median above background). Confidence is mixed — the coarse spatial resolution of the GHG retrievals relative to the buffer is a limiting factor.
 >

@@ -167,6 +167,42 @@ def test_get_esg_caveat_returns_manifest_string():
 
 
 # ---------------------------------------------------------------------------
+# M-ATTRIB-A2 — attributability framing ("What this measures")
+# ---------------------------------------------------------------------------
+
+# The 9 z-score-based Air indicators in scope for the framing pass (the 7
+# core gases + CAMS PM₂.₅/PM₁₀, added at Step B). Each must carry a
+# `what_this_measures` note; AOD is the anchor with the full treatment.
+_AIR_FRAMING_INDICATORS = (
+    "air.aod.score", "air.no2.score", "air.so2.score", "air.hcho.score",
+    "air.co.score", "air.o3.score", "air.aai.score",
+    "air.pm25.score", "air.pm10.score",
+)
+
+
+@pytest.mark.parametrize("indicator_id", _AIR_FRAMING_INDICATORS)
+def test_air_indicators_carry_what_this_measures(indicator_id):
+    """M-ATTRIB-A2: every in-scope Air indicator carries the framing note."""
+    card = load_library()[indicator_id]
+    assert card.what_this_measures, f"{indicator_id}: what_this_measures missing"
+    # The framing must reference the site-vs-region anomaly, never claim an
+    # absolute reading. A cheap proxy: it mentions the surroundings/region.
+    text = card.what_this_measures.lower()
+    assert any(w in text for w in ("surrounding", "region", "nearby")), (
+        f"{indicator_id}: framing note doesn't reference the regional context"
+    )
+
+
+def test_aod_is_the_framing_anchor():
+    """AOD's entry is the anchor — fullest treatment, cites the validation
+    report, and is materially longer than the one-line sibling entries."""
+    aod = load_library()["air.aod.score"].what_this_measures
+    assert aod and "aod_pm25_validation.md" in aod
+    no2 = load_library()["air.no2.score"].what_this_measures
+    assert len(aod) > 3 * len(no2)
+
+
+# ---------------------------------------------------------------------------
 # Stub fallback (defensive)
 # ---------------------------------------------------------------------------
 

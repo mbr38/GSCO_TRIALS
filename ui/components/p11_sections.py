@@ -125,6 +125,17 @@ def _render_methodology(state, sources) -> str:
          &lt; 0.33 = green (routine). Confidence is reported alongside
          each score and reflects coverage, retrieval quality, and
          spatial-temporal applicability.</p>
+      <p><strong>How to read severity (attributability framing).</strong>
+         Severity scores measure whether a site shows unusual pollution
+         <em>relative to its surrounding region</em> — not absolute pollution
+         levels. A low (green) rating means the site is not standing out from
+         its surroundings, even where the wider region is itself polluted; an
+         amber or red rating means the site stands out as anomalous against
+         its regional context, suggesting a site-specific contribution worth
+         investigating. This applies to the Air pillar's satellite indicators
+         and the equivalent anomaly grammars elsewhere. Reference datasets
+         (CH₄, Hansen, ODIAC) are shown for context and do not feed the
+         scores.</p>
       {caveat}
     </section>
     """

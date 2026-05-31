@@ -115,9 +115,19 @@ This removes the largest source of seasonal bias from the repeatable core method
 
 A full phenological baseline (per-day-of-year expected curve) is deferred to v1.x.
 
+### 0.7 Severity framing
+
+Severity scores measure whether a site shows unusual pollution **relative to its surrounding region** (the 5–25 km background ring of §6). They are anomaly detectors against regional context, not absolute air-quality measurements.
+
+A *Normal* severity means the site is not standing out. A *Concern* or *Severe* severity means a local spatial contrast was detected, suggesting a site-attributable contribution worth investigating. Two sites in the same polluted region may both read Normal if neither stands out locally; a site in a clean region may read Concern if its local readings are noticeably above the regional background. The tool's job is to flag sites worth investigating, not to grade absolute air quality.
+
+This framing applies to all z-score-based indicators in the Air pillar (NO₂, SO₂, HCHO, CO, O₃, AAI, AOD, and CAMS PM₂.₅/PM₁₀ — all run the §0.2 repeatable core), and to the equivalent grammars in GHG (VIIRS-based combustion-activity z) and Nature where applicable. Reference data (CH₄, Hansen, ODIAC) is shown alongside severity findings but does not feed scoring — see the per-indicator library entries (P-09) for details. See §1.5 for the related column-vs-surface framing, which is a special case of this principle.
+
 ---
 
 ## 1. Air Pollution pillar
+
+> **Severity is a site-vs-region anomaly score, not an absolute reading — see §0.7.** Each single-value indicator below emits a severity from the §0.2 repeatable core (site buffer vs background ring); a Normal rating means the site is not standing out from its surroundings, even where the wider region is itself polluted.
 
 ### 1.1 Single-value indicators
 
@@ -180,7 +190,7 @@ Air_Pollution_Audit_FollowUp_Priority =
 
 **The science.** Sentinel-5P TROPOMI measures the *total column density* of a gas — atoms per unit area integrated through the whole atmosphere. The number a permit officer or ESG auditor actually cares about is the *surface concentration* (µg m⁻³, ppb) at the supplier's fenceline. The mapping from column to surface depends on the gas's vertical distribution, which is set by boundary-layer height, photochemistry, lifetime, and transport — none of which TROPOMI directly resolves.
 
-**Why the tool stays usable anyway.** The repeatable core method (§0.2) compares the supplier site to its own background ring using the *same* retrieval, on the *same* day, through the *same* atmospheric column. Whatever vertical structure inflates or deflates the absolute column value also affects the background, so the Z-score is largely insensitive to this bias. The honesty layer is in the *unit* and the *framing*: the raw values are reported in mol m⁻² (or display units derived from them) and labelled "column density", never as "surface concentration".
+**Why the tool stays usable anyway.** The repeatable core method (§0.2) compares the supplier site to its own background ring using the *same* retrieval, on the *same* day, through the *same* atmospheric column. Whatever vertical structure inflates or deflates the absolute column value also affects the background, so the Z-score is largely insensitive to this bias. The honesty layer is in the *unit* and the *framing*: the raw values are reported in mol m⁻² (or display units derived from them) and labelled "column density", never as "surface concentration". This is the column-vs-surface special case of the general severity framing in §0.7 — severity tracks the supplier-attributable *anomaly against regional context*, not the absolute column or surface level.
 
 **The O₃ cap.** O₃ is the extreme case: nearly all the column is in the stratosphere, and surface O₃ is a *photochemical* product driven by NOₓ + VOCs + sunlight, not a primary emission. Surface O₃ also moves with regional weather over hundreds of kilometres. For these reasons §1.3 caps `O₃_context_score` at 0.5: the score can flag elevated tropospheric O₃ as context, but cannot drive a follow-up priority on its own.
 
