@@ -62,6 +62,7 @@ _GENERAL_SECTIONS: tuple[str, ...] = (
     "indicator_detail",
     "reference_datasets",
     "provenance_appendix",
+    "composite_formula",        # M-REPORT-A1.1 — how the composite is built
     "glossary",                 # content-aware appendix (RT12)
 )
 
@@ -75,6 +76,7 @@ _PILLAR_SECTIONS: tuple[str, ...] = (
     "indicator_detail",
     "reference_datasets",
     "provenance_appendix",
+    "composite_formula",        # M-REPORT-A1.1 — composite covers all 3 pillars
     "glossary",
 )
 

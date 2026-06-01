@@ -124,14 +124,24 @@ def test_air_report_shows_only_e2():
     assert "ESRS E4" not in body
 
 
+def _ref_section(body: str) -> str:
+    """The Reference datasets section only (the composite-formula appendix also
+    names the reference datasets, so pillar-purity row checks scope here)."""
+    i = body.find("<h2>Reference datasets</h2>")
+    if i == -1:
+        return ""
+    j = body.find("</section>", i)
+    return body[i:(j if j != -1 else len(body))]
+
+
 def test_ghg_report_shows_only_e1_and_keeps_reference_datasets():
     body = _body(_build("mnc", "mnc_ghg"))
     assert "ESRS E1 — Climate change" in body
     assert "ESRS E2" not in body
     # ODIAC/CH4 reference rows belong to GHG; Hansen (nature) is filtered out.
-    assert "<h2>Reference datasets</h2>" in body
-    assert "ODIAC CO" in body
-    assert "Hansen forest loss" not in body
+    ref = _ref_section(body)
+    assert "ODIAC CO" in ref
+    assert "Hansen forest loss" not in ref
 
 
 def test_air_report_omits_reference_datasets_section():
@@ -143,8 +153,9 @@ def test_air_report_omits_reference_datasets_section():
 def test_nature_report_shows_only_e4_and_hansen():
     body = _body(_build("mnc", "mnc_nature"))
     assert "ESRS E4 — Biodiversity and ecosystems" in body
-    assert "Hansen forest loss" in body
-    assert "ODIAC CO" not in body
+    ref = _ref_section(body)
+    assert "Hansen forest loss" in ref
+    assert "ODIAC CO" not in ref
 
 
 # ---------------------------------------------------------------------------

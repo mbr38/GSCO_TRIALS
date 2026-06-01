@@ -190,8 +190,9 @@ def test_findings_and_indicator_detail_no_longer_overlap():
     body = _body(_build("mnc", "mnc_ghg"))
     assert "Findings by ESRS topic" in body
     assert "Indicator Detail" in body
-    # The per-indicator column headers belong only to Indicator Detail.
-    assert body.count("Anomaly frequency") == 1
+    # GHG Indicator Detail uses VIIRS sustained-contrast columns, not z-score.
+    assert "Lit-contrast percentile" in body
+    assert "Anomaly frequency" not in body  # that's the Air grammar
 
 
 # ---------------------------------------------------------------------------
@@ -275,3 +276,101 @@ def test_fallback_appendix_suppressed_when_no_fallback_fired():
         _state(), [_source()],
         RenderContext.from_template(get_template("general"), "mnc"))
     assert "Fallback methodology applied" not in out
+
+
+# ---------------------------------------------------------------------------
+# M-REPORT-A1.1 (cont.) — per-pillar Indicator Detail tables
+# ---------------------------------------------------------------------------
+
+def test_indicator_detail_air_uses_zscore_columns():
+    ctx = RenderContext.from_template(get_template("general"), "mnc")
+    out = _render_indicator_detail(_state(), [_source()], ctx)
+    assert "Air Pollution" in out          # pillar heading
+    for col in ("Site value", "Background", "z-score", "Anomaly frequency"):
+        assert col in out
+    assert "NO₂" in out and "+2.40" in out and "42%" in out
+
+
+def test_indicator_detail_ghg_uses_sustained_contrast_columns():
+    payload = _full_payload({
+        "ghg.viirs.site_brightness": 4.7, "ghg.viirs.lit_contrast_percentile": 88.0,
+        "ghg.viirs.flaring_frac": 0.12, "ghg.viirs.ring_lit_pixel_count": 1500,
+        "ghg.viirs.confidence": 0.79, "ghg.viirs.attributability_state": "moderate",
+    })
+    ctx = RenderContext.from_template(get_template("mnc_ghg"), "mnc")
+    out = _render_indicator_detail(_state(), [_source(payload=payload)], ctx)
+    assert "GHG Emissions" in out
+    # VIIRS-native columns, not z-score columns.
+    assert "Lit-contrast percentile" in out
+    assert "Flaring fraction" in out
+    # No z-score / anomaly-frequency *columns* (those are the Air grammar).
+    assert "<th>z-score</th>" not in out
+    assert "<th>Anomaly frequency</th>" not in out
+    assert "Nighttime lights (VIIRS)" in out
+    assert "88%" in out                    # lit_contrast_percentile 88.0 → 88%
+    assert "12%" in out                    # flaring_frac 0.12 → 12%
+    assert "Moderate" in out               # attributability from direct key
+
+
+def test_indicator_detail_nature_uses_key_metric_column():
+    payload = _full_payload({
+        "nature.kba.dist_km": 12.3, "nature.kba.overlap_pct": 0.0,
+        "nature.kba.confidence": 1.0,
+        "nature.habitat.natural_loss_ha": 45.0, "nature.habitat.natural_loss_pct": 2.1,
+        "nature.habitat.annualised_rate": 9.0, "nature.habitat.confidence": 0.95,
+        "nature.ndvi.mean": 0.62, "nature.ndvi.z": 0.58, "nature.ndvi.confidence": 0.5,
+    })
+    ctx = RenderContext.from_template(get_template("general"), "mnc")
+    out = _render_indicator_detail(_state(), [_source(payload=payload)], ctx)
+    assert "Nature / Land" in out
+    assert "Key metric" in out
+    assert "12.3 km to nearest KBA" in out
+    assert "45 ha natural loss (2.1% of buffer)" in out
+    assert "NDVI mean 0.62" in out
+
+
+def test_indicator_detail_pillar_pure_for_pillar_report():
+    # A GHG report's Indicator Detail has only the GHG table — no Air/Nature.
+    payload = _full_payload()
+    out = _render_indicator_detail(
+        _state(), [_source(payload=payload)],
+        RenderContext.from_template(get_template("mnc_ghg"), "mnc"))
+    assert "GHG Emissions" in out
+    assert "Air Pollution" not in out
+    assert "Nature / Land" not in out
+
+
+# ---------------------------------------------------------------------------
+# M-REPORT-A1.1 — composite-formula appendix
+# ---------------------------------------------------------------------------
+
+def test_composite_formula_appendix_present_in_screening_reports():
+    for tid in ("general", "mnc_ghg", "mnc_air", "mnc_nature"):
+        out = _build("mnc", tid)
+        assert "Composite score methodology" in out
+        assert "composite = ( Air priority + GHG priority + Nature priority" in out
+        # Per-pillar weight tables, all three pillars (composite is whole-screening).
+        assert "Air Pollution priority" in out
+        assert "GHG Emissions priority" in out
+        assert "Nature / Land priority" in out
+
+
+def test_composite_formula_weights_match_constants():
+    from engine.constants import (AIR_FOLLOWUP_WEIGHTS, GHG_FOLLOWUP_WEIGHTS,
+                                   NATURE_FOLLOWUP_WEIGHTS)
+    out = _build("mnc", "general")
+    # A couple of representative weights, formatted to 2dp, must appear.
+    assert f"{AIR_FOLLOWUP_WEIGHTS['proxy']:.2f}" in out
+    assert f"{GHG_FOLLOWUP_WEIGHTS['core_support']:.2f}" in out
+    assert f"{NATURE_FOLLOWUP_WEIGHTS['biodiversity_exposure']:.2f}" in out
+
+
+def test_composite_formula_absent_from_trend_report():
+    st = SimpleNamespace(title="T", notes="", user_type="mnc", template_id="trend")
+    src = {"id": "t1", "name": "NO₂ trend", "type": "trend",
+           "indicator_id": "air.no2.site", "display_name": "NO₂",
+           "trend_result": {"trend": 1.0, "significance_bucket": "none",
+                            "series": [["2026-01-01", 1.0]]},
+           "screening_setup": {"centre": {"lat": 1.0}}}
+    out = build_report_html(st, [src], get_template("trend"))
+    assert "Composite score methodology" not in out

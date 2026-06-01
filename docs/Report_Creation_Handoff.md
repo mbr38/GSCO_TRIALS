@@ -295,12 +295,13 @@ with two args keep working. Dispatched by `_SECTION_REGISTRY`:
 | `scope_summary` | screened scope | |
 | `pillar_findings` | **dual-framed (RT8).** When `ctx.apply_esrs` (MNC): ESRS topical grouping (E1/E2/E4) + metrics-&-evidence intro + out-of-scope stubs, filtered to `ctx.pillars`. Otherwise (policy / no-ctx): plain narrative, **reusing `generate_verbal_summary`** for full 19-indicator screenings, caveat + score table for partial. Carries the pillar-level story (prose + pillar score/band). | M-REPORT-A1 |
 | `priority_findings` | audit-priority ranking | |
-| `indicator_detail` | **per-indicator deep table (RF3)** — one row per indicator: site value, background, z-score, anomaly (hotspot) frequency, confidence, attributability. Screening-only; filtered to `ctx.pillars` (RF5). Distinct from `pillar_findings` (the pillar story). | M-REPORT-A1.1 |
+| `indicator_detail` | **per-pillar audit tables** — one table per pillar, each with columns that fit its grammar (CLAUDE.md §7, don't harmonise): Air = site/background/z/anomaly-freq/confidence/attrib; GHG = VIIRS sustained-contrast (brightness / lit-contrast pct / flaring frac / lit ring pixels); Nature = headline key-metric per indicator. Screening-only; reference datasets (CH₄/ODIAC/Hansen) excluded; filtered to `ctx.pillars`. Distinct from `pillar_findings` (the pillar story). | M-REPORT-A1.1 |
 | `per_supplier_detail` | per-supplier breakdown for prioritisation sources | |
 | `trend_indicator_sections` | **Trend report body (Option A, RT9).** Per-indicator verdict + metrics + inline SVG, grouped under pillar headers (grouping only — no composite). | M-REPORT-A1 |
 | `trend_graph` | inline SVG trend chart from saved trend records | **LEGACY / unwired** (M-REPORT-A2 RA5) — superseded by `trend_indicator_sections`; kept registered for fallback tests only |
 | `reference_datasets` | Hansen / ODIAC / CH₄ context datasets; rows **and footnote clauses** filtered to `ctx.pillars` (RF4/RF5; Air report → empty → section omitted) | RF4 prose names each dataset's role + exclusion |
 | `provenance_appendix` | 11-field provenance per indicator + special appendices (coastal, habitat-attribution, wind-attribution, fallback, extras). Provenance + every sub-appendice filtered to `ctx.pillars` (RF5). Each fallback/adjustment sub-appendice gated on an *effectively-applied* predicate (RF6) — e.g. coastal renders only when `land_mask_applied` and the ring rounds to <100% land. | see §5 |
+| `composite_formula` | **composite-score methodology** — composite = equal-weighted mean of the 3 pillar follow-up priorities (IC_v4 §4); per-pillar term weights read from `engine.constants` (`AIR/GHG/NATURE_FOLLOWUP_WEIGHTS`). In General + pillar reports (not trend). | M-REPORT-A1.1 |
 
 > `glossary` is **not** in `_SECTION_REGISTRY` — it is a content-aware appendix
 > the **assembler** renders last by scanning the joined body of the other

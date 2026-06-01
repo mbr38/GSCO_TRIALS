@@ -17,7 +17,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable
 
-from engine.constants import TRAFFIC_LIGHT_THRESHOLDS
+from engine.constants import (
+    AIR_FOLLOWUP_WEIGHTS,
+    GHG_FOLLOWUP_WEIGHTS,
+    NATURE_FOLLOWUP_WEIGHTS,
+    TRAFFIC_LIGHT_THRESHOLDS,
+)
 from engine.verbal_summary import generate_verbal_summary
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
@@ -128,14 +133,19 @@ def _indicator_base(registry_id: str) -> str:
     return registry_id.rsplit(".", 1)[0]
 
 
-def _attributability_state(prov: dict) -> str | None:
+def _attributability_state(payload: dict, base: str) -> str | None:
     """Best-effort attributability state for an indicator (RF3).
 
-    Reads ``_provenance.<pillar>.<indicator>.extra`` (M-WIND-A1 / M-ATTRIB-A1):
-    Air indicators carry ``wind_attributability_state``; the habitat spatial
-    link carries ``spatial_link_terms.attributability_state``. Returns the
-    capitalised state or ``None`` when the indicator carries no attributability.
+    Checks, in order: a direct ``<base>.attributability_state`` payload key
+    (VIIRS, habitat conversion), then the indicator's provenance ``extra``
+    (M-WIND-A1 ``wind_attributability_state`` for Air; M-ATTRIB-A1
+    ``spatial_link_terms.attributability_state`` for the habitat spatial link).
+    Returns the capitalised state, or ``None`` when the indicator carries none.
     """
+    direct = payload.get(f"{base}.attributability_state")
+    if direct:
+        return str(direct).capitalize()
+    prov = payload.get(f"_provenance.{base}") or {}
     extra = prov.get("extra") if isinstance(prov, dict) else None
     if not isinstance(extra, dict):
         return None
@@ -563,23 +573,20 @@ def _render_pillar_score_block(payload) -> str:
 # Indicator detail (Policy audit) — per-source KPI table
 # ──────────────────────────────────────────────────────────────────
 
-_INDICATOR_DETAIL_COLUMNS: tuple[str, ...] = (
-    "Indicator", "Site value", "Background", "z-score",
-    "Anomaly frequency", "Confidence", "Attributability",
-)
-
 # Reference datasets are NOT scored anomaly indicators and do not use the
-# z-score grammar this table reports — they are shown in the Reference datasets
-# section instead. Excluded from Indicator Detail to avoid near-empty rows
-# (CH₄ + ODIAC + Hansen, per the M-CH4-A1 operator decision that CH₄ is
-# reference data, not a scored finding). The fuller grammar-aware treatment of
-# the remaining non-z-score *scored* indicators (e.g. VIIRS sustained-contrast,
-# Nature cover/area) is deferred.
+# z-score grammar — they are shown in the Reference datasets section instead.
+# Excluded from Indicator Detail to avoid near-empty rows (CH₄ + ODIAC +
+# Hansen, per the M-CH4-A1 operator decision that CH₄ is reference data, not a
+# scored finding).
 _REFERENCE_ONLY_INDICATOR_IDS: frozenset[str] = frozenset({
     "ghg.ch4.score",          # CH₄ — raw column reading (reference)
     "ghg.co2.score",          # ODIAC — inventory-allocated (reference)
     "nature.forest_loss.ha",  # Hansen — regional_loss_evidence flag (reference)
 })
+
+_PILLAR_DETAIL_LABELS: dict[str, str] = {
+    "air": "Air Pollution", "ghg": "GHG Emissions", "nature": "Nature / Land",
+}
 
 
 def _fmt_num(value, fmt: str = "{:.3g}") -> str:
@@ -587,46 +594,173 @@ def _fmt_num(value, fmt: str = "{:.3g}") -> str:
     return fmt.format(value) if isinstance(value, (int, float)) else "—"
 
 
-def _render_indicator_row(payload, registry_id: str) -> str:
-    """One per-indicator row for the Indicator Detail deep table (RF3).
+def _fmt_pct_fraction(value) -> str:
+    """A 0–1 fraction as a percent (``0.42`` → ``42%``), else ``—``."""
+    return f"{value:.0%}" if isinstance(value, (int, float)) else "—"
 
-    Projects values already present on the screening payload (Handoff §1.1:
-    ``.site`` / ``.background`` / ``.z`` / ``.hf`` / ``.confidence``) plus the
-    attributability state from the indicator's provenance ``extra``. Missing
-    values (e.g. nature indicators that don't follow the z-score grammar) render
-    as ``—``. No new compute — this is a projection of existing payload data.
+
+def _table(headers: tuple[str, ...], rows: list[str]) -> str:
+    """A simple HTML table from a header tuple + pre-rendered ``<tr>`` rows."""
+    head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
+    return f"<table><tr>{head}</tr>{''.join(rows)}</table>"
+
+
+# ── Per-pillar Indicator Detail tables (M-REPORT-A1.1 — grammars differ) ─────
+# Each pillar reports the parameters that fit its scoring grammar (CLAUDE.md §7:
+# do NOT harmonise grammars). All values are projected from the existing
+# screening payload — no new compute.
+
+_AIR_DETAIL_HEADERS = (
+    "Indicator", "Site value", "Background", "z-score",
+    "Anomaly frequency", "Confidence", "Attributability",
+)
+
+
+def _render_air_detail_table(payload, indicator_ids) -> str:
+    """Air pillar — repeatable-core z-score grammar (site/background/z/HF)."""
+    rows = []
+    for rid in indicator_ids:
+        base = _indicator_base(rid)
+        rows.append(
+            f"<tr><td>{html.escape(display_name(rid))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.site'))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.background'))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.z'), '{:+.2f}')}</td>"
+            f"<td>{_fmt_pct_fraction(payload.get(f'{base}.hf'))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.confidence'), '{:.2f}')}</td>"
+            f"<td>{html.escape(_attributability_state(payload, base) or '—')}"
+            "</td></tr>"
+        )
+    return _table(_AIR_DETAIL_HEADERS, rows)
+
+
+_GHG_DETAIL_HEADERS = (
+    "Indicator", "Site brightness", "Lit-contrast percentile",
+    "Flaring fraction", "Lit ring pixels", "Confidence", "Attributability",
+)
+
+
+def _render_ghg_detail_table(payload, indicator_ids) -> str:
+    """GHG pillar — VIIRS sustained-contrast grammar (M-GHG-REDESIGN-A1).
+
+    The only scored GHG indicator after reference datasets (CH₄/ODIAC) are
+    excluded. Reports brightness / lit-contrast percentile / flaring fraction —
+    the presence-and-flaring parameters its grammar produces, not z-scores.
+    """
+    rows = []
+    for rid in indicator_ids:
+        base = _indicator_base(rid)
+        lcp = payload.get(f"{base}.lit_contrast_percentile")
+        rows.append(
+            f"<tr><td>{html.escape(display_name(rid))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.site_brightness'))}</td>"
+            f"<td>{_fmt_pct_fraction(lcp / 100 if isinstance(lcp, (int, float)) else None)}</td>"
+            f"<td>{_fmt_pct_fraction(payload.get(f'{base}.flaring_frac'))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.ring_lit_pixel_count'), '{:,.0f}')}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.confidence'), '{:.2f}')}</td>"
+            f"<td>{html.escape(_attributability_state(payload, base) or '—')}"
+            "</td></tr>"
+        )
+    return _table(_GHG_DETAIL_HEADERS, rows)
+
+
+_NATURE_DETAIL_HEADERS = (
+    "Indicator", "Key metric", "Confidence", "Attributability",
+)
+
+
+def _nature_key_metric(payload, registry_id: str) -> str:
+    """Headline metric for a Nature indicator — each uses its own grammar.
+
+    Returns a short human string projecting the indicator's most relevant
+    field(s); ``—`` when nothing is available. No new compute.
     """
     base = _indicator_base(registry_id)
-    site = _fmt_num(payload.get(f"{base}.site"))
-    background = _fmt_num(payload.get(f"{base}.background"))
-    z = _fmt_num(payload.get(f"{base}.z"), "{:+.2f}")
-    hf_val = payload.get(f"{base}.hf")
-    hf = f"{hf_val:.0%}" if isinstance(hf_val, (int, float)) else "—"
-    conf = _fmt_num(payload.get(f"{base}.confidence"), "{:.2f}")
-    prov = payload.get(f"_provenance.{base}") or {}
-    attrib = _attributability_state(prov) or "—"
-    return (
-        f"<tr><td>{html.escape(display_name(registry_id))}</td>"
-        f"<td>{site}</td><td>{background}</td><td>{z}</td>"
-        f"<td>{hf}</td><td>{conf}</td><td>{html.escape(attrib)}</td></tr>"
-    )
+    g = payload.get
+
+    def num(key, fmt="{:.3g}"):
+        v = g(f"{base}.{key}")
+        return fmt.format(v) if isinstance(v, (int, float)) else None
+
+    parts: list[str] = []
+    if base == "nature.kba":
+        if (d := num("dist_km", "{:.1f}")) is not None:
+            parts.append(f"{d} km to nearest KBA")
+        if (o := num("overlap_pct", "{:.0f}")) is not None:
+            parts.append(f"{o}% buffer overlap")
+    elif base == "nature.dw":
+        dom = g(f"{base}.dominant_class")
+        if dom:
+            parts.append(f"dominant: {html.escape(str(dom))}")
+        if (t := num("trees_pct", "{:.0f}")) is not None:
+            parts.append(f"trees {t}%")
+        if (b := num("built_pct", "{:.0f}")) is not None:
+            parts.append(f"built {b}%")
+    elif base == "nature.habitat":
+        if (loss := num("natural_loss_ha", "{:,.0f}")) is not None:
+            pct = num("natural_loss_pct", "{:.1f}")
+            parts.append(f"{loss} ha natural loss"
+                         + (f" ({pct}% of buffer)" if pct is not None else ""))
+        if (rate := num("annualised_rate", "{:,.0f}")) is not None:
+            parts.append(f"{rate} ha/yr")
+    elif base == "nature.ndvi":
+        if (m := num("mean", "{:.2f}")) is not None:
+            parts.append(f"NDVI mean {m}")
+        if (z := num("z", "{:+.2f}")) is not None:
+            parts.append(f"z {z}")
+    elif base == "nature.water":
+        if (a := num("area_now_ha", "{:,.0f}")) is not None:
+            parts.append(f"{a} ha water / flooded veg")
+    elif base == "nature.recovery":
+        if (gain := num("natural_cover_gain_ha", "{:,.0f}")) is not None:
+            parts.append(f"{gain} ha cover gain")
+        if (imp := num("ndvi_improvement_pct", "{:.0f}")) is not None:
+            parts.append(f"NDVI +{imp}%")
+    return "; ".join(parts) if parts else "—"
 
 
-# M-P11-FIX / M-REPORT-A1.1 (RF3)
+def _render_nature_detail_table(payload, indicator_ids) -> str:
+    """Nature pillar — heterogeneous grammars, one headline metric per row."""
+    rows = []
+    for rid in indicator_ids:
+        base = _indicator_base(rid)
+        rows.append(
+            f"<tr><td>{html.escape(display_name(rid))}</td>"
+            f"<td>{html.escape(_nature_key_metric(payload, rid))}</td>"
+            f"<td>{_fmt_num(payload.get(f'{base}.confidence'), '{:.2f}')}</td>"
+            f"<td>{html.escape(_attributability_state(payload, base) or '—')}"
+            "</td></tr>"
+        )
+    return _table(_NATURE_DETAIL_HEADERS, rows)
+
+
+_PILLAR_DETAIL_RENDERERS = {
+    "air":    _render_air_detail_table,
+    "ghg":    _render_ghg_detail_table,
+    "nature": _render_nature_detail_table,
+}
+
+
+# M-P11-FIX / M-REPORT-A1.1
 def _render_indicator_detail(state, sources, ctx=None) -> str:
-    """Per-indicator deep table — one row per indicator (RF3).
+    """Per-indicator audit evidence, **grouped into one table per pillar**.
 
-    RF3 splits this section's role away from pillar findings: findings carries
-    the pillar-level narrative + score/band (the prose story); Indicator Detail
-    is the per-indicator audit evidence — site value, background, z-score,
-    anomaly frequency, confidence, attributability state. Columns are projected
-    from the existing screening payload (no new compute).
+    The pillars use deliberately different scoring grammars (CLAUDE.md §7), so a
+    single fixed-column table can't represent them honestly. Each pillar gets a
+    table with the parameters that fit its grammar:
 
-    Scope: full-coverage **screening** sources only — prioritisation sources
-    carry no single per-AOI payload and are covered by Per-Supplier Detail;
-    partial-coverage screenings are still skipped (their pillar score table is
-    shown in pillar findings). Indicators are filtered to ``ctx.pillars`` (RF5):
-    a pillar report's table lists only that pillar's indicators.
+      - **Air** — repeatable-core z-score: site / background / z / anomaly
+        (hotspot) frequency / confidence / attributability.
+      - **GHG** — VIIRS sustained-contrast: site brightness / lit-contrast
+        percentile / flaring fraction / lit ring pixels / confidence /
+        attributability (CH₄ + ODIAC are reference, excluded).
+      - **Nature** — heterogeneous: one headline metric per indicator +
+        confidence + attributability.
+
+    All values are projected from the existing payload (no new compute).
+    Findings carries the pillar-level prose story; this is the indicator-level
+    audit evidence — the two no longer overlap. Full-coverage screening sources
+    only; filtered to ``ctx.pillars`` (RF5).
     """
     full_screening_sources = [
         s for s in sources
@@ -638,36 +772,37 @@ def _render_indicator_detail(state, sources, ctx=None) -> str:
         return ""
 
     ctx = _ctx(ctx)
-    # RF5 — indicators in the active pillars, locked air → ghg → nature order.
-    # Reference datasets (CH₄ / ODIAC / Hansen) are excluded — they are not
-    # scored anomalies and live in the Reference datasets section instead.
-    indicator_ids: list[str] = []
-    for pillar in _ordered_pillars(ctx.pillars):
-        indicator_ids.extend(
-            i for i in INDICATORS_BY_PILLAR.get(pillar, [])
-            if i not in _REFERENCE_ONLY_INDICATOR_IDS
-        )
-    if not indicator_ids:
+    active_pillars = _ordered_pillars(ctx.pillars)
+    # Reference datasets (CH₄ / ODIAC / Hansen) are excluded everywhere.
+    pillar_indicators = {
+        p: [i for i in INDICATORS_BY_PILLAR.get(p, [])
+            if i not in _REFERENCE_ONLY_INDICATOR_IDS]
+        for p in active_pillars
+    }
+    if not any(pillar_indicators.values()):
         return ""
 
     multi = len(full_screening_sources) > 1  # RF2 divider only when 2+.
-    header = "".join(f"<th>{html.escape(c)}</th>"
-                     for c in _INDICATOR_DETAIL_COLUMNS)
     blocks = ["<section class='chapter-break'>",
               "<h2>Indicator Detail</h2>",
-              "<p><em>Per-indicator audit evidence. Site vs. background, "
-              "z-score anomaly, anomaly (hotspot) frequency, confidence, and "
-              "attributability state. Values are projected from the screening "
-              "payload.</em></p>"]
+              "<p><em>Per-indicator audit evidence, grouped by pillar. Each "
+              "pillar reports the parameters that fit its measurement grammar — "
+              "Air uses site-vs-background z-score anomalies, GHG (VIIRS) uses "
+              "sustained lit-contrast, Nature uses cover / area / vegetation "
+              "metrics. Values are projected from the screening payload.</em></p>"]
     for src in full_screening_sources:
         divider = _source_divider(src.get("name", "Untitled"), multi=multi)
         if divider:
             blocks.append(divider)
         payload = src.get("payload") or {}
-        blocks.append(f"<table><tr>{header}</tr>")
-        for registry_id in indicator_ids:
-            blocks.append(_render_indicator_row(payload, registry_id))
-        blocks.append("</table>")
+        for pillar in active_pillars:
+            ids = pillar_indicators[pillar]
+            if not ids:
+                continue
+            blocks.append(
+                f"<h3 class='pillar-group'>{_PILLAR_DETAIL_LABELS[pillar]}</h3>"
+            )
+            blocks.append(_PILLAR_DETAIL_RENDERERS[pillar](payload, ids))
     blocks.append("</section>")
     return "\n".join(blocks)
 
@@ -1455,6 +1590,79 @@ def _fmt(value) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────
+# Composite formula appendix (M-REPORT-A1.1)
+# ──────────────────────────────────────────────────────────────────
+
+# Human labels for the per-pillar follow-up-priority term keys (the dict keys
+# live in engine.constants; labels describe what each term is).
+_AIR_FOLLOWUP_LABELS = {
+    "proxy":      "Air Pollution Proxy score",
+    "anomaly":    "Spatiotemporal anomaly",
+    "confidence": "Confidence",
+}
+_GHG_FOLLOWUP_LABELS = {
+    "core_support": "Core GHG audit support (VIIRS flaring + combustion proxy)",
+    "quality":      "Data-quality attribution",
+}
+_NATURE_FOLLOWUP_LABELS = {
+    "biodiversity_exposure": "Biodiversity exposure",
+    "habitat_conversion":    "Habitat conversion",
+    "vegetation_condition":  "Vegetation condition",
+    "quality_attribution":   "Measurement quality",
+}
+
+
+def _render_weight_table(weights: dict, labels: dict) -> str:
+    """A Term · Weight table for one pillar's follow-up-priority blend."""
+    rows = [
+        f"<tr><td>{html.escape(labels.get(k, k))}</td>"
+        f"<td>{w:.2f}</td></tr>"
+        for k, w in weights.items()
+    ]
+    return _table(("Term", "Weight"), rows)
+
+
+def _render_composite_formula(state, sources, ctx=None) -> str:
+    """Composite-score methodology appendix (M-REPORT-A1.1).
+
+    Explains how the overall screening composite is built from the indicators:
+    the composite is the equal-weighted mean of the three pillar follow-up
+    priorities (Indicators_Computation_v4 §4), and each pillar priority is a
+    weighted blend of its terms (IC_v4 §1.3 / §2.3 / §3.3). Weights are read
+    from ``engine.constants`` so this appendix never drifts from the engine.
+    Always covers all three pillars — the composite is a whole-screening figure
+    even in a single-pillar report (consistent with the exec-summary note).
+    """
+    blocks = [
+        "<section class='chapter-break'>",
+        "<h2>Composite score methodology</h2>",
+        "<p>The <strong>overall screening composite</strong> is the "
+        "equal-weighted mean of the three pillar follow-up-priority scores "
+        "(Indicators_Computation_v4 §4):</p>",
+        "<p class='formula'><em>composite = ( Air priority + GHG priority + "
+        "Nature priority ) ÷ 3</em></p>",
+        "<p>Scores run 0–1; bands are 0.66+ red (audit-first), 0.33–0.66 amber "
+        "(investigate), &lt;0.33 green (routine). If any pillar could not be "
+        "computed the composite is left undefined rather than averaged over the "
+        "survivors. Composite <em>confidence</em> is the minimum of the pillar "
+        "confidences (IC_v4 §4).</p>",
+        "<p>Each pillar's follow-up priority is itself a weighted blend of its "
+        "terms:</p>",
+        "<h3 class='pillar-group'>Air Pollution priority (IC_v4 §1.3)</h3>",
+        _render_weight_table(AIR_FOLLOWUP_WEIGHTS, _AIR_FOLLOWUP_LABELS),
+        "<h3 class='pillar-group'>GHG Emissions priority (IC_v4 §2.3)</h3>",
+        _render_weight_table(GHG_FOLLOWUP_WEIGHTS, _GHG_FOLLOWUP_LABELS),
+        "<h3 class='pillar-group'>Nature / Land priority (IC_v4 §3.3)</h3>",
+        _render_weight_table(NATURE_FOLLOWUP_WEIGHTS, _NATURE_FOLLOWUP_LABELS),
+        "<p><em>Reference datasets (Hansen forest loss, ODIAC CO₂, CH₄) are "
+        "context only and do not enter the composite — see Reference "
+        "datasets.</em></p>",
+        "</section>",
+    ]
+    return "\n".join(blocks)
+
+
+# ──────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────
 
@@ -1472,4 +1680,6 @@ _SECTION_REGISTRY: dict[str, Callable] = {
     "trend_indicator_sections": _render_trend_indicator_sections,
     "reference_datasets":    _render_reference_datasets,
     "provenance_appendix":   _render_provenance_appendix,
+    # M-REPORT-A1.1 — composite-formula appendix.
+    "composite_formula":     _render_composite_formula,
 }
