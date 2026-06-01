@@ -62,80 +62,10 @@ ANOMALY_Z_THRESHOLD: float = 2.0
 NORMALISATION_K: float = 3.0
 
 # ---------------------------------------------------------------------------
-# M-GHG-REDESIGN-A1 — VIIRS persistence-weighted ring-relative sustained
-# contrast  (engine/ghg.py::compute_viirs_sustained_contrast)
-# ---------------------------------------------------------------------------
-# VIIRS night-lights are no longer scored as a per-day anomaly z-score. The
-# GHG-emissions signal is *sustained brightness of the site relative to its
-# background ring* over the screening window (recon §2,
-# docs/M-GHG-REDESIGN-A1_step_a_findings.md). Per timestep we measure a bounded
-# ring-relative Michelson contrast `c = (site − ring)/(site + ring)` in [0,1];
-# a timestep counts as "lit above background" when c ≥ the lit threshold. The
-# score is `contrast_over_lit_window · persistence_factor(persistence)` where
-# `contrast_over_lit_window` is a high percentile of contrast over the lit
-# timesteps and `persistence` is the lit fraction of the valid window. This
-# grammar is INTENTIONALLY different from the Air pillar's denominator approach
-# (different physical question — sustained activity stock vs. transient event);
-# cross-pillar normalisation consistency is explicitly NOT a goal (spec §2.1).
-
-# @parameter
-# tier: first-pass
-# rationale: Michelson-contrast floor at which a VIIRS timestep counts as "lit
-#     above its background ring". c = (site−ring)/(site+ring); 0.02 ≈ site ~4%
-#     brighter than the ring. Kept deliberately LOW so it separates "site above
-#     the ring at all (lit)" from "site at/below ring (dark relative to
-#     surroundings)" — the score's magnitude comes from contrast, not from this
-#     gate. A bright site inside an equally-bright industrial cluster has c≈0
-#     and is correctly never lit (attributability invariant). First-pass; the
-#     obvious calibration target alongside the persistence params.
-# source: M-GHG-REDESIGN-A1 spec §2.2; calibration pending
-# last_reviewed: 2026-05-31
-# applies_to: [ghg.viirs]
-VIIRS_LIT_CONTRAST_THRESHOLD: float = 0.02
-
-# @parameter
-# tier: first-pass
-# rationale: Persistence (lit fraction of the valid window) at/above which the
-#     full lit-window contrast passes through to the score unattenuated — i.e.
-#     the site is lit vs. background often enough that the contrast is a
-#     credible, attributable *sustained* emissions signal. A site lit ≥60% of
-#     observed nights reads as steady. Below the floor the contrast is
-#     discounted (never zeroed — see VIIRS_PERSISTENCE_FLOOR_DISCOUNT) so an
-#     intermittent heavy emitter stays visible-but-discounted, not erased
-#     (spec §2.3). First-pass judgment; calibration pending.
-# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
-# last_reviewed: 2026-05-31
-# applies_to: [ghg.viirs]
-VIIRS_PERSISTENCE_FLOOR: float = 0.60
-
-# @parameter
-# tier: first-pass
-# rationale: The floor (and y-intercept) of the saturating persistence factor:
-#     `persistence_factor(p) = D + (1−D)·min(p/P_FLOOR, 1)`. At persistence 0
-#     the factor is D (not 0) so a brief-but-intense signal is discounted toward
-#     — but never to — zero, keeping intermittent flarers surfaced for a human
-#     screener rather than silently erased (spec §2.3 "visible but discounted").
-#     0.30 = retain 30% of contrast at zero persistence. First-pass; calibration
-#     pending.
-# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
-# last_reviewed: 2026-05-31
-# applies_to: [ghg.viirs]
-VIIRS_PERSISTENCE_FLOOR_DISCOUNT: float = 0.30
-
-# @parameter
-# tier: first-pass
-# rationale: Percentile (0-100) of per-timestep ring-relative contrast, taken
-#     over the LIT timesteps only, used as `contrast_over_lit_window` — "how
-#     bright the site is vs. background when it is lit". A high percentile (75th)
-#     captures the characteristic lit-night intensity while staying robust to a
-#     few dim/marginal nights; the mean would be dragged down by near-threshold
-#     timesteps and a max would be noise-driven. First-pass choice of both the
-#     statistic and the percentile; calibration pending.
-# source: M-GHG-REDESIGN-A1 spec §2.3; calibration pending
-# last_reviewed: 2026-05-31
-# applies_to: [ghg.viirs]
-VIIRS_CONTRAST_PERCENTILE: float = 75.0
-
+# VIIRS tunables RETIRED (M-VIIRS-REDESIGN-A1, VR11): VIIRS_LIT_CONTRAST_THRESHOLD,
+# VIIRS_PERSISTENCE_FLOOR, VIIRS_PERSISTENCE_FLOOR_DISCOUNT, VIIRS_CONTRAST_PERCENTILE
+# — the sustained-contrast grammar they parameterised is gone (could not rank
+# intensity; M-VIIRS-DIAG-A1). Replaced by the two-output constants below.
 # ---------------------------------------------------------------------------
 # M-VIIRS-REDESIGN-A1 — two-output VIIRS (1 June 2026)
 # ---------------------------------------------------------------------------
