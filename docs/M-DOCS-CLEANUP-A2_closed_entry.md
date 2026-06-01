@@ -79,7 +79,7 @@ EDGAR re-validation for the VIIRS redesign was **scrapped from v1.x** (operator 
 
 ## 7. Carried forward / out of scope
 
-- Stale phrase at IC v4 §0.7 ("VIIRS-based combustion-activity z") predates the M-GHG-REDESIGN-A1 re-grammaring (VIIRS is no longer a z-score). Out of scope here (no methodology change); flag for a future §0.7 framing touch-up.
+- ~~Stale phrase at IC v4 §0.7 ("VIIRS-based combustion-activity z") predates the M-GHG-REDESIGN-A1 re-grammaring (VIIRS is no longer a z-score).~~ **Fixed (follow-up, operator-confirmed):** §0.7 now reads "the VIIRS persistence-weighted sustained-contrast score — a site-vs-background-ring contrast, not a z-score, per M-GHG-REDESIGN-A1 §2.2a". Still no methodology change (framing-text only).
 - Tier 7.6/7.7 audit-doc / spec-doc drift sweeps; auto-enrollment detector; sector-tagging closure debrief — carried.
 - Regional-washout UX (item 14a) — separate scoping conversation.
 - Pre-existing P-11 report-UI WIP in the working tree — not owned by this milestone.
