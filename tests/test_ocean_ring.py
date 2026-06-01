@@ -283,7 +283,7 @@ class TestGhgRunPillarRoutesSkip:
         # M-GHG-REDESIGN-A1 — VIIRS has its own sustained-contrast path; a ring
         # failure surfaces from it directly. The dispatcher's BackgroundRing
         # handler is indicator-agnostic, so both still route to the same skip.
-        monkeypatch.setattr(ghg, "compute_viirs_sustained_contrast", fake_viirs)
+        monkeypatch.setattr(ghg, "compute_viirs_two_output", fake_viirs)
 
         aoi = {"centre": {"lat": -22.0, "lon": -43.0}, "radius_km": 281}
         # CH₄ goes through six_step; VIIRS through compute_viirs_sustained_

@@ -292,11 +292,11 @@ def test_ghg_site_empty_emits_skipped_payload(
             reason="site buffer has no valid pixels",
         )
     # M-GHG-REDESIGN-A1 — VIIRS no longer routes through six_step; its empty-
-    # data skip is raised from compute_viirs_sustained_contrast itself. CH₄
+    # data skip is raised from compute_viirs_two_output itself. CH₄
     # still uses the six_step path. Both surface SiteBufferNoDataError, which
     # the dispatcher maps to the indicator's skipped_reason_no_data code.
     if indicator == "viirs":
-        monkeypatch.setattr("engine.ghg.compute_viirs_sustained_contrast", _raise)
+        monkeypatch.setattr("engine.ghg.compute_viirs_two_output", _raise)
     else:
         monkeypatch.setattr("engine.ghg.six_step", _raise)
 

@@ -134,14 +134,16 @@ class TestConfigIntegrity:
             "trend", "trend_p", "confidence", "score",
         )
 
-    def test_viirs_emits_sustained_contrast_measurement_set(self) -> None:
-        # M-GHG-REDESIGN-A1 — VIIRS re-grammared to persistence-weighted ring-
-        # relative sustained contrast: the old anomaly/z/trend keys are dropped
-        # and replaced by `.contrast` (lit-window ring-relative contrast) and
-        # `.persistence` (lit fraction). `.site` is kept for the tile value;
-        # `.score` still feeds the composite via ghg.activity_score.
+    def test_viirs_emits_two_output_measurement_set(self) -> None:
+        # M-VIIRS-REDESIGN-A1 — two outputs: severity (`.score` = flaring,
+        # `.flaring_frac`, `.site`, `.confidence`) + attributability (Pattern A:
+        # `.attributability_state` + `.lit_contrast_percentile` /
+        # `.ring_lit_pixel_count` / `.site_brightness`). Retires `.contrast` /
+        # `.persistence`.
         assert GHG_INDICATOR_CONFIG["viirs"].emitted_measurements == (
-            "site", "contrast", "persistence", "confidence", "score",
+            "site", "score", "flaring_frac", "confidence",
+            "lit_contrast_percentile", "ring_lit_pixel_count",
+            "site_brightness", "attributability_state",
         )
 
     def test_co2_emits_seven_measurement_set(self) -> None:
@@ -633,15 +635,18 @@ def _fake_ch4_snapshot(include_air_keys: bool = False) -> dict:
 
 
 def _fake_viirs_snapshot(*_a, **_kw) -> dict:
-    # M-GHG-REDESIGN-A1 — VIIRS sustained-contrast shape. Accepts/ignores
-    # args so it can stand in for compute_viirs_sustained_contrast(aoi,
-    # time_range, mode, ee_client) under monkeypatch.
+    # M-VIIRS-REDESIGN-A1 — two-output VIIRS shape. Accepts/ignores args so it
+    # can stand in for compute_viirs_two_output(aoi, time_range, mode, ee_client)
+    # under monkeypatch.
     return {
-        "ghg.viirs.site":        25.0,
-        "ghg.viirs.contrast":    0.62,   # lit-window ring-relative contrast
-        "ghg.viirs.persistence": 0.80,   # lit 80% of the window
-        "ghg.viirs.confidence":  0.685,  # n_a × 0.685
-        "ghg.viirs.score":       0.50,   # persistence-weighted contrast
+        "ghg.viirs.site":          25.0,
+        "ghg.viirs.score":         0.50,   # flaring (severity) → composite
+        "ghg.viirs.flaring_frac":  0.05,   # raw fraction above the abs anchor
+        "ghg.viirs.confidence":    0.685,  # n_a × 0.685
+        "ghg.viirs.lit_contrast_percentile": 0.92,
+        "ghg.viirs.ring_lit_pixel_count":    1200,
+        "ghg.viirs.site_brightness":         25.0,
+        "ghg.viirs.attributability_state":   "high",
         "_provenance.ghg.viirs": {
             "asset_id":   "NASA/VIIRS/002/VNP46A2",
             "time_range": _TIME_RANGE,
@@ -651,6 +656,10 @@ def _fake_viirs_snapshot(*_a, **_kw) -> dict:
                     "column_to_surface_uncertainty": "n_a",
                 },
             },
+        },
+        "_provenance.ghg.viirs_lit_contrast": {
+            "asset_id":   "NASA/VIIRS/002/VNP46A2",
+            "time_range": _TIME_RANGE,
         },
     }
 
@@ -666,7 +675,7 @@ class TestRunPillar:
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
         # M-GHG-REDESIGN-A1 — VIIRS now dispatches through its own function.
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result = run_pillar(
@@ -677,14 +686,14 @@ class TestRunPillar:
             ee_client=None,
         )
 
-        # CH₄ full nine-measurement set + VIIRS sustained-contrast set
-        # (M-GHG-REDESIGN-A1: site/contrast/persistence/confidence/score).
+        # CH₄ full nine-measurement set + VIIRS two-output set
+        # (M-VIIRS-REDESIGN-A1: score/flaring_frac/site/attributability_state…).
         for measurement in (
             "site", "background", "anomaly", "z", "hf",
             "trend", "trend_p", "confidence", "score",
         ):
             assert f"ghg.ch4.{measurement}" in result
-        for measurement in ("site", "contrast", "persistence", "confidence", "score"):
+        for measurement in ("site", "score", "flaring_frac", "confidence", "attributability_state"):
             assert f"ghg.viirs.{measurement}" in result
 
         # M-CH4-A1: CH₄ extraction is preserved (all nine ghg.ch4.* measurements
@@ -728,7 +737,7 @@ class TestRunPillar:
             raise AssertionError
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result = run_pillar(
@@ -753,7 +762,7 @@ class TestRunPillar:
             raise AssertionError
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result = run_pillar(
@@ -796,7 +805,7 @@ class TestRunPillar:
                 indicator_id="ghg.viirs", reason="no valid pixels",
             )
         monkeypatch.setattr("engine.ghg.compute_ghg_indicator_snapshot", fake_snapshot)
-        monkeypatch.setattr("engine.ghg.compute_viirs_sustained_contrast", fake_viirs)
+        monkeypatch.setattr("engine.ghg.compute_viirs_two_output", fake_viirs)
 
         with pytest.raises(PillarComputeError) as excinfo:
             run_pillar(
@@ -809,9 +818,9 @@ class TestRunPillar:
 
         err = excinfo.value
         assert err.pillar == "ghg"
-        # CH₄ contributes 9 measurement IDs; VIIRS contributes 5 under the
-        # M-GHG-REDESIGN-A1 sustained-contrast set. 14 total.
-        assert len(err.indicator_ids) == 9 + 5
+        # CH₄ contributes 9 measurement IDs; VIIRS contributes 8 under the
+        # M-VIIRS-REDESIGN-A1 two-output set. 17 total.
+        assert len(err.indicator_ids) == 9 + 8
         # Spot-check.
         assert "ghg.ch4.score" in err.indicator_ids
         assert "ghg.viirs.confidence" in err.indicator_ids
@@ -858,7 +867,7 @@ class TestRunPillar:
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", _fake_co2_snapshot)
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result_high_co2 = run_pillar(
@@ -948,7 +957,7 @@ class TestPresentDayScreeningDispatchesOdiac:
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result = run_pillar(
@@ -1277,7 +1286,7 @@ class TestProvenanceShape:
         )
         monkeypatch.setattr("engine.ghg.compute_co2_snapshot", fake_co2_snapshot)
         monkeypatch.setattr(
-            "engine.ghg.compute_viirs_sustained_contrast", _fake_viirs_snapshot,
+            "engine.ghg.compute_viirs_two_output", _fake_viirs_snapshot,
         )
 
         result = run_pillar(

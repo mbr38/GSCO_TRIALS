@@ -93,10 +93,9 @@ from engine.constants import (
     CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
     GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
-    VIIRS_CONTRAST_PERCENTILE,
-    VIIRS_LIT_CONTRAST_THRESHOLD,
-    VIIRS_PERSISTENCE_FLOOR,
-    VIIRS_PERSISTENCE_FLOOR_DISCOUNT,
+    VIIRS_FLARING_ABS_THRESHOLD_NW,
+    VIIRS_FLARING_SATURATION_FRAC,
+    VIIRS_MIN_SITE_PIXELS,
 )
 from engine.core import (
     build_provenance,
@@ -108,6 +107,7 @@ from engine.core import (
     per_image_site_ring_series,
     six_step,
 )
+from engine.core.attributability import compute_viirs_attributability
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.fallback import FallbackContext
 from engine.exceptions import (
@@ -204,17 +204,19 @@ GHG_INDICATOR_CONFIG: dict[str, GhgIndicatorConfig] = {
         scale_factor=1.0,
         scale_m=463.83,
         display_unit="nW/cm²/sr",
-        # M-GHG-REDESIGN-A1 — VIIRS is no longer scored as a per-day anomaly
-        # z-score. It is re-grammared as persistence-weighted ring-relative
-        # sustained contrast (compute_viirs_sustained_contrast), so the old
-        # `.anomaly`/`.z`/`.trend` keys are dropped and replaced by `.contrast`
-        # (the lit-window ring-relative contrast) and `.persistence` (lit
-        # fraction of the window). `.site` is retained for the C4b tile's
-        # headline value; `.score` (= contrast·persistence_factor) still feeds
-        # the composite via ghg.activity_score. Severity now bands `.score`
-        # (score-band grammar), not `.z` — see ui/components/severity.py.
+        # M-VIIRS-REDESIGN-A1 — two outputs from one indicator. SEVERITY:
+        # `.score` = flaring (fraction of site pixels above the absolute intense-
+        # source anchor), still feeds the composite via ghg.activity_score and is
+        # banded by the score-band grammar; `.flaring_frac` is the raw fraction;
+        # `.site` is the headline brightness. ATTRIBUTABILITY (Pattern A, NOT in
+        # composite): `.attributability_state` + `.lit_contrast_percentile` /
+        # `.ring_lit_pixel_count` / `.site_brightness`. Retires the old
+        # `.contrast` / `.persistence` (sustained-contrast grammar; M-VIIRS-DIAG-A1
+        # showed it could not rank intensity).
         emitted_measurements=(
-            "site", "contrast", "persistence", "confidence", "score",
+            "site", "score", "flaring_frac", "confidence",
+            "lit_contrast_percentile", "ring_lit_pixel_count",
+            "site_brightness", "attributability_state",
         ),
         data_source="NASA / NOAA (VIIRS VNP46A2)",
         skipped_reason_no_data="no_viirs_pixels",  # M-AIR-GHG-DEFENSIVE
@@ -388,37 +390,30 @@ def compute_ch4_snapshot(
 # because its ring-relative contrast is ~0 — exactly the desired behaviour.
 
 
-def _michelson_contrast(site: float, ring: float) -> float:
-    """Bounded ring-relative contrast in [0, 1] (spec §2.2).
+def flaring_score_from_fraction(
+    frac_above_threshold: float | None,
+    n_site_pixels: int,
+) -> float | None:
+    """Pure-math core of the M-VIIRS-REDESIGN-A1 flaring (severity) signal.
 
-    `(site − ring) / (site + ring)`, clamped to [0, 1]. Michelson contrast is
-    naturally bounded for non-negative radiances, needs no tunable saturation
-    constant to bound it, and is ring-relative by construction (attributability
-    preserved). site ≤ ring → 0 (site not brighter than its surroundings).
-    Degenerate `site + ring ≤ 0` → 0.
+    `frac_above_threshold` is the fraction of site-buffer pixels whose window-mean
+    radiance exceeds VIIRS_FLARING_ABS_THRESHOLD_NW (the "intense source" anchor).
+    Score = `min(frac / VIIRS_FLARING_SATURATION_FRAC, 1)`, clamped to [0, 1].
+
+    Absolute-anchored (NOT self-relative): a self-relative outlier could not
+    separate intense sources from rural lights (Step A→B evidence — see
+    docs/M-VIIRS-REDESIGN-A1_step_a_findings.md); an absolute brightness anchor
+    does. Directional, not a precise intensity ranker — complements the Air
+    NO₂/CO borrow which ranks intensity (ρ 0.85) but misses flares.
+
+    Returns None (sparse — "no data, no claim") when the site has fewer than
+    VIIRS_MIN_SITE_PIXELS valid pixels.
     """
-    denom = site + ring
-    if denom <= 0:
-        return 0.0
-    c = (site - ring) / denom
-    return max(0.0, min(1.0, c))
-
-
-def _persistence_factor(persistence: float) -> float:
-    """Saturating, non-zeroing factor that *licenses* the contrast (spec §2.3).
-
-    `D + (1 − D)·min(p / P_FLOOR, 1)` where D = VIIRS_PERSISTENCE_FLOOR_DISCOUNT
-    and P_FLOOR = VIIRS_PERSISTENCE_FLOOR. At/above the floor it returns 1.0
-    (full contrast passes through); at persistence 0 it returns D (> 0), so an
-    intermittent heavy emitter is discounted toward — but never to — zero and
-    stays visible to a human screener. It is deliberately NOT a hard gate.
-    """
-    if VIIRS_PERSISTENCE_FLOOR <= 0:
-        return 1.0
-    ramp = min(persistence / VIIRS_PERSISTENCE_FLOOR, 1.0)
-    return VIIRS_PERSISTENCE_FLOOR_DISCOUNT + (
-        1.0 - VIIRS_PERSISTENCE_FLOOR_DISCOUNT
-    ) * ramp
+    if frac_above_threshold is None or n_site_pixels < VIIRS_MIN_SITE_PIXELS:
+        return None
+    if VIIRS_FLARING_SATURATION_FRAC <= 0:
+        return 1.0 if frac_above_threshold > 0 else 0.0
+    return max(0.0, min(frac_above_threshold / VIIRS_FLARING_SATURATION_FRAC, 1.0))
 
 
 def _percentile(sorted_vals: list[float], pct: float) -> float:
@@ -440,82 +435,44 @@ def _percentile(sorted_vals: list[float], pct: float) -> float:
     return sorted_vals[lo] * (1.0 - frac) + sorted_vals[hi] * frac
 
 
-def viirs_sustained_contrast_from_series(
-    timesteps: list[tuple[str, float, float]],
-) -> dict:
-    """Pure-math core of the VIIRS re-grammar (spec §2.2-§2.3). No EE.
+def lit_contrast_percentile_from_counts(
+    n_ring_below: float | None,
+    n_ring_total: float | None,
+) -> float | None:
+    """Pure-math core of the lit-contrast (attributability) signal (VR2).
 
-    `timesteps` is a list of `(iso_date, site_mean, ring_mean)` — the output of
-    `engine.core.per_image_site_ring_series`. Returns a dict with:
-
-      - ``score``                    — contrast_over_lit_window · persistence_factor,
-                                       in [0, 1]; None only when there were no
-                                       valid timesteps (no data → no claim).
-      - ``contrast_over_lit_window`` — VIIRS_CONTRAST_PERCENTILE-th percentile of
-                                       per-timestep ring-relative contrast over
-                                       the LIT timesteps; 0.0 when none lit.
-      - ``persistence``              — n_lit / n_valid in [0, 1].
-      - ``n_valid``                  — count of valid timesteps.
-      - ``n_lit``                    — count of timesteps lit above background.
-
-    Separated from the EE call so the §2.3 behavioural cases test pure synthetic
-    per-timestep inputs (CLAUDE.md "tests first for the engine").
+    Percentile of the site's brightness within the ring's all-pixel distribution
+    = fraction of ring pixels dimmer than the site median. Returns None when the
+    ring is empty (no comparison possible); the categorical `sparse` decision
+    (ring below MIN_RING_LIT_PIXELS) is made by `compute_viirs_attributability`.
     """
-    n_valid = len(timesteps)
-    if n_valid == 0:
-        return {
-            "score": None,
-            "contrast_over_lit_window": None,
-            "persistence": None,
-            "n_valid": 0,
-            "n_lit": 0,
-        }
-
-    contrasts = [_michelson_contrast(site, ring) for _iso, site, ring in timesteps]
-    lit = [c for c in contrasts if c >= VIIRS_LIT_CONTRAST_THRESHOLD]
-    n_lit = len(lit)
-    persistence = n_lit / n_valid
-
-    if n_lit == 0:
-        # Site never rose above its background ring → a genuine, attributable
-        # "no sustained emissions signal" result (score 0.0), NOT missing data.
-        return {
-            "score": 0.0,
-            "contrast_over_lit_window": 0.0,
-            "persistence": 0.0,
-            "n_valid": n_valid,
-            "n_lit": 0,
-        }
-
-    contrast_over_lit_window = _percentile(sorted(lit), VIIRS_CONTRAST_PERCENTILE)
-    score = contrast_over_lit_window * _persistence_factor(persistence)
-    score = max(0.0, min(1.0, score))
-    return {
-        "score": score,
-        "contrast_over_lit_window": contrast_over_lit_window,
-        "persistence": persistence,
-        "n_valid": n_valid,
-        "n_lit": n_lit,
-    }
+    if n_ring_below is None or not n_ring_total:
+        return None
+    return max(0.0, min(n_ring_below / n_ring_total, 1.0))
 
 
-def compute_viirs_sustained_contrast(
+def compute_viirs_two_output(
     aoi: dict, time_range: tuple[str, str], mode: str, ee_client,  # noqa: ARG001
 ) -> dict:
-    """VIIRS persistence-weighted ring-relative sustained-contrast snapshot.
+    """VIIRS two-output snapshot (M-VIIRS-REDESIGN-A1) — replaces the retired
+    sustained-contrast grammar (which could not rank intensity; M-VIIRS-DIAG-A1).
 
-    Replaces the old `six_step` z-score path for VIIRS (M-GHG-REDESIGN-A1).
-    Pulls a per-timestep `(site_mean, ring_mean)` series over the window via
-    `engine.core.per_image_site_ring_series`, then applies the pure-math
-    `viirs_sustained_contrast_from_series`. Emits the reduced measurement set
-    `site / contrast / persistence / confidence / score` plus provenance.
+    Two distinct outputs from one indicator (VR1):
+      * **flaring** (severity → `ghg.viirs.score`, feeds composite via
+        `ghg.activity_score`): fraction of site-buffer pixels whose window-mean
+        radiance exceeds VIIRS_FLARING_ABS_THRESHOLD_NW, normalised. An absolute-
+        anchored intense-source detector (VR3 refined to absolute anchor — a
+        self-relative outlier could not separate intense sources from rural
+        lights; Step A→B evidence). Complements the Air NO₂/CO borrow.
+      * **lit-contrast** (attributability → `ghg.viirs.attributability_state`,
+        Pattern A, NOT in composite): percentile of site median brightness within
+        the ring's all-pixel (land-masked) distribution → categorical state.
 
-    `mode`/`ee_client` are accepted for dispatcher signature parity with the
-    other GHG snapshot functions (the orchestrator owns mode-dependent window
-    selection; EE is initialised process-wide).
+    All reductions are server-side and batched into one ``getInfo`` round-trip.
 
     Raises:
         IndicatorComputeError: pixel-size guard fires (buffer < VIIRS pixel).
+        SiteBufferNoDataError: no VNP46A2 imagery / no site pixels in the window.
     """
     cfg = GHG_INDICATOR_CONFIG["viirs"]
     radius_km = aoi["radius_km"]
@@ -529,41 +486,75 @@ def compute_viirs_sustained_contrast(
             ),
         )
 
-    ic = ee.ImageCollection(cfg.asset_id).select(cfg.band)
+    band, scale = cfg.band, cfg.scale_m
+    site_geom = site_buffer(aoi["centre"], radius_km)
     ring = background_ring(aoi["centre"], radius_km)
-    series = per_image_site_ring_series(
-        aoi, ic, cfg.band, time_range,
-        scale=cfg.scale_m, ring=ring, indicator_id="ghg.viirs",
+    ring_geom, ring_mask = ring["geometry"], ring["mask"]
+    ic = (
+        ee.ImageCollection(cfg.asset_id).select(band)
+        .filterDate(time_range[0], time_range[1])
+        .filterBounds(site_geom.bounds())
     )
+    mean_img = ic.mean()
 
-    # No timestep had BOTH site and ring coverage → no ring-relative signal is
-    # computable. Route through the established skip path (no_viirs_pixels)
-    # rather than emitting a None-valued snapshot, so the UI renders "Sparse /
-    # no usable observations" and it stays out of _failures (a coverage
-    # statement, not a compute failure) — mirrors the six_step SiteBuffer path.
-    if not series.timesteps:
+    # Site: median brightness + valid pixel count (median feeds both the display
+    # site value and the lit-contrast comparison threshold).
+    site_red = mean_img.reduceRegion(
+        reducer=ee.Reducer.median().combine(ee.Reducer.count(), sharedInputs=True),
+        geometry=site_geom, scale=scale, bestEffort=True, maxPixels=int(1e9),
+    )
+    site_median = ee.Number(
+        ee.Algorithms.If(site_red.get(f"{band}_median"), site_red.get(f"{band}_median"), 0)
+    )
+    # Flaring: fraction of site pixels brighter than the absolute anchor.
+    frac_above = mean_img.gt(VIIRS_FLARING_ABS_THRESHOLD_NW).rename("f").reduceRegion(
+        reducer=ee.Reducer.mean(), geometry=site_geom, scale=scale,
+        bestEffort=True, maxPixels=int(1e9),
+    ).get("f")
+    # Lit-contrast: ring all-pixel (land-masked) distribution; fraction dimmer than site.
+    ring_img = mean_img.updateMask(ring_mask) if ring_mask is not None else mean_img
+    n_ring = ring_img.rename("r").reduceRegion(
+        reducer=ee.Reducer.count(), geometry=ring_geom, scale=scale,
+        bestEffort=True, maxPixels=int(1e9),
+    ).get("r")
+    n_below = ring_img.lt(site_median).rename("b").reduceRegion(
+        reducer=ee.Reducer.sum(), geometry=ring_geom, scale=scale,
+        bestEffort=True, maxPixels=int(1e9),
+    ).get("b")
+
+    bundle = ee.Dictionary({
+        "site_median": site_median,
+        "n_site": site_red.get(f"{band}_count"),
+        "frac_above": frac_above,
+        "n_ring": n_ring,
+        "n_below": n_below,
+        "n_images": ic.size(),
+    }).getInfo()
+
+    n_images = int(bundle.get("n_images") or 0)
+    n_site = int(bundle.get("n_site") or 0)
+    if n_images == 0 or n_site == 0:
         raise SiteBufferNoDataError(
             indicator_id=make_id(PILLAR_GHG, "viirs"),
             reason=(
-                "VIIRS had no timestep with both site-buffer and background-"
-                f"ring coverage in {time_range[0]}..{time_range[1]} "
+                "VIIRS had no site-buffer coverage in "
+                f"{time_range[0]}..{time_range[1]} "
                 f"(buffer={radius_km}km centre={aoi['centre']})"
             ),
         )
 
-    metrics = viirs_sustained_contrast_from_series(series.timesteps)
-    site_mean = (
-        sum(s for _iso, s, _r in series.timesteps) / len(series.timesteps)
-        if series.timesteps else None
-    )
+    flaring = flaring_score_from_fraction(bundle.get("frac_above"), n_site)
+    percentile = lit_contrast_percentile_from_counts(bundle.get("n_below"), bundle.get("n_ring"))
+    state = compute_viirs_attributability(percentile, int(bundle.get("n_ring") or 0))
 
     return _format_viirs_result(
-        cfg=cfg,
-        aoi=aoi,
-        site_mean=site_mean,
-        metrics=metrics,
-        granule_count=series.granule_count,
-        time_range=time_range,
+        cfg=cfg, aoi=aoi, time_range=time_range,
+        flaring=flaring, frac_above=bundle.get("frac_above"),
+        site_brightness=bundle.get("site_median"),
+        lit_contrast_percentile=percentile,
+        n_ring_lit_pixels=int(bundle.get("n_ring") or 0),
+        attributability_state=state,
+        n_images=n_images,
     )
 
 
@@ -585,25 +576,20 @@ def _viirs_window_days(time_range: tuple[str, str]) -> int | None:
 def _viirs_confidence_terms(
     aoi: dict,
     n_valid: int,
-    persistence: float | None,
+    flaring: float | None,
     time_range: tuple[str, str],
 ) -> dict:
-    """Four A1 confidence inputs for the re-grammared VIIRS term.
+    """Four A1 confidence inputs for the redesigned VIIRS flaring term.
 
-    Reuses the house formula (spec §3 "confirm against how confidence is
-    computed elsewhere") but feeds the new grammar's natural inputs:
       * ``qa``               = QA_PER_INDICATOR["ghg.viirs"] (0.85).
-      * ``n_valid``          = live-revisit coverage term over the window — the
-                               number of valid per-day timesteps vs. expected.
-      * ``anomaly_strength`` = persistence. Persistence replaces HF as the
-                               "how consistent / credible is the signal" term:
-                               a sustained signal is more attributable, exactly
-                               what this confidence term should reward. Passed
-                               through the existing HF-shaped helper (it clamps
-                               to [0, 1] and is grammar-agnostic).
+      * ``n_valid``          = coverage term over the window (number of valid
+                               daily images vs. expected).
+      * ``anomaly_strength`` = the flaring score — the redesign's signal-strength
+                               term (replaces persistence; passed through the
+                               grammar-agnostic HF-shaped helper, clamped [0, 1]).
+                               NOT the lit-contrast/attributability value, which
+                               must never feed confidence (M-ATTRIB-A1 invariant).
       * ``spatial_context``  = buffer-vs-pixel ratio (unchanged).
-    All None only when the snapshot produced no valid timesteps (n_valid == 0),
-    in which case the coverage term strict-Nones the whole confidence.
     """
     buffer_area = math.pi * (aoi["radius_km"] * 1000.0) ** 2
     return {
@@ -614,7 +600,7 @@ def _viirs_confidence_terms(
             window_days=_viirs_window_days(time_range),
         ),
         "anomaly_strength": compute_anomaly_strength_term(
-            "ghg.viirs", hf=persistence,
+            "ghg.viirs", hf=flaring,
         ),
         "spatial_context": compute_spatial_context_term(
             "ghg.viirs", buffer_area_m2=buffer_area,
@@ -626,21 +612,23 @@ def _format_viirs_result(
     cfg: GhgIndicatorConfig,
     *,
     aoi: dict,
-    site_mean: float | None,
-    metrics: dict,
-    granule_count: int,
     time_range: tuple[str, str],
+    flaring: float | None,
+    frac_above: float | None,
+    site_brightness: float | None,
+    lit_contrast_percentile: float | None,
+    n_ring_lit_pixels: int,
+    attributability_state: str,
+    n_images: int,
 ) -> dict:
-    """Map the VIIRS sustained-contrast metrics onto canonical IDs + provenance.
+    """Map the two VIIRS outputs onto canonical IDs + provenance (M-VIIRS-REDESIGN-A1).
 
-    Emits `site / contrast / persistence / confidence / score`. `contrast` is
-    the lit-window ring-relative contrast (`contrast_over_lit_window`);
-    `persistence` is the lit fraction; `score` is the persistence-weighted
-    contrast that feeds the composite via `ghg.activity_score`.
+    Severity: `ghg.viirs.score` = flaring (feeds the composite via
+    `ghg.activity_score`). Attributability (Pattern A, NOT in composite):
+    `ghg.viirs.attributability_state` + sibling metrics, under its own
+    `_provenance.ghg.viirs_lit_contrast` block.
     """
-    confidence_terms = _viirs_confidence_terms(
-        aoi, metrics["n_valid"], metrics["persistence"], time_range,
-    )
+    confidence_terms = _viirs_confidence_terms(aoi, n_images, flaring, time_range)
     confidence = compute_indicator_confidence(
         indicator_id="ghg.viirs",
         column_to_surface_uncertainty="n_a",
@@ -648,11 +636,16 @@ def _format_viirs_result(
     )
 
     return {
-        make_id(PILLAR_GHG, "viirs", "site"):        site_mean,
-        make_id(PILLAR_GHG, "viirs", "contrast"):    metrics["contrast_over_lit_window"],
-        make_id(PILLAR_GHG, "viirs", "persistence"): metrics["persistence"],
-        make_id(PILLAR_GHG, "viirs", "confidence"):  confidence,
-        make_id(PILLAR_GHG, "viirs", "score"):       metrics["score"],
+        # --- severity (composite-feeding) ---
+        make_id(PILLAR_GHG, "viirs", "site"):          site_brightness,
+        make_id(PILLAR_GHG, "viirs", "score"):         flaring,
+        make_id(PILLAR_GHG, "viirs", "flaring_frac"):  frac_above,
+        make_id(PILLAR_GHG, "viirs", "confidence"):    confidence,
+        # --- attributability (Pattern A; NOT in composite or confidence) ---
+        make_id(PILLAR_GHG, "viirs", "lit_contrast_percentile"): lit_contrast_percentile,
+        make_id(PILLAR_GHG, "viirs", "ring_lit_pixel_count"):    n_ring_lit_pixels,
+        make_id(PILLAR_GHG, "viirs", "site_brightness"):         site_brightness,
+        make_id(PILLAR_GHG, "viirs", "attributability_state"):   attributability_state,
         "_provenance.ghg.viirs": build_provenance(
             indicator_id="ghg.viirs",
             asset_id=cfg.asset_id,
@@ -662,24 +655,46 @@ def _format_viirs_result(
             native_scale_m=cfg.scale_m,
             time_range=time_range,
             method_note=(
-                "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained "
-                "contrast: per-timestep Michelson contrast (site vs. background "
-                "ring), lit fraction = persistence, "
-                "score = pct(contrast | lit)·persistence_factor(persistence). "
-                "No z-score / no anomaly-vs-baseline grammar (intentionally "
-                "different from the Air pillar — sustained activity stock, not "
-                "transient event)."
+                "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels "
+                f"brighter than {VIIRS_FLARING_ABS_THRESHOLD_NW:.0f} nW/cm²/sr "
+                "(absolute intense-source anchor), normalised by "
+                f"{VIIRS_FLARING_SATURATION_FRAC}. Replaces the retired sustained-"
+                "contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). "
+                "Directional; complements the Air NO₂/CO borrow."
             ),
             coverage_window=cfg.coverage_window,
-            observations={"count": granule_count, "unit": "daily_images"},
+            observations={"count": n_images, "unit": "daily_images"},
             extra={
-                "n_valid_timesteps": metrics["n_valid"],
-                "n_lit_timesteps": metrics["n_lit"],
-                "granule_count": granule_count,
+                "flaring_fraction": frac_above,
+                "abs_threshold_nw": VIIRS_FLARING_ABS_THRESHOLD_NW,
+                "n_images": n_images,
                 "confidence_terms": {
                     **confidence_terms,
                     "column_to_surface_uncertainty": "n_a",
                 },
+            },
+        ),
+        "_provenance.ghg.viirs_lit_contrast": build_provenance(
+            indicator_id="ghg.viirs_lit_contrast",
+            asset_id=cfg.asset_id,
+            band=cfg.band,
+            data_type=cfg.data_type,
+            data_source=cfg.data_source,
+            native_scale_m=cfg.scale_m,
+            time_range=time_range,
+            method_note=(
+                "M-VIIRS-REDESIGN-A1 lit-contrast (attributability, Pattern A): "
+                "percentile of site median brightness within the background ring's "
+                "all-pixel (land-masked) distribution → categorical "
+                "attributability_state. Does NOT enter the composite or the "
+                "measurement-quality aggregate (M-ATTRIB-A1 invariant)."
+            ),
+            coverage_window=cfg.coverage_window,
+            observations={"count": n_images, "unit": "daily_images"},
+            extra={
+                "lit_contrast_percentile": lit_contrast_percentile,
+                "ring_lit_pixel_count": n_ring_lit_pixels,
+                "attributability_state": attributability_state,
             },
         ),
     }
@@ -1332,7 +1347,7 @@ def _compute_one_ghg_indicator_outcome(
             # M-GHG-REDESIGN-A1 — VIIRS has its own per-timestep sustained-
             # contrast path, off six_step. It owns its empty-series → None
             # handling, so it doesn't take the six_step `fallback` machinery.
-            snapshot = compute_viirs_sustained_contrast(
+            snapshot = compute_viirs_two_output(
                 aoi=aoi,
                 time_range=time_range,
                 mode=mode,
