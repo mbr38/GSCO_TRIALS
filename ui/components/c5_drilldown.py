@@ -362,7 +362,13 @@ _GHG_ROWS: tuple[_GhgRow, ...] = (
 
 
 def _render_ghg_panel(payload: dict) -> None:
-    """C5b — GHG Emissions drill-down."""
+    """C5b — GHG Emissions drill-down.
+
+    M-VIIRS-REDESIGN-A1 (UI review): GHG severity has two contributors that are
+    NOT anomaly/z-score indicators (unlike Air), so they get a dedicated
+    contributor-card layout instead of the borrowed Air 6-column table. Ordered
+    by composite weight — Combustion Proxy (0.60) first, then VIIRS Flaring (0.40).
+    """
     with st.expander("GHG Emissions — drill-down"):
         _render_headline(
             "ghg.audit_followup_priority",
@@ -370,60 +376,22 @@ def _render_ghg_panel(payload: dict) -> None:
             _GHG_FORMULA,
             payload,
         )
-        # M-UI-E.4 polish — inner dividers, same pattern as the Air panel.
         st.divider()
-        st.markdown("**Per-indicator values**")
-        _render_row_headers()
-        for row in _GHG_ROWS:
-            _render_uniform_row(
-                display_name=row.display_name,
-                value=payload.get(row.value_key),
-                anomaly=payload.get(f"ghg.{row.indicator}.anomaly"),
-                z=payload.get(f"ghg.{row.indicator}.z"),
-                confidence=payload.get(f"ghg.{row.indicator}.confidence"),
-                score=payload.get(f"ghg.{row.indicator}.score"),
-                indicator_id=f"ghg.{row.indicator}.score",
-                key_prefix="c5_ghg",
-            )
-            _render_confidence_terms_expander(
-                payload, "ghg", row.indicator, row.display_name,
-            )
-        _render_viirs_attributability(payload)   # M-VIIRS-REDESIGN-A1 (VR7/VR15)
-        _render_combustion_proxy(payload)         # M-VIIRS-REDESIGN-A1 (VR17)
+        st.markdown("**GHG severity contributors**")
+        st.caption(
+            "GHG severity is a weighted blend of two complementary signals — "
+            "not a z-score anomaly like the Air pillar. The Air NO₂/CO borrow "
+            "ranks combustion intensity; VIIRS flaring catches intense night-light "
+            "sources (flares) the borrow misses."
+        )
+        _render_combustion_card(payload)   # 0.60 — leads (VR17)
+        _render_viirs_card(payload)         # 0.40 — flaring + attributability (VR7/VR15)
         st.divider()
         _render_datasets_used_subexpander("ghg", _GHG_DATASET_KEYS, payload)
 
 
-def _render_viirs_attributability(payload: dict) -> None:
-    """M-VIIRS-REDESIGN-A1 (VR7/VR15) — VIIRS lit-contrast attributability state.
-
-    Categorical signal (high/moderate/low/sparse); surfaced like Nature habitat's
-    attributability — NOT part of the composite. Renders only when computed.
-    """
-    state = payload.get("ghg.viirs.attributability_state")
-    if not state:
-        return
-    pct = payload.get("ghg.viirs.lit_contrast_percentile")
-    pct_txt = f"{pct:.0%}" if isinstance(pct, (int, float)) else "—"
-    st.divider()
-    st.markdown(
-        f"**VIIRS attributability:** `{state}` "
-        f"(site brighter than {pct_txt} of its surrounding ring)"
-    )
-    st.caption(
-        "Lit-contrast attributability — whether the night-light activity is "
-        "plausibly local to this supplier vs. regional. Does not affect the "
-        "severity score (M-ATTRIB-A1 invariant)."
-    )
-
-
-def _render_combustion_proxy(payload: dict) -> None:
-    """M-VIIRS-REDESIGN-A1 (VR17) — surface the Air NO₂/CO borrow at the GHG level.
-
-    The borrow carries the larger GHG-composite weight post-redesign but was
-    previously invisible here. Shows the value, its contribution, and a cross-
-    reference to the source Air pollutants.
-    """
+def _render_combustion_card(payload: dict) -> None:
+    """Combustion Proxy (Air NO₂/CO borrow) — the larger GHG severity contributor."""
     prov = payload.get("_provenance.ghg.combustion_proxy") or {}
     extra = prov.get("extra", {}) or {}
     value = payload.get("ghg.combustion_proxy")
@@ -431,22 +399,60 @@ def _render_combustion_proxy(payload: dict) -> None:
         return
     weight = extra.get("borrow_weight_in_ghg")
     contrib = extra.get("borrow_contribution")
-    val_txt = f"{value:.2f}" if isinstance(value, (int, float)) else "—"
-    w_txt = f"{weight:.0%}" if isinstance(weight, (int, float)) else "—"
-    c_txt = f"{contrib:.2f}" if isinstance(contrib, (int, float)) else "—"
-    st.divider()
-    st.markdown(
-        f"**Combustion Proxy (Air NO₂/CO borrow):** {val_txt} "
-        f"· weight in GHG severity {w_txt} · contribution {c_txt}"
-    )
     no2, co = extra.get("air_no2_score"), extra.get("air_co_score")
-    n_txt = f"{no2:.2f}" if isinstance(no2, (int, float)) else "—"
-    co_txt = f"{co:.2f}" if isinstance(co, (int, float)) else "—"
-    st.caption(
-        f"Borrowed from the Air pillar — NO₂ score {n_txt}, CO score {co_txt} "
-        "(see the Air drill-down for their provenance + wind-attributability; "
-        "only the numerical scores are borrowed, not the attributability flags)."
-    )
+    fmt = lambda v, s=".2f": (f"{v:{s}}" if isinstance(v, (int, float)) else "—")  # noqa: E731
+    with st.container(border=True):
+        cols = st.columns([3, 1, 1, 1])
+        cols[0].markdown("**Combustion Proxy** &nbsp;·&nbsp; <span style='opacity:0.7'>Air NO₂/CO borrow</span>", unsafe_allow_html=True)
+        cols[1].metric("Weight", fmt(weight, ".0%") if isinstance(weight, (int, float)) else "—")
+        cols[2].metric("Score", fmt(value))
+        cols[3].metric("Contribution", fmt(contrib))
+        st.caption(
+            f"↳ borrowed from Air — **NO₂** {fmt(no2)} · **CO** {fmt(co)} "
+            "(see the Air drill-down for their provenance + wind-attributability; "
+            "only the scores are borrowed, not the attributability flags)."
+        )
+
+
+def _render_viirs_card(payload: dict) -> None:
+    """VIIRS Flaring (severity) + lit-contrast attributability — native metrics, no anomaly/z."""
+    flaring = payload.get("ghg.viirs.score")
+    brightness = payload.get("ghg.viirs.site_brightness")
+    if brightness is None:
+        brightness = payload.get("ghg.viirs.site")
+    conf = payload.get("ghg.viirs.confidence")
+    state = payload.get("ghg.viirs.attributability_state")
+    pct = payload.get("ghg.viirs.lit_contrast_percentile")
+    # VIIRS weight = 1 − combustion weight (they sum to 1.0); fallback 0.40.
+    cw = ((payload.get("_provenance.ghg.combustion_proxy") or {}).get("extra", {}) or {}).get("borrow_weight_in_ghg")
+    vw = (1.0 - cw) if isinstance(cw, (int, float)) else 0.40
+    fmt = lambda v, s=".2f": (f"{v:{s}}" if isinstance(v, (int, float)) else "—")  # noqa: E731
+    band = band_for_score(flaring)
+    colour = band_colour(band)
+    with st.container(border=True):
+        cols = st.columns([3, 1, 1, 1])
+        cols[0].markdown("**VIIRS Flaring** &nbsp;·&nbsp; <span style='opacity:0.7'>nighttime lights</span>", unsafe_allow_html=True)
+        cols[1].metric("Weight", f"{vw:.0%}")
+        cols[2].metric("Flaring", fmt(flaring))
+        with cols[3]:
+            st.caption("Severity")
+            st.markdown(
+                f"<span style='background:{colour};color:white;padding:1px 8px;"
+                f"border-radius:3px;'>{band}</span>", unsafe_allow_html=True,
+            )
+        bright_txt = f"{brightness:.3g} nW/cm²/sr" if isinstance(brightness, (int, float)) else "—"
+        conf_txt = (fmt(conf) + " " + confidence_glyph(conf)) if conf is not None else "—"
+        st.caption(f"site brightness {bright_txt} · confidence {conf_txt}")
+        if state:
+            pct_txt = f"{pct:.0%}" if isinstance(pct, (int, float)) else "—"
+            st.markdown(
+                f"**Attributability:** `{state}` &nbsp; "
+                f"<span style='opacity:0.7'>site brighter than {pct_txt} of its "
+                f"surrounding ring — a *presence/local-vs-regional* signal that does "
+                f"NOT feed severity (M-ATTRIB-A1).</span>",
+                unsafe_allow_html=True,
+            )
+        _render_confidence_terms_expander(payload, "ghg", "viirs", "Nighttime lights")
 
 
 # ---------------------------------------------------------------------------
