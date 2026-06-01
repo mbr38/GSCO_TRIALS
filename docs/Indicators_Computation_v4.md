@@ -403,6 +403,26 @@ GHG_Audit_FollowUp_Priority =
 
 ---
 
+### 2.4 v1.x attributability coverage map (M-VIIRS-REDESIGN-A1, VR16)
+
+Attributability in v1.x is a per-indicator categorical concept (high/moderate/low/sparse — `engine.core.attributability`, AT19) computed via indicator-specific mechanisms. Coverage is **not uniform across pillars**; this records the current state so future contributors don't assume otherwise.
+
+| Pillar | Indicator(s) | Attributability mechanism | Integration |
+|---|---|---|---|
+| Nature | habitat | Centroid offset of DW natural→non-natural transition pixels vs. supplier coord (Pattern A — dedicated `supplier_spatial_link`) | M-ATTRIB-A1 |
+| Nature | NDVI | None | — |
+| Air | NO₂, SO₂, HCHO, AAI, AOD | Wind-direction asymmetry on anomaly days (Pattern B — per-indicator `wind_extra`) | M-WIND-A1 v2.0 |
+| Air | CO, O₃, PM2.5, PM10 | None (wind out of scope) | — |
+| GHG | VIIRS | Percentile of site brightness within ring all-pixel distribution (Pattern A — dedicated `compute_viirs_lit_contrast`) | M-VIIRS-REDESIGN-A1 |
+| GHG | combustion_proxy (Air borrow) | None at GHG level — the borrowed NO₂/CO scores carry their own wind-attributability in the Air provenance; only the numerical score is borrowed | — |
+| Reference | CH₄, Hansen, ODIAC | N/A (reference data, not scored) | — |
+
+**Architectural asymmetry (Air vs GHG), per VR16.** Air's z-score **severity grammar conceptually embeds attributability** — per M-ATTRIB-A2, severity *is* "supplier-attributable anomaly against regional context" (a deviation from the ring distribution is treated as attributable to the supplier); the wind flag is an additional layer. **GHG VIIRS, by contrast, separates severity and attributability into two distinct outputs** (flaring → severity; lit-contrast → attributability). Both are defensible; the inconsistency reflects each pillar's evolutionary path (Air locked under M-DIAG-A4 + M-ATTRIB-A2; VIIRS rebuilt from scratch in M-VIIRS-REDESIGN-A1 with the split explicit). Harmonising (extending the two-output pattern to Air's 8 indicators) is deferred to v2 — it would require Air-pillar composite recalibration.
+
+Per the architectural lock (M-ATTRIB-A1 / `attributability.py`): **no categorical attributability signal enters the composite or the measurement-quality aggregate.** All surface in the C5 expander, on the P-05 map, and in the PDF audit appendix.
+
+---
+
 ## 3. Nature / Land pillar
 
 ### 3.1 Single-value indicators
