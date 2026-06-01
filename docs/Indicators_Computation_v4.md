@@ -123,7 +123,13 @@ A *Normal* severity means the site is not standing out. A *Concern* or *Severe* 
 
 This framing applies to all z-score-based indicators in the Air pillar (NO₂, SO₂, HCHO, CO, O₃, AAI, AOD, and CAMS PM₂.₅/PM₁₀ — all run the §0.2 repeatable core), and to the equivalent grammars in GHG (VIIRS-based combustion-activity z) and Nature where applicable. Reference data (CH₄, Hansen, ODIAC) is shown alongside severity findings but does not feed scoring — see the per-indicator library entries (P-09) for details. See §1.5 for the related column-vs-surface framing, which is a special case of this principle.
 
-**Calibration philosophy (M-CALIBRATION-SWEEP-A1, 1 Jun 2026).** v1.x severity-band thresholds were reviewed by M-CALIBRATION-SWEEP-A1 and **retained** — the review confirmed the existing values rather than changing them. Thresholds are tuned for **sustained, supplier-attributable pollution** over the user's analysis window (the tool's purpose), at a **≤20% clean-site false-positive ceiling** — *not* for transient-event capture (wildfires, dust storms), which are regional and not supplier-attributable. Against a set of known high-pollution industrial sites (mines, smelters, refineries, coal power) vs clean controls, the current global anomaly bands (Concern z≥1.0, High z≥2.0) fire on point-source industrial standouts with zero clean-control false positives. The known limitation (per §0.7): a supplier embedded in a uniformly-polluted region may read *Normal* on the severity colour even at high absolute pollution — the absolute level remains visible as the raw "Site value" in the P-05 drilldown. See `docs/M-CALIBRATION-SWEEP-A1_closed_entry.md`.
+**Calibration philosophy.** The severity bands were reviewed and **retained** by M-CALIBRATION-SWEEP-A1 (1 Jun 2026) — see **§0.8** for the calibration-philosophy statement, and `docs/M-CALIBRATION-SWEEP-A1_closed_entry.md` §C1 for the concrete global anomaly bands (Concern z≥1.0, High z≥2.0) and the clean-control false-positive evidence.
+
+### 0.8 Calibration philosophy
+
+v1.x thresholds reviewed by M-CALIBRATION-SWEEP-A1 (1 June 2026) and retained; severity tuned for **sustained supplier-attributable pollution at a ≤20% clean-site false-positive ceiling**, not transient-event capture. This framing — anchored in the tool's operator-stated purpose ("screen suppliers over a set time period for behaviour anomalous compared to surroundings; speed of diagnosis is key") — distinguishes GSCO from event-detection tools where wildfire / dust-storm capture is the calibration target. Per-indicator false-positive ceilings vary based on regime (see M-CALIBRATION-SWEEP-A1 closed entry §4).
+
+*Authority: per M-CALIBRATION-SWEEP-A1 closed entry §4 (CS9 lock pending; landed under M-DOCS-CLEANUP-A2, 1 June 2026).*
 
 ---
 
@@ -398,6 +404,8 @@ GHG_Audit_FollowUp_Priority =
 > reserved canonical ID in `Indicator_ID_Schema_v2.md §2.3`). The surviving two
 > terms renormalise over the prior 0.55. Pre-redesign weights:
 > 0.5000 / 0.3125 / 0.1875.
+
+**Combustion Proxy (Air NO₂/CO borrow).** GHG severity composite includes a weighted borrow of the Air pillar's NO₂ and CO scores, currently weighted 0.60 (alongside 0.40 VIIRS flaring) per M-GHG-SANITY-A1 evidence (the Air borrow was the strongest GHG-intensity ranker measured, Spearman ρ 0.85 vs operator-expected tier). The borrow takes only the numerical pollutant scores; the Air-pillar wind-attributability flags for NO₂ and CO are NOT propagated to the GHG composite. They stay in the Air pillar provenance for inspection at the source-pollutant level. The C5 expander surfaces the per-pollutant breakdown (`ghg.combustion_proxy` with deep-link to `air.no2` + `air.co`); the engine emits a `_provenance.ghg.combustion_proxy` entry capturing the borrowed-from sources, per-pollutant scores, weight, and contribution. See M-VIIRS-REDESIGN-A1 VR17 for the engine + UI integration; M-GHG-SANITY-A1 closed entry §4 for the weight-derivation evidence. (The §2.4 attributability coverage map records the same no-flag-propagation rule for `ghg.combustion_proxy`.)
 
 **v1.1+ (with sector and wind context — for reference, not implemented in v1):** restore the original weights from `Final_Indicators_List.pdf`.
 
