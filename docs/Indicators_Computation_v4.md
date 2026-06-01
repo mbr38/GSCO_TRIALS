@@ -237,7 +237,36 @@ PM (CAMS), AOD (MAIAC), ODIAC CO₂, VIIRS NTL, Dynamic World, Hansen, NDVI, KBA
 | CH₄_Context_Adjusted | `CH₄_Hotspot_Score − 0.20·Fire_or_Regional_Transport_Risk` | See §7.3 for `Fire_or_Regional_Transport_Risk` |
 | Activity_Adjusted_CO₂ | `0.70·Fossil_CO₂_Context + 0.30·Nighttime_Light_Activity` | Useful when reported emissions are unavailable |
 
-### 2.2a VIIRS sustained-contrast grammar (M-GHG-REDESIGN-A1, 31 May 2026)
+### 2.2a VIIRS grammar
+
+> **SUPERSEDED by M-VIIRS-REDESIGN-A1 (1 June 2026) — two-output VIIRS.** The
+> M-GHG-REDESIGN-A1 sustained-contrast grammar described below is retired: M-VIIRS-DIAG-A1
+> showed `contrast·persistence` could not rank industrial intensity (heavy/middle
+> indistinguishable; rural Appalachia false-High) and M-CALIBRATION-SWEEP-A1 C6 found no
+> tunable fixed it. M-GHG-SANITY-A1 (Option I) kept the Air NO₂/CO borrow as the intensity
+> ranker (Spearman ρ 0.85) and split VIIRS into **two distinct outputs**:
+>
+> - **Flaring (severity → `ghg.viirs.score`, feeds the composite via `ghg.activity_score`).**
+>   An **absolute-anchored intense-source** detector: the fraction of site-buffer pixels whose
+>   window-mean radiance exceeds `VIIRS_FLARING_ABS_THRESHOLD_NW` (≈100 nW/cm²/sr), normalised
+>   by `VIIRS_FLARING_SATURATION_FRAC`. A *self-relative* outlier (median+3σ) could not separate
+>   intense sources from rural lights (Step A→B evidence); an absolute anchor does. Directional,
+>   not a precise ranker — complements the Air borrow (which catches dim-NTL combustion VIIRS
+>   misses, e.g. Korba; VIIRS catches flaring the borrow misses, e.g. Comodoro oil/gas).
+>   17-AOI validation: tier means High 0.39 > Mid 0.27 > Low 0.003; Comodoro 0.64; quiet 0.0.
+> - **Lit-contrast (attributability → `ghg.viirs.attributability_state`; Pattern A, NOT in the
+>   composite or measurement-quality aggregate).** Percentile of the site median brightness
+>   within the background ring's **all-pixel** (land-masked) distribution, bucketed via
+>   `compute_viirs_attributability` (high ≥ `VIIRS_ATTRIBUTABILITY_HIGH_PCT` 0.90 / moderate ≥
+>   `VIIRS_ATTRIBUTABILITY_MOD_PCT` 0.60 / low / sparse if ring < `MIN_RING_LIT_PIXELS`).
+>   Mirrors Nature habitat's `supplier_spatial_link` integration (M-ATTRIB-A1).
+>
+> Composite weight re-derived (VR5): `CORE_GHG_AUDIT_SUPPORT_WEIGHTS` = 0.40 flaring / 0.60
+> borrow (inverted from the old VIIRS-led 0.60/0.40 — the borrow is the stronger ranker).
+> See `docs/M-VIIRS-REDESIGN-A1_closed_entry.md`. The historical sustained-contrast description
+> below is retained for provenance only.
+
+#### (Historical, superseded) M-GHG-REDESIGN-A1 sustained-contrast grammar
 
 > **Why VIIRS is re-grammared.** VIIRS night-lights are not an anomaly detector.
 > The pre-redesign Activity_Score ran the repeatable-core z-score (`(site−bg)/(k·σ_bg)`)
