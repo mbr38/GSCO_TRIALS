@@ -1,6 +1,6 @@
 {
-  "date_saved": "2026-05-31T16:54:25.396226+00:00",
-  "id": "46c9fd9e-c9f2-4a6d-bcbe-db8d8aaeb94d",
+  "date_saved": "2026-06-01T13:09:56.371575+00:00",
+  "id": "8cabd4b8-fc17-494b-9916-48ea8faab723",
   "name": "Comodoro Rivadavia — San Jorge Oil & Gas Basin, Argentina",
   "payload": {
     "_failures": {
@@ -30,7 +30,7 @@
         "node_name": "Comodoro Rivadavia oil & gas hub (demo)",
         "source": "P-04 supply-chain scope · Oil & gas extraction / refining — San Jorge Basin, Patagonian coast"
       },
-      "computed_at": "2026-05-31T16:54:25.396061+00:00",
+      "computed_at": "2026-06-01T13:09:56.371304+00:00",
       "mode": "screening",
       "pillars_run": [
         "air",
@@ -294,7 +294,7 @@
           "qa": 0.9,
           "spatial_context": 1.0
         },
-        "granule_count": 1081,
+        "granule_count": 1083,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
         "n_valid_dates": 85,
@@ -505,6 +505,22 @@
         "2023-12-31"
       ]
     },
+    "_provenance.ghg.combustion_proxy": {
+      "data_source": "air_pillar_borrow",
+      "data_type": "derived",
+      "extra": {
+        "air_co_score": 0.15760090829464715,
+        "air_no2_score": 0.14623964201704293,
+        "borrow_contribution": 0.09047048911685078,
+        "borrow_weight_in_ghg": 0.6,
+        "borrowed_from": [
+          "air.no2",
+          "air.co"
+        ]
+      },
+      "indicator_id": "ghg.combustion_proxy",
+      "method_note": "GHG combustion proxy = the Air pillar's industrial_combustion_proxy (weighted NO₂ + CO scores), borrowed by the GHG composite. Only the numerical score is borrowed; the Air-pillar wind-attributability flags for NO₂/CO are NOT propagated (see the Air NO₂ + CO provenance entries)."
+    },
     "_provenance.ghg.viirs": {
       "asset_id": "NASA/VIIRS/002/VNP46A2",
       "band": "Gap_Filled_DNB_BRDF_Corrected_NTL",
@@ -513,22 +529,49 @@
       "data_source": "NASA / NOAA (VIIRS VNP46A2)",
       "data_type": "satellite_observation",
       "extra": {
+        "abs_threshold_nw": 100.0,
         "confidence_terms": {
-          "anomaly_strength": 1.0,
+          "anomaly_strength": 0.519481010028518,
           "column_to_surface_uncertainty": "n_a",
-          "n_valid": 1.0,
+          "n_valid": 0.9333333333333333,
           "qa": 0.85,
           "spatial_context": 1.0
         },
-        "granule_count": 5199,
-        "n_lit_timesteps": 5140,
-        "n_valid_timesteps": 5140
+        "flaring_fraction": 0.0519481010028518,
+        "n_images": 84
       },
       "indicator_id": "ghg.viirs",
-      "method_note": "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained contrast: per-timestep Michelson contrast (site vs. background ring), lit fraction = persistence, score = pct(contrast | lit)·persistence_factor(persistence). No z-score / no anomaly-vs-baseline grammar (intentionally different from the Air pillar — sustained activity stock, not transient event).",
+      "method_note": "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels brighter than 100 nW/cm²/sr (absolute intense-source anchor), normalised by 0.1. Replaces the retired sustained-contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). Directional; complements the Air NO₂/CO borrow.",
       "native_scale_m": 463.83,
       "observations": {
-        "count": 5199,
+        "count": 84,
+        "unit": "daily_images"
+      },
+      "sector_signal_anomaly": null,
+      "skipped_reason": null,
+      "temporal_mode": "live_window",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ]
+    },
+    "_provenance.ghg.viirs_lit_contrast": {
+      "asset_id": "NASA/VIIRS/002/VNP46A2",
+      "band": "Gap_Filled_DNB_BRDF_Corrected_NTL",
+      "column_to_surface_uncertainty": "n_a",
+      "coverage_window": null,
+      "data_source": "NASA / NOAA (VIIRS VNP46A2)",
+      "data_type": "satellite_observation",
+      "extra": {
+        "attributability_state": "high",
+        "lit_contrast_percentile": 0.9737568680459089,
+        "ring_lit_pixel_count": 26633
+      },
+      "indicator_id": "ghg.viirs_lit_contrast",
+      "method_note": "M-VIIRS-REDESIGN-A1 lit-contrast (attributability, Pattern A): percentile of site median brightness within the background ring's all-pixel (land-masked) distribution → categorical attributability_state. Does NOT enter the composite or the measurement-quality aggregate (M-ATTRIB-A1 invariant).",
+      "native_scale_m": 463.83,
+      "observations": {
+        "count": 84,
         "unit": "daily_images"
       },
       "sector_signal_anomaly": null,
@@ -913,10 +956,10 @@
     "air.spatiotemporal_anomaly_score": 0.0730995910415899,
     "air.voc_photochemical": 0.049464195805003934,
     "composite.confidence": 0.6871532430429489,
-    "composite.overall_screening": 0.5104787566331396,
-    "ghg.activity_adjusted_co2": 0.987138575895804,
-    "ghg.activity_score": 0.957128586319347,
-    "ghg.audit_followup_priority": 0.7274978626929761,
+    "composite.overall_screening": 0.4279144128574828,
+    "ghg.activity_adjusted_co2": 0.8558443030085554,
+    "ghg.activity_score": 0.519481010028518,
+    "ghg.audit_followup_priority": 0.4798048313660058,
     "ghg.ch4.anomaly": -17.223864050680504,
     "ghg.ch4.background": 1839.2516903319804,
     "ghg.ch4.confidence": 0.5186164105279343,
@@ -935,19 +978,22 @@
     "ghg.co2.trend_p": null,
     "ghg.co2_context": 1.0,
     "ghg.combustion_proxy": 0.15078414852808464,
-    "ghg.core_audit_support": 0.6345908112028421,
-    "ghg.data_quality_attribution": 0.9752500000000001,
+    "ghg.core_audit_support": 0.298262893128258,
+    "ghg.data_quality_attribution": 0.9639166666666668,
     "ghg.fire_or_regional_transport_risk": 0.06304036331785887,
-    "ghg.fossil_combustion_score": 0.7366609618222948,
+    "ghg.fossil_combustion_score": 0.649131446564129,
     "ghg.nearby_source_isolation": 1.0,
     "ghg.retrieval_inventory_quality": 0.925,
     "ghg.spatial_resolution_suitability": 1.0,
-    "ghg.temporal_coverage": 1.0,
-    "ghg.viirs.confidence": 0.955,
-    "ghg.viirs.contrast": 0.957128586319347,
-    "ghg.viirs.persistence": 1.0,
-    "ghg.viirs.score": 0.957128586319347,
-    "ghg.viirs.site": 17.26407696321803,
+    "ghg.temporal_coverage": 0.9666666666666667,
+    "ghg.viirs.attributability_state": "high",
+    "ghg.viirs.confidence": 0.8148702525071294,
+    "ghg.viirs.flaring_frac": 0.0519481010028518,
+    "ghg.viirs.lit_contrast_percentile": 0.9737568680459089,
+    "ghg.viirs.ring_lit_pixel_count": 26633,
+    "ghg.viirs.score": 0.519481010028518,
+    "ghg.viirs.site": 3.4747268380096266,
+    "ghg.viirs.site_brightness": 3.4747268380096266,
     "nature.biodiversity_exposure": 0.7371819991680864,
     "nature.cloud_observation_quality": 0.8,
     "nature.dw.bare_ha": 3655.8688313544053,
@@ -993,8 +1039,8 @@
     "nature.habitat.natural_loss_pct_norm": 0.15447607507232952,
     "nature.kba.confidence": 1.0,
     "nature.kba.dist_km": 0.0,
-    "nature.kba.overlap_ha": 5537.62303153262,
-    "nature.kba.overlap_pct": 17.62680156895886,
+    "nature.kba.overlap_ha": 5537.623031532893,
+    "nature.kba.overlap_pct": 17.62680156895973,
     "nature.kba.proximity_score": 1.0,
     "nature.low_ndvi.ha": 23050.71897504525,
     "nature.low_ndvi.pct": 73.37271733401197,
