@@ -84,13 +84,13 @@ _AIR_TERMS: dict[str, tuple[str, str]] = {
     "confidence": ("Measurement quality",     "air.measurement_quality_score"),
 }
 _GHG_TERMS: dict[str, tuple[str, str]] = {
-    "core_support": ("Core audit support",          "ghg.core_audit_support"),
+    "core_support": ("GHG severity (core audit support)", "ghg.core_audit_support"),
     # M-GHG-REDESIGN-A1 (GATE B): the "anomaly" row is dropped — the GHG
     # spatiotemporal-anomaly aggregate is retired (no anomaly source after the
     # VIIRS sustained-contrast re-grammar). `_build_formula` zips this with
     # GHG_FOLLOWUP_WEIGHTS, which also dropped "anomaly", so they stay in
     # lock-step.
-    "quality":      ("Data-quality attribution",    "ghg.data_quality_attribution"),
+    "quality":      ("Measurement quality",          "ghg.data_quality_attribution"),
 }
 _NATURE_TERMS: dict[str, tuple[str, str]] = {
     "biodiversity_exposure": ("Biodiversity exposure",  "nature.biodiversity_exposure"),
@@ -379,10 +379,12 @@ def _render_ghg_panel(payload: dict) -> None:
         st.divider()
         st.markdown("**GHG severity contributors**")
         st.caption(
-            "GHG severity is a weighted blend of two complementary signals — "
-            "not a z-score anomaly like the Air pillar. The Air NO₂/CO borrow "
-            "ranks combustion intensity; VIIRS flaring catches intense night-light "
-            "sources (flares) the borrow misses."
+            "These two signals make up **GHG severity** (the *core audit support* "
+            "term above — 0.73 of the priority score). Weights below are **within "
+            "GHG severity** and sum to 100%. GHG severity is a weighted blend, not "
+            "a z-score anomaly like the Air pillar: the Air NO₂/CO borrow ranks "
+            "combustion intensity; VIIRS flaring catches intense night-light sources "
+            "(flares) the borrow misses."
         )
         _render_combustion_card(payload)   # 0.60 — leads (VR17)
         _render_viirs_card(payload)         # 0.40 — flaring + attributability (VR7/VR15)
@@ -397,20 +399,26 @@ def _render_combustion_card(payload: dict) -> None:
     value = payload.get("ghg.combustion_proxy")
     if value is None and not extra:
         return
-    weight = extra.get("borrow_weight_in_ghg")
     contrib = extra.get("borrow_contribution")
     no2, co = extra.get("air_no2_score"), extra.get("air_co_score")
+    # The borrow's data-quality lives in the Air pillar — surface the source NO₂/CO
+    # confidences (the borrow itself carries no GHG-level confidence; only the score
+    # is borrowed). Composite confidence draws on these via the Air pillar's min.
+    no2_c, co_c = payload.get("air.no2.confidence"), payload.get("air.co.confidence")
+    air_confs = [c for c in (no2_c, co_c) if isinstance(c, (int, float))]
     fmt = lambda v, s=".2f": (f"{v:{s}}" if isinstance(v, (int, float)) else "—")  # noqa: E731
     with st.container(border=True):
-        cols = st.columns([3, 1, 1, 1])
+        cols = st.columns([3, 1, 1])
         cols[0].markdown("**Combustion Proxy** &nbsp;·&nbsp; <span style='opacity:0.7'>Air NO₂/CO borrow</span>", unsafe_allow_html=True)
-        cols[1].metric("Weight", fmt(weight, ".0%") if isinstance(weight, (int, float)) else "—")
-        cols[2].metric("Score", fmt(value))
-        cols[3].metric("Contribution", fmt(contrib))
+        cols[1].metric("Score", fmt(value))
+        # "Confidence" here is the Air-source confidence (min = weakest link, the
+        # form the composite uses), labelled so it's clear it comes from Air.
+        cols[2].metric("Conf (Air)", fmt(min(air_confs)) if air_confs else "—")
         st.caption(
-            f"↳ borrowed from Air — **NO₂** {fmt(no2)} · **CO** {fmt(co)} "
-            "(see the Air drill-down for their provenance + wind-attributability; "
-            "only the scores are borrowed, not the attributability flags)."
+            f"↳ borrowed from Air — **NO₂** score {fmt(no2)} (conf {fmt(no2_c)}) · "
+            f"**CO** score {fmt(co)} (conf {fmt(co_c)}). Only the scores feed GHG "
+            "severity; their confidence is accounted in the Air pillar (see the Air "
+            "drill-down), so the borrow adds nothing to GHG data-quality."
         )
 
 
@@ -423,35 +431,36 @@ def _render_viirs_card(payload: dict) -> None:
     conf = payload.get("ghg.viirs.confidence")
     state = payload.get("ghg.viirs.attributability_state")
     pct = payload.get("ghg.viirs.lit_contrast_percentile")
-    # VIIRS weight = 1 − combustion weight (they sum to 1.0); fallback 0.40.
-    cw = ((payload.get("_provenance.ghg.combustion_proxy") or {}).get("extra", {}) or {}).get("borrow_weight_in_ghg")
-    vw = (1.0 - cw) if isinstance(cw, (int, float)) else 0.40
     fmt = lambda v, s=".2f": (f"{v:{s}}" if isinstance(v, (int, float)) else "—")  # noqa: E731
     band = band_for_score(flaring)
     colour = band_colour(band)
     with st.container(border=True):
         cols = st.columns([3, 1, 1, 1])
-        cols[0].markdown("**VIIRS Flaring** &nbsp;·&nbsp; <span style='opacity:0.7'>nighttime lights</span>", unsafe_allow_html=True)
-        cols[1].metric("Weight", f"{vw:.0%}")
-        cols[2].metric("Flaring", fmt(flaring))
-        with cols[3]:
+        cols[0].markdown("**Industrial Activity** &nbsp;·&nbsp; <span style='opacity:0.7'>night-lights / flaring (VIIRS)</span>", unsafe_allow_html=True)
+        cols[1].metric("Intensity", fmt(flaring))
+        with cols[2]:
             st.caption("Severity")
             st.markdown(
                 f"<span style='background:{colour};color:white;padding:1px 8px;"
                 f"border-radius:3px;'>{band}</span>", unsafe_allow_html=True,
             )
+        cols[3].metric("Confidence", fmt(conf))
         bright_txt = f"{brightness:.3g} nW/cm²/sr" if isinstance(brightness, (int, float)) else "—"
-        conf_txt = (fmt(conf) + " " + confidence_glyph(conf)) if conf is not None else "—"
-        st.caption(f"site brightness {bright_txt} · confidence {conf_txt}")
-        if state:
+        st.caption(f"site brightness {bright_txt} · VIIRS confidence feeds GHG data-quality (→ composite via the pillar min)")
+        # Attributability as a compact coloured pill (mirrors the Air wind-attribution
+        # inline flag), NOT a paragraph. Separate from severity (M-ATTRIB-A1 invariant).
+        if state and state in _ATTRIBUTABILITY_COLOURS:
             pct_txt = f"{pct:.0%}" if isinstance(pct, (int, float)) else "—"
             st.markdown(
-                f"**Attributability:** `{state}` &nbsp; "
-                f"<span style='opacity:0.7'>site brighter than {pct_txt} of its "
-                f"surrounding ring — a *presence/local-vs-regional* signal that does "
-                f"NOT feed severity (M-ATTRIB-A1).</span>",
+                f"<div style='margin:-4px 0 4px 0; font-size:0.85em;'>"
+                f"Attributability: <span style='color:{_ATTRIBUTABILITY_COLOURS[state]}'>⬤</span> "
+                f"<strong>{_ATTRIBUTABILITY_LABELS[state]}</strong> "
+                f"&nbsp;(brighter than {pct_txt} of ring · presence, not severity)"
+                f"</div>",
                 unsafe_allow_html=True,
             )
+        elif state == "sparse":
+            st.caption("Attributability: sparse — ring too dark to compare.")
         _render_confidence_terms_expander(payload, "ghg", "viirs", "Nighttime lights")
 
 

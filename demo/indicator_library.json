@@ -85,7 +85,7 @@
   },
   "ghg.data_quality_attribution": {
     "sub_section": "component_score",
-    "display_name": "Data-quality attribution (GHG)",
+    "display_name": "Measurement quality (GHG)",
     "definition": "Quality / coverage gate on the GHG priority. Synthesises retrieval-quality metadata across CH₄ (S5P), VIIRS, and the optional CO₂ display layer.",
     "decision_relevance": "Calibrates how seriously to take the headline GHG score. CH₄ retrieval is the weakest link in tropical wet seasons (cloud cover) — low confidence often correlates with monsoon-period screenings.",
     "limitations": "v1 confidence formula partly placeholder (IC §6.3 gap), same as Air's measurement quality. ODIAC vintage flag (M5.5 deferred follow-up) not yet wired into the quality score. M-ATTRIB-A1 (AT15): nearby_source_isolation was removed from this aggregate (it is an attributability concept with a fixed 1.0 v1 placeholder, not a measurement-quality term); the remaining three sub-scores are renormalised to sum to 1.0.",
