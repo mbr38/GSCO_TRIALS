@@ -1,16 +1,31 @@
 # Logical Wireframes — All Pages
 
-**Version:** v4 — second-round decisions on screening time range, traffic-light bands, confidence dots, and Saved-Analyses export
+**Version:** v4 — second-round decisions on screening time range, traffic-light bands, confidence dots, and Saved-Analyses export. **UI reconciliation pass 1 June 2026** (see banner).
 **Date:** 13 May 2026
-**Companion to:** PLFS v4, Indicators_Computation v3, GEE Database List v3, Indicator ID Schema v1
+**Companion to:** PLFS v4, Indicators_Computation **v4**, GEE Database List v3, Indicator ID Schema **v2**
 **Status:** Demo-scope — authentication deferred (see Appendix A); sign-out button on every page; no user-type defaulting.
+
+> ## ⚠️ Reconciliation banner — read first (1 June 2026)
+>
+> Frozen 13 May 2026, before ~40 UI milestones shipped. The body has a running "Implementation status (M-UI-E.1)" log near the end and a self-correcting superseded banner inside P-06 — both partly current. This banner lists the load-bearing UI deltas. **Where this doc and the code disagree, the code wins.**
+>
+> - **P-07 supplier cap is 20, not 30** (`_MAX_SUPPLIERS = 20`). Modes are **Supply chain / Ad-hoc paste list / Country database (v1.x stub)**, not Whole-chain/Filtered-subset. Adds a **Strict audit mode** toggle (M-FALLBACK-A1).
+> - **P-05 C4 layout branches on indicator *count*, not user type**: ≥2 → C4b KPI grid + multi-indicator map (both user types); 1 → lean single-indicator C4a view (both). The "Policy-Maker-only map / MNC-only grid" fork is retired (M-UI-E.6).
+> - **C8 "Switch to Trend" is a hard-disabled dead control.** P-06 exists, but the button was never re-enabled; trend is reached via the per-tile **"view trend →"** link on C4b (M-TREND-A2). Treat the C8 button as vestigial pending removal.
+> - **C4b tiles carry a four-state severity grammar** (High / Concern / Normal / **Sparse**) via `ui/components/severity.py` (M-UI-A4), plus per-tile "View on map →" (M-UI-A5) and "view trend →" (M-TREND-A2) affordances. 12 tiles (9 air + 3 GHG); CO₂ has no anomaly arrow.
+> - **C7 verbal summary renders only when the full canonical indicator set was run** (M-HIDE-SUMMARY); suppressed for subset runs.
+> - **C9 "retry failed indicators" is deferred to v1.x**; only a per-indicator fallback retry on eligible sparse-coverage failure tiles exists (M-FALLBACK-A1).
+> - **Appendix C is missing the "Sparse" band.** Beyond the 0.33/0.66 traffic-light + confidence-dot tertiles (which are correct), tiles fall to a **fourth "Sparse" state when per-indicator confidence < 0.40 or valid-pixel fraction < 0.30** (or a skip/fallback flag is set), per `severity.py` (M-UI-A4). See the Appendix C note.
+> - **Persistent nav has 4 slots** (brand mark, user-type chip, scope chip +Change/Pick, sign-out) — **not** the brand + scope + three-module-links + user + sign-out described in Appendix B. Module pages are reached via the Streamlit sidebar. No current-page marking, no leave-without-saving dialog. The brand mark is non-interactive.
+> - **New surfaces** present in code but absent from the body: per-page tutorials ("Show me around" on P-02/04/05/06/07), wind-attribution arrows (M-WIND-A1) and habitat-attributability overlay (M-ATTRIB-A1) on the map, Hansen/ODIAC reference cards in C5 (M-UI-A6), methodology-aware E1 failure copy (ocean-ring vs no-data), and a P-08→P-05 drill-in back-link.
+> - **Companion doc versions:** Indicators_Computation is now **v4**, Indicator ID Schema is **v2** (corrected in the line above and throughout).
 
 ### Changes since v3
 
-- **P-04 (§P-04).** Time-range selector is **hidden in screening mode**. The selector renders only when the user hovers / commits to *Run Trend*. Screening always uses the latest valid 90-day composite per dataset (see `Indicators_Computation_v3.md` §0.5). Decision recorded as H4.
+- **P-04 (§P-04).** Time-range selector is **hidden in screening mode**. The selector renders only when the user hovers / commits to *Run Trend*. Screening always uses the latest valid 90-day composite per dataset (see `Indicators_Computation_v4.md` §0.5). Decision recorded as H4.
 - **P-10 (§P-10).** Per-row **Export JSON** action added alongside Open and Delete. Provides a download safety hatch for the demo's browser-state-only saves: the user can export individual analyses to disk and re-import them (re-import deferred to v1.x). Decision recorded as H12.
 - **Appendix C added — Traffic-light bands and confidence-dot spec.** Single shared definition of the visual scoring grammar used on P-05, P-06, and P-08. Tertile-based bands (red/amber/green) at 0.33 / 0.66; three-state filled dot for confidence at the same thresholds. Decision recorded as E2.
-- **Cross-references updated** to `PLFS_v4.md`, `Indicators_Computation_v3.md`, `GEE_Database_List_v3.md`, and `Indicator_ID_Schema_v1.md`.
+- **Cross-references updated** to `PLFS_v4.md`, `Indicators_Computation_v4.md`, `GEE_Database_List_v3.md`, and `Indicator_ID_Schema_v2.md`.
 
 ### Changes since v2
 
@@ -22,7 +37,7 @@ All design choices flagged in v1 have been resolved. The behavioural changes tha
 
 - **P-04.** All indicators are **pre-selected by default**; the user deselects rather than builds up.
 - **P-06.** User-type variation removed — both Policy Maker and MNC see the same view: trend map prominent, alert panel collapsed. Trend map shown consistently across all three pillars.
-- **P-07.** Two-supplier comparison mode **scrapped**. Modes are whole supply chain and filtered subset only. **Hard cap of 30 nodes per run** for the demo (to keep satellite compute manageable). Save Configuration also scrapped.
+- **P-07.** Two-supplier comparison mode **scrapped**. Modes are whole supply chain and filtered subset only. **Hard cap of 20 nodes per run** for the demo (to keep satellite compute manageable). Save Configuration also scrapped.
 - **P-08.** Risk matrix axes changed: now plots **two of the three pillar scores against each other** (user-selectable), not Severity vs Confidence. Top-N default is **5**. Retry-failed-nodes deferred to future extension. The Save action becomes **"Save as report"** — produces both a saved analysis entry and a report draft.
 - **P-09.** "Open in workflow" shortcut from each indicator card **dropped**.
 - **P-10.** Significantly simplified — list + open + delete only. Bulk select, compare, tags, and "add to report" from this page all **deferred** to future extensions.
@@ -543,7 +558,7 @@ stateDiagram-v2
 | 1 | One Run button with mode toggle vs two Run buttons | **Resolved.** Two buttons — clearer than a toggle. |
 | 2 | Indicator-selection default state | **Resolved.** All indicators pre-selected by default; user deselects to narrow. Reflected in C6. |
 | 3 | Radius stops — fixed steps vs free slider | **Resolved.** Fixed steps (1, 5, 10, 25, 50, 100 km). |
-| 4 | Time-range selector visibility for screening | **Resolved (v4).** Hidden in screening mode. Screening uses the latest valid 90-day composite per dataset (see `Indicators_Computation_v3.md` §0.5). The selector renders only when the user moves toward Run Trend. |
+| 4 | Time-range selector visibility for screening | **Resolved (v4).** Hidden in screening mode. Screening uses the latest valid 90-day composite per dataset (see `Indicators_Computation_v4.md` §0.5). The selector renders only when the user moves toward Run Trend. |
 
 ---
 
@@ -826,7 +841,7 @@ stateDiagram-v2
 ### State S2 — Configure
 
 - **Trigger.** S1 mode chosen.
-- **Visible components.** Persistent nav; mode summary (C2); filter panel (C3, mode-dependent); node selection list/map (C4); fixed-radius selector (C5); indicator selection panels (C6, all pre-selected by default — same pattern as P-04); time range selector (C7); estimated compute time and node-count indicator (C8) with a **hard cap of 30 nodes** for the demo build.
+- **Visible components.** Persistent nav; mode summary (C2); filter panel (C3, mode-dependent); node selection list/map (C4); fixed-radius selector (C5); indicator selection panels (C6, all pre-selected by default — same pattern as P-04); time range selector (C7); estimated compute time and node-count indicator (C8) with a **hard cap of 20 nodes** for the demo build.
 - **User actions.** Apply filters; deselect any nodes from the auto-included set; pick radius; toggle indicators (or accept the default selection); set time range.
 - **Transitions.** Continue → S3; change mode → S1.
 
@@ -855,7 +870,7 @@ stateDiagram-v2
 | C5 | Fixed-radius selector (locked across all nodes; same 1/5/10/25/50/100 km stops as P-04) | S2 |
 | C6 | Indicator selection panels (same as P-04; all indicators pre-selected by default) | S2 |
 | C7 | Time range selector | S2 |
-| C8 | Estimated compute time and node-count indicator with hard cap of 30 nodes | S2 |
+| C8 | Estimated compute time and node-count indicator with hard cap of 20 nodes | S2 |
 | C9 | Configuration summary | S3 |
 | C10 | Run Prioritisation button | S3 |
 | C11 | Edit link | S3 |
@@ -866,7 +881,7 @@ stateDiagram-v2
 | ID | Rule | Where enforced |
 |---|---|---|
 | V1 | At least one node selected | Client-side on Continue |
-| V2 | At most 30 nodes selected (demo hard cap) | Client-side; Continue disabled if exceeded |
+| V2 | At most 20 nodes selected (demo hard cap) | Client-side; Continue disabled if exceeded |
 | V3 | Radius set | Client-side |
 | V4 | At least one indicator selected | Client-side on Continue |
 | V5 | Time range valid | Client-side |
@@ -875,7 +890,7 @@ stateDiagram-v2
 
 | ID | Trigger | Surface | Recovery |
 |---|---|---|---|
-| E1 | More than 30 nodes selected | Inline message on C8 with explanation of the demo cap | User trims selection |
+| E1 | More than 20 nodes selected | Inline message on C8 with explanation of the demo cap | User trims selection |
 
 ### Side effects
 
@@ -887,7 +902,7 @@ stateDiagram-v2
 
 ### Page-exit contract
 
-- `prioritisationConfig.nodes` has length between 1 and 30 inclusive.
+- `prioritisationConfig.nodes` has length between 1 and 20 inclusive.
 - `radius` is set.
 - `selectedIndicators` is non-empty.
 - `timeRange` is valid.
@@ -897,14 +912,14 @@ stateDiagram-v2
 | Case | Handling |
 |---|---|
 | User returns from P-08 with "Edit configuration" | Lands in S3 with the prior config; can step back to S2 |
-| User hits the 30-node cap on a large supply chain | Filter UI in C3 helps them narrow; the cap is a hard block, not a warning |
+| User hits the 20-node cap on a large supply chain | Filter UI in C3 helps them narrow; the cap is a hard block, not a warning |
 
 ### Open design choices
 
 | # | Question | Status |
 |---|---|---|
 | 1 | Mode set — two-supplier comparison included? | **Resolved.** Scrapped for the demo. Modes are whole supply chain and filtered subset only. Two-supplier comparison may return as a future extension. |
-| 2 | Node limit | **Resolved.** Hard cap of 30 for the demo (to keep satellite compute manageable). Post-demo: raise the cap as compute infrastructure scales. |
+| 2 | Node limit | **Resolved.** Hard cap of 20 for the demo (to keep satellite compute manageable). Post-demo: raise the cap as compute infrastructure scales. |
 | 3 | "Prioritisation defaults" indicator preset | **Resolved.** All three pillar Follow-Up Priority Scores plus the highest-contributor single value per pillar. Same as P-04: all pre-selected by default. |
 | 4 | Save Configuration option | **Resolved.** Scrapped. Save lives on the result page (P-08) as "Save as report". |
 
@@ -1411,7 +1426,20 @@ Applied to any 0–1 pillar confidence score (`air.measurement_quality_score`, `
 | **Medium** | `0.33 ≤ score < 0.66` | ◐ (half-filled circle) | "Interpret with care" — some quality concerns |
 | **Low** | `score < 0.33` | ○ (empty outline circle) | "Weak signal; do not act on this alone" — significant data quality issues |
 
-Same tertile thresholds as the traffic-light bands; rendered next to the pillar chip / score with `8 px` spacing. **Hover behaviour**: tooltip shows the numeric confidence (e.g. "0.42") and the single *dominant limiting factor* — the lowest-scoring sub-component of the pillar's quality-attribution aggregate (e.g. "Limited by: Valid_Pixel_Coverage (0.18)"). The dominant-limiting-factor lookup uses the canonical sub-score names from `Indicators_Computation_v3.md` §1.3, §2.3, §3.3.
+Same tertile thresholds as the traffic-light bands; rendered next to the pillar chip / score with `8 px` spacing. **Hover behaviour**: tooltip shows the numeric confidence (e.g. "0.42") and the single *dominant limiting factor* — the lowest-scoring sub-component of the pillar's quality-attribution aggregate (e.g. "Limited by: Valid_Pixel_Coverage (0.18)"). The dominant-limiting-factor lookup uses the canonical sub-score names from `Indicators_Computation_v4.md` §1.3, §2.3, §3.3.
+
+### C.2a Per-tile severity grammar incl. the "Sparse" state (M-UI-A4 — added 1 June 2026 reconciliation)
+
+The three-state dot above is the *confidence glyph*. The **C4b indicator tiles** apply a separate four-state **severity** classification (`ui/components/severity.py`, `SEVERITY_BANDS`), which the original Appendix C did not document:
+
+| Tile state | Trigger | Meaning |
+|---|---|---|
+| **High** | severity score ≥ 0.66 | strong anomalous signal |
+| **Concern** | 0.33 ≤ severity score < 0.66 | moderate signal |
+| **Normal** | severity score < 0.33 | no notable signal |
+| **Sparse** | per-indicator confidence **< 0.40**, OR valid-pixel fraction **< 0.30**, OR a skip/fallback flag is set | too little usable data to render a verdict — overrides the severity band |
+
+The `0.40` / `0.30` "Sparse" floors are real shipped scoring boundaries (`severity.py`: `sparse_confidence = 0.40`, `sparse_valid_pixel = 0.30`) and are **distinct** from the confidence dot's "Low" band (`< 0.33`). A tile can be e.g. severity-High but display "Sparse" if its confidence is below 0.40.
 
 ### C.3 Composition in chips
 

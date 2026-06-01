@@ -2,12 +2,35 @@
 
 **Tool:** GSCO Environmental Monitoring & Decision-Support Platform
 **Author:** Benedetta Radice Fossati
-**Version:** v4 — reconciled with Wireframes v3 (demo scope)
+**Version:** v4 — reconciled with Wireframes v3 (demo scope). **Engine/UI reconciliation pass 1 June 2026** (see banner).
 **Date:** 13 May 2026
+
+> ## ⚠️ Reconciliation banner — read first (1 June 2026)
+>
+> This spec was frozen 13 May 2026, before ~40 engine/UI milestones shipped. The "Changes since v3 / v2" sections below are the doc's **historical** changelog — left intact as a record. This banner lists what changed in the *code* after 13 May. **Where this doc and the code disagree, the code wins** (CLAUDE.md M-V1x-RECONCILE). Live companion docs are `Wireframes_All_v4.md`, `Indicators_Computation_v4.md`, `Indicator_ID_Schema_v2.md`.
+>
+> **Pages — all built.** P-03…P-11 are all implemented. The pre-completion "deferred / later milestone" framing in some sections is stale.
+>
+> **Behaviour deltas since 13 May:**
+> - **P-02** is a curated picker (MNC → demo supply chain / "no scope"; Policy Maker → region / "no scope") writing `scope = {kind, data}`. It is **not** a CSV uploader; geocoding lives on **P-04**. (§6 stale)
+> - **P-04** is scope-driven (node dropdown / locked region centroid / free-coords with geocoder), point+radius only (no AOI drawing), default radius **5 km**, screening window selector **always shown** (default 90 days, user-configurable — H4 retired by M-UI-A3). "Run Trend" is **disabled**; trend is a per-indicator drill-down from P-05. No `monitoring` mode. (§8 stale)
+> - **P-05 GHG composite redesign:** CH₄ is reference-only (M-CH4-A1); ODIAC CO₂ demoted to display/reference only (M5.5b); live `Core_GHG_Audit_Support = 0.60·combustion_proxy + 0.40·activity_score(VIIRS flaring)`; `GHG_FollowUp = 0.727·core_support + 0.273·data_quality`; GHG anomaly + trend terms retired. VIIRS is a flaring grammar, not a z-score. (§9 stale)
+> - **Composite is strict-None**: `Overall_Screening = ⅓Air+⅓GHG+⅓Nature` **only when all three exist**, else None; composite confidence = **min** of the three, else None (M-FOLLOWUP-FALLBACK). Pillar confidence IDs renamed `air.measurement_quality_score` / `ghg.data_quality_attribution` / `nature.measurement_quality` (M-ATTRIB-A1).
+> - **Hansen forest loss demoted** to a standing-exposure reference layer (not in the live Habitat_Conversion composite). NDVI slope/trend demoted to drill-down. (M-V1x-RECONCILE, M-TREND-A1)
+> - **P-05 layout branches on indicator *count*, not user type**: ≥2 → full multi-indicator view; 1 → lean single-indicator view. Verbal summary (C7) renders **only** for the full canonical set (M-HIDE-SUMMARY). "Save as report" writes to Saved Analyses then offers an "Open in Reports" shortcut — **not** a unified dual-write.
+> - **P-06 is a per-indicator trend drill-down**, not a cross-indicator "trend mode" (the whole of §10 is superseded; see M-TREND-A2 and `pages/06_Trend_View.py`).
+> - **P-07**: hard cap **20** suppliers (not 30); modes are **Supply chain / Ad-hoc paste list / Country database (v1.x stub)** — not Whole-chain/Filtered-subset; all 19 indicators pre-selected (no 12-indicator preset); adds a **Strict audit mode** toggle (M-FALLBACK-A1). Output key `prioritisation_setup`.
+> - **P-08**: risk-matrix axes are user-selectable among the selected pillars (+Composite when all three); **Top-N banner and P-08 CSV/image export are NOT built** (export is via Save-as-report → P-11). State key `prioritisation_state`.
+> - **P-09**: search + single-select ESG-framework filter; **no** usefulness-criteria filter and **no** active-workflow dimming.
+> - **P-10**: list + open + delete **+ Export JSON + search** (search was marked deferred — it shipped, M-UX-A1).
+> - **P-11**: a **5-template registry** (`general`, `mnc_ghg`/E1, `mnc_air`/E2, `mnc_nature`/E4, `trend`), not the 8-template user-type×decision matrix. ESRS datapoint codes and policy/action/target sub-sections are **genuine deferred stubs**. The "Run comprehensive screening" shortcut / coverage indicator is **not built**.
+> - **State contract (§18) is stale.** Live keys: `user_type`/`user_type_label`/`session_id` (set by `init_session`), `scope`, `screening_setup` (bundles centre/radius_km/time_range/indicators/mode/centre_metadata), `page_state`, `prioritisation_setup`, `prioritisation_state`, `saved_analyses`. All snake_case. The bundled `screening_setup` replaces the separate `aoi`/`selectedIndicators`/`analysisMode`/`timeRange` keys. (Note: CLAUDE.md §7's "add downstream keys to init_session() defaults" is **not** yet honoured by the code — a code gap.)
+>
+> **Genuine remaining stubs:** P-07 country-database mode; P-11 ESRS datapoint codes + policy/action/target sub-sections.
 
 ### Changes since v3
 
-This version reconciles the PLFS with the demo-scope decisions locked in `Wireframes_All_v3.md` (11 May 2026). The PLFS is now the single source of truth for *what each page does and produces*; the Wireframes document is the single source of truth for *how each page behaves*; `Indicators_Computation_v3.md` is the single source of truth for *all indicator names, formulas, and weights actually used by v1*.
+This version reconciles the PLFS with the demo-scope decisions locked in `Wireframes_All_v3.md` (11 May 2026). The PLFS is now the single source of truth for *what each page does and produces*; the Wireframes document is the single source of truth for *how each page behaves*; `Indicators_Computation_v4.md` is the single source of truth for *all indicator names, formulas, and weights actually used by v1*.
 
 - **Authentication deferred.** P-01 (§5) no longer describes a sign-in form. The page is user-type selection only. Sign-out resets session state on every page; the full auth design is preserved in `Wireframes_All_v3.md` Appendix A.
 - **Two-supplier comparison scrapped from v1.** P-07 (§11) mode toggle is *Whole supply chain* / *Filtered subset* only. `prioritisationConfig.comparisonPair` removed from §18. P-08 (§12) comparison panel removed. Appendix A journey for MNCs updated.
@@ -19,9 +42,9 @@ This version reconciles the PLFS with the demo-scope decisions locked in `Wirefr
 - **P-07 prioritisation preset.** Selects the three pillar Follow-Up Priority Scores plus the single highest-contributing single value per pillar (replaces the earlier "key contributing single values" phrasing).
 - **P-09 Indicator Library — reference-only.** No selection propagation back to the active workflow.
 - **P-10 Saved Analyses — minimal.** List + open + delete only. Bulk select, side-by-side compare, tags, search, "Add to report" deferred.
-- **Formulas in §9.** The pillar aggregate formulas in this document are *reference* (they show the original full weights including sector and wind context). **The formulas actually computed in v1 are the rescaled forms in `Indicators_Computation_v3.md` §1.3, §2.3, §3.3.** Cross-reference added below each formula block.
-- **Indicator names.** `Indicators_Computation_v3.md` is the authoritative source for indicator names, formulas, weights, and units. Appendix B (§17) defers to it.
-- **Screening time-range selector hidden (H4 — added 13 May follow-up).** P-04's time-range selector is hidden in screening mode and shown only when the user selects Run Trend. Screening always uses the latest valid 90-day composite for each dataset. The monitoring/trend background window is locked to the 3 years immediately preceding the user's analysis-window start (see `Indicators_Computation_v3.md` §0.5).
+- **Formulas in §9.** The pillar aggregate formulas in this document are *reference* (they show the original full weights including sector and wind context). **The formulas actually computed in v1 are the rescaled forms in `Indicators_Computation_v4.md` §1.3, §2.3, §3.3.** Cross-reference added below each formula block.
+- **Indicator names.** `Indicators_Computation_v4.md` is the authoritative source for indicator names, formulas, weights, and units. Appendix B (§17) defers to it.
+- **Screening time-range selector hidden (H4 — added 13 May follow-up).** P-04's time-range selector is hidden in screening mode and shown only when the user selects Run Trend. Screening always uses the latest valid 90-day composite for each dataset. The monitoring/trend background window is locked to the 3 years immediately preceding the user's analysis-window start (see `Indicators_Computation_v4.md` §0.5).
 
 ### Changes since v2
 
@@ -215,7 +238,7 @@ This mapping is assumed throughout. Any future change to the Sitemap must preser
 - Radius slider with labelled stops: site-level (1 km), facility buffer (5 km), local context (10 km), regional context (25 km+).
 - Map showing the selected centre and the resulting circular buffer.
 - Indicator selection block (collapsible by pillar): Air Pollution, GHG, Nature/Land. Each pillar lists single-value indicators and the corresponding aggregate scores. **All indicators are pre-selected by default**; the user deselects to narrow. A "Reset to all selected" link restores the default. No user-type-specific defaulting. "Open Indicator Library" link for reference.
-- Time range selector — **hidden in screening mode**; shown when the user toggles toward Run Trend. Screening always uses the latest valid 90-day composite for each dataset (see `Indicators_Computation_v3.md` §0.5). Trend mode requires ≥ 12 months and offers sensible defaults per indicator.
+- Time range selector — **hidden in screening mode**; shown when the user toggles toward Run Trend. Screening always uses the latest valid 90-day composite for each dataset (see `Indicators_Computation_v4.md` §0.5). Trend mode requires ≥ 12 months and offers sensible defaults per indicator.
 - Two run buttons: "Run Screening" (→ P-05) and "Run Trend" (→ P-06).
 
 **Outputs produced.**
@@ -255,7 +278,7 @@ The underlying computation is identical for both; only the framing, default indi
 - PM₂.₅ proxy from CAMS (site mean, anomaly, trend, quality).
 - Optional AOD from MODIS MAIAC for additional aerosol context.
 
-*Air Pollution pillar (aggregates).* The formulas below are the original reference formulas. **For v1, the rescaled forms in `Indicators_Computation_v3.md` §1.3 are computed** — sector- and wind-context terms are absent and weights rescaled to sum to 1.0.
+*Air Pollution pillar (aggregates).* The formulas below are the original reference formulas. **For v1, the rescaled forms in `Indicators_Computation_v4.md` §1.3 are computed** — sector- and wind-context terms are absent and weights rescaled to sum to 1.0.
 
 ```
 Air_Pollution_Proxy_Score = 0.30·NO₂_score + 0.20·SO₂_score
@@ -270,24 +293,35 @@ Air_Pollution_Audit_FollowUp_Priority =
   + 0.15·Attribution_Confidence_Score
 ```
 
-*GHG pillar.* The formulas below are the original reference formulas. **For v1, the rescaled forms in `Indicators_Computation_v3.md` §2.3 are computed** — `High_GWP_Sector_Risk`, `Wind_Consistency` and `Sector_Match` are deferred (set to 0 and remaining weights rescaled).
+*GHG pillar.* **⚠️ The reference block below is SUPERSEDED — do not use it for v1.** The GHG composite was redesigned after 13 May (M-CH4-A1, M5.5b, M-GHG-REDESIGN-A1, M-VIIRS-REDESIGN-A1, M-TREND-A1). The live v1 forms in `engine/constants.py` (authoritative) and `Indicators_Computation_v4.md` §2.3 are:
 
 ```
+# LIVE v1 (engine/constants.py):
+Core_GHG_Audit_Support =
+    0.60·Combustion_Proxy   (borrowed Air NO₂/CO transient signal)
+  + 0.40·Activity_Score     (VIIRS flaring, absolute-anchor grammar)
+    # CH₄ → reference data, removed (M-CH4-A1); ODIAC CO₂ → display/reference
+    # only, removed (M5.5b); High_GWP_Sector_Risk → reserved, never computed.
+
+GHG_Data_Quality_Attribution =   # 3 terms (M-ATTRIB-A1 removed Nearby_Source_Isolation)
+    0.34·Temporal_Coverage + 0.33·Spatial_Resolution_Suitability
+  + 0.33·Retrieval_or_Inventory_Quality
+
+GHG_Audit_FollowUp_Priority =    # 2 terms (anomaly + trend retired)
+    0.727·Core_GHG_Audit_Support + 0.273·GHG_Data_Quality_Attribution
+```
+
+The original reference formulas (kept for lineage only — NOT computed):
+
+```
+# SUPERSEDED — historical reference only:
 Core_GHG_Audit_Support =
     0.35·CO₂_Context  + 0.25·CH₄_Hotspot_Signal
   + 0.20·Combustion_Proxy + 0.10·Activity_Score
   + 0.10·High_GWP_Sector_Risk
-
-GHG_Data_Quality_Attribution =
-    0.25·Temporal_Coverage + 0.20·Spatial_Resolution_Suitability
-  + 0.20·Retrieval_or_Inventory_Quality + 0.15·Wind_Consistency
-  + 0.10·Sector_Match + 0.10·Nearby_Source_Isolation
-
 GHG_Audit_FollowUp_Priority =
-    0.40·Core_GHG_Audit_Support
-  + 0.25·GHG_SpatioTemporal_Anomaly
-  + 0.20·GHG_Trend                (Trend := 0 in Screening mode)
-  + 0.15·GHG_Data_Quality_Attribution
+    0.40·Core_GHG_Audit_Support + 0.25·GHG_SpatioTemporal_Anomaly
+  + 0.20·GHG_Trend + 0.15·GHG_Data_Quality_Attribution
 ```
 
 *Nature pillar (single values):*
@@ -325,7 +359,7 @@ Equal ⅓ weights are the v1 default. **Future extension:** sector-aware weighti
 - **Primary visualisation** depending on `userType`:
   - *Policy Maker:* hotspot map of the AOI with selectable layer (Air, GHG, Nature) showing intensity overlaid on satellite imagery.
   - *MNC:* dashboard grid with one KPI tile per indicator, each showing value, anomaly direction (↑/↓), and confidence dot.
-- **Per-pillar drill-down panels** (collapsible): each shows the constituent single values and the aggregate scoring. **The drill-down panel surfaces single-value indicators and the pillar Follow-Up Priority Score in v1.** The interpretive sub-aggregates from `Indicators_Computation_v3.md` §1.2 (`Heavy_Industry_Score`, `VOC_Photochemical`, `Industrial_Air_Pollution_Burden`, `Fossil_Combustion_Score`, `Activity_Adjusted_CO2`) are **deferred to v1.x** as standalone "lens views". The formula-internal sub-aggregates (`PM_or_Aerosol_score`, `Combustion_Proxy`, `Fire_or_Regional_Transport_Risk`, `CH4_Context_Adjusted`) are computed in the engine and carried in the result payload but are not shown as separate UI rows — they're plumbing inside the pillar formulas.
+- **Per-pillar drill-down panels** (collapsible): each shows the constituent single values and the aggregate scoring. **The drill-down panel surfaces single-value indicators and the pillar Follow-Up Priority Score in v1.** The interpretive sub-aggregates from `Indicators_Computation_v4.md` §1.2 (`Heavy_Industry_Score`, `VOC_Photochemical`, `Industrial_Air_Pollution_Burden`, `Fossil_Combustion_Score`, `Activity_Adjusted_CO2`) are **deferred to v1.x** as standalone "lens views". The formula-internal sub-aggregates (`PM_or_Aerosol_score`, `Combustion_Proxy`, `Fire_or_Regional_Transport_Risk`, `CH4_Context_Adjusted`) are computed in the engine and carried in the result payload but are not shown as separate UI rows — they're plumbing inside the pillar formulas.
 - **Confidence panel:** the three pillar Quality / Attribution Confidence Scores with a brief explanation of the limiting factor for each (e.g. "GHG confidence limited by coarse spatial resolution of CH₄ retrievals").
 - **Verbal summary** (one paragraph) of the overall screening result, generated server-side from the scores — addresses the gap that the existing GEE tool flagged areas without providing summary text.
 - **Save as report** button — writes the result to Saved Analyses *and* creates a report draft accessible from P-11 (single unified action).
@@ -349,6 +383,8 @@ Equal ⅓ weights are the v1 default. **Future extension:** sector-aware weighti
 
 ## 10. P-06 — Inspect — Results — Trend View
 
+> **⚠️ SUPERSEDED (M-TREND-A2, 1 June 2026).** The cross-indicator "trend mode" described in this section — per-time-bin recomputation of all indicators, per-pillar trend score cards, a trend map, an alert panel, and a Trend term re-activated in the pillar follow-up formulas — **does not exist**. The shipped P-06 (`pages/06_Trend_View.py`) is a **per-indicator trend drill-down** reached from a C4b tile's "view trend →" link on P-05. It has two paths: **Live** (compute one indicator's Theil–Sen slope + Mann–Kendall significance over the screening window) and **Saved** (re-render a stored `type="trend"` record, no recompute). Crucially, **the Trend term was removed from every composite/follow-up formula** (M-TREND-A1) — trend is drill-down-only and never enters `composite.overall_screening`. The prose below is retained as historical context only.
+
 **Purpose.** Time-series view of indicators at the selected location, showing how things have evolved.
 
 **User access.** Both user types see the same trend view. Framing strings differ (Policy Maker: **Regional Environmental Trend Indicator**; MNC: **Supplier Environmental Performance Trend**), but the visualisation set is identical: trend map prominent by default, alert panel collapsed by default. Both panels are user-expandable. Per `Wireframes_All_v3.md` P-06, the earlier user-type variation in primary visualisation is removed.
@@ -364,7 +400,7 @@ Equal ⅓ weights are the v1 default. **Future extension:** sector-aware weighti
 - Repeated anomalies count (anomalies in N consecutive periods).
 - For Nature: annualised conversion rate (hectares of natural land converted per year), restoration / recovery signal flag.
 
-The three pillar Follow-Up Priority aggregates are recomputed with the **Trend term active**: the `0.20·Trend_Score` term for Air and the `0.20·GHG_Trend` term for GHG, both of which are zero in Screening mode (see `Indicators_Computation_v3.md` §1.3 and §2.3). The Nature pillar formula does *not* contain a separate Trend term because `Habitat_Conversion` is already a temporal-difference indicator (current 90-day composite vs baseline composite from X years earlier — see Indicators_Computation §3.1). What changes for Nature in trend mode is that `Habitat_Conversion` is computed over the user's selected time range (its `annualised_rate` sub-score becomes meaningful), and the `Vegetation_Condition` slope-based term gains statistical power. The Nature_FollowUp_Priority formula itself is identical in both modes.
+The three pillar Follow-Up Priority aggregates are recomputed with the **Trend term active**: the `0.20·Trend_Score` term for Air and the `0.20·GHG_Trend` term for GHG, both of which are zero in Screening mode (see `Indicators_Computation_v4.md` §1.3 and §2.3). The Nature pillar formula does *not* contain a separate Trend term because `Habitat_Conversion` is already a temporal-difference indicator (current 90-day composite vs baseline composite from X years earlier — see Indicators_Computation §3.1). What changes for Nature in trend mode is that `Habitat_Conversion` is computed over the user's selected time range (its `annualised_rate` sub-score becomes meaningful), and the `Vegetation_Condition` slope-based term gains statistical power. The Nature_FollowUp_Priority formula itself is identical in both modes.
 
 **UI components.**
 - Header card as in P-05, plus the time range and bin size.
@@ -505,7 +541,7 @@ Retry-failed-nodes is **deferred to a future extension**; in the demo, partial r
 - Top-level pillar tabs: **Air Pollution**, **GHG Emissions**, **Nature/Land**.
 - Within each tab, three sub-sections: *Single values*, *Component scores*, *Decision aggregates*.
 - Per indicator card showing:
-  - Name and definition (names per `Indicators_Computation_v3.md`).
+  - Name and definition (names per `Indicators_Computation_v4.md`).
   - Formula (where applicable; rendered via MathJax/KaTeX).
   - Data source (Earth Engine asset ID, from `GEE_Database_List_v3.md`).
   - Temporal frequency.
@@ -521,7 +557,7 @@ Retry-failed-nodes is **deferred to a future extension**; in the demo, partial r
 
 **Persistent modules touched.** This *is* a persistent module; reads selection state from the active workflow for the dimming behaviour.
 
-**Code reuse.** New — this is content drawn directly from `Indicators_Computation_v3.md` and the Indicator Library entries in `Final Indicators List.pdf`, rendered as a structured reference UI. The content is static enough that it should live as a JSON manifest the front-end reads, with each entry referencing the function in the indicator engine that computes it.
+**Code reuse.** New — this is content drawn directly from `Indicators_Computation_v4.md` and the Indicator Library entries in `Final Indicators List.pdf`, rendered as a structured reference UI. The content is static enough that it should live as a JSON manifest the front-end reads, with each entry referencing the function in the indicator engine that computes it.
 
 ---
 
@@ -585,7 +621,7 @@ The two templates differ only in framing strings — the Policy audit report is 
 **Source-analysis handling.** The user picks one or more saved screening analyses as the source. If the source analysis did not have every indicator selected, missing ones appear in the report marked "not computed" with a one-click **"Run comprehensive screening for this target"** shortcut. The shortcut routes to P-04 with:
 - All indicators pre-selected (already the P-04 default).
 - Centre pre-filled from the source analysis's `centreMetadata`.
-- **Radius = 5 km** (facility-level, the P-04 single-supplier default per `Indicators_Computation_v3.md` §6.2).
+- **Radius = 5 km** (facility-level, the P-04 single-supplier default per `Indicators_Computation_v4.md` §6.2).
 - **Mode = screening** (so the time-range selector is hidden per H4; the screening composite is the latest valid 90 days for each dataset).
 
 The user can still adjust radius or switch to trend mode on P-04 before running; the defaults match the most common audit pattern.
@@ -612,7 +648,7 @@ The user can still adjust radius or switch to trend mode on P-04 before running;
 - KPI table block (mandatory for the ESG / due-diligence template per the Stakeholders summary's "Report builder + KPI table" requirement).
 - Export buttons: PDF (primary), CSV of underlying data, JSON export of the full result objects for downstream tools.
 
-**Export schema.** CSV column headers and JSON keys both use the canonical indicator IDs from `Indicator_ID_Schema_v1.md` §6. CSV applies the `.` → `__` substitution from §7 (e.g. `air.no2.site` → `air__no2__site`) for tools that disallow dots in column names; the substitution is reversible. JSON exports use the IDs directly. The full output shape is the result-payload example in `Indicator_ID_Schema_v1.md` §6, with a `provenance` block alongside the indicator values.
+**Export schema.** CSV column headers and JSON keys both use the canonical indicator IDs from `Indicator_ID_Schema_v2.md` §6. CSV applies the `.` → `__` substitution from §7 (e.g. `air.no2.site` → `air__no2__site`) for tools that disallow dots in column names; the substitution is reversible. JSON exports use the IDs directly. The full output shape is the result-payload example in `Indicator_ID_Schema_v2.md` §6, with a `provenance` block alongside the indicator values.
 
 **Outputs produced.** Generated PDF report; optionally a CSV/JSON sidecar.
 
@@ -635,7 +671,7 @@ P-01 (pick "MNC") → P-02 (upload supplier list) → P-03 → choose Inspect �
 
 ## 17. Appendix B — Indicator engine module map
 
-The back-end indicator engine has three modules, one per pillar, each exposing functions consumed by the UI pages. **`Indicators_Computation_v3.md` is the authoritative source for all indicator names, formulas, weights, units, and the canonical indicator IDs used in `selectedIndicators` and in result payloads.** This appendix lists the function surface only; for the exact return-field names and their definitions, the implementer should refer to Indicators_Computation §1, §2 and §3.
+The back-end indicator engine has three modules, one per pillar, each exposing functions consumed by the UI pages. **`Indicators_Computation_v4.md` is the authoritative source for all indicator names, formulas, weights, units, and the canonical indicator IDs used in `selectedIndicators` and in result payloads.** This appendix lists the function surface only; for the exact return-field names and their definitions, the implementer should refer to Indicators_Computation §1, §2 and §3.
 
 **Module: Air Pollution.**
 - `compute_pollutant_snapshot(aoi, pollutant, date) → {site, background, anomaly, z, hotspot_freq, confidence}` — implements the repeatable core method (Indicators_Computation §0.2) for any Sentinel-5P band.
@@ -664,23 +700,27 @@ The back-end indicator engine has three modules, one per pillar, each exposing f
 - `compute_nature_quality_attribution(...) → score` — Indicators_Computation §3.3.
 - `compute_nature_followup_priority(...) → score`.
 
-**Cross-module composite.**
-- `compute_overall_screening_score(air_priority, ghg_priority, nature_priority) → {composite, limiting_confidence}` — composite via the equal ⅓ weighting (Indicators_Computation §4); `limiting_confidence = min(air_conf, ghg_conf, nature_conf)`.
+**Cross-module composite.** (engine-actual, `engine/orchestrator.py`)
+- `compute_composite_overall(payload) → composite.overall_screening` — equal ⅓ mean of the three pillar follow-up priorities (IC_v4 §4), **strict-None: returns None if any pillar priority is None** (M-FOLLOWUP-FALLBACK).
+- `compute_composite_confidence(payload) → composite.confidence` — **min** of the three pillar confidences (`air.measurement_quality_score`, `ghg.data_quality_attribution`, `nature.measurement_quality`), **strict-None: None if any is missing**. (There is no single `{composite, limiting_confidence}` return and no `compute_overall_screening_score` function.)
 
 ## 18. Appendix C — Persistent state model
 
-In the demo build, "persistent user store" means browser-state-only (e.g. localStorage). When authentication is added (Wireframes Appendix A), the same contract is backed by a real per-user store.
+In the demo build, "persistent user store" means browser-state-only (Streamlit `st.session_state`). When authentication is added (Wireframes Appendix A), the same contract is backed by a real per-user store.
 
-| Key | Scope | Lives in | Set by | Read by |
-|---|---|---|---|---|
-| `userType` | session | session store | P-01 | every page |
-| `supplyChain` | session | session store + Saved Analyses | P-02 | P-03, P-04, P-07 |
-| `aoi` | workflow-scoped | session store | P-04 (point + radius) | P-05, P-06 |
-| `selectedIndicators` | workflow-scoped | session store | P-04, P-07 | P-05, P-06, P-08 |
-| `analysisMode` | workflow-scoped | session store | P-04 | P-05, P-06 |
-| `prioritisationConfig` | workflow-scoped | session store | P-07 | P-08 |
-| `screeningResult`, `trendResult`, `prioritisationResult` | per analysis | session store + Saved Analyses + Report draft on Save-as-report | P-05, P-06, P-08 | P-11 |
-| `savedAnalyses` | per user | browser-state-only in demo; per-user store post-auth | P-05, P-06, P-08 (on save), P-02 (on save scope) | P-10, P-11 |
+> **⚠️ Updated to the live contract (1 June 2026).** The conceptual table below was rewritten to match `utils/state.py` and actual page reads/writes. Keys are **snake_case**; the original camelCase names (`userType`, `supplyChain`, `aoi`, `selectedIndicators`, `analysisMode`, `prioritisationConfig`, `screeningResult`/`trendResult`/`prioritisationResult`, `savedAnalyses`) are retired. Note: `init_session()` defines only the first three rows; the rest are set ad-hoc by pages — CLAUDE.md §7's directive to centralise them in `init_session()` defaults is **not yet honoured** (a code gap).
+
+| Key | Scope | Set by | Read by |
+|---|---|---|---|
+| `user_type`, `user_type_label`, `session_id` | session | `init_session()` (via P-01) | every page |
+| `scope` = `{kind: "supply_chain"\|"region"\|"none", data}` | session | P-02 | P-03, P-04, P-07 |
+| `screening_setup` = `{centre, radius_km, time_range, indicators, mode="screening", centre_metadata}` | workflow | P-04 | P-05, P-06 |
+| `page_state` (P-05 state-machine object) | per analysis | P-05 | P-05 |
+| `prioritisation_setup` = `{suppliers, radius_km, time_range, indicators, mode="prioritisation", strict_audit_mode}` | workflow | P-07 | P-08 |
+| `prioritisation_state` (`PrioritisationState` dataclass — live batch run) | per analysis | P-08 | P-08 |
+| `saved_analyses` (list; entries typed `screening` / `trend` / `prioritisation`) | per user | P-05, P-08 (on save) | P-10, P-11 |
+
+(The bundled `screening_setup` replaces the separate `aoi` / `selectedIndicators` / `analysisMode` / `timeRange` keys from the original design. Screening results live inside `page_state`, not a separate `screeningResult` key.)
 
 ## 19. Open questions — status after v3
 

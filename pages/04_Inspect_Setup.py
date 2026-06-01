@@ -4,15 +4,19 @@ Configures a single-supplier screening: centre point, radius, indicators.
 Writes ``st.session_state["screening_setup"]`` in the shape P-05 already
 reads and navigates via ``st.switch_page``.
 
-v1 scope (M-P04):
-  - **Centre input:** Free Coordinates only. Region and Supplier tabs
-    are shown but disabled until P-02 (scope setup) lands.
+v1 scope (M-P04, M-P04-ACTIVATE):
+  - **Centre input:** scope-driven. With a supply-chain scope, pick a
+    node; with a region scope, the centroid+radius are locked; with no
+    scope, the Free Coordinates tab is active (with a geocoder) and the
+    Region/Supplier tabs are informational links back to P-02.
   - **Indicators:** all 19 pre-selected by default; user deselects.
     Per-pillar collapsible groups, "Reset to all" link.
-  - **Time range:** hidden in screening mode (Wireframes §P-04 C7);
-    lands with P-06. Screening defaults to the latest 90-day window.
+  - **Time range:** the screening-window picker is shown (default
+    90 days, user-configurable per run — M-UI-A3 retired the earlier
+    "hidden in screening mode" rule H4).
   - **Run Screening:** primary, enabled when ≥1 indicator + centre.
-  - **Run Trend:** disabled until P-06.
+  - **Run Trend:** disabled. Trend is a per-indicator drill-down
+    launched from P-05 ("view trend →"), not a P-04 run mode (M-TREND-A2).
 
 State machine collapses to a single editable form — there's no
 intermediate "review" state in v1, since the form's summary line is

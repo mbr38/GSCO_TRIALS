@@ -26,9 +26,9 @@
 | C2 | Methodology doc | `docs/Indicators_Computation_v4.md` | New **§0.7 "Severity framing"**; §1 Air-pillar back-reference; §1.5 cross-reference to §0.7. |
 | C3 | P-09 AOD anchor | `demo/indicator_library.json` | Full "What this measures" with validation citation. |
 | C4 | P-09 other 8 + callout + plumbing | `demo/indicator_library.json`, `demo/indicator_library.py`, `ui/components/p09_library.py` | One-line framing per indicator (NO₂, SO₂, HCHO, CO, O₃, AAI, PM₂.₅, PM₁₀); Air-tab canonical callout (rendered once); new optional `what_this_measures` field threaded loader→dataclass→renderer, shown after Definition. |
-| C5 | Verbal summary | `engine/verbal_summary.py`, `docs/Verbal_Summary_Templates_v1 (1).md` | All 15 Air templates (9 main + 6 fallback) reworded to site-vs-region framing; doc §6.1/§6.2/§9 synced. Normal states say "no anomalous local contribution detected", never "clean air". |
+| C5 | Verbal summary | `engine/verbal_summary.py`, `docs/Verbal_Summary_Templates_v1.md` | All 15 Air templates (9 main + 6 fallback) reworded to site-vs-region framing; doc §6.1/§6.2/§9 synced. Normal states say "no anomalous local contribution detected", never "clean air". |
 | C6 | P-11 report | `ui/components/p11_sections.py` | Methodology section gains an "attributability framing" paragraph (pillar-wide; covers partial-coverage reports). Pillar findings inherit the C5 verbal-summary changes automatically. |
-| C7 | Engine skeleton | `docs/Engine_Module_Skeleton_v1 (1).md` | One-line severity-semantics note pointing to IC §0.7. |
+| C7 | Engine skeleton | `docs/Engine_Module_Skeleton_v1.md` | One-line severity-semantics note pointing to IC §0.7. |
 
 **Tests:** `tests/test_verbal_summary.py` (worked example + two template-selection asserts updated for new phrasing; new `TestMAttribA2SeedProse` locking framing at all 5 seeds); `tests/test_indicator_library.py` (new parametrised `what_this_measures` coverage + AOD-anchor test).
 

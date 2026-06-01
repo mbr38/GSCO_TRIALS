@@ -4,9 +4,27 @@
 
 **Architecture.** Option D from the round-3 review: **stateless pillar modules + a thin orchestrator class**. The pillar modules are flat function libraries (one Python function per pillar function in `PLFS_v4.md` Appendix B); the orchestrator class handles cross-pillar concerns (composite score, partial-failure marking, provenance assembly) and is the only stateful class in the engine.
 
-**Authority.** Function inputs / outputs use the canonical IDs from `Indicator_ID_Schema_v1.md`. Formulas and weights come from `Indicators_Computation_v3.md`. UI integration points come from `PLFS_v4.md` and `Wireframes_All_v4.md`.
+**Authority.** Function inputs / outputs use the canonical IDs from `Indicator_ID_Schema_v2.md`. Formulas and weights come from `Indicators_Computation_v4.md`. UI integration points come from `PLFS_v4.md` and `Wireframes_All_v4.md`.
 
-**Date.** 13 May 2026.
+**Date.** 13 May 2026. **Reconciled with engine code 1 June 2026** (see banner below).
+
+---
+
+> ## ⚠️ Reconciliation banner — read first (1 June 2026)
+>
+> This blueprint was written 13 May 2026, before ~40 engine milestones shipped. The body below has been corrected against the live `engine/` code, but **where this doc and the code ever disagree, the code wins** (per CLAUDE.md M-V1x-RECONCILE). The substantive deltas folded in from the milestone close-out notes:
+>
+> - **Orchestrator runs pillars in two stages, not a sequential loop.** Stage 1 runs **Air + Nature concurrently** (`ThreadPoolExecutor`); Stage 2 runs **GHG** sequentially afterwards (it borrows Air's sub-aggregates). `_PILLARS` maps pillar→`run_pillar` *callable*, not module. (M-PERF-PARALLEL)
+> - **Composite + composite-confidence are strict-None.** `compute_composite_overall` = equal-weighted mean of the three pillar follow-up priorities, but **None if any pillar's priority is None**; `compute_composite_confidence` = **min** of the three pillar confidences, **None if any is None**. Not a survivor mean/min. (M-FOLLOWUP-FALLBACK)
+> - **Pillar confidence IDs renamed:** `air.measurement_quality_score`, `ghg.data_quality_attribution`, `nature.measurement_quality`. (M-ATTRIB-A1)
+> - **Inert / demoted indicators** (computed and/or displayed but **out of every composite**): CH₄ → reference data (its sub-aggregates are no longer computed; M-CH4-A1); ODIAC CO₂ → demoted, display/reference only (M5.5b); Hansen forest loss → standing-exposure reference layer, read from a fixed window (M-V1x-RECONCILE / M-V1x-STANDING-WINDOW); `ghg.nearby_source_isolation` → fixed `1.0`, removed from the quality aggregate (M-ATTRIB-A1); GHG `spatiotemporal_anomaly` term retired (M-GHG-REDESIGN-A1); trend is per-indicator drill-down only and never aggregated (M-TREND-A1).
+> - **Live GHG composite is two terms:** `0.60·combustion_proxy (borrowed Air NO₂/CO) + 0.40·activity_score (VIIRS flaring)`. (M-CH4-A1 → M-GHG-REDESIGN-A1 / M-VIIRS-REDESIGN-A1)
+> - **VIIRS uses an absolute-anchor flaring grammar + a ring-relative lit-contrast attributability output**, not the repeatable-core z-score. (M-VIIRS-REDESIGN-A1)
+> - **The anomaly denominator is the site's *temporal* σ over a trailing climatology window**, not the ring's spatial σ. (M-DIAG-A4)
+> - **`core/` gained** `confidence.py`, `provenance.py`, `fallback.py`, `attributability.py`, `wind.py`, `era5.py`, `climatology.py`, `adaptive_scale.py`, `ee_resilience.py`. **`core/seasonality.py` and the `data_sources/` package were never built.**
+> - **`TrendRun` and `PrioritisationBatch` are NOT in the orchestrator.** `TrendRun` is deferred; trend lives in `engine/core/trend.py::compute_trend`. Batch screening lives in `engine/prioritisation_executor.py`.
+> - **Function renames:** `compute_aod_optional`→`compute_aod`; `compute_co2_context`→`compute_co2_snapshot` (the reader; `.anomaly`→`.relative_intensity`); `compute_restoration_signal`→`compute_recovery_signal`; `compute_external_driver_screening`→`compute_regional_loss_evidence`; `compute_nature_quality_attribution`→`compute_nature_measurement_quality`; `theil_sen_slope`→`theil_sen_slope_per_year` + `mann_kendall_two_sided_p` (entry `compute_trend`).
+> - **`engine/constants.py` is the authoritative source for all weights/thresholds.** The illustrative weight dicts in §5 below have been corrected but are still a non-exhaustive sample.
 
 ---
 
@@ -22,21 +40,28 @@ gsco_tool/
 │   ├── nature.py                 ← Nature/Land pillar functions
 │   ├── core/
 │   │   ├── __init__.py
-│   │   ├── repeatable_core.py    ← the six-step pollutant core method (§0.2 of IC_v3)
+│   │   ├── repeatable_core.py    ← the six-step pollutant core method (IC_v4 §0.2)
 │   │   ├── buffers.py            ← Site_Buffer / Background_Ring construction
 │   │   ├── normalisation.py      ← raw → 0-1 score (§0.4)
-│   │   ├── trend.py              ← Theil-Sen + Mann-Kendall
-│   │   └── seasonality.py        ← same-month baseline filter (§0.6)
-│   ├── constants.py              ← all numeric defaults (ANOMALY_Z_THRESHOLD, k, etc.)
-│   ├── ids.py                    ← canonical IDs from Indicator_ID_Schema_v1, as constants
+│   │   ├── trend.py              ← compute_trend: Theil-Sen + Mann-Kendall (drill-down only)
+│   │   ├── confidence.py         ← per-indicator A1 confidence formula + pillar rollup (M-TIER-A1)
+│   │   ├── provenance.py         ← build_provenance, the 11-field provenance block (M5.6)
+│   │   ├── fallback.py           ← FallbackContext: SPPY + climatology recovery (M-FALLBACK-A1)
+│   │   ├── climatology.py        ← trailing temporal-σ baseline (M-DIAG-A4); replaces seasonality
+│   │   ├── attributability.py    ← categorical habitat attributability (M-ATTRIB-A1)
+│   │   ├── wind.py + era5.py      ← wind-attribution surface, ERA5 sampling (M-WIND-A1; categorical, not scored)
+│   │   ├── adaptive_scale.py     ← AOI-adaptive reduction scale
+│   │   └── ee_resilience.py      ← getInfo retry wrapper
+│   ├── constants.py              ← all numeric defaults (ANOMALY_Z_THRESHOLD, k, etc.) — AUTHORITATIVE
+│   ├── ids.py                    ← canonical IDs from Indicator_ID_Schema_v2, as constants
+│   ├── parameter_registry.py     ← tunable-parameter registry (P-09 surfacing)
+│   ├── prioritisation_executor.py ← sequential batch screening for P-08 (NOT a PrioritisationBatch class)
 │   ├── verbal_summary.py         ← deterministic prose generator (Verbal_Summary_Templates_v1)
-│   └── exceptions.py             ← IndicatorComputeError and friends
-├── data_sources/
-│   ├── __init__.py
-│   ├── ee_client.py              ← thin GEE wrapper (auth, ImageCollection access)
-│   ├── odiac.py                  ← uploaded-asset reader for ODIAC
-│   └── gaul.py                   ← FAO GAUL country lookup for P-04 region mode
+│   └── exceptions.py             ← IndicatorComputeError, PillarComputeError, BackgroundRingNoDataError, SiteBufferNoDataError
 └── tests/
+# NOTE: core/seasonality.py and the data_sources/ package in the original blueprint
+# were never built. EE access goes through utils/ee_init.py; ODIAC/KBA are read
+# inline in the pillar modules; FAO GAUL is used by core/climatology.py.
     ├── test_repeatable_core.py
     ├── test_air.py
     ├── test_ghg.py
@@ -48,7 +73,7 @@ gsco_tool/
 
 Three principles guiding the layout:
 
-1. **Pillar files mirror `Indicators_Computation_v3.md`'s pillar sections.** A developer reading `air.py` should see Python functions in the same order as the §1 of the indicators doc.
+1. **Pillar files mirror `Indicators_Computation_v4.md`'s pillar sections.** A developer reading `air.py` should see Python functions in the same order as the §1 of the indicators doc.
 2. **The `core/` subpackage holds anything used by 2+ pillars.** Repeatable core method, buffers, normalisation, trend, seasonality — all live there, all stateless.
 3. **Constants are external, not hard-coded.** `ANOMALY_Z_THRESHOLD`, `CAMS_MIN_VALID_PCT`, `HABITAT_BASELINE_YEARS`, `DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD`, etc. all sit in `engine/constants.py` so they can be tuned without touching computation logic.
 
@@ -56,7 +81,7 @@ Three principles guiding the layout:
 
 ## 2. Pillar module signatures
 
-Each pillar module exposes one public function per indicator (single-value, sub-aggregate, or pillar aggregate). Functions return a `dict` keyed by canonical indicator IDs from `Indicator_ID_Schema_v1.md`. **No function returns a class; everything is plain `dict` / `float` for serialisability.**
+Each pillar module exposes one public function per indicator (single-value, sub-aggregate, or pillar aggregate). Functions return a `dict` keyed by canonical indicator IDs from `Indicator_ID_Schema_v2.md`. **No function returns a class; everything is plain `dict` / `float` for serialisability.**
 
 ### 2.1 `engine/air.py`
 
@@ -143,7 +168,9 @@ def compute_fire_or_regional_transport_risk(payload: dict) -> dict:
     Used internally by compute_ch4_context_adjusted."""
 
 def compute_ch4_context_adjusted(payload: dict) -> dict:
-    """ch4.score − 0.20 · fire_or_regional_transport_risk."""
+    """ch4.score − 0.20 · fire_or_regional_transport_risk.
+    INERT (M-CH4-A1): still defined but NO LONGER CALLED — CH₄ is reference
+    data and does not feed compute_core_ghg_audit_support."""
 
 def compute_combustion_proxy(payload: dict) -> dict:
     """Borrowed from air.compute_industrial_combustion_proxy. Same value,
@@ -437,19 +464,24 @@ def to_score(value, bg_median, bg_std, direction="higher_is_worse",
     """The §0.4 normalisation. k=3 default; tunable."""
 ```
 
-### 4.4 `core/trend.py`
+### 4.4 `core/trend.py`  (M-TREND-A1 — per-indicator drill-down only; never aggregated)
 
 ```python
-def theil_sen_slope(time_series: list[tuple[date, float]]) -> tuple[float, float]:
-    """Returns (slope, mann_kendall_p)."""
+def theil_sen_slope_per_year(...) -> float: ...      # primitive
+def mann_kendall_two_sided_p(values) -> float: ...   # primitive
+def compute_trend(...) -> dict:                       # public entry point
+    """Per-day site series → Theil–Sen slope + Mann–Kendall p, with severity /
+    confidence / bucket helpers. Invoked on demand AFTER a screening for one
+    series indicator. Trend never enters composite.overall_screening."""
 ```
 
-### 4.5 `core/seasonality.py`
+### 4.5 `core/climatology.py`  (M-DIAG-A4 — replaced the never-built `seasonality.py`)
 
 ```python
-def same_month_filter(image_collection, target_months: list[int],
-                      years: int = 3) -> "ImageCollection":
-    """§0.6 same-month seasonality baseline."""
+def climatology_baseline(...):
+    """Trailing per-day site series → the TEMPORAL σ used as the anomaly
+    denominator (replaces the old ring spatial σ). The original §0.6
+    `seasonality.same_month_filter` was never built."""
 ```
 
 ---
@@ -503,24 +535,24 @@ AIR_POLLUTION_PROXY_WEIGHTS = {
     "air.o3.score": 0.10,
 }
 
+# 3-key form (trend term removed, M-TREND-A1): rescaled over the surviving 0.80.
 AIR_FOLLOWUP_WEIGHTS = {
-    "proxy": 0.35,
-    "anomaly": 0.30,
-    "trend": 0.20,
-    "confidence": 0.15,
+    "proxy":      0.35 / 0.80,   # 0.4375
+    "anomaly":    0.30 / 0.80,   # 0.3750
+    "confidence": 0.15 / 0.80,   # 0.1875
 }
 
-# Post-M5.5b 3-key form (engine-actual). ODIAC's CO₂_Context demoted from
-# the live composite per audit §3.4; remaining three signals rescaled by
-# 1/0.61. See IC_v4 §2.3 for the full rationale and the pre-M5.5b 4-key
-# form (0.39 / 0.28 / 0.22 / 0.11) kept for lineage only.
+# 2-key form (engine-actual). CH₄ reclassified as reference data and removed
+# (M-CH4-A1); ODIAC CO₂ demoted (M5.5b); then VIIRS-vs-borrow re-weighted
+# (M-GHG-REDESIGN-A1 / M-VIIRS-REDESIGN-A1). activity_score = VIIRS flaring;
+# combustion_proxy = borrowed Air NO₂/CO. See IC_v4 §2.3 for the full lineage.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS = {
-    "ghg.ch4_context_adjusted": 0.46,
-    "ghg.combustion_proxy":     0.44,
-    "ghg.activity_score":       0.10,
+    "ghg.activity_score":   0.40,   # VIIRS flaring (intense-source), directional
+    "ghg.combustion_proxy": 0.60,   # Air NO₂/CO borrow — stronger intensity ranker
 }
 
-# ...and so on for the remaining pillar formulas
+# ...and so on for the remaining pillar formulas. engine/constants.py is
+# authoritative; these are illustrative and non-exhaustive.
 ```
 
 ---
@@ -604,4 +636,4 @@ These directories should *not* exist in the v1 codebase — they're listed here 
 
 ---
 
-*Document version 1.0 — 13 May 2026. Anchored to `PLFS_v4.md`, `Indicators_Computation_v3.md`, `Indicator_ID_Schema_v1.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Verbal_Summary_Templates_v1.md`.*
+*Document version 1.0 — 13 May 2026. Anchored to `PLFS_v4.md`, `Indicators_Computation_v4.md`, `Indicator_ID_Schema_v2.md`, `Wireframes_All_v4.md`, `GEE_Database_List_v3.md`, `Verbal_Summary_Templates_v1.md`.*

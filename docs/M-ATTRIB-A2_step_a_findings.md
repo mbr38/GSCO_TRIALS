@@ -11,7 +11,7 @@
 
 ## A1 — Current verbal summary template wording
 
-**File.** `engine/verbal_summary.py` (authority: `docs/Verbal_Summary_Templates_v1 (1).md`).
+**File.** `engine/verbal_summary.py` (authority: `docs/Verbal_Summary_Templates_v1.md`).
 
 **Structure (key correction to the spec).** The Air pillar produces **one paragraph**, selected by a 4-tuple key `(pillar, priority_bucket, confidence_bucket, dominant_path)`:
 - `priority_bucket` ∈ {high, moderate, low} — the *severity* axis (maps to Normal/Concern/Severe).

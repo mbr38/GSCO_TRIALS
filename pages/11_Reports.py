@@ -1,15 +1,17 @@
 """P-11 — Reports (M-P11.1).
 
-Scaffold for the Reports page. Two templates ship in v1 (Policy
-audit / Supplier audit, filtered by user type per Wireframes §P-11).
-Source picker reads from ``st.session_state["saved_analyses"]``,
-filtered to entries whose ``type`` is in the chosen template's
-``accepted_source_types``.
+The Reports page. A five-template registry ships in v1 (M-REPORT-A1):
+``general``, ``mnc_ghg`` (ESRS E1), ``mnc_air`` (ESRS E2),
+``mnc_nature`` (ESRS E4), and ``trend`` — filtered by user type and by
+each template's ``accepted_source_types``. Source picker reads from
+``st.session_state["saved_analyses"]``.
 
-S1_TemplateAndSource is the only state wired up here. S2 / S3 are
-stubbed with placeholder messages; they land in M-P11.2 (preview),
-M-P11.3 (PDF export), and M-P11.4 (CSV/JSON + Save-as-report
-wiring from P-05 / P-08).
+All three states are live: S1 (template + source pick), S2 (live HTML
+preview), S3 (export: PDF / CSV / JSON). The "stubbed S2/S3" framing in
+earlier revisions of this docstring is stale. Genuine remaining stubs
+are content-level only: ESRS per-indicator datapoint codes and the
+policy/action/target sub-sections render as labelled out-of-scope stubs
+(see ``ui/components/p11_esrs.py``).
 
 Streamlit page rules (CLAUDE.md §7): imports → set_page_config →
 guards → page body. No EE init — same router-only pattern as P-03

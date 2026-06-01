@@ -5,9 +5,17 @@ A Streamlit demo for the GSCO environmental monitoring tool. Built from
 
 ## Current scope
 
+All pages P-01 through P-11 are built (status as of 1 June 2026):
+
 - ✅ **P-01 Landing** — user-type selection.
-- ✅ **P-02 Scope set-up** — placeholder with geemap test (no EE).
-- ⏳ Everything else (P-03 through P-11) — later iterations.
+- ✅ **P-02 Scope set-up** — curated supply-chain / region picker.
+- ✅ **P-03 Workflow Hub** — router to the two workflows + three modules.
+- ✅ **P-04 Inspect Setup** / **P-05 Screening Results** — single-site screening + traffic-light results.
+- ✅ **P-06 Trend View** — per-indicator trend drill-down.
+- ✅ **P-07 / P-08 Prioritisation** — batch screening (up to 20 suppliers) + ranked results.
+- ✅ **P-09 Indicator Library**, **P-10 Saved Analyses**, **P-11 Reports** (PDF/CSV/JSON export).
+
+Remaining stubs: P-07 country-database mode and P-11 ESRS datapoint codes / policy-action-target sub-sections (both v1.x). See the reconciliation banners in `docs/PLFS_v4.md` and `docs/Wireframes_All_v4.md` for the authoritative current-state summary.
 
 ## Required setup
 

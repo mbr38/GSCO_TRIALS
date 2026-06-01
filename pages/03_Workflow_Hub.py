@@ -1,9 +1,11 @@
 """P-03 — Workflow Hub (M-P0103).
 
 The user's home base after picking a scope on P-02. Three sections:
-welcome + scope summary, two workflow cards (Inspect → P-04 live;
-Prioritisation → P-07 placeholder), three persistent-module cards
-(Indicator Library, Saved Analyses, Reports — all placeholders).
+welcome + scope summary, two workflow cards (Inspect → P-04;
+Prioritisation → P-07), three persistent-module cards
+(Indicator Library → P-09, Saved Analyses → P-10, Reports → P-11).
+All five destinations are live (the "placeholder" framing in earlier
+revisions of this docstring is stale).
 
 This page is a router — no engine calls, no EE init needed. The
 ``require_user_type`` guard is the only access gate.

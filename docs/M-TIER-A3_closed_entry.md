@@ -164,7 +164,7 @@ Breakdown by file:
 **Docs (4 files):**
 - [docs/Indicators_Audit_and_v1x_Roadmap.md](docs/Indicators_Audit_and_v1x_Roadmap.md) — Tier A3 marked DONE; §1.3 Option 1 marked SHIPPED
 - [docs/Indicators_Computation_v4.md](docs/Indicators_Computation_v4.md) — §6.3 point 6 rewritten to reference the land mask instead of the legacy Valid_Pixel_Coverage framing
-- [docs/Engine_Module_Skeleton_v1 (1).md](docs/Engine_Module_Skeleton_v1 (1).md) — §4.2 `background_ring` signature updated; §5 added `LAND_MASK_FRACTION_MIN_THRESHOLD`
+- [docs/Engine_Module_Skeleton_v1.md](docs/Engine_Module_Skeleton_v1.md) — §4.2 `background_ring` signature updated; §5 added `LAND_MASK_FRACTION_MIN_THRESHOLD`
 - [docs/M-TIER-A3_closed_entry.md](docs/M-TIER-A3_closed_entry.md) — this file
 - [docs/M-TIER-A3_plain_language_explainer.md](docs/M-TIER-A3_plain_language_explainer.md) — new
 

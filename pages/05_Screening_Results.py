@@ -8,15 +8,17 @@ has run. State machine (Wireframes_All_v4 §P-05):
     S2_Partial    — some indicators failed, show C9 banner + results
     E1_AllFailed  — all pillars failed, show C10 banner + retry
 
-Input hand-off (M-UI-E.1 — scratch-page bridge):
-    P-05 reads ``st.session_state.screening_setup``. When P-04 lands
-    (post-M-UI-E.6), this becomes the formal hand-off. Until then,
-    the scratch page (pages/99_engine_scratch.py) sets the key directly
-    via a "Run on P-05" button.
+Input hand-off:
+    P-05 reads ``st.session_state.screening_setup``, set by P-04 (the
+    formal hand-off). The scratch page (pages/99_engine_scratch.py) can
+    also set the key directly via a "Run on P-05" button for debugging.
 
-This milestone delivers Component C1 (analysis header card) and the
-state machine. C2 through C10 are placeholders pinned to their target
-milestones — see ``docs/Wireframes_All_v4.md`` §P-05.
+All components are live: C1 (header) plus C3 summary, C4a/C4b maps +
+KPI grid, the multi-indicator map, C5 drill-downs (incl. Hansen/ODIAC
+reference cards), C6 confidence panel, C7 verbal summary (full-set runs
+only), C8 action bar, and C9 partial banner — see
+``docs/Wireframes_All_v4.md`` §P-05. The view branches on indicator
+count: ≥2 → full multi-indicator view; 1 → lean single-indicator view.
 
 Streamlit page numbering. The file is ``pages/05_*`` so the sidebar
 ordering matches the P-number; P-05 in the wireframes == sidebar slot 5.
