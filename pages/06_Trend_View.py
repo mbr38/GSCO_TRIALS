@@ -30,6 +30,7 @@ require_user_type()
 
 from utils.ee_init import require_earth_engine
 
+from ui.components.page_tutorial import render_tutorial_trigger  # M-TUTORIAL-RESULTS-A1
 from ui.components.persistent_nav import render_persistent_nav
 from ui.components.trend_view import (
     LOADED_RECORD_KEY,
@@ -40,6 +41,10 @@ from ui.components.trend_view import (
 
 render_persistent_nav()
 st.title("Trend Analysis")
+
+# M-TUTORIAL-RESULTS-A1 — manual "How to read this chart" interpretation tour.
+# Above the saved/live branch so both paths expose it near the chart header.
+render_tutorial_trigger("P-06-TREND")
 
 # --- Saved re-open path (from P-10): render from the stored series, no EE. ---
 loaded = st.session_state.get(LOADED_RECORD_KEY)

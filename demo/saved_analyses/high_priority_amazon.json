@@ -101,7 +101,8 @@
         "clim_baseline_valid_days": 89,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 0.7062332247777146,
-        "bg_std_spatial": 0.04758135680061747
+        "bg_std_spatial": 0.04758135680061747,
+        "display_unit": "dimensionless"
       }
     },
     "air.aod.site": 67.20124216649783,
@@ -164,7 +165,8 @@
         "clim_baseline_valid_days": 16,
         "clim_baseline_sparse": true,
         "bg_std_temporal": 54.20846379070726,
-        "bg_std_spatial": 17.081791089577248
+        "bg_std_spatial": 17.081791089577248,
+        "display_unit": "dimensionless"
       }
     },
     "air.co.site": 27.176529466270107,
@@ -219,7 +221,8 @@
         "clim_baseline_valid_days": 61,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 4.263032731908527,
-        "bg_std_spatial": 0.4070173496612604
+        "bg_std_spatial": 0.4070173496612604,
+        "display_unit": "mmol/m²"
       }
     },
     "air.hcho.site": 120.53492154527113,
@@ -281,7 +284,8 @@
         "clim_baseline_valid_days": 50,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 69.35520862484704,
-        "bg_std_spatial": 12.477370734218045
+        "bg_std_spatial": 12.477370734218045,
+        "display_unit": "µmol/m²"
       }
     },
     "air.no2.site": 41.011905369299015,
@@ -343,7 +347,8 @@
         "clim_baseline_valid_days": 89,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 4.860810097467044,
-        "bg_std_spatial": 0.7889309525214431
+        "bg_std_spatial": 0.7889309525214431,
+        "display_unit": "µmol/m²"
       }
     },
     "air.o3.site": 256.2611965314859,
@@ -398,7 +403,8 @@
         "clim_baseline_valid_days": 89,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 5.099088306085185,
-        "bg_std_spatial": 0.2278617210447833
+        "bg_std_spatial": 0.2278617210447833,
+        "display_unit": "DU"
       }
     },
     "air.pm10.site": null,
@@ -478,7 +484,8 @@
         "clim_baseline_valid_days": 35,
         "clim_baseline_sparse": false,
         "bg_std_temporal": 64.970035120032,
-        "bg_std_spatial": 27.424497468747216
+        "bg_std_spatial": 27.424497468747216,
+        "display_unit": "µmol/m²"
       }
     },
     "air.pm_or_aerosol": 0.0,
@@ -991,7 +998,8 @@
           "anomaly_strength": 0.0,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
-        }
+        },
+        "display_unit": "nW/cm²/sr"
       }
     },
     "_provenance.ghg.viirs_lit_contrast": {

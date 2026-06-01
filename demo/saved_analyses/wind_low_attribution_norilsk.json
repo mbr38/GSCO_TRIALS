@@ -102,7 +102,8 @@
         "wind_mean_direction_deg": 324.5281031051667,
         "wind_mean_speed_ms": 4.315779209638617,
         "wind_n_anomaly_days": 43,
-        "wind_n_calm_days": 1
+        "wind_n_calm_days": 1,
+        "display_unit": "dimensionless"
       },
       "indicator_id": "air.aai",
       "method_note": null,
@@ -156,7 +157,8 @@
         "wind_mean_direction_deg": null,
         "wind_mean_speed_ms": null,
         "wind_n_anomaly_days": 0,
-        "wind_n_calm_days": 0
+        "wind_n_calm_days": 0,
+        "display_unit": "dimensionless"
       },
       "indicator_id": "air.aod",
       "method_note": "MODIS MAIAC; AOD_QA bits 8-11 mask non-best retrievals",
@@ -202,7 +204,8 @@
         "ring_land_fraction": 0.9018215303898791,
         "temporal_fallback_source_window": null,
         "temporal_fallback_strategy": null,
-        "temporal_fallback_used": false
+        "temporal_fallback_used": false,
+        "display_unit": "mmol/m²"
       },
       "indicator_id": "air.co",
       "method_note": null,
@@ -255,7 +258,8 @@
         "wind_mean_direction_deg": 258.89219838868075,
         "wind_mean_speed_ms": 3.2996937911950903,
         "wind_n_anomaly_days": 65,
-        "wind_n_calm_days": 4
+        "wind_n_calm_days": 4,
+        "display_unit": "µmol/m²"
       },
       "indicator_id": "air.hcho",
       "method_note": null,
@@ -308,7 +312,8 @@
         "wind_mean_direction_deg": 252.30739932665483,
         "wind_mean_speed_ms": 1.965359226170312,
         "wind_n_anomaly_days": 11,
-        "wind_n_calm_days": 2
+        "wind_n_calm_days": 2,
+        "display_unit": "µmol/m²"
       },
       "indicator_id": "air.no2",
       "method_note": null,
@@ -354,7 +359,8 @@
         "ring_land_fraction": 0.9018215303898791,
         "temporal_fallback_source_window": null,
         "temporal_fallback_strategy": null,
-        "temporal_fallback_used": false
+        "temporal_fallback_used": false,
+        "display_unit": "DU"
       },
       "indicator_id": "air.o3",
       "method_note": null,
@@ -378,7 +384,9 @@
       "coverage_window": null,
       "data_source": "Copernicus / ESA (Sentinel-5P TROPOMI)",
       "data_type": "satellite_observation",
-      "extra": {},
+      "extra": {
+        "display_unit": "µmol/m²"
+      },
       "indicator_id": "air.so2",
       "method_note": "IC §0.2 six-step pipeline; skipped (site buffer has no valid pixels (583 observations in time_range; scale=1113.2m; buffer=10km))",
       "native_scale_m": 1113.2,
@@ -508,7 +516,8 @@
           "spatial_context": 1.0
         },
         "flaring_fraction": 0.04267435522276735,
-        "n_images": 84
+        "n_images": 84,
+        "display_unit": "nW/cm²/sr"
       },
       "indicator_id": "ghg.viirs",
       "method_note": "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels brighter than 100 nW/cm²/sr (absolute intense-source anchor), normalised by 0.1. Replaces the retired sustained-contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). Directional; complements the Air NO₂/CO borrow.",

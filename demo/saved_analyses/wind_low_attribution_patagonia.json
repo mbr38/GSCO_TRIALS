@@ -102,7 +102,8 @@
         "wind_mean_direction_deg": null,
         "wind_mean_speed_ms": null,
         "wind_n_anomaly_days": 1,
-        "wind_n_calm_days": 0
+        "wind_n_calm_days": 0,
+        "display_unit": "dimensionless"
       },
       "indicator_id": "air.aai",
       "method_note": null,
@@ -156,7 +157,8 @@
         "wind_mean_direction_deg": 203.73120186492804,
         "wind_mean_speed_ms": 4.699632747990475,
         "wind_n_anomaly_days": 11,
-        "wind_n_calm_days": 0
+        "wind_n_calm_days": 0,
+        "display_unit": "dimensionless"
       },
       "indicator_id": "air.aod",
       "method_note": "MODIS MAIAC; AOD_QA bits 8-11 mask non-best retrievals",
@@ -202,7 +204,8 @@
         "ring_land_fraction": 0.5339447361900752,
         "temporal_fallback_source_window": null,
         "temporal_fallback_strategy": null,
-        "temporal_fallback_used": false
+        "temporal_fallback_used": false,
+        "display_unit": "mmol/m²"
       },
       "indicator_id": "air.co",
       "method_note": null,
@@ -255,7 +258,8 @@
         "wind_mean_direction_deg": null,
         "wind_mean_speed_ms": null,
         "wind_n_anomaly_days": 3,
-        "wind_n_calm_days": 0
+        "wind_n_calm_days": 0,
+        "display_unit": "µmol/m²"
       },
       "indicator_id": "air.hcho",
       "method_note": null,
@@ -308,7 +312,8 @@
         "wind_mean_direction_deg": 204.2212601890589,
         "wind_mean_speed_ms": 4.379009005346752,
         "wind_n_anomaly_days": 18,
-        "wind_n_calm_days": 2
+        "wind_n_calm_days": 2,
+        "display_unit": "µmol/m²"
       },
       "indicator_id": "air.no2",
       "method_note": null,
@@ -354,7 +359,8 @@
         "ring_land_fraction": 0.5339447361900752,
         "temporal_fallback_source_window": null,
         "temporal_fallback_strategy": null,
-        "temporal_fallback_used": false
+        "temporal_fallback_used": false,
+        "display_unit": "DU"
       },
       "indicator_id": "air.o3",
       "method_note": null,
@@ -410,7 +416,8 @@
         "wind_mean_direction_deg": 149.59881047208557,
         "wind_mean_speed_ms": 5.655699624072683,
         "wind_n_anomaly_days": 5,
-        "wind_n_calm_days": 0
+        "wind_n_calm_days": 0,
+        "display_unit": "µmol/m²"
       },
       "indicator_id": "air.so2",
       "method_note": null,
@@ -538,7 +545,8 @@
           "spatial_context": 1.0
         },
         "flaring_fraction": 0.0519481010028518,
-        "n_images": 84
+        "n_images": 84,
+        "display_unit": "nW/cm²/sr"
       },
       "indicator_id": "ghg.viirs",
       "method_note": "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels brighter than 100 nW/cm²/sr (absolute intense-source anchor), normalised by 0.1. Replaces the retired sustained-contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). Directional; complements the Air NO₂/CO borrow.",

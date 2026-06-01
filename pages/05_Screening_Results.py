@@ -61,6 +61,7 @@ from ui.components.c_partial_caveat import render_partial_caveat  # M-PARTIAL-CA
 from ui.components.indicator_detail import render_indicator_detail
 from ui.components.indicator_info import render_indicator_dialog_if_requested  # M-UI-A2
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS  # M-HIDE-SUMMARY
+from ui.components.page_tutorial import render_tutorial_trigger  # M-TUTORIAL-RESULTS-A1
 from ui.components.persistent_nav import render_persistent_nav
 from ui.page_state import (  # M-RING-UX
     PageState,
@@ -248,6 +249,10 @@ def _render_multi_indicator_view(setup: dict, result: dict) -> None:
     render_c9_partial_banner(result, selected)
     render_partial_caveat(selected)  # M-PARTIAL-CAVEAT
     render_c3_summary(result)
+    # M-TUTORIAL-RESULTS-A1 — manual "How to read this" interpretation tour.
+    # Sits after the C3 headline and before the C4b grid so it's visible
+    # without scrolling but doesn't pre-empt the headline result.
+    render_tutorial_trigger("P-05-RESULTS")
     render_c4b_kpi_grid(result, selected)
     # M-UI-A5 (item 2.3b) — multi-indicator map. Sits between the snapshot
     # (C4b) and the drill-down (C5); every C4b "View on map →" affordance sets
