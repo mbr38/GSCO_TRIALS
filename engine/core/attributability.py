@@ -34,6 +34,9 @@ from engine.constants import (
     HABITAT_SPATIAL_LINK_HIGH_KM,
     HABITAT_SPATIAL_LINK_MOD_KM,
     N_MIN_PIXELS_FOR_CENTROID,
+    MIN_RING_LIT_PIXELS,
+    VIIRS_ATTRIBUTABILITY_HIGH_PCT,
+    VIIRS_ATTRIBUTABILITY_MOD_PCT,
 )
 
 # Shared bucket grammar (AT19). Re-exported so UI / M-WIND-A1 v2.0 import the
@@ -127,5 +130,42 @@ def compute_habitat_attributability(
     if centroid_offset_km <= high_threshold_km:
         return "high"
     if centroid_offset_km <= moderate_threshold_km:
+        return "moderate"
+    return "low"
+
+
+def compute_viirs_attributability(
+    percentile: float | None,
+    n_ring_lit_pixels: int,
+    *,
+    min_ring_lit_pixels: int = MIN_RING_LIT_PIXELS,
+    high_pct: float = VIIRS_ATTRIBUTABILITY_HIGH_PCT,
+    mod_pct: float = VIIRS_ATTRIBUTABILITY_MOD_PCT,
+) -> AttributabilityState:
+    """Categorical attributability for VIIRS lit-contrast (M-VIIRS-REDESIGN-A1, VR15).
+
+    Buckets the percentile of the site's brightness within the background ring's
+    all-pixel distribution:
+
+        sparse    n_ring_lit_pixels < min_ring_lit_pixels, OR percentile is None,
+                  OR percentile out of [0, 1] (ring too dark / no trustworthy compare)
+        high      percentile ≥ high_pct          (site brighter than ≥90% of ring)
+        moderate  mod_pct ≤ percentile < high_pct (0.60–0.90)
+        low       percentile < mod_pct            (site within/below regional range)
+
+    Pure function, no engine state. Mirrors `compute_habitat_attributability`'s
+    structure (sparse check first). This is a categorical attributability signal:
+    it does NOT enter the composite or the measurement-quality aggregate.
+    """
+    if (
+        percentile is None
+        or n_ring_lit_pixels < min_ring_lit_pixels
+        or percentile < 0.0
+        or percentile > 1.0
+    ):
+        return "sparse"
+    if percentile >= high_pct:
+        return "high"
+    if percentile >= mod_pct:
         return "moderate"
     return "low"

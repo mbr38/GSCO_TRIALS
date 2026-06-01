@@ -1,0 +1,18 @@
+id,tier,note,site_median,site_std,n_site_pix,flaring_3sig,flaring_2sig,lit_contrast_pct,n_ring_pix
+norilsk_diag,High,Nornickel smelter (diagnostic),2.82,33.96,4250,0.0313,0.0458,0.976,88669
+korba,High,coal power + aluminium,7.53,12.8,1652,0.0218,0.0593,0.977,36899
+jamshedpur,High,Tata steel,12.83,31.2,1649,0.0212,0.0455,0.992,37265
+yanbu,High,petrochem/refining,17.05,56.85,1665,0.0354,0.1003,0.935,20332
+ploiesti,Mid,mid oil-refining city,5.46,17.4,2140,0.0416,0.0837,0.933,48800
+pavlodar,Mid,refinery + aluminium,3.44,21.07,2473,0.0378,0.0955,0.984,55686
+vadodara,Mid,petrochem secondary city,33.97,41.7,1642,0.0109,0.0183,0.994,36981
+rondonopolis,Mid,soy agro-industrial,6.48,26.79,1592,0.0302,0.1187,0.992,36109
+patagonia_diag,Low,Patagonian steppe wilderness,0.09,0.03,2394,0.0,0.0,0.588,51155
+nz_south,Low,rural South Island,0.12,0.07,2159,0.0,0.0,0.398,49261
+appalachia,Low,forested rural NC,3.24,12.51,1866,0.031,0.0754,0.924,42538
+amazon_wet,Low,central Amazon,0.12,0.09,1522,0.0,0.0,0.479,29996
+sapezal_seed,Low,soy plantation frontier (seed),0.32,10.16,1568,0.0312,0.0453,0.944,35664
+distrito_federal_seed,Mid,Brasília urban (seed; native r=43km),15.09,37.78,1584,0.0289,0.0642,0.86,35928
+norilsk_seed,High,Nornickel smelter (seed),2.82,34.0,4251,0.0313,0.0459,0.976,88693
+patagonia_seed,Mid,Comodoro Rivadavia oil/gas region (seed),3.45,34.99,2171,0.0474,0.0943,0.975,26612
+suape_seed,Mid,Suape port-industrial complex (seed),4.46,21.69,1538,0.0319,0.0595,0.736,16755

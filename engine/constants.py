@@ -137,6 +137,92 @@ VIIRS_PERSISTENCE_FLOOR_DISCOUNT: float = 0.30
 VIIRS_CONTRAST_PERCENTILE: float = 75.0
 
 # ---------------------------------------------------------------------------
+# M-VIIRS-REDESIGN-A1 — two-output VIIRS (1 June 2026)
+# ---------------------------------------------------------------------------
+# M-VIIRS-DIAG-A1 + M-CALIBRATION-SWEEP-A1 C6 established the contrast·persistence
+# grammar above cannot rank intensity (heavy/middle indistinguishable; Appalachia
+# false-High). M-GHG-SANITY-A1 (Option I) kept the Air NO₂/CO borrow as the
+# intensity ranker and split VIIRS into two outputs:
+#   * SEVERITY  — `viirs_flaring`: absolute-anchored intense-source detector.
+#                 Step A→B evidence (analysis/m_viirs_redesign_a1_abscheck.csv):
+#                 a SELF-relative outlier (median+3σ) could not separate intense
+#                 sources from rural lights (Appalachia-forest 0.031 ≈ Korba-steel
+#                 0.022). An ABSOLUTE anchor does: fraction of site pixels brighter
+#                 than ~100 nW cleanly separates intense sources (Comodoro 0.064,
+#                 Yanbu 0.15) from rural/dark (all quiet ≈0). Directional, not a
+#                 precise ranker — complements the borrow (which catches dim-NTL
+#                 combustion like Korba that VIIRS misses).
+#   * ATTRIBUTABILITY — `viirs_lit_contrast`: percentile of site brightness within
+#                 the ring's ALL-pixel distribution. Feeds the attributability
+#                 layer (Pattern A, engine.core.attributability), NOT the composite.
+
+# @parameter
+# tier: first-pass
+# rationale: Absolute VNP46A2 radiance (nW/cm²/sr) above which a site pixel counts
+#     as an "intense source" pixel for flaring detection. ~100 nW separates flares /
+#     heavy industry / bright industrial cities (frac>100 in 0.02–0.15) from rural
+#     lights and wilderness (frac>100 ≈ 0) per the 17-AOI Step A→B probe. Coarse /
+#     directional by design (M-VIIRS-REDESIGN-A1 operator framing: guide auditing,
+#     not audit perfectly). Calibration sweep may revisit.
+# source: M-VIIRS-REDESIGN-A1 spec §4.1 (VR3 refined to absolute anchor); calibration pending
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+VIIRS_FLARING_ABS_THRESHOLD_NW: float = 100.0
+
+# @parameter
+# tier: first-pass
+# rationale: Saturation point for the flaring score: viirs_flaring =
+#     min(frac_pixels_above_threshold / VIIRS_FLARING_SATURATION_FRAC, 1.0). At
+#     frac=0.10 the score saturates to 1.0. Chosen so the brightest observed source
+#     (Yanbu frac>100≈0.15) saturates while Comodoro (0.064) lands ~0.64 — a
+#     meaningful mid-high. First-pass; calibration pending.
+# source: M-VIIRS-REDESIGN-A1 spec §4.1; calibration pending
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+VIIRS_FLARING_SATURATION_FRAC: float = 0.10
+
+# @parameter
+# tier: first-pass
+# rationale: Minimum valid site pixels for a meaningful flaring fraction; below
+#     this the site coverage is too sparse and viirs_flaring returns None ("no
+#     data, no claim").
+# source: M-VIIRS-REDESIGN-A1 spec §4.1
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+VIIRS_MIN_SITE_PIXELS: int = 10
+
+# @parameter
+# tier: first-pass
+# rationale: Minimum ring pixels (all-pixel distribution) for a trustworthy lit-
+#     contrast percentile; below this the ring is too sparse to compare against and
+#     attributability degrades to "sparse". Mirrors N_MIN_PIXELS_FOR_CENTROID (10)
+#     from habitat; ring is larger so the threshold is higher.
+# source: M-VIIRS-REDESIGN-A1 spec §4.4 (VR15)
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+MIN_RING_LIT_PIXELS: int = 20
+
+# @parameter
+# tier: first-pass
+# rationale: Lit-contrast percentile at/above which VIIRS attributability is "high"
+#     (site brighter than ≥90% of its ring → clear attributable presence). 17-AOI
+#     probe: lit industrial sites 0.92–0.99, wilderness 0.40–0.59.
+# source: M-VIIRS-REDESIGN-A1 spec §4.4 (VR15)
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+VIIRS_ATTRIBUTABILITY_HIGH_PCT: float = 0.90
+
+# @parameter
+# tier: first-pass
+# rationale: Lit-contrast percentile at/above which VIIRS attributability is
+#     "moderate" (0.60–0.90); below 0.60 → "low" (site within/below typical regional
+#     range). Suape (regionally embedded) lands 0.74 → moderate, as expected.
+# source: M-VIIRS-REDESIGN-A1 spec §4.4 (VR15)
+# last_reviewed: 2026-06-01
+# applies_to: [ghg.viirs]
+VIIRS_ATTRIBUTABILITY_MOD_PCT: float = 0.60
+
+# ---------------------------------------------------------------------------
 # Habitat conversion  (IC_v4 §3.1, §3.2)
 # ---------------------------------------------------------------------------
 HABITAT_BASELINE_YEARS: int = 5
