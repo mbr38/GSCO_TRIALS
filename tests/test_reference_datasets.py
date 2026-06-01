@@ -386,7 +386,10 @@ def test_reference_datasets_section_registered_and_in_templates():
     from ui.components.p11_templates import get_template
 
     assert callable(get_section("reference_datasets"))
-    for tid in ("policy_audit", "supplier_audit"):
+    # M-REPORT-A1: the General report + the GHG/Nature pillar reports carry the
+    # reference-datasets section. (The Air report includes the section key too,
+    # but its rows filter to empty at render — see the pillar-filter tests.)
+    for tid in ("general", "mnc_ghg", "mnc_nature"):
         sections = get_template(tid).sections
         assert "reference_datasets" in sections
         # RD10 — after the scored-indicators section, before provenance.

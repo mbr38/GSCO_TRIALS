@@ -9,22 +9,142 @@ Reuses ``engine.verbal_summary.generate_verbal_summary`` so report
 prose stays in lockstep with P-05's C7 surface.
 """
 
-# M-P11.2
+# M-P11.2 / M-REPORT-A1
 from __future__ import annotations
 
 import html
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Callable
 
 from engine.constants import TRAFFIC_LIGHT_THRESHOLDS
 from engine.verbal_summary import generate_verbal_summary
-from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
+from ui.components.p04_indicator_registry import (
+    ALL_INDICATOR_IDS,
+    INDICATORS_BY_PILLAR,
+    display_name,
+)
+from ui.components.p11_esrs import (
+    PILLAR_ESRS,
+    esrs_metrics_intro,
+    esrs_out_of_scope_stub,
+    esrs_topic_heading,
+)
+from ui.components.p11_templates import ALL_PILLARS
 from ui.components.trend_record import (
     significance_text,
     slope_display,
     verdict_badge,
 )
 from ui.components.trend_svg import build_trend_svg
+
+
+# ──────────────────────────────────────────────────────────────────
+# Render context (M-REPORT-A1, Step A §8.1 — flat model + threading)
+# ──────────────────────────────────────────────────────────────────
+
+# Locked pillar render order (CLAUDE.md §7: air → ghg → nature).
+_PILLAR_ORDER: tuple[str, ...] = ("air", "ghg", "nature")
+
+# Per-pillar follow-up-priority key + display label (the pillar's headline
+# severity metric). Composite is deliberately absent — pillar-specific and
+# trend reports carry no composite (RT9), and the per-pillar metric is what
+# the ESRS topical sections need.
+_PILLAR_SCORE: dict[str, tuple[str, str]] = {
+    "air":    ("Air Pollution", "air.audit_followup_priority"),
+    "ghg":    ("GHG Emissions", "ghg.audit_followup_priority"),
+    "nature": ("Nature/Land",   "nature.followup_priority"),
+}
+
+
+@dataclass(frozen=True)
+class RenderContext:
+    """Render-time context threaded into section functions (Step A §8.1).
+
+    Built by the assembler from the template + the active ``user_type``. Carries
+    the framing decisions the flat section model can't infer on its own:
+    which pillars to render, and whether the ESRS layer is active. The General
+    report's dual framing (RT8) is exactly ``apply_esrs`` differing by user type.
+    """
+    user_type:   str            = ""
+    pillars:     frozenset[str] = ALL_PILLARS
+    apply_esrs:  bool           = False
+    template_id: str            = ""
+
+    @classmethod
+    def from_template(cls, template, user_type: str) -> "RenderContext":
+        # ESRS framing (RT4) only takes effect for MNC renders. A policy maker
+        # picking the General report gets the same body with ESRS stripped (RT8).
+        return cls(
+            user_type=user_type or "",
+            pillars=template.pillars,
+            apply_esrs=bool(template.esrs) and (user_type == "mnc"),
+            template_id=template.template_id,
+        )
+
+
+def _ctx(ctx: "RenderContext | None") -> "RenderContext":
+    """Resolve a default context for direct (test) calls with no ctx."""
+    return ctx if ctx is not None else RenderContext()
+
+
+def _ordered_pillars(pillars: frozenset[str]) -> list[str]:
+    """The active pillars in the locked air → ghg → nature order."""
+    return [p for p in _PILLAR_ORDER if p in pillars]
+
+
+# M-REPORT-A1.1 (RF1) — the report-template identity shown on the cover.
+def _report_type_name(ctx: "RenderContext") -> str:
+    """Human name for the report template, for the cover/title block (RF1).
+
+    ESRS pillar reports → "ESRS E1 — Climate change report" (and E2/E4); the
+    General report → "Environmental screening report" (both user-type variants);
+    the trend report → "Environmental trend report". A bare/no-ctx render falls
+    back to the screening name.
+    """
+    if ctx.template_id == "trend":
+        return "Environmental trend report"
+    if ctx.template_id == "general":
+        return "Environmental screening report"
+    if len(ctx.pillars) == 1:
+        pillar = _ordered_pillars(ctx.pillars)[0]
+        code, topic = PILLAR_ESRS.get(pillar, ("", pillar))
+        return f"ESRS {code} — {topic} report"
+    return "Environmental screening report"
+
+
+def _source_divider(name: str, *, multi: bool) -> str:
+    """A per-source section sub-header (RF2).
+
+    Multi-source reports keep the source label as a chapter divider (Wireframes
+    P-11 multi-source case). Single-source reports name the source once (in the
+    scope / exec summary) and suppress the per-section repetition → returns "".
+    """
+    return f"<h3>{html.escape(name)}</h3>" if multi else ""
+
+
+def _indicator_base(registry_id: str) -> str:
+    """Value-key base for a registry indicator id (``air.no2.score`` → ``air.no2``)."""
+    return registry_id.rsplit(".", 1)[0]
+
+
+def _attributability_state(prov: dict) -> str | None:
+    """Best-effort attributability state for an indicator (RF3).
+
+    Reads ``_provenance.<pillar>.<indicator>.extra`` (M-WIND-A1 / M-ATTRIB-A1):
+    Air indicators carry ``wind_attributability_state``; the habitat spatial
+    link carries ``spatial_link_terms.attributability_state``. Returns the
+    capitalised state or ``None`` when the indicator carries no attributability.
+    """
+    extra = prov.get("extra") if isinstance(prov, dict) else None
+    if not isinstance(extra, dict):
+        return None
+    state = extra.get("wind_attributability_state")
+    if not state:
+        terms = extra.get("spatial_link_terms")
+        if isinstance(terms, dict):
+            state = terms.get("attributability_state")
+    return str(state).capitalize() if state else None
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -40,18 +160,27 @@ def get_section(section_key: str) -> Callable | None:
 # Title page
 # ──────────────────────────────────────────────────────────────────
 
-def _render_title_page(state, sources) -> str:
-    """First page — title, date, source count, scope summary."""
+def _render_title_page(state, sources, ctx=None) -> str:
+    """First page — report-type identity, title, date, source count.
+
+    M-REPORT-A1.1 (RF1): the cover names the report template (ESRS E1/E2/E4
+    report, Environmental screening report, or Environmental trend report) so
+    the template identity is visible on page one — not only in the findings.
+    """
+    ctx = _ctx(ctx)
     today = datetime.now(timezone.utc)
     title_text = state.title.strip() if state.title else ""
     title = html.escape(title_text or "Untitled report")
+    report_type = html.escape(_report_type_name(ctx))
     date_str = today.strftime("%d %B %Y")
     n_sources = len(sources)
     source_word = "source" if n_sources == 1 else "sources"
     return f"""
     <section>
+      <p class="report-type">{report_type}</p>
       <h1>{title}</h1>
       <div class="meta-grid">
+        <span class="meta-label">Report type</span><span>{report_type}</span>
         <span class="meta-label">Report date</span><span>{date_str}</span>
         <span class="meta-label">Sources</span><span>{n_sources} {source_word}</span>
         <span class="meta-label">Generated by</span><span>GSCO Environmental Monitoring tool</span>
@@ -64,8 +193,23 @@ def _render_title_page(state, sources) -> str:
 # Executive summary
 # ──────────────────────────────────────────────────────────────────
 
-def _render_executive_summary(state, sources) -> str:
-    """Short composite findings summary across all sources."""
+def _render_executive_summary(state, sources, ctx=None) -> str:
+    """Short composite findings summary across all sources.
+
+    M-REPORT-A2 (RA2/RA3): the composite column shows the whole-screening
+    ``overall_screening`` (all three pillars). In a single-pillar ESRS report
+    (mnc_ghg / air / nature) that is ambiguous — it can read as the pillar's
+    own score. There we relabel the column to name it explicitly and add a
+    one-line scope-of-composite note. The General report (all three pillars)
+    and any direct/no-ctx call are unchanged.
+    """
+    ctx = _ctx(ctx)
+    single_pillar = len(ctx.pillars) == 1
+    composite_header = (
+        "Overall screening composite (all 3 pillars)"
+        if single_pillar else "Composite"
+    )
+
     blocks = ["<section>", "<h2>Executive Summary</h2>"]
     notes_text = (state.notes or "").strip()
     if notes_text:
@@ -78,7 +222,10 @@ def _render_executive_summary(state, sources) -> str:
 
     # Per-source one-liner.
     blocks.append("<table>")
-    blocks.append("<tr><th>Source</th><th>Type</th><th>Composite</th><th>Band</th></tr>")
+    blocks.append(
+        f"<tr><th>Source</th><th>Type</th><th>{composite_header}</th>"
+        "<th>Band</th></tr>"
+    )
     for src in sources:
         name = html.escape(src.get("name", "Untitled"))
         type_ = html.escape(src.get("type", "—"))
@@ -90,6 +237,18 @@ def _render_executive_summary(state, sources) -> str:
             f"<td><span class='pillar-chip {band}'>{band_label}</span></td></tr>"
         )
     blocks.append("</table>")
+
+    # RA2 — scope-of-composite note (single-pillar ESRS reports only).
+    if single_pillar:
+        pillar = _ordered_pillars(ctx.pillars)[0]
+        _, topic = PILLAR_ESRS.get(pillar, ("", pillar))
+        blocks.append(
+            "<p class='composite-scope-note'><em>This report details the "
+            f"{html.escape(topic)} pillar only. The overall screening "
+            "composite above reflects all three pillars (Air, GHG, Nature) "
+            "and is shown for context.</em></p>"
+        )
+
     blocks.append("</section>")
     return "\n".join(blocks)
 
@@ -98,7 +257,7 @@ def _render_executive_summary(state, sources) -> str:
 # Methodology
 # ──────────────────────────────────────────────────────────────────
 
-def _render_methodology(state, sources) -> str:
+def _render_methodology(state, sources, ctx=None) -> str:
     """Standard methodology block, source-agnostic."""
     n_indicators_each = [_count_indicators_run(s) for s in sources]
     partial = [n for n in n_indicators_each if n is not None and n < 19]
@@ -145,7 +304,7 @@ def _render_methodology(state, sources) -> str:
 # Scope summary (MNC supplier audit only)
 # ──────────────────────────────────────────────────────────────────
 
-def _render_scope_summary(state, sources) -> str:
+def _render_scope_summary(state, sources, ctx=None) -> str:
     """Supplier-focused scope: lists supplier names, AOIs, time windows."""
     blocks = ["<section>", "<h2>Scope Summary</h2>", "<table>"]
     blocks.append(
@@ -179,23 +338,120 @@ def _render_scope_summary(state, sources) -> str:
 # Pillar findings (Policy audit)
 # ──────────────────────────────────────────────────────────────────
 
-def _render_pillar_findings(state, sources) -> str:
-    """One chapter per source — pillar-by-pillar narrative + scores."""
+def _render_pillar_findings(state, sources, ctx=None) -> str:
+    """Pillar-by-pillar findings per source.
+
+    M-REPORT-A1 (RT8): dual-framed. When ``ctx.apply_esrs`` (MNC renders of the
+    General or any pillar-specific template) the findings are grouped under ESRS
+    topical headers with metrics-&-evidence framing + out-of-scope stubs (RT4).
+    Otherwise — the policy-maker General report, or a direct call with no ctx —
+    the same body renders plainly, with ESRS labels stripped.
+    """
+    ctx = _ctx(ctx)
+    if ctx.apply_esrs:
+        return _render_esrs_pillar_findings(sources, ctx)
+
+    multi = len(sources) > 1  # RF2 — source label is a divider only when 2+.
     blocks = ["<section class='chapter-break'>",
               "<h2>Pillar Findings</h2>"]
     for i, src in enumerate(sources):
-        if i > 0:
+        if i > 0 and multi:
             blocks.append("<div class='chapter-break'></div>")
-        blocks.append(_render_source_pillar_block(src))
+        blocks.append(_render_source_pillar_block(src, ctx, multi=multi))
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+def _verbal_paragraph_map(src) -> dict | None:
+    """Per-pillar verbal-summary paragraphs for a full-coverage screening source.
+
+    Returns ``{"overview", "air", "ghg", "nature"}`` when the source ran all 19
+    indicators (the verbal summary's breadth precondition — mirrors P-05's
+    M-HIDE-SUMMARY); ``None`` otherwise so callers can fall back to score tables.
+    """
+    setup = src.get("screening_setup") or {}
+    selected = set(setup.get("indicators") or [])
+    if selected != set(ALL_INDICATOR_IDS):
+        return None
+    payload = src.get("payload") or {}
+    try:
+        v = generate_verbal_summary(payload)
+        return {"overview": v.overview, "air": v.air,
+                "ghg": v.ghg, "nature": v.nature}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _render_single_pillar_score(payload, pillar: str) -> str:
+    """A one-row score table for a single pillar's headline severity metric."""
+    label, key = _PILLAR_SCORE[pillar]
+    score = payload.get(key)
+    band, band_label = _band_for_score(score)
+    score_str = f"{score:.2f}" if isinstance(score, (int, float)) else "—"
+    return (
+        "<table>"
+        "<tr><th>Pillar</th><th>Follow-up priority</th><th>Band</th></tr>"
+        f"<tr><td>{label}</td><td>{score_str}</td>"
+        f"<td><span class='pillar-chip {band}'>{band_label}</span></td></tr>"
+        "</table>"
+    )
+
+
+# M-REPORT-A1 §4 — ESRS framing layer over the shared pillar-findings body.
+def _render_esrs_pillar_findings(sources, ctx) -> str:
+    """ESRS-framed findings: topical grouping + metrics&evidence + stubs (RT4).
+
+    Indicator findings are grouped under their ESRS topical standard (RT6),
+    filtered to ``ctx.pillars`` (the pillar-specific MNC reports render one
+    pillar). Each topical section opens as metrics & evidence and closes with a
+    labelled out-of-scope stub for the policies/actions/targets the company
+    supplies — so the report never implies full ESRS compliance.
+    """
+    blocks = ["<section class='chapter-break'>",
+              "<h2>Findings by ESRS topic</h2>"]
+    pillars = _ordered_pillars(ctx.pillars)
+    multi = len(sources) > 1  # RF2 — source label is a divider only when 2+.
+    for src in sources:
+        divider = _source_divider(src.get("name", "Untitled source"), multi=multi)
+        if divider:
+            blocks.append(divider)
+
+        if src.get("type") == "prioritisation":
+            blocks.append(
+                "<div class='caveat'>"
+                "This is a prioritisation source — see the Priority Findings "
+                "section for the per-supplier breakdown."
+                "</div>"
+            )
+            continue
+
+        payload = src.get("payload") or {}
+        verbal = _verbal_paragraph_map(src)
+        for pillar in pillars:
+            blocks.append("<div class='esrs-topic'>")
+            blocks.append(esrs_topic_heading(pillar))
+            blocks.append(esrs_metrics_intro(pillar))
+            para = (verbal or {}).get(pillar)
+            if para:
+                blocks.append(f"<p>{html.escape(para)}</p>")
+            elif verbal is None:
+                blocks.append(
+                    "<div class='caveat'>A narrative summary is shown only "
+                    "for full (19-indicator) screenings — the score below "
+                    "reflects what was measured for this pillar.</div>"
+                )
+            blocks.append(_render_single_pillar_score(payload, pillar))
+            blocks.append(esrs_out_of_scope_stub(pillar))
+            blocks.append("</div>")
     blocks.append("</section>")
     return "\n".join(blocks)
 
 
 # M-P11.2-FIX
-def _render_source_pillar_block(src) -> str:
-    name = html.escape(src.get("name", "Untitled source"))
+def _render_source_pillar_block(src, ctx=None, *, multi=True) -> str:
+    name = src.get("name", "Untitled source")
     payload = src.get("payload") or {}
-    blocks = [f"<h3>{name}</h3>"]
+    blocks = [_source_divider(name, multi=multi)]  # RF2 — "" when single-source
 
     # M-P11.2-FIX: prioritisation sources don't carry a single
     # screening payload — point readers to the priority section.
@@ -241,7 +497,7 @@ def _render_source_pillar_block(src) -> str:
 # Priority findings (MNC supplier audit)
 # ──────────────────────────────────────────────────────────────────
 
-def _render_priority_findings(state, sources) -> str:
+def _render_priority_findings(state, sources, ctx=None) -> str:
     """For prioritisation sources: ranked table. For screening sources:
     per-source composite + bands."""
     blocks = ["<section class='chapter-break'>",
@@ -307,17 +563,70 @@ def _render_pillar_score_block(payload) -> str:
 # Indicator detail (Policy audit) — per-source KPI table
 # ──────────────────────────────────────────────────────────────────
 
-# M-P11-FIX
-def _render_indicator_detail(state, sources) -> str:
-    """Policy-audit per-source indicator detail.
+_INDICATOR_DETAIL_COLUMNS: tuple[str, ...] = (
+    "Indicator", "Site value", "Background", "z-score",
+    "Anomaly frequency", "Confidence", "Attributability",
+)
 
-    Partial-coverage screening sources already have their pillar score
-    table rendered in `pillar_findings` (via the M-P11.2-FIX verbal-
-    summary fallback); showing it again here was the visible
-    duplication. Full-coverage screenings and prioritisation sources
-    are unaffected — for them, `pillar_findings` either shows verbal-
-    summary prose (full-19) or a redirect caveat (prioritisation), so
-    the table here is genuinely new content.
+# Reference datasets are NOT scored anomaly indicators and do not use the
+# z-score grammar this table reports — they are shown in the Reference datasets
+# section instead. Excluded from Indicator Detail to avoid near-empty rows
+# (CH₄ + ODIAC + Hansen, per the M-CH4-A1 operator decision that CH₄ is
+# reference data, not a scored finding). The fuller grammar-aware treatment of
+# the remaining non-z-score *scored* indicators (e.g. VIIRS sustained-contrast,
+# Nature cover/area) is deferred.
+_REFERENCE_ONLY_INDICATOR_IDS: frozenset[str] = frozenset({
+    "ghg.ch4.score",          # CH₄ — raw column reading (reference)
+    "ghg.co2.score",          # ODIAC — inventory-allocated (reference)
+    "nature.forest_loss.ha",  # Hansen — regional_loss_evidence flag (reference)
+})
+
+
+def _fmt_num(value, fmt: str = "{:.3g}") -> str:
+    """Format a numeric payload value, or ``—`` when absent/non-numeric."""
+    return fmt.format(value) if isinstance(value, (int, float)) else "—"
+
+
+def _render_indicator_row(payload, registry_id: str) -> str:
+    """One per-indicator row for the Indicator Detail deep table (RF3).
+
+    Projects values already present on the screening payload (Handoff §1.1:
+    ``.site`` / ``.background`` / ``.z`` / ``.hf`` / ``.confidence``) plus the
+    attributability state from the indicator's provenance ``extra``. Missing
+    values (e.g. nature indicators that don't follow the z-score grammar) render
+    as ``—``. No new compute — this is a projection of existing payload data.
+    """
+    base = _indicator_base(registry_id)
+    site = _fmt_num(payload.get(f"{base}.site"))
+    background = _fmt_num(payload.get(f"{base}.background"))
+    z = _fmt_num(payload.get(f"{base}.z"), "{:+.2f}")
+    hf_val = payload.get(f"{base}.hf")
+    hf = f"{hf_val:.0%}" if isinstance(hf_val, (int, float)) else "—"
+    conf = _fmt_num(payload.get(f"{base}.confidence"), "{:.2f}")
+    prov = payload.get(f"_provenance.{base}") or {}
+    attrib = _attributability_state(prov) or "—"
+    return (
+        f"<tr><td>{html.escape(display_name(registry_id))}</td>"
+        f"<td>{site}</td><td>{background}</td><td>{z}</td>"
+        f"<td>{hf}</td><td>{conf}</td><td>{html.escape(attrib)}</td></tr>"
+    )
+
+
+# M-P11-FIX / M-REPORT-A1.1 (RF3)
+def _render_indicator_detail(state, sources, ctx=None) -> str:
+    """Per-indicator deep table — one row per indicator (RF3).
+
+    RF3 splits this section's role away from pillar findings: findings carries
+    the pillar-level narrative + score/band (the prose story); Indicator Detail
+    is the per-indicator audit evidence — site value, background, z-score,
+    anomaly frequency, confidence, attributability state. Columns are projected
+    from the existing screening payload (no new compute).
+
+    Scope: full-coverage **screening** sources only — prioritisation sources
+    carry no single per-AOI payload and are covered by Per-Supplier Detail;
+    partial-coverage screenings are still skipped (their pillar score table is
+    shown in pillar findings). Indicators are filtered to ``ctx.pillars`` (RF5):
+    a pillar report's table lists only that pillar's indicators.
     """
     full_screening_sources = [
         s for s in sources
@@ -325,20 +634,40 @@ def _render_indicator_detail(state, sources) -> str:
         and set((s.get("screening_setup") or {}).get("indicators") or [])
             == set(ALL_INDICATOR_IDS)
     ]
-    prioritisation_sources = [
-        s for s in sources if s.get("type") == "prioritisation"
-    ]
-    renderable = full_screening_sources + prioritisation_sources
-    if not renderable:
+    if not full_screening_sources:
         return ""
 
+    ctx = _ctx(ctx)
+    # RF5 — indicators in the active pillars, locked air → ghg → nature order.
+    # Reference datasets (CH₄ / ODIAC / Hansen) are excluded — they are not
+    # scored anomalies and live in the Reference datasets section instead.
+    indicator_ids: list[str] = []
+    for pillar in _ordered_pillars(ctx.pillars):
+        indicator_ids.extend(
+            i for i in INDICATORS_BY_PILLAR.get(pillar, [])
+            if i not in _REFERENCE_ONLY_INDICATOR_IDS
+        )
+    if not indicator_ids:
+        return ""
+
+    multi = len(full_screening_sources) > 1  # RF2 divider only when 2+.
+    header = "".join(f"<th>{html.escape(c)}</th>"
+                     for c in _INDICATOR_DETAIL_COLUMNS)
     blocks = ["<section class='chapter-break'>",
-              "<h2>Indicator Detail</h2>"]
-    for src in renderable:
-        name = html.escape(src.get("name", "Untitled"))
+              "<h2>Indicator Detail</h2>",
+              "<p><em>Per-indicator audit evidence. Site vs. background, "
+              "z-score anomaly, anomaly (hotspot) frequency, confidence, and "
+              "attributability state. Values are projected from the screening "
+              "payload.</em></p>"]
+    for src in full_screening_sources:
+        divider = _source_divider(src.get("name", "Untitled"), multi=multi)
+        if divider:
+            blocks.append(divider)
         payload = src.get("payload") or {}
-        blocks.append(f"<h3>{name}</h3>")
-        blocks.append(_render_pillar_score_block(payload))
+        blocks.append(f"<table><tr>{header}</tr>")
+        for registry_id in indicator_ids:
+            blocks.append(_render_indicator_row(payload, registry_id))
+        blocks.append("</table>")
     blocks.append("</section>")
     return "\n".join(blocks)
 
@@ -348,7 +677,7 @@ def _render_indicator_detail(state, sources) -> str:
 # ──────────────────────────────────────────────────────────────────
 
 # M-P11.2-FIX
-def _render_per_supplier_detail(state, sources) -> str:
+def _render_per_supplier_detail(state, sources, ctx=None) -> str:
     # M-P11.2-FIX: only prioritisation sources contribute to this
     # section. Screening sources are fully covered by priority_findings
     # above — rendering them again here was duplicating the same
@@ -388,25 +717,37 @@ def _render_prioritisation_supplier_breakdown(src) -> str:
 
 # RD10 — disclaimer mirrors the in-app C5 sub-section framing (§4.3) so the
 # print report carries the same "context, not scoring" signpost.
+# M-REPORT-A1.1 (RF4): prose tightened so each dataset's role is unambiguous —
+# what it is, why it appears, and why it is excluded from the composite. No
+# structural change (same disclaimer + per-dataset table + footnote shape).
 _REFERENCE_DATASETS_DISCLAIMER: str = (
-    "Reference data context — not part of the composite score. These values "
-    "are cumulative or inventory-allocated rather than drawn from the "
-    "current screening window."
+    "Reference data context — not part of the composite score. Each dataset "
+    "below is shown to inform interpretation; none feeds the scored "
+    "site-vs-region anomaly. Their individual roles are noted underneath."
 )
 
-# Audit footnotes — same copy as the C5 cards (RD8 + §4.2), simplified for
+# Audit footnotes — same intent as the C5 cards (RD8 + §4.2), simplified for
 # print (the C5 strings live in ui.components.c5_drilldown; kept aligned by
 # intent, not import, to avoid an engine/UI cross-dependency in the report
-# layer).
-_REFERENCE_DATASETS_FOOTNOTE: str = (
-    "Hansen contributes to the regional_loss_evidence binary flag in "
-    "External Driver Screening but is not part of the composite score. "
-    "ODIAC is an inventory-allocated dataset, not an atmospheric "
-    "measurement, and is not used in the composite score."
+# layer). RF4: one clause per dataset spelling out its role + exclusion. Each
+# clause is tagged with its owning pillar so the footnote stays pillar-pure
+# (RF5) — a GHG report's footnote does not describe Hansen, etc.
+_REFERENCE_DATASETS_FOOTNOTE_CLAUSES: tuple[tuple[str, str], ...] = (
+    ("nature",
+     "Hansen forest loss feeds only the regional_loss_evidence binary flag in "
+     "External Driver Screening — it appears here as regional context and is "
+     "not scored in the composite."),
+    ("ghg",
+     "ODIAC is an inventory-allocated emissions product, not an atmospheric "
+     "measurement; it appears as an emissions-intensity reference and is "
+     "excluded from the composite."),
+    ("ghg",
+     "CH₄ is a raw column reading for the screening window, shown as reference "
+     "context rather than a scored anomaly."),
 )
 
 
-def _render_reference_dataset_block(payload) -> str:
+def _render_reference_dataset_block(payload, pillars=ALL_PILLARS) -> str:
     """One reference-dataset table for a single screening payload.
 
     Mirrors the C5 cards' headline metrics (Hansen cumulative loss %, ODIAC
@@ -417,6 +758,11 @@ def _render_reference_dataset_block(payload) -> str:
     reference data alongside Hansen + ODIAC and appears in the PDF's reference
     section (operator decision, overriding spec CH7/Q-4). It is shown as a raw
     column reading, not a scored finding.
+
+    M-REPORT-A1: rows are filtered to ``pillars`` so a pillar-specific MNC
+    report shows only its relevant reference data (Hansen → Nature/E4; ODIAC +
+    CH₄ → GHG/E1; the Air report has no reference datasets). The default
+    (all pillars) preserves the original three-row table.
     """
     loss_pct = payload.get("nature.forest_loss.pct")
     co2_mean = payload.get("ghg.co2.mean")
@@ -434,21 +780,36 @@ def _render_reference_dataset_block(payload) -> str:
         f"{ch4_site:,.0f} ppb column average (screening window)"
         if ch4_site is not None else "Data not available for this AOI"
     )
+    # (row_html, owning_pillar) — row renders only when its pillar is active.
+    rows = [
+        (f"<tr><td>Hansen forest loss</td><td>{html.escape(hansen_val)}</td>"
+         "<td>Hansen Global Forest Change (University of Maryland)</td></tr>",
+         "nature"),
+        (f"<tr><td>ODIAC CO₂</td><td>{html.escape(odiac_val)}</td>"
+         "<td>ODIAC fossil-fuel CO₂ (NIES, Japan)</td></tr>",
+         "ghg"),
+        (f"<tr><td>CH₄ (methane)</td><td>{html.escape(ch4_val)}</td>"
+         "<td>Sentinel-5P TROPOMI (Copernicus / ESA)</td></tr>",
+         "ghg"),
+    ]
+    active_rows = [r for r, pillar in rows if pillar in pillars]
+    if not active_rows:
+        return ""
+    # RF4/RF5 — footnote clauses filtered to the datasets actually shown.
+    footnote = " ".join(
+        clause for pillar, clause in _REFERENCE_DATASETS_FOOTNOTE_CLAUSES
+        if pillar in pillars
+    )
     return "\n".join([
         "<table>",
         "<tr><th>Reference dataset</th><th>Value</th><th>Source</th></tr>",
-        f"<tr><td>Hansen forest loss</td><td>{html.escape(hansen_val)}</td>"
-        "<td>Hansen Global Forest Change (University of Maryland)</td></tr>",
-        f"<tr><td>ODIAC CO₂</td><td>{html.escape(odiac_val)}</td>"
-        "<td>ODIAC fossil-fuel CO₂ (NIES, Japan)</td></tr>",
-        f"<tr><td>CH₄ (methane)</td><td>{html.escape(ch4_val)}</td>"
-        "<td>Sentinel-5P TROPOMI (Copernicus / ESA)</td></tr>",
+        *active_rows,
         "</table>",
-        f"<p><em>{html.escape(_REFERENCE_DATASETS_FOOTNOTE)}</em></p>",
+        f"<p><em>{html.escape(footnote)}</em></p>",
     ])
 
 
-def _render_reference_datasets(state, sources) -> str:
+def _render_reference_datasets(state, sources, ctx=None) -> str:
     """RD10 — reference-dataset context section for the PDF report.
 
     Appears after the scored-indicators section. Renders the Hansen + ODIAC
@@ -459,26 +820,48 @@ def _render_reference_datasets(state, sources) -> str:
     screening_sources = [s for s in sources if s.get("type") == "screening"]
     if not screening_sources:
         return ""
+    ctx = _ctx(ctx)
+    multi = len(screening_sources) > 1  # RF2 — divider only when 2+ sources.
+    # M-REPORT-A1: filter rows to the active pillars. The Air report (E2) has no
+    # reference datasets, so all per-source blocks come back empty and the whole
+    # section is omitted.
+    body = []
+    for src in screening_sources:
+        block = _render_reference_dataset_block(src.get("payload") or {},
+                                                ctx.pillars)
+        if not block:
+            continue
+        divider = _source_divider(src.get("name", "Untitled"), multi=multi)
+        if divider:
+            body.append(divider)
+        body.append(block)
+    if not body:
+        return ""
     blocks = [
         "<section class='chapter-break'>",
         "<h2>Reference datasets</h2>",
         f"<p><em>{html.escape(_REFERENCE_DATASETS_DISCLAIMER)}</em></p>",
+        *body,
+        "</section>",
     ]
-    for src in screening_sources:
-        name = html.escape(src.get("name", "Untitled"))
-        payload = src.get("payload") or {}
-        blocks.append(f"<h3>{name}</h3>")
-        blocks.append(_render_reference_dataset_block(payload))
-    blocks.append("</section>")
     return "\n".join(blocks)
 
 
 # ──────────────────────────────────────────────────────────────────
 # Trend graph (M-TREND-A2 / UT10)
+#
+# M-REPORT-A2 (RA5) — LEGACY / UNWIRED. This section is no longer wired into
+# any template: trend moved to its own family (`trend_indicator_sections`) in
+# M-REPORT-A1. It stays registered only so the trend-view fallback tests keep
+# exercising the SVG-failure → series-table degrade path. Do NOT add it to a
+# template's section list — use `trend_indicator_sections` for the trend report.
 # ──────────────────────────────────────────────────────────────────
 
-def _render_trend_graph(state, sources) -> str:
+def _render_trend_graph(state, sources, ctx=None) -> str:
     """Per-indicator trend graphs for any saved trend records in the report.
+
+    LEGACY (M-REPORT-A2 RA5): unwired from all templates; retained for
+    fallback-test use only — see the section banner above.
 
     Emits one block per ``type=="trend"`` source: an inline SVG of the trend
     graph (scatter + Theil–Sen line; season bands when flagged) generated from
@@ -508,6 +891,55 @@ def _render_trend_graph(state, sources) -> str:
         lat = (setup.get("centre") or {}).get("lat")
         blocks.append(f"<h3>{name}</h3>")
         blocks.append(_render_one_trend_block(result, lat, name))
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+# M-REPORT-A1 §5 — Trend report (Option A, RT9/RT10).
+def _render_trend_indicator_sections(state, sources, ctx=None) -> str:
+    """The Trend report's body: per-indicator sections grouped by pillar.
+
+    Option A (RT9): own per-indicator structure, **no pillar composite**. Pillar
+    names (Air / GHG / Nature) are used only as **grouping headers** (RT10) —
+    they carry no aggregate score. Each indicator section reuses the same
+    verdict + metrics + inline SVG block as the live trend view, generated from
+    the saved per-day series (no recompute). Not ESRS-framed (RT11).
+    """
+    trend_sources = [s for s in sources if s.get("type") == "trend"]
+    if not trend_sources:
+        return ""
+
+    # Group by owning pillar (indicator-id prefix), preserving pillar order.
+    by_pillar: dict[str, list[dict]] = {}
+    for src in trend_sources:
+        pillar = (src.get("indicator_id") or "").split(".")[0]
+        by_pillar.setdefault(pillar, []).append(src)
+
+    blocks = [
+        "<section class='chapter-break'>",
+        "<h2>Trend analysis</h2>",
+        "<p><em>Per-indicator trend drill-downs (Theil–Sen slope + "
+        "Mann–Kendall significance over the screening window). Pillar headings "
+        "group the indicators for organisation only — trend is a drill-down "
+        "signal and carries no pillar or composite score.</em></p>",
+    ]
+    pillar_labels = {"air": "Air Pollution", "ghg": "GHG Emissions",
+                     "nature": "Nature/Land"}
+    # Active pillars first in the locked order, then any unrecognised group.
+    ordered = _ordered_pillars(frozenset(by_pillar))
+    ordered += [p for p in by_pillar if p not in ordered]
+    for pillar in ordered:
+        label = pillar_labels.get(pillar, pillar.title() or "Other")
+        blocks.append(f"<h3 class='pillar-group'>{html.escape(label)}</h3>")
+        for src in by_pillar[pillar]:
+            name = html.escape(
+                src.get("display_name") or src.get("indicator_id") or "Trend"
+            )
+            result = src.get("trend_result") or {}
+            setup = src.get("screening_setup") or {}
+            lat = (setup.get("centre") or {}).get("lat")
+            blocks.append(f"<h4>{name}</h4>")
+            blocks.append(_render_one_trend_block(result, lat, name))
     blocks.append("</section>")
     return "\n".join(blocks)
 
@@ -558,27 +990,34 @@ def _render_trend_series_table(result: dict, error: str) -> str:
 # Provenance appendix
 # ──────────────────────────────────────────────────────────────────
 
-def _render_provenance_appendix(state, sources) -> str:
+def _render_provenance_appendix(state, sources, ctx=None) -> str:
+    ctx = _ctx(ctx)
+    multi = len(sources) > 1  # RF2 — source label is a divider only when 2+.
     blocks = ["<section class='chapter-break'>",
               "<h2>Provenance Appendix</h2>",
               "<p>Reference assets, computation scales, and time "
               "windows for every indicator that returned data in "
               "this report's sources.</p>"]
     for src in sources:
-        name = html.escape(src.get("name", "Source"))
-        blocks.append(f"<h3>{name}</h3>")
+        divider = _source_divider(src.get("name", "Source"), multi=multi)
+        if divider:
+            blocks.append(divider)
         payload = src.get("payload") or {}
-        blocks.append(_render_provenance_for_payload(payload))
+        # RF5 — pillar reports filter provenance (and every sub-appendice fed
+        # from it) to the report's pillars; the General report shows all.
+        blocks.append(_render_provenance_for_payload(payload, ctx.pillars))
     blocks.append("</section>")
     return "\n".join(blocks)
 
 
-def _render_provenance_for_payload(payload) -> str:
+def _render_provenance_for_payload(payload, pillars=ALL_PILLARS) -> str:
     prov_blocks = [
         (key.removeprefix("_provenance."), val)
         for key, val in payload.items()
         if isinstance(key, str) and key.startswith("_provenance.")
         and isinstance(val, dict)
+        # RF5 — keep only indicators whose pillar prefix is in scope.
+        and key.removeprefix("_provenance.").split(".")[0] in pillars
     ]
     if not prov_blocks:
         return "<p>No provenance entries.</p>"
@@ -674,10 +1113,18 @@ def _render_coastal_handling_appendix(
             continue
         if land_fraction >= 1.0:
             continue
-        if extra.get("land_mask_applied") is False:
+        # RF6 — gate on the mask being *effectively applied*: require
+        # land_mask_applied truthy (not merely "not False"), matching the live
+        # P-05 C5 expander's `land_mask_applied AND ring_land_fraction < 1.0`.
+        if not extra.get("land_mask_applied"):
             continue
         water_pct = max(0, min(100, round((1.0 - float(land_fraction)) * 100)))
         land_pct  = 100 - water_pct
+        # RF6 — skip indicators that round to 100% land / 0% water: the mask did
+        # not effectively fire, so the row would misleadingly imply a coastal
+        # AOI (the first-artifact bug).
+        if water_pct < 1:
+            continue
         rows.append(
             f"<li><strong>{html.escape(ind_id)}</strong> — "
             f"{land_pct}% land / {water_pct}% water</li>"
@@ -1021,6 +1468,8 @@ _SECTION_REGISTRY: dict[str, Callable] = {
     "indicator_detail":      _render_indicator_detail,
     "per_supplier_detail":   _render_per_supplier_detail,
     "trend_graph":           _render_trend_graph,
+    # M-REPORT-A1 §5 — Trend report's own per-indicator structure (RT9).
+    "trend_indicator_sections": _render_trend_indicator_sections,
     "reference_datasets":    _render_reference_datasets,
     "provenance_appendix":   _render_provenance_appendix,
 }

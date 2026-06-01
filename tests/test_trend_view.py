@@ -254,7 +254,9 @@ class TestReportSection:
         assert "Rising" in frag  # verdict still rendered
 
     def test_registered_in_templates(self) -> None:
-        for tid in ("policy_audit", "supplier_audit"):
-            tpl = get_template(tid)
-            assert "trend" in tpl.accepted_source_types
-            assert "trend_graph" in tpl.sections
+        # M-REPORT-A1: trend is its own template family (RT9). The dedicated
+        # Trend report accepts trend sources and carries the per-indicator
+        # structure; the General/pillar reports no longer embed trend.
+        tpl = get_template("trend")
+        assert tpl.accepted_source_types == frozenset({"trend"})
+        assert "trend_indicator_sections" in tpl.sections

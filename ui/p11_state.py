@@ -35,6 +35,11 @@ class ReportState:
     title:       str             = ""
     notes:       str             = ""
     error:       str | None      = None
+    # M-REPORT-A1: the active user type, captured at S1. Threaded into the
+    # assembler so the General report's dual framing (RT8) and the ESRS layer
+    # (RT4) can branch at render time off this — not off two separate template
+    # IDs. Default "" keeps pre-existing state objects valid on reload.
+    user_type:   str             = ""
 
 
 # M-P11.4

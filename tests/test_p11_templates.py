@@ -1,14 +1,15 @@
-"""Tests for ui.components.p11_templates (M-P11.1).
+"""Tests for ui.components.p11_templates (M-P11.1 / M-REPORT-A1).
 
-Pure-Python — no Streamlit. Pins the registry shape, the user-type
-hard branch (Policy Maker → 1 template; MNC → 1 template), and
-defensive lookup behaviour.
+Pure-Python — no Streamlit. Pins the M-REPORT-A1 five-registration inventory
+(spec §3), the dual-membership of the General + Trend reports, per-template
+pillar/ESRS metadata, and defensive lookup behaviour.
 """
 
-# M-P11.1
+# M-P11.1 / M-REPORT-A1
 from __future__ import annotations
 
 from ui.components.p11_templates import (
+    ALL_PILLARS,
     _TEMPLATES,
     ReportTemplate,
     get_template,
@@ -17,21 +18,28 @@ from ui.components.p11_templates import (
 
 
 # ---------------------------------------------------------------------------
-# templates_for — user-type filter
+# templates_for — user-type membership (RT7/RT8/RT11)
 # ---------------------------------------------------------------------------
 
-def test_templates_for_policy_maker_returns_one_template():
-    out = templates_for("policy_maker")
-    assert len(out) == 1
-    assert out[0].template_id  == "policy_audit"
-    assert out[0].display_name == "Policy audit report"
+def test_templates_for_policy_maker_sees_general_and_trend():
+    ids = [t.template_id for t in templates_for("policy_maker")]
+    assert ids == ["general", "trend"]
 
 
-def test_templates_for_mnc_returns_one_template():
-    out = templates_for("mnc")
-    assert len(out) == 1
-    assert out[0].template_id  == "supplier_audit"
-    assert out[0].display_name == "Supplier audit report"
+def test_templates_for_mnc_sees_four_plus_trend():
+    ids = [t.template_id for t in templates_for("mnc")]
+    assert ids == ["general", "mnc_ghg", "mnc_air", "mnc_nature", "trend"]
+
+
+def test_general_and_trend_belong_to_both_user_types():
+    for tid in ("general", "trend"):
+        t = get_template(tid)
+        assert t.user_types == frozenset({"policy_maker", "mnc"})
+
+
+def test_pillar_reports_are_mnc_only():
+    for tid in ("mnc_ghg", "mnc_air", "mnc_nature"):
+        assert get_template(tid).user_types == frozenset({"mnc"})
 
 
 def test_templates_for_unknown_user_type_returns_empty():
@@ -45,9 +53,9 @@ def test_templates_for_unknown_user_type_returns_empty():
 # ---------------------------------------------------------------------------
 
 def test_get_template_known_id_returns_template():
-    t = get_template("policy_audit")
+    t = get_template("general")
     assert isinstance(t, ReportTemplate)
-    assert t.template_id == "policy_audit"
+    assert t.template_id == "general"
 
 
 def test_get_template_unknown_id_returns_none():
@@ -55,28 +63,70 @@ def test_get_template_unknown_id_returns_none():
 
 
 # ---------------------------------------------------------------------------
+# Pillar + ESRS metadata (RT5/RT6/RT9)
+# ---------------------------------------------------------------------------
+
+def test_general_covers_all_pillars_and_is_esrs_capable():
+    t = get_template("general")
+    assert t.pillars == ALL_PILLARS
+    assert t.esrs is True
+
+
+def test_pillar_reports_each_cover_one_pillar_and_are_esrs():
+    expected = {"mnc_ghg": "ghg", "mnc_air": "air", "mnc_nature": "nature"}
+    for tid, pillar in expected.items():
+        t = get_template(tid)
+        assert t.pillars == frozenset({pillar})
+        assert t.esrs is True
+
+
+def test_trend_report_is_not_esrs_and_accepts_only_trend():
+    t = get_template("trend")
+    assert t.esrs is False
+    assert t.accepted_source_types == frozenset({"trend"})
+
+
+def test_trend_template_uses_per_indicator_structure_not_composite():
+    t = get_template("trend")
+    # Option A (RT9): own per-indicator structure, no composite-bearing sections.
+    assert "trend_indicator_sections" in t.sections
+    assert "executive_summary" not in t.sections   # carries composite table
+    assert "pillar_findings" not in t.sections
+
+
+def test_every_report_carries_a_glossary_appendix():
+    """RT12 — all reports carry the content-aware glossary."""
+    for t in _TEMPLATES:
+        assert "glossary" in t.sections
+
+
+# ---------------------------------------------------------------------------
 # Registry-wide invariants
 # ---------------------------------------------------------------------------
 
+def test_registry_has_five_templates():
+    assert len(_TEMPLATES) == 5
+
+
 def test_every_template_has_non_empty_sections():
-    """Each template needs at least one section — the preview / PDF
-    rendering iterates the tuple, so an empty list would produce an
-    empty report."""
     for t in _TEMPLATES:
         assert len(t.sections) > 0
 
 
 def test_every_template_accepts_only_known_source_types():
-    """Source types are filtered against saved_analyses ``type`` field.
-    The store writes ``"screening"``, ``"prioritisation"``, and — since
-    M-TREND-A2 (UT10) — ``"trend"``. Accepting other values would silently
-    exclude no real sources, but the intent should stay explicit."""
     allowed = {"screening", "prioritisation", "trend"}
     for t in _TEMPLATES:
         assert t.accepted_source_types.issubset(allowed), (
             f"{t.template_id} accepts unknown source types: "
             f"{t.accepted_source_types - allowed}"
         )
+
+
+def test_every_template_has_known_user_types():
+    allowed = {"policy_maker", "mnc"}
+    for t in _TEMPLATES:
+        assert t.user_types.issubset(allowed)
+        assert t.user_types  # non-empty
 
 
 def test_no_duplicate_template_ids():

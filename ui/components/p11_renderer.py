@@ -50,13 +50,17 @@ def _get_or_init_state() -> ReportState:
 
 def _render_s1(state: ReportState) -> None:
     user_type = st.session_state.get("user_type", "")
+    # M-REPORT-A1: capture the active user type onto the report state so the
+    # assembler can resolve the General report's dual framing (RT8) and the
+    # ESRS layer (RT4) at render time, rather than off two separate template IDs.
+    state.user_type = user_type
     templates = templates_for(user_type)
 
     if not templates:
         st.warning(
             "No report templates available for your user type. "
-            "Templates: Policy Maker → Policy audit report; "
-            "MNC → Supplier audit report.",
+            "Templates: Policy Maker → General report + Trend report; "
+            "MNC → General, GHG (E1), Air (E2), Nature (E4) + Trend report.",
             icon="⚠️",
         )
         return
@@ -393,9 +397,15 @@ def _render_pdf_deps_error(exc: PdfDependencyError) -> None:
 
 # M-P11.3
 def _pdf_cache_key(state: ReportState) -> str:
-    """Cache key — invalidates when template / sources / title / notes change."""
+    """Cache key — invalidates when template / sources / title / notes change.
+
+    M-REPORT-A1: includes ``user_type`` because the General report is dual-framed
+    by user type (RT8) — the same template_id renders ESRS-framed for an MNC and
+    plain for a policy maker, so the two must not share a cached PDF.
+    """
     return (
         f"{state.template_id}|"
+        f"{getattr(state, 'user_type', '')}|"
         f"{','.join(sorted(state.source_ids))}|"
         f"{state.title}|"
         f"{state.notes}"

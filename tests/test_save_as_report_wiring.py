@@ -34,7 +34,7 @@ def test_route_to_p11_initialises_report_state_when_missing():
 def test_route_to_p11_appends_new_source_to_existing_state():
     session_state: dict = {
         "report_state": ReportState(
-            template_id="policy_audit",
+            template_id="general",
             source_ids=["src-existing"],
             title="Q2 audit",
         )
@@ -44,7 +44,7 @@ def test_route_to_p11_appends_new_source_to_existing_state():
     rs = session_state["report_state"]
     assert rs.source_ids == ["src-existing", "src-new"]
     # Other fields preserved.
-    assert rs.template_id == "policy_audit"
+    assert rs.template_id == "general"
     assert rs.title == "Q2 audit"
 
 
@@ -67,7 +67,7 @@ def test_route_to_p11_resets_kind_to_s1_from_s2():
     session_state: dict = {
         "report_state": ReportState(
             kind=ReportStateKind.S2_PREVIEW,
-            template_id="policy_audit",
+            template_id="general",
             source_ids=["src-old"],
             title="Q1 audit",
         )

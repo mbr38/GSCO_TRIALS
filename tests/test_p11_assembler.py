@@ -26,7 +26,8 @@ def _template(sections):
         template_id="test_tpl",
         display_name="Test template",
         description="—",
-        user_type="policy_maker",
+        # M-REPORT-A1: user_types is now a set; pillars/esrs default.
+        user_types=frozenset({"policy_maker"}),
         accepted_source_types=frozenset({"screening"}),
         sections=tuple(sections),
     )
@@ -40,7 +41,8 @@ def test_build_report_html_calls_sections_in_template_order():
     call_log = []
 
     def make_fn(tag):
-        def _fn(state, sources):
+        # M-REPORT-A1: sections now receive a third ``ctx`` arg from the assembler.
+        def _fn(state, sources, ctx=None):
             call_log.append(tag)
             return f"<section data-tag='{tag}'>{tag}</section>"
         return _fn
@@ -69,8 +71,8 @@ def test_build_report_html_calls_sections_in_template_order():
 # ---------------------------------------------------------------------------
 
 def test_build_report_html_section_exception_renders_inline_placeholder():
-    def good(state, sources): return "<section>good-section</section>"
-    def boom(state, sources): raise RuntimeError("intentional explosion")
+    def good(state, sources, ctx=None): return "<section>good-section</section>"
+    def boom(state, sources, ctx=None): raise RuntimeError("intentional explosion")
 
     registry = {"good": good, "boom": boom}
     with patch.object(

@@ -224,24 +224,38 @@ State lives at `st.session_state["report_state"]`.
   (one-shot `st.download_button`), JSON (one-shot). PDF failures surface
   `PdfDependencyError` as a friendly install banner.
 
-### 4.3 Templates registry — `ui/components/p11_templates.py`  (✅ complete)
+### 4.3 Templates registry — `ui/components/p11_templates.py`  (✅ complete, M-REPORT-A1)
 
 ```python
 @dataclass(frozen=True)
 class ReportTemplate:
-    template_id, display_name, description, user_type
+    template_id, display_name, description
+    user_types: frozenset[str]              # {"policy_maker","mnc"} — set, not scalar
     accepted_source_types: frozenset[str]   # {"screening","prioritisation","trend"}
     sections: tuple[str, ...]               # ordered section keys
+    pillars: frozenset[str] = ALL_PILLARS   # which pillars this report renders
+    esrs: bool = False                      # ESRS framing available (MNC renders only)
 ```
 
-Two templates ship in v1:
+M-REPORT-A1 restructured the surface from two flat templates into a **five-registration**
+family. The General report is **one** registration offered to both roles, **dual-framed**
+by `user_type` at render time (RT8) — not two template IDs.
 
-| template_id | user_type | sections (in order) |
-|---|---|---|
-| `policy_audit` | policy_maker | title_page, executive_summary, methodology, **pillar_findings**, indicator_detail, trend_graph, reference_datasets, provenance_appendix |
-| `supplier_audit` | mnc | title_page, executive_summary, methodology, scope_summary, **priority_findings**, per_supplier_detail, trend_graph, reference_datasets, provenance_appendix |
+| template_id | user_types | pillars | esrs | sections (in order) |
+|---|---|---|---|---|
+| `general` | policy_maker, mnc | all 3 | true* | title_page, executive_summary, methodology, scope_summary, **pillar_findings**, indicator_detail, reference_datasets, provenance_appendix, **glossary** |
+| `mnc_ghg` | mnc | ghg | true | title_page, executive_summary, methodology, scope_summary, **pillar_findings**, indicator_detail, reference_datasets, provenance_appendix, **glossary** |
+| `mnc_air` | mnc | air | true | (same as mnc_ghg; reference_datasets renders empty → omitted) |
+| `mnc_nature` | mnc | nature | true | (same as mnc_ghg) |
+| `trend` | policy_maker, mnc | grouping only | false | title_page, scope_summary, **trend_indicator_sections**, provenance_appendix, **glossary** |
 
-`templates_for(user_type)` and `get_template(id)` are the lookups.
+\* `esrs=true` only **takes effect** for MNC renders. A policy maker picking `general`
+gets the same body with ESRS labels stripped (RT8). The ESRS layer + pillar filtering
+resolve via a `RenderContext` (see §4.5) built by the assembler from the template + the
+active `user_type` (captured on `ReportState.user_type` at S1).
+
+`templates_for(user_type)` (now a **membership** test against `user_types`) and
+`get_template(id)` are the lookups.
 
 > **Extension point:** adding a report type = register a new `ReportTemplate` +
 > implement any new section keys in the registry (§4.5). No renderer changes.
@@ -252,32 +266,45 @@ Two templates ship in v1:
 def build_report_html(state, sources, template) -> str
 ```
 
-Loops `template.sections`, calls each section fn via `get_section()`, joins the
-HTML fragments inside the Jinja2 shell. **Per-section failures are caught and
+Builds a `RenderContext` from the template + `state.user_type` (M-REPORT-A1),
+loops `template.sections` calling each section fn via `get_section()` with that
+ctx, and joins the HTML fragments inside the Jinja2 shell. The **`glossary`**
+section is deferred: the assembler renders it from the joined body of the other
+sections (content-aware scan, see `p11_glossary.py`) and slots it into its
+declared position. **Per-section failures are caught and
 inlined as an error fragment** — one broken section never blanks the whole
 report. The shell (`shell.html.j2`) carries all print CSS: `@page` A4 +
 margins + footer page numbering (weasyprint honours these), pillar-chip colour
 classes (red/amber/green/grey), table styling, `color-scheme: light` to stop
 Streamlit's dark theme bleeding into the iframe.
 
-### 4.5 Section functions — `ui/components/p11_sections.py`  (✅ complete, ~1,000 LOC)
+### 4.5 Section functions — `ui/components/p11_sections.py`  (✅ complete, ~1,100 LOC)
 
-Each section is `def _render_X(state, sources) -> str` returning an HTML
-fragment. Dispatched by `_SECTION_REGISTRY`:
+Each section is `def _render_X(state, sources, ctx=None) -> str` returning an
+HTML fragment. M-REPORT-A1 added the third **`ctx`** arg — a `RenderContext`
+(`user_type`, `pillars`, `apply_esrs`, `template_id`) built by the assembler
+via `RenderContext.from_template(template, user_type)` and threaded into every
+section. `ctx=None` defaults to all-pillars / no-ESRS so direct (test) calls
+with two args keep working. Dispatched by `_SECTION_REGISTRY`:
 
 | Section key | What it renders | Notes |
 |---|---|---|
-| `title_page` | title, date, source count | |
-| `executive_summary` | notes + per-source composite/band table | |
+| `title_page` | report-type identity (RF1) + title, date, source count | M-REPORT-A1.1: names the template on the cover (ESRS E1/E2/E4, Environmental screening, Environmental trend) |
+| `executive_summary` | notes + per-source composite/band table | M-REPORT-A2: single-pillar reports relabel the composite column "(all 3 pillars)" + add a scope-of-composite note (RA2) |
 | `methodology` | fixed methodology prose | |
-| `scope_summary` | screened scope (MNC) | |
-| `pillar_findings` | **reuses `generate_verbal_summary`** for full (19-indicator) screenings; caveat + score table for partial | Policy template |
-| `priority_findings` | audit-priority ranking (MNC) | |
-| `indicator_detail` | per-indicator score table | |
+| `scope_summary` | screened scope | |
+| `pillar_findings` | **dual-framed (RT8).** When `ctx.apply_esrs` (MNC): ESRS topical grouping (E1/E2/E4) + metrics-&-evidence intro + out-of-scope stubs, filtered to `ctx.pillars`. Otherwise (policy / no-ctx): plain narrative, **reusing `generate_verbal_summary`** for full 19-indicator screenings, caveat + score table for partial. Carries the pillar-level story (prose + pillar score/band). | M-REPORT-A1 |
+| `priority_findings` | audit-priority ranking | |
+| `indicator_detail` | **per-indicator deep table (RF3)** — one row per indicator: site value, background, z-score, anomaly (hotspot) frequency, confidence, attributability. Screening-only; filtered to `ctx.pillars` (RF5). Distinct from `pillar_findings` (the pillar story). | M-REPORT-A1.1 |
 | `per_supplier_detail` | per-supplier breakdown for prioritisation sources | |
-| `trend_graph` | inline SVG trend chart from saved trend records | M-TREND-A2 |
-| `reference_datasets` | Hansen / ODIAC / CH₄ context datasets | |
-| `provenance_appendix` | 11-field provenance per indicator + special appendices (coastal, habitat-attribution, wind-attribution, fallback, extras) | see §5 |
+| `trend_indicator_sections` | **Trend report body (Option A, RT9).** Per-indicator verdict + metrics + inline SVG, grouped under pillar headers (grouping only — no composite). | M-REPORT-A1 |
+| `trend_graph` | inline SVG trend chart from saved trend records | **LEGACY / unwired** (M-REPORT-A2 RA5) — superseded by `trend_indicator_sections`; kept registered for fallback tests only |
+| `reference_datasets` | Hansen / ODIAC / CH₄ context datasets; rows **and footnote clauses** filtered to `ctx.pillars` (RF4/RF5; Air report → empty → section omitted) | RF4 prose names each dataset's role + exclusion |
+| `provenance_appendix` | 11-field provenance per indicator + special appendices (coastal, habitat-attribution, wind-attribution, fallback, extras). Provenance + every sub-appendice filtered to `ctx.pillars` (RF5). Each fallback/adjustment sub-appendice gated on an *effectively-applied* predicate (RF6) — e.g. coastal renders only when `land_mask_applied` and the ring rounds to <100% land. | see §5 |
+
+> `glossary` is **not** in `_SECTION_REGISTRY` — it is a content-aware appendix
+> the **assembler** renders last by scanning the joined body of the other
+> sections, then slots into its declared position. See `p11_glossary.py` (§7).
 
 > This is the **largest and most design-relevant file**. The provenance
 > appendix alone has five sub-renderers. If the design goal is "improve report
@@ -342,9 +369,11 @@ tests/test_habitat_attribution_pdf.py ← habitat-attribution appendix PDF
 | [pages/11_Reports.py](../pages/11_Reports.py) | P-11 page entry | ✅ |
 | [ui/p11_state.py](../ui/p11_state.py) | report state machine | ✅ |
 | [ui/components/p11_renderer.py](../ui/components/p11_renderer.py) | S1/S2/S3 dispatch | ✅ |
-| [ui/components/p11_templates.py](../ui/components/p11_templates.py) | template registry | ✅ |
-| [ui/components/p11_assembler.py](../ui/components/p11_assembler.py) | HTML assembly | ✅ |
-| [ui/components/p11_sections.py](../ui/components/p11_sections.py) | section functions | ✅ |
+| [ui/components/p11_templates.py](../ui/components/p11_templates.py) | template registry — 5-template inventory; `user_types`/`pillars`/`esrs` (M-REPORT-A1) | ✅ |
+| [ui/components/p11_assembler.py](../ui/components/p11_assembler.py) | HTML assembly — builds `RenderContext`, threads `ctx`, defers glossary post-pass (M-REPORT-A1) | ✅ |
+| [ui/components/p11_sections.py](../ui/components/p11_sections.py) | section functions + `RenderContext`; ESRS-framed pillar findings, pillar filtering, `trend_indicator_sections` (M-REPORT-A1) | ✅ |
+| [ui/components/p11_esrs.py](../ui/components/p11_esrs.py) | ESRS framing layer (M-REPORT-A1) — pillar→E1/E2/E4 map (RT6), topical headings, metrics-&-evidence intros, out-of-scope stubs (RT4); `datapoint_label()` deferred stub (§8.4) | ✅ |
+| [ui/components/p11_glossary.py](../ui/components/p11_glossary.py) | content-aware glossary appendix (M-REPORT-A1) — master term set (§6), word-boundary fragment scan, family grouping; rendered by the assembler | ✅ |
 | [ui/components/p11_pdf.py](../ui/components/p11_pdf.py) | PDF backend | ✅ |
 | [ui/components/p11_csv.py](../ui/components/p11_csv.py) | CSV backend | ✅ |
 | [ui/components/p11_json.py](../ui/components/p11_json.py) | JSON backend | ✅ |
@@ -364,17 +393,21 @@ These are the genuine decision points if the goal is to improve report-creation
 structure. None are bugs — they are design choices currently locked one way.
 
 1. **Section model is positional & flat.** A template is an ordered tuple of
-   string keys; sections take `(state, sources)` and return HTML strings. There
-   is no per-section config (no "include provenance: yes/no", no reordering UI,
-   no section-level options). Adding configurability means changing the
+   string keys; sections take `(state, sources, ctx=None)` and return HTML
+   strings. There is no per-section config beyond the threaded `RenderContext`
+   (M-REPORT-A1 kept the flat model deliberately — Step A §8.1 chose "flat +
+   threading" over a structured-section refactor). Further configurability
+   (reordering UI, per-section toggles) would still mean changing the
    `ReportTemplate` shape and the renderer.
 2. **HTML-string sections, not a component tree.** Sections concatenate raw HTML
    strings. This is simple and weasyprint-friendly but hard to restyle/theme
    centrally beyond the shell CSS. A structured intermediate (dict/dataclass per
    section, rendered by one templating pass) would decouple content from layout.
-3. **Two templates, hard-wired to user type.** `templates_for(user_type)` means
-   a policy maker can't pick the supplier template and vice-versa. If reports
-   should be user-selectable regardless of role, this filter changes.
+3. **~~Two templates, hard-wired to user type.~~** *Resolved by M-REPORT-A1.*
+   The inventory is now five templates; `user_types` is a set, so the General
+   and Trend reports belong to both roles, and the General report is dual-framed
+   by `user_type` at render time (RT8). The role filter (`templates_for`) is now
+   a membership test.
 4. **Session-only persistence.** Saved analyses (the report sources) vanish on
    reload. Any report-creation UX that assumes a durable library of past
    analyses is blocked on the localStorage milestone (PLFS_v4 §14).

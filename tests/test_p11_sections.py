@@ -540,14 +540,20 @@ def test_indicator_detail_only_partial_screenings_returns_empty():
     assert out == ""
 
 
-def test_indicator_detail_full_screening_renders_normally():
+def test_indicator_detail_full_screening_renders_per_indicator_table():
+    # M-REPORT-A1.1 RF3: Indicator Detail is now the per-indicator deep table
+    # (site / background / z-score / anomaly frequency / confidence /
+    # attributability), not the pillar score block.
     full = _screening_source("f1", "Full screening")
     out = _render_indicator_detail(_state(), [full])
     assert "Indicator Detail" in out
-    assert "Full screening" in out
-    # Pillar score block rendered.
-    assert "Air Pollution" in out
-    assert "Composite" in out
+    assert "z-score" in out          # deep-table column header
+    assert "Attributability" in out
+    assert "NO₂" in out              # an indicator display name (air pillar)
+    # RF3: pillar-summary / composite rows no longer duplicated here.
+    assert "Composite" not in out
+    # RF2: single source → source sub-header suppressed (named in scope/exec).
+    assert "<h3>Full screening</h3>" not in out
 
 
 def test_indicator_detail_mixed_partial_and_full_keeps_only_full():
@@ -555,22 +561,21 @@ def test_indicator_detail_mixed_partial_and_full_keeps_only_full():
     full    = _screening_source("f1", "Full")
     out = _render_indicator_detail(_state(), [partial, full])
     assert "Indicator Detail" in out
-    assert "Full" in out
+    # Only the full-coverage screening contributes; the partial is skipped.
     assert "Partial" not in out
 
 
-def test_indicator_detail_prioritisation_renders_normally():
+def test_indicator_detail_prioritisation_only_returns_empty():
+    # RF3: Indicator Detail is screening-only — prioritisation sources carry no
+    # single per-AOI payload and are covered by Per-Supplier Detail.
     prio = _prioritisation_source(name="Prio detail")
     out = _render_indicator_detail(_state(), [prio])
-    assert "Indicator Detail" in out
-    assert "Prio detail" in out
+    assert out == ""
 
 
-def test_indicator_detail_partial_plus_prioritisation_keeps_only_prio():
+def test_indicator_detail_partial_plus_prioritisation_returns_empty():
     partial = _screening_source("p1", "Partial",
                                 indicators=["air.no2.score"])
     prio    = _prioritisation_source("pr1", "Prio kept")
     out = _render_indicator_detail(_state(), [partial, prio])
-    assert "Indicator Detail" in out
-    assert "Prio kept" in out
-    assert "Partial" not in out
+    assert out == ""

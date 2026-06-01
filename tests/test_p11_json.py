@@ -17,7 +17,7 @@ import pytest
 from ui.components.p11_json import render_json
 
 
-def _state(title="Q2 demo", notes="", template_id="policy_audit"):
+def _state(title="Q2 demo", notes="", template_id="general"):
     return SimpleNamespace(title=title, notes=notes, template_id=template_id)
 
 
@@ -72,7 +72,7 @@ def test_json_report_metadata_has_all_fields():
     )
     report = json.loads(out)["report"]
     assert report["title"]         == "Q2 demo"
-    assert report["template_id"]   == "policy_audit"
+    assert report["template_id"]   == "general"
     assert report["template_name"] == "Policy audit report"
     assert report["notes"]         == "audit kickoff"
     assert report["source_count"]  == 2

@@ -28,7 +28,7 @@ from ui.p11_state import ReportState
 
 def _make_state(
     *,
-    template_id="policy_audit",
+    template_id="general",
     source_ids=None,
     title="Q2 demo report",
     notes="",
