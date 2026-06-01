@@ -388,8 +388,65 @@ def _render_ghg_panel(payload: dict) -> None:
             _render_confidence_terms_expander(
                 payload, "ghg", row.indicator, row.display_name,
             )
+        _render_viirs_attributability(payload)   # M-VIIRS-REDESIGN-A1 (VR7/VR15)
+        _render_combustion_proxy(payload)         # M-VIIRS-REDESIGN-A1 (VR17)
         st.divider()
         _render_datasets_used_subexpander("ghg", _GHG_DATASET_KEYS, payload)
+
+
+def _render_viirs_attributability(payload: dict) -> None:
+    """M-VIIRS-REDESIGN-A1 (VR7/VR15) — VIIRS lit-contrast attributability state.
+
+    Categorical signal (high/moderate/low/sparse); surfaced like Nature habitat's
+    attributability — NOT part of the composite. Renders only when computed.
+    """
+    state = payload.get("ghg.viirs.attributability_state")
+    if not state:
+        return
+    pct = payload.get("ghg.viirs.lit_contrast_percentile")
+    pct_txt = f"{pct:.0%}" if isinstance(pct, (int, float)) else "—"
+    st.divider()
+    st.markdown(
+        f"**VIIRS attributability:** `{state}` "
+        f"(site brighter than {pct_txt} of its surrounding ring)"
+    )
+    st.caption(
+        "Lit-contrast attributability — whether the night-light activity is "
+        "plausibly local to this supplier vs. regional. Does not affect the "
+        "severity score (M-ATTRIB-A1 invariant)."
+    )
+
+
+def _render_combustion_proxy(payload: dict) -> None:
+    """M-VIIRS-REDESIGN-A1 (VR17) — surface the Air NO₂/CO borrow at the GHG level.
+
+    The borrow carries the larger GHG-composite weight post-redesign but was
+    previously invisible here. Shows the value, its contribution, and a cross-
+    reference to the source Air pollutants.
+    """
+    prov = payload.get("_provenance.ghg.combustion_proxy") or {}
+    extra = prov.get("extra", {}) or {}
+    value = payload.get("ghg.combustion_proxy")
+    if value is None and not extra:
+        return
+    weight = extra.get("borrow_weight_in_ghg")
+    contrib = extra.get("borrow_contribution")
+    val_txt = f"{value:.2f}" if isinstance(value, (int, float)) else "—"
+    w_txt = f"{weight:.0%}" if isinstance(weight, (int, float)) else "—"
+    c_txt = f"{contrib:.2f}" if isinstance(contrib, (int, float)) else "—"
+    st.divider()
+    st.markdown(
+        f"**Combustion Proxy (Air NO₂/CO borrow):** {val_txt} "
+        f"· weight in GHG severity {w_txt} · contribution {c_txt}"
+    )
+    no2, co = extra.get("air_no2_score"), extra.get("air_co_score")
+    n_txt = f"{no2:.2f}" if isinstance(no2, (int, float)) else "—"
+    co_txt = f"{co:.2f}" if isinstance(co, (int, float)) else "—"
+    st.caption(
+        f"Borrowed from the Air pillar — NO₂ score {n_txt}, CO score {co_txt} "
+        "(see the Air drill-down for their provenance + wind-attributability; "
+        "only the numerical scores are borrowed, not the attributability flags)."
+    )
 
 
 # ---------------------------------------------------------------------------
