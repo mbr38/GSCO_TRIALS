@@ -1,5 +1,5 @@
 {
-  "id": "28fc237c-75e8-4916-a3c9-64c653d47797",
+  "id": "48cd0045-f573-43c5-8bb8-00f89a1756b7",
   "name": "Distrito Federal, Brazil — Region screening",
   "type": "screening",
   "screening_setup": {
@@ -40,7 +40,7 @@
       "2026-05-23"
     ]
   },
-  "date_saved": "2026-05-31T16:45:28.037560+00:00",
+  "date_saved": "2026-06-01T12:59:11.026180+00:00",
   "payload": {
     "air.aai.site": -0.4779189737365163,
     "air.aai.background": -0.4667895535262914,
@@ -320,7 +320,7 @@
           "column_to_surface_uncertainty": "moderate"
         },
         "n_valid_dates": 88,
-        "granule_count": 1118,
+        "granule_count": 1120,
         "ring_land_fraction": 0.994973813014411,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
@@ -496,8 +496,8 @@
     "air.attribution_confidence_score": 0.6714970141607294,
     "air.audit_followup_priority": 0.14706020714626028,
     "nature.kba.dist_km": 9.395672626226776,
-    "nature.kba.overlap_ha": 65830.15840577548,
-    "nature.kba.overlap_pct": 11.28029577231136,
+    "nature.kba.overlap_ha": 65830.15840577568,
+    "nature.kba.overlap_pct": 11.280295772311396,
     "nature.kba.proximity_score": 0.3907969112035837,
     "nature.kba.confidence": 1.0,
     "_provenance.nature.kba": {
@@ -532,28 +532,28 @@
         }
       }
     },
-    "nature.dw.trees_pct": 49.231412746644104,
-    "nature.dw.trees_ha": 295217.57483738323,
-    "nature.dw.crops_pct": 12.321435439824608,
-    "nature.dw.crops_ha": 73885.84007897195,
-    "nature.dw.built_pct": 12.373360513865919,
-    "nature.dw.built_ha": 74197.21027081703,
+    "nature.dw.trees_pct": 49.224008615715995,
+    "nature.dw.trees_ha": 295173.175754472,
+    "nature.dw.crops_pct": 12.320858494557484,
+    "nature.dw.crops_ha": 73882.38041017368,
+    "nature.dw.built_pct": 12.372398938420709,
+    "nature.dw.built_ha": 74191.44415615323,
     "nature.dw.bare_pct": 0.4079964614023616,
     "nature.dw.bare_ha": 2446.5624518493964,
-    "nature.dw.grass_pct": 13.8172622023924,
-    "nature.dw.grass_ha": 82855.60804997577,
-    "nature.dw.shrub_pct": 10.744067079503058,
-    "nature.dw.shrub_ha": 64427.10558447808,
+    "nature.dw.grass_pct": 13.813896688334168,
+    "nature.dw.grass_ha": 82835.42664865249,
+    "nature.dw.shrub_pct": 10.756567560290781,
+    "nature.dw.shrub_ha": 64502.06507510745,
     "nature.dw.flooded_veg_pct": 0.0035578291472748947,
     "nature.dw.flooded_veg_ha": 21.334624256051775,
-    "nature.dw.water_pct": 1.066675641370822,
-    "nature.dw.water_ha": 6396.350996550874,
+    "nature.dw.water_pct": 1.06648332628178,
+    "nature.dw.water_ha": 6395.197773618114,
     "nature.dw.snow_pct": 0.034232085849455744,
     "nature.dw.snow_ha": 205.27368203120085,
     "nature.dw.dominant_class": "trees",
-    "nature.dw.class_confidence": 0.5684342141716752,
-    "nature.sensitive_land_cover_presence": 0.7379629985768683,
-    "nature.water_or_flooded_veg_exposure": 0.05351167352590484,
+    "nature.dw.class_confidence": 0.5684959037878237,
+    "nature.sensitive_land_cover_presence": 0.7379803069348821,
+    "nature.water_or_flooded_veg_exposure": 0.05350205777145275,
     "nature.dw.confidence": 0.9700000000000001,
     "_provenance.nature.dw": {
       "indicator_id": "nature.dw",
@@ -586,10 +586,10 @@
     },
     "nature.habitat.natural_loss_ha": 0.0,
     "nature.habitat.natural_loss_pct": 0.0,
-    "nature.habitat.nat_to_built_ha": 2541.303400168719,
+    "nature.habitat.nat_to_built_ha": 2535.691786328535,
     "nature.habitat.nat_to_bare_ha": 269.65789733921036,
     "nature.habitat.nat_to_crop_ha": 0.0,
-    "nature.habitat.built_expansion_ha": 2541.303400168719,
+    "nature.habitat.built_expansion_ha": 2535.691786328535,
     "nature.habitat.bare_expansion_ha": 269.65789733921036,
     "nature.habitat.annualised_rate": 0.0,
     "nature.habitat.confidence": 0.955,
@@ -709,7 +709,7 @@
         "land_mask_asset": "MODIS/006/MOD44W"
       }
     },
-    "nature.water.area_now_ha": 6396.350996550874,
+    "nature.water.area_now_ha": 6395.197773618114,
     "nature.flooded_veg.area_now_ha": 21.334624256051775,
     "nature.water.confidence": 0.9700000000000001,
     "_provenance.nature.water": {
@@ -807,10 +807,10 @@
         "hansen_max_loss_year": 23
       }
     },
-    "nature.supplier_spatial_link.centroid_offset_km": 10.74218725926552,
-    "nature.supplier_spatial_link.centroid_lat": -15.820981309569943,
-    "nature.supplier_spatial_link.centroid_lon": -47.70549603659239,
-    "nature.supplier_spatial_link.n_change_pixels": 46657,
+    "nature.supplier_spatial_link.centroid_offset_km": 10.739742773249047,
+    "nature.supplier_spatial_link.centroid_lat": -15.820916771589584,
+    "nature.supplier_spatial_link.centroid_lon": -47.70549051981609,
+    "nature.supplier_spatial_link.n_change_pixels": 46641,
     "nature.habitat.attributability_state": "low",
     "_provenance.nature.supplier_spatial_link": {
       "indicator_id": "nature.supplier_spatial_link",
@@ -833,28 +833,28 @@
       "extra": {
         "spatial_link_terms": {
           "attributability_state": "low",
-          "centroid_offset_km": 10.74218725926552,
-          "centroid_lat": -15.820981309569943,
-          "centroid_lon": -47.70549603659239,
-          "n_change_pixels": 46657,
+          "centroid_offset_km": 10.739742773249047,
+          "centroid_lat": -15.820916771589584,
+          "centroid_lon": -47.70549051981609,
+          "n_change_pixels": 46641,
           "n_min_pixels": 10,
           "direction": "SE"
         }
       }
     },
     "nature.habitat.natural_loss_pct_norm": 0.0,
-    "nature.habitat.nat_to_built_pct_norm": 0.04354638465911495,
+    "nature.habitat.nat_to_built_pct_norm": 0.04345022711459396,
     "nature.habitat.nat_to_bare_pct_norm": 0.004620710192699456,
     "nature.habitat.annualised_rate_score": 0.0,
-    "nature.biodiversity_exposure": 0.4315666652885277,
-    "nature.habitat.conversion_score": 0.012774080100354919,
+    "nature.biodiversity_exposure": 0.4315702979068763,
+    "nature.habitat.conversion_score": 0.01274811756333425,
     "nature.vegetation_condition": 0.21958817952205115,
     "nature.valid_pixel_coverage": 0.9142857142857144,
     "nature.cloud_observation_quality": 0.8,
     "nature.seasonal_comparability": 1.0,
-    "nature.measurement_quality": 0.8336868428343351,
+    "nature.measurement_quality": 0.8336991807575647,
     "nature.spatiotemporal_anomaly_score": 0.0,
-    "nature.followup_priority": 0.3132522949223278,
+    "nature.followup_priority": 0.31324744663521065,
     "ghg.ch4.site": 1888.9006685279592,
     "ghg.ch4.background": 1885.492082707111,
     "ghg.ch4.anomaly": 3.4085858208482023,
@@ -952,11 +952,14 @@
         }
       }
     },
-    "ghg.viirs.site": 11.756397529547527,
-    "ghg.viirs.contrast": 0.8894724605807862,
-    "ghg.viirs.persistence": 1.0,
-    "ghg.viirs.confidence": 0.955,
-    "ghg.viirs.score": 0.8894724605807862,
+    "ghg.viirs.site": 1.5115701046585341,
+    "ghg.viirs.score": 0.3249326314633015,
+    "ghg.viirs.flaring_frac": 0.03249326314633015,
+    "ghg.viirs.confidence": 0.7662331578658254,
+    "ghg.viirs.lit_contrast_percentile": 0.9614316962506084,
+    "ghg.viirs.ring_lit_pixel_count": 570242,
+    "ghg.viirs.site_brightness": 1.5115701046585341,
+    "ghg.viirs.attributability_state": "high",
     "_provenance.ghg.viirs": {
       "indicator_id": "ghg.viirs",
       "asset_id": "NASA/VIIRS/002/VNP46A2",
@@ -964,7 +967,7 @@
       "data_type": "satellite_observation",
       "data_source": "NASA / NOAA (VIIRS VNP46A2)",
       "native_scale_m": 463.83,
-      "method_note": "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained contrast: per-timestep Michelson contrast (site vs. background ring), lit fraction = persistence, score = pct(contrast | lit)·persistence_factor(persistence). No z-score / no anomaly-vs-baseline grammar (intentionally different from the Air pillar — sustained activity stock, not transient event).",
+      "method_note": "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels brighter than 100 nW/cm²/sr (absolute intense-source anchor), normalised by 0.1. Replaces the retired sustained-contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). Directional; complements the Air NO₂/CO borrow.",
       "time_range": [
         "2026-02-22",
         "2026-05-23"
@@ -972,39 +975,82 @@
       "coverage_window": null,
       "skipped_reason": null,
       "observations": {
-        "count": 5199,
+        "count": 84,
         "unit": "daily_images"
       },
       "column_to_surface_uncertainty": "n_a",
       "temporal_mode": "live_window",
       "sector_signal_anomaly": null,
       "extra": {
-        "n_valid_timesteps": 5146,
-        "n_lit_timesteps": 5146,
-        "granule_count": 5199,
+        "flaring_fraction": 0.03249326314633015,
+        "abs_threshold_nw": 100.0,
+        "n_images": 84,
         "confidence_terms": {
           "qa": 0.85,
-          "n_valid": 1.0,
-          "anomaly_strength": 1.0,
+          "n_valid": 0.9333333333333333,
+          "anomaly_strength": 0.3249326314633015,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         }
       }
     },
-    "ghg.temporal_coverage": 1.0,
+    "_provenance.ghg.viirs_lit_contrast": {
+      "indicator_id": "ghg.viirs_lit_contrast",
+      "asset_id": "NASA/VIIRS/002/VNP46A2",
+      "band": "Gap_Filled_DNB_BRDF_Corrected_NTL",
+      "data_type": "satellite_observation",
+      "data_source": "NASA / NOAA (VIIRS VNP46A2)",
+      "native_scale_m": 463.83,
+      "method_note": "M-VIIRS-REDESIGN-A1 lit-contrast (attributability, Pattern A): percentile of site median brightness within the background ring's all-pixel (land-masked) distribution → categorical attributability_state. Does NOT enter the composite or the measurement-quality aggregate (M-ATTRIB-A1 invariant).",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ],
+      "coverage_window": null,
+      "skipped_reason": null,
+      "observations": {
+        "count": 84,
+        "unit": "daily_images"
+      },
+      "column_to_surface_uncertainty": "n_a",
+      "temporal_mode": "live_window",
+      "sector_signal_anomaly": null,
+      "extra": {
+        "lit_contrast_percentile": 0.9614316962506084,
+        "ring_lit_pixel_count": 570242,
+        "attributability_state": "high"
+      }
+    },
+    "ghg.temporal_coverage": 0.9666666666666667,
     "ghg.spatial_resolution_suitability": 1.0,
     "ghg.retrieval_inventory_quality": 0.925,
     "ghg.nearby_source_isolation": 1.0,
     "ghg.combustion_proxy": 0.06561502216028431,
+    "_provenance.ghg.combustion_proxy": {
+      "indicator_id": "ghg.combustion_proxy",
+      "data_type": "derived",
+      "data_source": "air_pillar_borrow",
+      "method_note": "GHG combustion proxy = the Air pillar's industrial_combustion_proxy (weighted NO₂ + CO scores), borrowed by the GHG composite. Only the numerical score is borrowed; the Air-pillar wind-attributability flags for NO₂/CO are NOT propagated (see the Air NO₂ + CO provenance entries).",
+      "extra": {
+        "borrowed_from": [
+          "air.no2",
+          "air.co"
+        ],
+        "air_no2_score": 0.10935837026714051,
+        "air_co_score": 0.0,
+        "borrow_weight_in_ghg": 0.6,
+        "borrow_contribution": 0.03936901329617058
+      }
+    },
     "ghg.fire_or_regional_transport_risk": 0.0,
-    "ghg.activity_score": 0.8894724605807862,
+    "ghg.activity_score": 0.3249326314633015,
     "ghg.co2_context": 1.0,
-    "ghg.fossil_combustion_score": 0.6975789987642426,
-    "ghg.activity_adjusted_co2": 0.9668417381742358,
-    "ghg.core_audit_support": 0.5599294852125855,
-    "ghg.data_quality_attribution": 0.9752500000000001,
-    "ghg.audit_followup_priority": 0.673198716518244,
-    "composite.overall_screening": 0.37783707286227736,
+    "ghg.fossil_combustion_score": 0.5846710329407456,
+    "ghg.activity_adjusted_co2": 0.7974797894389904,
+    "ghg.core_audit_support": 0.1693420658814912,
+    "ghg.data_quality_attribution": 0.9639166666666668,
+    "ghg.audit_followup_priority": 0.3860442297319936,
+    "composite.overall_screening": 0.28211729450448814,
     "composite.confidence": 0.6714970141607294,
     "_failures": {
       "air": [
@@ -1038,7 +1084,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-31T16:50:16.485055+00:00",
+      "computed_at": "2026-06-01T13:01:11.138188+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",

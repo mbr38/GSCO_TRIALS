@@ -1,5 +1,5 @@
 {
-  "id": "e0fb2074-2f67-4dea-8a9f-50341a32c50a",
+  "id": "2cd0c4b6-f834-4216-ad04-c4939fa995f0",
   "name": "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso",
   "type": "screening",
   "screening_setup": {
@@ -40,7 +40,7 @@
       "2026-05-23"
     ]
   },
-  "date_saved": "2026-05-31T16:43:31.968661+00:00",
+  "date_saved": "2026-06-01T12:58:19.563826+00:00",
   "payload": {
     "air.aai.site": -0.649756261912722,
     "air.aai.background": -0.6474493589758484,
@@ -320,7 +320,7 @@
           "column_to_surface_uncertainty": "moderate"
         },
         "n_valid_dates": 88,
-        "granule_count": 1118,
+        "granule_count": 1120,
         "ring_land_fraction": 0.9998697868461736,
         "land_mask_applied": true,
         "land_mask_asset": "MODIS/006/MOD44W",
@@ -952,11 +952,14 @@
         }
       }
     },
-    "ghg.viirs.site": 1.8872018849808614,
-    "ghg.viirs.contrast": 0.6816219351196957,
-    "ghg.viirs.persistence": 0.9570206145468689,
-    "ghg.viirs.confidence": 0.9442551536367172,
-    "ghg.viirs.score": 0.6816219351196957,
+    "ghg.viirs.site": 0.6822374210361635,
+    "ghg.viirs.score": 0.0,
+    "ghg.viirs.flaring_frac": 0,
+    "ghg.viirs.confidence": 0.6849999999999999,
+    "ghg.viirs.lit_contrast_percentile": 0.9730072535399993,
+    "ghg.viirs.ring_lit_pixel_count": 8926,
+    "ghg.viirs.site_brightness": 0.6822374210361635,
+    "ghg.viirs.attributability_state": "high",
     "_provenance.ghg.viirs": {
       "indicator_id": "ghg.viirs",
       "asset_id": "NASA/VIIRS/002/VNP46A2",
@@ -964,7 +967,7 @@
       "data_type": "satellite_observation",
       "data_source": "NASA / NOAA (VIIRS VNP46A2)",
       "native_scale_m": 463.83,
-      "method_note": "M-GHG-REDESIGN-A1 persistence-weighted ring-relative sustained contrast: per-timestep Michelson contrast (site vs. background ring), lit fraction = persistence, score = pct(contrast | lit)·persistence_factor(persistence). No z-score / no anomaly-vs-baseline grammar (intentionally different from the Air pillar — sustained activity stock, not transient event).",
+      "method_note": "M-VIIRS-REDESIGN-A1 flaring (severity): fraction of site pixels brighter than 100 nW/cm²/sr (absolute intense-source anchor), normalised by 0.1. Replaces the retired sustained-contrast grammar (could not rank intensity; M-VIIRS-DIAG-A1). Directional; complements the Air NO₂/CO borrow.",
       "time_range": [
         "2026-02-22",
         "2026-05-23"
@@ -972,39 +975,82 @@
       "coverage_window": null,
       "skipped_reason": null,
       "observations": {
-        "count": 5199,
+        "count": 84,
         "unit": "daily_images"
       },
       "column_to_surface_uncertainty": "n_a",
       "temporal_mode": "live_window",
       "sector_signal_anomaly": null,
       "extra": {
-        "n_valid_timesteps": 5142,
-        "n_lit_timesteps": 4921,
-        "granule_count": 5199,
+        "flaring_fraction": 0,
+        "abs_threshold_nw": 100.0,
+        "n_images": 84,
         "confidence_terms": {
           "qa": 0.85,
-          "n_valid": 1.0,
-          "anomaly_strength": 0.9570206145468689,
+          "n_valid": 0.9333333333333333,
+          "anomaly_strength": 0.0,
           "spatial_context": 1.0,
           "column_to_surface_uncertainty": "n_a"
         }
       }
     },
-    "ghg.temporal_coverage": 1.0,
+    "_provenance.ghg.viirs_lit_contrast": {
+      "indicator_id": "ghg.viirs_lit_contrast",
+      "asset_id": "NASA/VIIRS/002/VNP46A2",
+      "band": "Gap_Filled_DNB_BRDF_Corrected_NTL",
+      "data_type": "satellite_observation",
+      "data_source": "NASA / NOAA (VIIRS VNP46A2)",
+      "native_scale_m": 463.83,
+      "method_note": "M-VIIRS-REDESIGN-A1 lit-contrast (attributability, Pattern A): percentile of site median brightness within the background ring's all-pixel (land-masked) distribution → categorical attributability_state. Does NOT enter the composite or the measurement-quality aggregate (M-ATTRIB-A1 invariant).",
+      "time_range": [
+        "2026-02-22",
+        "2026-05-23"
+      ],
+      "coverage_window": null,
+      "skipped_reason": null,
+      "observations": {
+        "count": 84,
+        "unit": "daily_images"
+      },
+      "column_to_surface_uncertainty": "n_a",
+      "temporal_mode": "live_window",
+      "sector_signal_anomaly": null,
+      "extra": {
+        "lit_contrast_percentile": 0.9730072535399993,
+        "ring_lit_pixel_count": 8926,
+        "attributability_state": "high"
+      }
+    },
+    "ghg.temporal_coverage": 0.9666666666666667,
     "ghg.spatial_resolution_suitability": 1.0,
     "ghg.retrieval_inventory_quality": 0.925,
     "ghg.nearby_source_isolation": 1.0,
     "ghg.combustion_proxy": 0.0,
+    "_provenance.ghg.combustion_proxy": {
+      "indicator_id": "ghg.combustion_proxy",
+      "data_type": "derived",
+      "data_source": "air_pillar_borrow",
+      "method_note": "GHG combustion proxy = the Air pillar's industrial_combustion_proxy (weighted NO₂ + CO scores), borrowed by the GHG composite. Only the numerical score is borrowed; the Air-pillar wind-attributability flags for NO₂/CO are NOT propagated (see the Air NO₂ + CO provenance entries).",
+      "extra": {
+        "borrowed_from": [
+          "air.no2",
+          "air.co"
+        ],
+        "air_no2_score": 0.0,
+        "air_co_score": 0.0,
+        "borrow_weight_in_ghg": 0.6,
+        "borrow_contribution": 0.0
+      }
+    },
     "ghg.fire_or_regional_transport_risk": 0.0,
-    "ghg.activity_score": 0.6816219351196957,
+    "ghg.activity_score": 0.0,
     "ghg.co2_context": 0.40710571288119496,
-    "ghg.fossil_combustion_score": 0.3398772434645366,
-    "ghg.activity_adjusted_co2": 0.48946057955274513,
-    "ghg.core_audit_support": 0.4089731610718174,
-    "ghg.data_quality_attribution": 0.9752500000000001,
-    "ghg.audit_followup_priority": 0.5634122989613217,
-    "composite.overall_screening": 0.32101831084520543,
+    "ghg.fossil_combustion_score": 0.20355285644059748,
+    "ghg.activity_adjusted_co2": 0.28497399901683645,
+    "ghg.core_audit_support": 0.0,
+    "ghg.data_quality_attribution": 0.9639166666666668,
+    "ghg.audit_followup_priority": 0.26288636363636364,
+    "composite.overall_screening": 0.22084299907021943,
     "composite.confidence": 0.6727790780347732,
     "_failures": {
       "air": [
@@ -1038,7 +1084,7 @@
         "2026-05-23"
       ],
       "mode": "screening",
-      "computed_at": "2026-05-31T16:45:28.031304+00:00",
+      "computed_at": "2026-06-01T12:59:11.016663+00:00",
       "selected_indicators": [
         "air.aai.score",
         "air.aod.score",
