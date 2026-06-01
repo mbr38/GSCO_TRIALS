@@ -57,9 +57,10 @@ def _abs_z(indicator, aoi, window):
     try:
         snap = compute_pollutant_snapshot(aoi, indicator, window, "screening", ee)
         z = snap.get(f"air.{indicator}.z")
-        return (abs(z) if z is not None else None), ""
+        hf = snap.get(f"air.{indicator}.hf")
+        return (abs(z) if z is not None else None), hf, ""
     except Exception as e:  # noqa: BLE001
-        return None, f"{type(e).__name__}: {str(e)[:50]}"
+        return None, None, f"{type(e).__name__}: {str(e)[:50]}"
 
 
 def extract():
@@ -67,21 +68,21 @@ def extract():
     # Events — AAI (fire/dust) + AOD (biomass). Captured indicator's |z| over event window.
     for ev in EVENTS:
         w = _event_window(ev)
-        z, err = _abs_z("aai", _aoi(ev["lat"], ev["lon"]), w)
+        z, hf, err = _abs_z("aai", _aoi(ev["lat"], ev["lon"]), w)
         rows.append(dict(role="event", indicator="aai", id=ev["id"], kind=ev["kind"],
-                         window=f"{w[0]}/{w[1]}", abs_z=z, error=err))
+                         window=f"{w[0]}/{w[1]}", abs_z=z, hf=hf, error=err))
         print(f"  event   aai  {ev['id']:14} |z|={None if z is None else round(z,2)} {err}")
     for eid, lat, lon, s, e, note in AOD_EVENTS:
-        z, err = _abs_z("aod", _aoi(lat, lon), (s, e))
+        z, hf, err = _abs_z("aod", _aoi(lat, lon), (s, e))
         rows.append(dict(role="event", indicator="aod", id=eid, kind="biomass",
-                         window=f"{s}/{e}", abs_z=z, error=err))
+                         window=f"{s}/{e}", abs_z=z, hf=hf, error=err))
         print(f"  event   aod  {eid:14} |z|={None if z is None else round(z,2)} {err}")
     # Controls — every air indicator at each clean site (each cell = a potential false High).
     for cid, lat, lon, s, e in CONTROLS:
         for ind in FP_INDICATORS:
-            z, err = _abs_z(ind, _aoi(lat, lon), (s, e))
+            z, hf, err = _abs_z(ind, _aoi(lat, lon), (s, e))
             rows.append(dict(role="control", indicator=ind, id=cid, kind="clean",
-                             window=f"{s}/{e}", abs_z=z, error=err))
+                             window=f"{s}/{e}", abs_z=z, hf=hf, error=err))
             print(f"  control {ind:4} {cid:14} |z|={None if z is None else round(z,2)} {err}")
     df = pd.DataFrame(rows)
     df.to_csv(os.path.join(HERE, "m_calibration_sweep_c1_zvalues.csv"), index=False)
@@ -125,6 +126,15 @@ def main():
     print("Step C1 — extracting POST-FIX z for calibration set …")
     df = extract()
     g, pick, note = grid(df)
+    # hf-based separation (the hypothesis: an hf-banded tile separates events from controls)
+    ev_hf = df[(df.role=="event") & df.hf.notna()]["hf"]
+    ct_hf = df[(df.role=="control") & df.hf.notna()]["hf"]
+    print("\nhf separation check (severity from hot-day fraction instead of aggregate z):")
+    print(f"  events  hf: n={len(ev_hf)} median={ev_hf.median():.3f} mean={ev_hf.mean():.3f} min={ev_hf.min():.3f} max={ev_hf.max():.3f}")
+    print(f"  controls hf: n={len(ct_hf)} median={ct_hf.median():.3f} mean={ct_hf.mean():.3f} min={ct_hf.min():.3f} max={ct_hf.max():.3f}")
+    for cut in [0.05,0.10,0.15,0.20,0.25]:
+        cap=(ev_hf>=cut).mean(); fp=(ct_hf>=cut).mean()
+        print(f"  hf-cut {cut:.2f}: event_capture={cap:.2f} control_fp={fp:.2f} {'<= MEETS >=' if cap>=0.9 and fp<=0.2 else ''}")
     print("\nGrid (Concern-cut drives the fire threshold):")
     print(g.to_string(index=False))
     print(f"\nCapture-first pick ({note}):")
