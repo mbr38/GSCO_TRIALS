@@ -32,11 +32,13 @@ The saturating `contrast·persistence` VIIRS grammar (M-GHG-REDESIGN-A1) is reti
 - [x] **VR14** — composite stability inspectable per-component (`ghg.viirs.score` flaring + `ghg.combustion_proxy` borrow + their provenance/weights). Seed regen: see below.
 - [x] **VR17 (engine)** — `_provenance.ghg.combustion_proxy` emitted (borrowed_from air.no2/air.co, per-pollutant scores, weight, contribution). Commit `2514c54`.
 
-### Not yet done (carried as remaining follow-on)
+- [x] **VR10 / Step E seed regen** — all 5 seeds regenerated on the new grammar. Movements (operator-approved per the guardrail): Sapezal 0.321→0.221 (Normal); Distrito Federal 0.378→0.282 (**Concern→Normal**, approved — saturating-VIIRS de-inflation); Patagonia/Comodoro 0.510→0.428 (Concern, in-band); Suape 0.313→0.301 (Normal, in-band); Norilsk 0.402→0.314 (**Concern→Normal**, approved — same mechanism). All now carry `attributability_state` + flaring + 0.40/0.60 weights.
+- [x] **VR16** — §2.4 v1.x attributability coverage map (cross-pillar table + the Air-vs-VIIRS architectural-asymmetry note; harmonisation deferred to v2).
+- [x] **VR17 (UI)** — C5 GHG drill-down surfaces the combustion_proxy borrow (value, weight, contribution, cross-reference to Air NO₂/CO) + the VIIRS `attributability_state`. P-09 methodology paragraph: minor remaining doc polish.
 
-- [ ] **VR10 / Step E seed regen** — 5 production seeds carry the old VIIRS keys (`.contrast`/`.persistence`) and pre-redesign composite; regenerate against the new engine and document per-seed movements (multi-band guardrail). **Pending** (needs EE run).
-- [ ] **VR16** — the §2.X v1.x attributability coverage map (cross-pillar table + Air-vs-VIIRS asymmetry note). **Pending** (the §2.2a superseding block covers the VIIRS grammar; the full cross-pillar map is not yet written).
-- [ ] **VR17 (UI)** — combustion_proxy C5 expander entry + deep-link to Air NO₂/CO; P-09 GHG methodology paragraph. **Pending** (engine provenance done; UI surfacing not yet).
+### Test integrity note
+
+`test_c4b_kpi_grid.py::test_sapezal_viirs_classifies_high` → `_classifies_normal`: the old test asserted a soy-plantation frontier reads VIIRS=High — *exactly the saturation artifact the redesign fixes*. Post-redesign Sapezal flaring = 0.0 → Normal (its lit-presence is captured as `attributability_state = high`, not severity). Full suite **2004 passed / 34 skipped**.
 
 ---
 
