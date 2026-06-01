@@ -123,6 +123,8 @@ A *Normal* severity means the site is not standing out. A *Concern* or *Severe* 
 
 This framing applies to all z-score-based indicators in the Air pillar (NO₂, SO₂, HCHO, CO, O₃, AAI, AOD, and CAMS PM₂.₅/PM₁₀ — all run the §0.2 repeatable core), and to the equivalent grammars in GHG (VIIRS-based combustion-activity z) and Nature where applicable. Reference data (CH₄, Hansen, ODIAC) is shown alongside severity findings but does not feed scoring — see the per-indicator library entries (P-09) for details. See §1.5 for the related column-vs-surface framing, which is a special case of this principle.
 
+**Calibration philosophy (M-CALIBRATION-SWEEP-A1, 1 Jun 2026).** v1.x severity-band thresholds were reviewed by M-CALIBRATION-SWEEP-A1 and **retained** — the review confirmed the existing values rather than changing them. Thresholds are tuned for **sustained, supplier-attributable pollution** over the user's analysis window (the tool's purpose), at a **≤20% clean-site false-positive ceiling** — *not* for transient-event capture (wildfires, dust storms), which are regional and not supplier-attributable. Against a set of known high-pollution industrial sites (mines, smelters, refineries, coal power) vs clean controls, the current global anomaly bands (Concern z≥1.0, High z≥2.0) fire on point-source industrial standouts with zero clean-control false positives. The known limitation (per §0.7): a supplier embedded in a uniformly-polluted region may read *Normal* on the severity colour even at high absolute pollution — the absolute level remains visible as the raw "Site value" in the P-05 drilldown. See `docs/M-CALIBRATION-SWEEP-A1_closed_entry.md`.
+
 ---
 
 ## 1. Air Pollution pillar
