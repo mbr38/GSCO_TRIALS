@@ -1,0 +1,397 @@
+# GSCO — Report Creation: Code Handoff
+
+> **Purpose of this document.** A single, self-contained map of every piece of
+> code in `gsco-demo` that produces a *report, export, or summary*. Hand this to
+> a design reviewer (e.g. Claude in the browser) so they can reason about the
+> report-creation structure without reading the whole codebase. It describes
+> **what exists today**, where it lives, what shape the data has, and where the
+> seams / open questions are.
+>
+> Generated 1 June 2026. This is a derived/working doc — it is **not** an
+> authoritative spec. Authority for report behaviour still lives in
+> `docs/Wireframes_All_v4.md` (§P-05, §P-10, §P-11), `docs/PLFS_v4.md`, and
+> `docs/Verbal_Summary_Templates_v1.md`.
+
+---
+
+## 0. TL;DR — the report stack at a glance
+
+There are **three** distinct "output" surfaces, in increasing order of formality:
+
+| Surface | Page | What it produces | Code home |
+|---|---|---|---|
+| **Verbal summary** | P-05 (C7), P-06, P-11 | 4-paragraph deterministic prose (overview + air/ghg/nature) | `engine/verbal_summary.py` |
+| **Saved analysis** | P-05/P-08 → P-10 | A session-persisted record of a screening/prioritisation/trend run | `ui/components/c8_action_bar.py`, `ui/components/p10_list.py` |
+| **Report** | P-11 | A multi-source HTML document, exportable to PDF / CSV / JSON | `ui/components/p11_*.py`, `ui/p11_state.py`, `templates/p11/` |
+
+The **report** (P-11) is the thing the user most likely means by "report
+creation". It is a 3-state wizard (pick → preview → export) that assembles HTML
+from pluggable **section** functions chosen by a **template**, then renders that
+HTML to PDF (or sidesteps to CSV/JSON). The verbal summary is *reused inside*
+the report, so the two surfaces never disagree on prose.
+
+```
+                 ┌─────────────────────────────────────────────────┐
+   ScreeningRun  │  payload dict  (engine/orchestrator.py)          │
+   .run() ───────▶  air.* / ghg.* / nature.* / composite.* +        │
+                 │  _provenance.* + _failures + _meta               │
+                 └───────────────┬─────────────────────────────────┘
+                                 │
+              ┌──────────────────┼─────────────────────────────────┐
+              ▼                  ▼                                  ▼
+   engine/verbal_summary   C8 "Save as report"            P-11 report builder
+   generate_verbal_summary  → saved_analyses[]            (consumes saved_analyses[])
+              │                  │                                  │
+       P-05 C7 / P-06            └──── P-10 list ──── select ───────┤
+              │                                                     │
+              └──────────────── reused by ────▶  p11_sections  ─────┤
+                                                 (verbal summary       │
+                                                  inside pillar_findings)│
+                                                                     ▼
+                                          p11_assembler → shell.html.j2
+                                                     │
+                                  ┌──────────────────┼──────────────────┐
+                                  ▼                  ▼                  ▼
+                            p11_pdf (weasyprint)  p11_csv          p11_json
+```
+
+---
+
+## 1. The data contract — what a report consumes
+
+Everything downstream reads one of two shapes.
+
+### 1.1 Screening payload (the unit of analysis)
+
+Produced by `engine.orchestrator.ScreeningRun.run()`. Flat dict keyed by
+canonical indicator IDs. Abridged shape (full per-indicator set is 19
+indicators):
+
+```python
+{
+  # Per-pillar follow-up priority (0–1; the "severity" axis)
+  "air.audit_followup_priority":   float,
+  "ghg.audit_followup_priority":   float,
+  "nature.followup_priority":      float,
+
+  # Per-pillar measurement quality / attribution confidence (0–1)
+  "air.measurement_quality_score":  float,   # M-ATTRIB-A1
+  "ghg.data_quality_attribution":   float,   # M-ATTRIB-A1
+  "nature.measurement_quality":     float,
+
+  # Composite
+  "composite.overall_screening":    float,
+  "composite.confidence":           float,
+
+  # Per-indicator detail (repeats for all 19)
+  "air.no2.score":  float, "air.no2.site": float, "air.no2.z": float,
+  "air.no2.anomaly": float, "air.no2.confidence": float,
+
+  # Provenance, one block per indicator (see §5)
+  "_provenance.air.no2": { ...11-field block... },
+
+  "_meta":     {"computed_at": ISO8601},
+  "_failures": {"air.no2": "reason", ...},   # skipped/failed indicators
+}
+```
+
+> The **priority** and **confidence** keys are bucketed by the same tertile
+> thresholds (`TRAFFIC_LIGHT_THRESHOLDS = 0.33 / 0.66`) the traffic-light chips
+> use, so prose and chip colour never disagree.
+
+### 1.2 Saved-analysis entry (the report source)
+
+A "source" the report builder selects from. Lives in
+`st.session_state["saved_analyses"]` (a list). Written by C8
+([`c8_action_bar.py:82`](../ui/components/c8_action_bar.py#L82)):
+
+```python
+{
+  "id":              str(uuid4),
+  "name":            str,        # human-readable, built by _build_save_name
+  "type":            "screening" | "prioritisation" | "trend",
+  "screening_setup": {centre, radius_km, indicators, time_range, centre_metadata},
+  "date_saved":      ISO8601,
+  "payload":         { ...screening payload from §1.1... },
+  # prioritisation/trend entries carry different keys:
+  # "prioritisation_setup", "supplier_results", "summary"
+}
+```
+
+> **Persistence caveat:** saves are **session-only** — they survive reruns but
+> NOT a page reload or sign-out. Full localStorage persistence (PLFS_v4 §14) is
+> a future milestone. This is the single biggest "is this demo-real?" caveat in
+> the report stack.
+
+---
+
+## 2. Verbal summary — `engine/verbal_summary.py`  (✅ complete, ~1,000 LOC)
+
+The deterministic prose engine. Authority: `docs/Verbal_Summary_Templates_v1.md`.
+
+**Public API:**
+
+```python
+@dataclass(frozen=True)
+class VerbalSummary:
+    overview: str
+    air: str
+    ghg: str
+    nature: str
+    template_ids: dict[str, str]      # which template fired per paragraph (audit)
+    def joined(self) -> str           # "\n\n".join(overview, air, ghg, nature)
+
+def generate_verbal_summary(payload: dict) -> VerbalSummary
+```
+
+**Design properties (locked, do not regress):**
+1. **Deterministic** — no LLM, no randomness, no state. Same input → same output.
+   (CLAUDE.md §8 forbids introducing LLM calls here.)
+2. **Defensible** — never invents values, never speculates causation, never
+   implies facility-level attribution. Severity is *site-vs-region anomaly*.
+3. **Auditable** — every sentence traces to a template ID + slot-resolution
+   rule; `template_ids` records which fired.
+4. **UI-aligned** — bucketing = `TRAFFIC_LIGHT_THRESHOLDS` (0.33 / 0.66).
+
+**Internal shape:** `_bucket()` → tertile band; `_resolve_dominant()` +
+`_*_dominant_slots()` pick the dominant contributor per pillar; `_render_pillar()`
+and `_render_overview()` fill template strings; `_hansen_reference_clause()`
+appends a forest-loss reference clause when above
+`HANSEN_VERBAL_MENTION_THRESHOLD`.
+
+**Consumed by:** P-05 C7 ([`c7_verbal_summary.py`](../ui/components/c7_verbal_summary.py)),
+P-06 trend view, and P-11 `pillar_findings` section. Tests:
+[`tests/test_verbal_summary.py`](../tests/test_verbal_summary.py).
+
+---
+
+## 3. Saving + listing — the bridge to reports
+
+### 3.1 C8 action bar — `ui/components/c8_action_bar.py`  (✅ complete)
+
+Bottom-of-P-05 buttons. Authority: Wireframes §P-05 C8.
+
+- `render_c8_action_bar(payload)` — "Save as report" + (disabled) "Switch to Trend".
+- `_save_as_report(payload)` — appends an entry (§1.2) to `saved_analyses`,
+  stashes a sentinel for the post-save banner.
+- `_render_post_save_banner()` — sticky success banner with **"Open in Reports"**
+  → calls `route_to_p11_with_source()` then `st.switch_page("pages/11_Reports.py")`.
+  This is the **primary entry path** into report creation.
+- `_build_save_name(setup, scope, now)` — pure, testable name builder.
+  Precedence: supply-chain node → region → coordinate+timestamp fallback.
+
+### 3.2 P-10 saved-analyses list — `ui/components/p10_list.py`  (✅ complete)
+
+- `render_saved_analyses()` — free-text search + per-row Open / Delete /
+  Export-JSON. Open routes back to P-05 (screening) or P-08 (prioritisation).
+- Per-row **Export JSON** is a *raw* per-analysis dump (distinct from the
+  report-wrapped JSON in §4.4).
+
+---
+
+## 4. The report builder — P-11  (the main surface)
+
+Page entry: [`pages/11_Reports.py`](../pages/11_Reports.py) → `render_p11()`.
+Router-only page (no Earth Engine init). All logic in `ui/`.
+
+### 4.1 State machine — `ui/p11_state.py`  (✅ complete)
+
+```python
+class ReportStateKind(str, Enum):
+    S1_TEMPLATE_AND_SOURCE   # pick template + sources + title/notes → Preview
+    S2_PREVIEW               # review assembled HTML in an iframe → Export
+    S3_EXPORT                # download PDF / CSV / JSON
+    E1_FAILED                # export generation failed
+
+@dataclass
+class ReportState:
+    kind, template_id, source_ids: list[str], title, notes, error
+
+def route_to_p11_with_source(session_state, source_id)  # pure mutator; pre-selects a source
+```
+
+State lives at `st.session_state["report_state"]`.
+
+### 4.2 Renderer — `ui/components/p11_renderer.py`  (✅ complete)
+
+`render_p11()` dispatches on `state.kind`:
+- `_render_s1` — user-type → `templates_for()`; template selector; source
+  multiselect (filtered to the template's `accepted_source_types`); title +
+  notes; validation (template + ≥1 source + title required) → S2.
+- `_render_s2` — assembles HTML via `build_report_html()`, renders in an iframe
+  (`st.components.html`) → "Continue to Export" → S3.
+- `_render_s3` — three columns: PDF (generate-then-download, cached), CSV
+  (one-shot `st.download_button`), JSON (one-shot). PDF failures surface
+  `PdfDependencyError` as a friendly install banner.
+
+### 4.3 Templates registry — `ui/components/p11_templates.py`  (✅ complete)
+
+```python
+@dataclass(frozen=True)
+class ReportTemplate:
+    template_id, display_name, description, user_type
+    accepted_source_types: frozenset[str]   # {"screening","prioritisation","trend"}
+    sections: tuple[str, ...]               # ordered section keys
+```
+
+Two templates ship in v1:
+
+| template_id | user_type | sections (in order) |
+|---|---|---|
+| `policy_audit` | policy_maker | title_page, executive_summary, methodology, **pillar_findings**, indicator_detail, trend_graph, reference_datasets, provenance_appendix |
+| `supplier_audit` | mnc | title_page, executive_summary, methodology, scope_summary, **priority_findings**, per_supplier_detail, trend_graph, reference_datasets, provenance_appendix |
+
+`templates_for(user_type)` and `get_template(id)` are the lookups.
+
+> **Extension point:** adding a report type = register a new `ReportTemplate` +
+> implement any new section keys in the registry (§4.5). No renderer changes.
+
+### 4.4 Assembler + shell — `ui/components/p11_assembler.py` + `templates/p11/shell.html.j2`  (✅ complete)
+
+```python
+def build_report_html(state, sources, template) -> str
+```
+
+Loops `template.sections`, calls each section fn via `get_section()`, joins the
+HTML fragments inside the Jinja2 shell. **Per-section failures are caught and
+inlined as an error fragment** — one broken section never blanks the whole
+report. The shell (`shell.html.j2`) carries all print CSS: `@page` A4 +
+margins + footer page numbering (weasyprint honours these), pillar-chip colour
+classes (red/amber/green/grey), table styling, `color-scheme: light` to stop
+Streamlit's dark theme bleeding into the iframe.
+
+### 4.5 Section functions — `ui/components/p11_sections.py`  (✅ complete, ~1,000 LOC)
+
+Each section is `def _render_X(state, sources) -> str` returning an HTML
+fragment. Dispatched by `_SECTION_REGISTRY`:
+
+| Section key | What it renders | Notes |
+|---|---|---|
+| `title_page` | title, date, source count | |
+| `executive_summary` | notes + per-source composite/band table | |
+| `methodology` | fixed methodology prose | |
+| `scope_summary` | screened scope (MNC) | |
+| `pillar_findings` | **reuses `generate_verbal_summary`** for full (19-indicator) screenings; caveat + score table for partial | Policy template |
+| `priority_findings` | audit-priority ranking (MNC) | |
+| `indicator_detail` | per-indicator score table | |
+| `per_supplier_detail` | per-supplier breakdown for prioritisation sources | |
+| `trend_graph` | inline SVG trend chart from saved trend records | M-TREND-A2 |
+| `reference_datasets` | Hansen / ODIAC / CH₄ context datasets | |
+| `provenance_appendix` | 11-field provenance per indicator + special appendices (coastal, habitat-attribution, wind-attribution, fallback, extras) | see §5 |
+
+> This is the **largest and most design-relevant file**. The provenance
+> appendix alone has five sub-renderers. If the design goal is "improve report
+> structure", this file + the templates registry (§4.3) are where structure
+> decisions land.
+
+### 4.6 Export backends
+
+| File | Function | Output | Notes |
+|---|---|---|---|
+| `p11_pdf.py` | `render_pdf(html) -> bytes` | PDF | Lazy-imports weasyprint (~200 MB resident); wraps missing Pango/Cairo/GLib as `PdfDependencyError`. |
+| `p11_csv.py` | `render_csv(state, sources) -> str` | CSV | Flat, one row per (source, pillar, indicator); prioritisation expands per-supplier. 18 locked columns incl. confidence-term breakdown + provenance. UTF-8 BOM + `QUOTE_ALL` for Excel. |
+| `p11_json.py` | `render_json(state, sources, template) -> str` | JSON | Report-wrapped: top-level `report` metadata block + `sources[]`. Self-describing; distinguishable from raw output by the `report` key. |
+
+CSV column set (`_COLUMNS`): `source_name, source_type, pillar, indicator_id,
+score, confidence, asset_id, native_scale_m, time_range_start, time_range_end,
+skipped_reason, confidence_term_qa, confidence_term_n_valid,
+confidence_term_anomaly_strength, confidence_term_spatial_context,
+column_to_surface_multiplier, n_valid_dates, granule_count`.
+
+---
+
+## 5. Provenance — the audit backbone
+
+Authority: `docs/provenance_schema.md`. Every single-value indicator emits a
+`_provenance.<pillar>.<indicator>` block via `engine.core.build_provenance`
+(11 canonical fields: indicator_id, asset_id, band, data_type, data_source,
+native_scale_m, method_note, time_range, coverage_window, skipped_reason,
+observations + `extra` escape hatch). The report's `provenance_appendix` section
+and several CSV columns are pure projections of these blocks — so report
+auditability is only as good as the provenance blocks the engine emits.
+
+---
+
+## 6. Tests (report-relevant)
+
+```
+tests/test_verbal_summary.py          ← prose engine (largest suite)
+tests/test_p11_templates.py           ← registry + filtering
+tests/test_p11_state.py               ← state machine + routing
+tests/test_p11_assembler.py           ← HTML assembly + section-failure isolation
+tests/test_p11_sections.py            ← section fragments
+tests/test_p11_csv.py / _json.py / _pdf.py  ← export backends
+tests/test_save_as_report_wiring.py   ← C8 → P-11 routing
+tests/test_save_name_builder.py       ← _build_save_name precedence
+tests/test_p08_save_action.py         ← prioritisation save
+tests/test_seeded_saves.py            ← demo seed data
+tests/test_habitat_attribution_pdf.py ← habitat-attribution appendix PDF
+```
+
+---
+
+## 7. File index (every report-touching file)
+
+| Path | Role | Status |
+|---|---|---|
+| [engine/verbal_summary.py](../engine/verbal_summary.py) | deterministic prose engine | ✅ |
+| [ui/components/c7_verbal_summary.py](../ui/components/c7_verbal_summary.py) | P-05 C7 renderer | ✅ |
+| [ui/components/c3_summary.py](../ui/components/c3_summary.py) | traffic-light chips | ✅ |
+| [ui/components/c8_action_bar.py](../ui/components/c8_action_bar.py) | save-as-report + banner | ✅ |
+| [ui/components/p10_list.py](../ui/components/p10_list.py) | saved-analyses list | ✅ |
+| [pages/11_Reports.py](../pages/11_Reports.py) | P-11 page entry | ✅ |
+| [ui/p11_state.py](../ui/p11_state.py) | report state machine | ✅ |
+| [ui/components/p11_renderer.py](../ui/components/p11_renderer.py) | S1/S2/S3 dispatch | ✅ |
+| [ui/components/p11_templates.py](../ui/components/p11_templates.py) | template registry | ✅ |
+| [ui/components/p11_assembler.py](../ui/components/p11_assembler.py) | HTML assembly | ✅ |
+| [ui/components/p11_sections.py](../ui/components/p11_sections.py) | section functions | ✅ |
+| [ui/components/p11_pdf.py](../ui/components/p11_pdf.py) | PDF backend | ✅ |
+| [ui/components/p11_csv.py](../ui/components/p11_csv.py) | CSV backend | ✅ |
+| [ui/components/p11_json.py](../ui/components/p11_json.py) | JSON backend | ✅ |
+| [templates/p11/shell.html.j2](../templates/p11/shell.html.j2) | print/PDF shell + CSS | ✅ |
+| [ui/components/trend_record.py](../ui/components/trend_record.py) | trend persistence (report source) | ✅ |
+| [ui/components/trend_svg.py](../ui/components/trend_svg.py) | inline trend SVG for reports | ✅ |
+| [ui/prioritisation_state.py](../ui/prioritisation_state.py) | `SupplierResult` (report source) | ✅ |
+| [docs/Verbal_Summary_Templates_v1.md](Verbal_Summary_Templates_v1%20(1).md) | prose authority | doc |
+| [docs/provenance_schema.md](provenance_schema.md) | provenance authority | doc |
+| [docs/Wireframes_All_v4.md](Wireframes_All_v4.md) | P-05/P-10/P-11 UI authority | doc |
+
+---
+
+## 8. Open questions / seams for a design review
+
+These are the genuine decision points if the goal is to improve report-creation
+structure. None are bugs — they are design choices currently locked one way.
+
+1. **Section model is positional & flat.** A template is an ordered tuple of
+   string keys; sections take `(state, sources)` and return HTML strings. There
+   is no per-section config (no "include provenance: yes/no", no reordering UI,
+   no section-level options). Adding configurability means changing the
+   `ReportTemplate` shape and the renderer.
+2. **HTML-string sections, not a component tree.** Sections concatenate raw HTML
+   strings. This is simple and weasyprint-friendly but hard to restyle/theme
+   centrally beyond the shell CSS. A structured intermediate (dict/dataclass per
+   section, rendered by one templating pass) would decouple content from layout.
+3. **Two templates, hard-wired to user type.** `templates_for(user_type)` means
+   a policy maker can't pick the supplier template and vice-versa. If reports
+   should be user-selectable regardless of role, this filter changes.
+4. **Session-only persistence.** Saved analyses (the report sources) vanish on
+   reload. Any report-creation UX that assumes a durable library of past
+   analyses is blocked on the localStorage milestone (PLFS_v4 §14).
+5. **PDF requires native deps.** weasyprint needs Pango/Cairo/GLib on the host;
+   absent them, PDF is unavailable (CSV/JSON still work). A pure-Python or
+   headless-browser PDF path would remove that host dependency.
+6. **Executive summary is mechanical.** It's a per-source composite/band table
+   plus the user's notes — it does not synthesise across sources. A cross-source
+   narrative would be a natural structural addition (but must stay deterministic
+   per CLAUDE.md §8 — no LLM in the summary path).
+7. **No report-level provenance/versioning.** The JSON carries `generated_at`
+   but there's no tool-version / engine-version / indicator-schema-version stamp
+   on the report itself for reproducibility.
+
+---
+
+*Maintenance note: this is a working handoff, not an authority doc. If the P-11
+code structure changes materially, regenerate or update §4–§7 here. Do not let
+this doc become a second source of truth that competes with the Wireframes /
+PLFS specs.*
