@@ -359,15 +359,16 @@ def test_sapezal_snapshot_respects_min_three(sapezal_payload):
     assert len(snapshot) >= _MIN_SNAPSHOT_TILES
 
 
-def test_sapezal_viirs_classifies_high(sapezal_payload):
-    # M-GHG-REDESIGN-A1 — VIIRS is now scored as persistence-weighted ring-
-    # relative sustained contrast (score-band grammar), not a z-score. The
-    # regenerated Sapezal seed lands at score≈0.68 (persistence≈0.96) — a
-    # sustained, locally-bright plantation against its Amazon-forest ring —
-    # which bands to High (≥0.66). The graceful-degradation-on-missing-score
-    # path is covered by test_severity.py. (ODIAC is not a tile in spec v1.1.)
+def test_sapezal_viirs_classifies_normal(sapezal_payload):
+    # M-VIIRS-REDESIGN-A1 — VIIRS score is now FLARING (absolute-anchored intense-
+    # source), not the old saturating contrast·persistence. Sapezal is a soy
+    # plantation frontier: locally lit, but with NO intense (>100 nW) source, so
+    # flaring = 0.0 → Normal. The old test asserted "High" — that was precisely
+    # the saturation bug the redesign fixes (a soy farm is not a GHG-intense source).
+    # Its lit-presence is still captured as `attributability_state = high`, just not
+    # as severity. Graceful-degradation-on-missing-score is covered by test_severity.py.
     assert _is_failed(_tile("viirs"), sapezal_payload) is False
-    assert _tile_severity(_tile("viirs"), sapezal_payload) == "High"
+    assert _tile_severity(_tile("viirs"), sapezal_payload) == "Normal"
 
 
 def test_brasilia_kba_overlap_fires_high(brasilia_payload):
