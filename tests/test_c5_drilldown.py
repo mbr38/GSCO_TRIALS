@@ -28,6 +28,7 @@ from ui.components.c5_drilldown import (
     _build_confidence_terms_rows,
     _compute_final_confidence,
     _fmt,
+    _with_unit,
     _format_extra_value,
     _format_nature_confidence_line,
     _format_provenance_extra_lines,
@@ -56,6 +57,29 @@ def test_fmt_signed_general_format_for_negative_value():
 def test_fmt_signed_general_format_for_positive_value():
     """``+`` flag forces a leading plus for positives."""
     assert _fmt(3.14, "+.2g") == "+3.1"
+
+
+# ---------------------------------------------------------------------------
+# _with_unit (M-DOCS-CLEANUP-A3 — Site value / Background / Anomaly suffix)
+# ---------------------------------------------------------------------------
+
+def test_with_unit_appends_dimensional_unit():
+    assert _with_unit("47", "µg/m³") == "47 µg/m³"
+
+
+def test_with_unit_omits_suffix_for_dimensionless():
+    """AAI / AOD carry display_unit='dimensionless' — render the bare number
+    (Step B / DC6: omit the suffix)."""
+    assert _with_unit("1.23", "dimensionless") == "1.23"
+
+
+def test_with_unit_omits_suffix_when_unit_missing():
+    assert _with_unit("0.5", None) == "0.5"
+
+
+def test_with_unit_passes_through_em_dash():
+    """A missing value (em-dash) never gets a unit appended."""
+    assert _with_unit("—", "µg/m³") == "—"
 
 
 # ---------------------------------------------------------------------------

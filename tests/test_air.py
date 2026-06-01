@@ -724,6 +724,20 @@ class TestProvenanceShape:
         prov = result[f"_provenance.air.{pollutant}"]
         assert list(prov.keys()) == list(_CANONICAL_PROV_KEYS)
 
+    @pytest.mark.parametrize("pollutant", list(AIR_POLLUTANT_CONFIG.keys()))
+    def test_every_pollutant_emits_display_unit(
+        self, fake_ee, fake_six_step, pollutant: str,
+    ) -> None:
+        """M-DOCS-CLEANUP-A3 — display_unit surfaced in provenance.extra,
+        sourced from AIR_POLLUTANT_CONFIG (single source of truth, DC5)."""
+        fake_six_step()
+        result = compute_pollutant_snapshot(
+            aoi=_AOI, pollutant=pollutant, time_range=_TIME_RANGE,
+            mode="screening", ee_client=None,
+        )
+        prov = result[f"_provenance.air.{pollutant}"]
+        assert prov["extra"]["display_unit"] == AIR_POLLUTANT_CONFIG[pollutant].display_unit
+
     def test_no2_provenance_flags_satellite_data_type(
         self, fake_ee, fake_six_step,
     ) -> None:

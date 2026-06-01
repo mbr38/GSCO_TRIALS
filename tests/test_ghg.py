@@ -37,6 +37,7 @@ from engine.ghg import (
     compute_activity_adjusted_co2,
     compute_fossil_combustion_score,
     run_pillar,
+    _format_viirs_result,
 )
 from engine.exceptions import IndicatorComputeError, PillarComputeError
 
@@ -127,6 +128,21 @@ class TestConfigIntegrity:
         assert cfg.scale_m > 0
         assert cfg.display_unit
         assert cfg.direction in ("higher_is_worse", "lower_is_worse")
+
+    def test_viirs_emits_display_unit_in_provenance(self) -> None:
+        """M-DOCS-CLEANUP-A3 — display_unit surfaced in
+        _provenance.ghg.viirs.extra, sourced from the config (DC5)."""
+        cfg = GHG_INDICATOR_CONFIG["viirs"]
+        out = _format_viirs_result(
+            cfg,
+            aoi={"centre": {"lat": 1.0, "lon": 2.0}, "radius_km": 5.0},
+            time_range=("2026-01-01", "2026-03-01"),
+            flaring=0.5, frac_above=0.05, site_brightness=25.0,
+            lit_contrast_percentile=0.9, n_ring_lit_pixels=1200,
+            attributability_state="high", n_images=30,
+        )
+        prov = out["_provenance.ghg.viirs"]
+        assert prov["extra"]["display_unit"] == cfg.display_unit == "nW/cm²/sr"
 
     def test_ch4_emits_full_nine_measurement_set(self) -> None:
         assert GHG_INDICATOR_CONFIG["ch4"].emitted_measurements == (

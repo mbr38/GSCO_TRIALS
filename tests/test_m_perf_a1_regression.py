@@ -77,6 +77,14 @@ _SKIP_PATHS: frozenset[str] = frozenset({
     "_meta.computed_at",
 })
 
+# M-DOCS-CLEANUP-A3 — informational provenance leaves that are additive by
+# design and never enter scoring (DC3/DC9). Matched by dotted-path suffix so
+# the baselines (which predate the field) don't trip `added_path`. Keep this
+# list to genuinely informational, scoring-irrelevant fields only.
+_SKIP_PATH_SUFFIXES: tuple[str, ...] = (
+    ".extra.display_unit",
+)
+
 
 # ---------------------------------------------------------------------------
 # Comparator helpers
@@ -140,7 +148,7 @@ def _diff_payloads(baseline: dict, current: dict) -> list[dict]:
     diffs: list[dict] = []
     all_paths = set(baseline_map) | set(current_map)
     for path in sorted(all_paths):
-        if path in _SKIP_PATHS:
+        if path in _SKIP_PATHS or path.endswith(_SKIP_PATH_SUFFIXES):
             continue
         if path not in baseline_map:
             diffs.append({
@@ -377,6 +385,13 @@ class TestDiffComparator:
         diffs = _diff_payloads(a, b)
         assert diffs[0]["kind"] == "added_path"
         assert diffs[0]["path"] == "y"
+
+    def test_display_unit_provenance_leaf_skipped(self):
+        """M-DOCS-CLEANUP-A3 — the additive informational display_unit leaf is
+        ignored by the comparator (baselines predate it; it never scores)."""
+        a = {"_provenance.air.no2": {"extra": {}}}
+        b = {"_provenance.air.no2": {"extra": {"display_unit": "µmol/m²"}}}
+        assert _diff_payloads(a, b) == []
 
     def test_removed_path_flagged(self):
         a = {"x": 1.0, "y": 2.0}

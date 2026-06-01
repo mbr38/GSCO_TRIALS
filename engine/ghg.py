@@ -665,6 +665,9 @@ def _format_viirs_result(
             coverage_window=cfg.coverage_window,
             observations={"count": n_images, "unit": "daily_images"},
             extra={
+                # M-DOCS-CLEANUP-A3 — native display unit (single source of
+                # truth, DC5), consumed by C5 + P-11 for the brightness cell.
+                "display_unit": cfg.display_unit,
                 "flaring_fraction": frac_above,
                 "abs_threshold_nw": VIIRS_FLARING_ABS_THRESHOLD_NW,
                 "n_images": n_images,

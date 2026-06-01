@@ -359,6 +359,11 @@ def _format_result(
     # caller bypasses six_step the field is absent and downstream readers
     # treat the indicator as a non-contributor to pillar QA sub-scores.
     extra = dict(_air_extra(pollutant))
+    # M-DOCS-CLEANUP-A3 — surface the indicator's native display unit (from
+    # AIR_POLLUTANT_CONFIG) so C5 and the P-11 report can render Site value /
+    # Background / Anomaly with units without re-importing the config (single
+    # source of truth, DC5). Informational only; never enters score arithmetic.
+    extra["display_unit"] = cfg.display_unit
     confidence_terms = raw.get("confidence_terms")
     if confidence_terms is not None:
         extra["confidence_terms"] = confidence_terms

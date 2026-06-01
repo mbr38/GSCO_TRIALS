@@ -131,6 +131,26 @@ v1.x thresholds reviewed by M-CALIBRATION-SWEEP-A1 (1 June 2026) and retained; s
 
 *Authority: per M-CALIBRATION-SWEEP-A1 closed entry §4 (CS9 lock pending; landed under M-DOCS-CLEANUP-A2, 1 June 2026).*
 
+### 0.9 Severity, absolute level, and attributability
+
+v1.x severity measures **supplier-attributable anomaly above regional baseline** (per §0 attributability framing established under M-ATTRIB-A2). A site whose pollution levels match its regional context produces Normal severity — methodologically correct: no anomalous contribution above what the regional context exhibits. **This is distinct from absolute pollution assessment.**
+
+For users who need absolute pollution levels at a supplier site — for example for regulatory disclosure (CSRD, TCFD, etc.), absolute-benchmark comparison (WHO AQG, EU AAQD, US NAAQS), or sectoral due diligence — the per-indicator drilldown (C5) surfaces the **Site value** alongside severity, expressed in the indicator's native physical units (µg/m³ for surface PM, µmol/m² for tropospheric column densities, DU for ozone, dimensionless for AAI/AOD, nW/cm²/sr for VIIRS radiance). Both pieces of information are available; users interpret them according to use case:
+
+- **Screening for investigation priority** — severity is the primary signal. A Normal severity means "no anomalous contribution beyond regional baseline; this supplier doesn't warrant priority investigation relative to its peers in the region."
+- **Absolute pollution assessment** — Site value is the primary signal, with regulatory and health benchmarks (WHO AQG, EU AAQD, US NAAQS, national standards) as the interpretive frame *which users bring from outside the tool*. A high Site value with Normal severity indicates a regionally-embedded site: the supplier is in a polluted region, contributing at the regional baseline level.
+
+The tool's positioning as a **directional screening instrument** (per §0.8 calibration philosophy) is anchored in the first use case. Absolute-level assessment is supported through transparent Site value surfacing, with the methodology making explicit that benchmark interpretation is user-side.
+
+This framing resolves the **regional washout** concern: a regionally-embedded supplier (e.g. a steelworks in a steel-producing region) correctly produces Normal severity (no anomalous contribution above regional baseline) and a Site value reflecting actual absolute pollution. The two pieces of information together give users what they need; severity alone would be insufficient, but severity alone is not what the tool surfaces.
+
+**Cross-references:**
+- §0 (M-ATTRIB-A2): what severity measures (attributability framing)
+- §0.8 (CS9 / M-CALIBRATION-SWEEP-A1): how severity is calibrated (philosophy)
+- §2.4 (M-VIIRS-REDESIGN-A1 VR16): how attributability is implemented per pillar (coverage map)
+
+*Authority: operator decision 1 June 2026 — item 14a (pillar-wide regional-washout UX) closed as documentation-only; landed under M-DOCS-CLEANUP-A3. The units that make Site value interpretable are surfaced in C5 and the P-11 report under the same milestone.*
+
 ---
 
 ## 1. Air Pollution pillar

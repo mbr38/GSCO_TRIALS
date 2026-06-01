@@ -291,6 +291,44 @@ def test_indicator_detail_air_uses_zscore_columns():
     assert "NO₂" in out and "+2.40" in out and "42%" in out
 
 
+def test_indicator_detail_air_renders_unit_when_display_unit_present():
+    """M-DOCS-CLEANUP-A3 — Site value carries the native unit from
+    provenance.extra.display_unit (single source of truth with C5)."""
+    payload = _full_payload()
+    payload["_provenance.air.no2"]["extra"]["display_unit"] = "µmol/m²"
+    ctx = RenderContext.from_template(get_template("general"), "mnc")
+    out = _render_indicator_detail(_state(), [_source(payload=payload)], ctx)
+    assert "µmol/m²" in out
+
+
+def test_indicator_detail_air_omits_unit_when_dimensionless():
+    """AAI/AOD-style dimensionless indicators render the bare value (DC6)."""
+    payload = _full_payload()
+    payload["_provenance.air.no2"]["extra"]["display_unit"] = "dimensionless"
+    ctx = RenderContext.from_template(get_template("general"), "mnc")
+    out = _render_indicator_detail(_state(), [_source(payload=payload)], ctx)
+    # air.no2.site = 1.2e-4 → "0.00012"; no unit suffix appended.
+    assert "0.00012" in out
+    assert "0.00012 dimensionless" not in out
+
+
+def test_indicator_detail_ghg_renders_brightness_unit():
+    """M-DOCS-CLEANUP-A3 — VIIRS site-brightness cell carries nW/cm²/sr."""
+    payload = _full_payload({
+        "ghg.viirs.site_brightness": 4.7, "ghg.viirs.lit_contrast_percentile": 88.0,
+        "ghg.viirs.flaring_frac": 0.12, "ghg.viirs.ring_lit_pixel_count": 1500,
+        "ghg.viirs.confidence": 0.79, "ghg.viirs.attributability_state": "moderate",
+        "_provenance.ghg.viirs": {
+            "asset_id": "NOAA/VIIRS/001/VNP46A2", "native_scale_m": 500,
+            "time_range": ["2026-01-01", "2026-03-01"],
+            "extra": {"display_unit": "nW/cm²/sr"},
+        },
+    })
+    ctx = RenderContext.from_template(get_template("mnc_ghg"), "mnc")
+    out = _render_indicator_detail(_state(), [_source(payload=payload)], ctx)
+    assert "nW/cm²/sr" in out
+
+
 def test_indicator_detail_ghg_uses_sustained_contrast_columns():
     payload = _full_payload({
         "ghg.viirs.site_brightness": 4.7, "ghg.viirs.lit_contrast_percentile": 88.0,

@@ -599,6 +599,26 @@ def _fmt_pct_fraction(value) -> str:
     return f"{value:.0%}" if isinstance(value, (int, float)) else "—"
 
 
+def _fmt_num_unit(value, display_unit: str | None, fmt: str = "{:.3g}") -> str:
+    """Format a dimensional value with its native unit suffix (M-DOCS-CLEANUP-A3).
+
+    Mirrors C5's treatment: append ``display_unit`` (read from
+    ``_provenance.<pillar>.<indicator>.extra.display_unit``, single source of
+    truth per DC5). Dimensionless indicators (``"dimensionless"``), missing
+    units, and absent values render the bare number / em-dash — no suffix.
+    """
+    text = _fmt_num(value, fmt)
+    if text == "—" or not display_unit or display_unit == "dimensionless":
+        return text
+    return f"{text} {html.escape(display_unit)}"
+
+
+def _display_unit_for(payload, base: str) -> str | None:
+    """The native display unit for an indicator from its provenance.extra."""
+    prov = payload.get(f"_provenance.{base}") or {}
+    return (prov.get("extra") or {}).get("display_unit")
+
+
 def _table(headers: tuple[str, ...], rows: list[str]) -> str:
     """A simple HTML table from a header tuple + pre-rendered ``<tr>`` rows."""
     head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
@@ -621,10 +641,13 @@ def _render_air_detail_table(payload, indicator_ids) -> str:
     rows = []
     for rid in indicator_ids:
         base = _indicator_base(rid)
+        # M-DOCS-CLEANUP-A3 — Site value + Background carry native units (same
+        # source of truth as C5). z-score / HF / confidence stay dimensionless.
+        unit = _display_unit_for(payload, base)
         rows.append(
             f"<tr><td>{html.escape(display_name(rid))}</td>"
-            f"<td>{_fmt_num(payload.get(f'{base}.site'))}</td>"
-            f"<td>{_fmt_num(payload.get(f'{base}.background'))}</td>"
+            f"<td>{_fmt_num_unit(payload.get(f'{base}.site'), unit)}</td>"
+            f"<td>{_fmt_num_unit(payload.get(f'{base}.background'), unit)}</td>"
             f"<td>{_fmt_num(payload.get(f'{base}.z'), '{:+.2f}')}</td>"
             f"<td>{_fmt_pct_fraction(payload.get(f'{base}.hf'))}</td>"
             f"<td>{_fmt_num(payload.get(f'{base}.confidence'), '{:.2f}')}</td>"
@@ -651,9 +674,11 @@ def _render_ghg_detail_table(payload, indicator_ids) -> str:
     for rid in indicator_ids:
         base = _indicator_base(rid)
         lcp = payload.get(f"{base}.lit_contrast_percentile")
+        # M-DOCS-CLEANUP-A3 — site brightness carries its VIIRS native unit.
+        unit = _display_unit_for(payload, base)
         rows.append(
             f"<tr><td>{html.escape(display_name(rid))}</td>"
-            f"<td>{_fmt_num(payload.get(f'{base}.site_brightness'))}</td>"
+            f"<td>{_fmt_num_unit(payload.get(f'{base}.site_brightness'), unit)}</td>"
             f"<td>{_fmt_pct_fraction(lcp / 100 if isinstance(lcp, (int, float)) else None)}</td>"
             f"<td>{_fmt_pct_fraction(payload.get(f'{base}.flaring_frac'))}</td>"
             f"<td>{_fmt_num(payload.get(f'{base}.ring_lit_pixel_count'), '{:,.0f}')}</td>"

@@ -61,6 +61,16 @@ def _fmt(value: float | None, spec: str) -> str:
     return f"{value:{spec}}"
 
 
+# M-DOCS-CLEANUP-A3 — append the indicator's native unit to a formatted
+# dimensional value (Site value / Background / Anomaly). Dimensionless
+# indicators (AAI, AOD → display_unit="dimensionless") and missing units
+# render the bare number, per DC6 / Step B (omit suffix).
+def _with_unit(text: str, display_unit: str | None) -> str:
+    if text == "—" or not display_unit or display_unit == "dimensionless":
+        return text
+    return f"{text} {display_unit}"
+
+
 @dataclass(frozen=True)
 class _FormulaTerm:
     """One term in a pillar's Follow-Up Priority weighted sum."""
@@ -232,6 +242,7 @@ def _render_uniform_row(
     *,
     indicator_id: str | None = None,
     key_prefix:   str        = "c5_row",
+    display_unit: str | None = None,
 ) -> None:
     """Render one indicator row in the uniform 6-column schema.
 
@@ -257,8 +268,8 @@ def _render_uniform_row(
             )
         else:
             st.markdown(f"**{display_name}**")
-    col_v.markdown(_fmt(value, value_spec))
-    col_a.markdown(_fmt(anomaly, "+.3g"))
+    col_v.markdown(_with_unit(_fmt(value, value_spec), display_unit))
+    col_a.markdown(_with_unit(_fmt(anomaly, "+.3g"), display_unit))
     col_z.markdown(_fmt(z, ".2f"))
     col_c.markdown(_fmt(confidence, ".2f") + " " + confidence_glyph(confidence))
     col_s.markdown(
@@ -308,6 +319,9 @@ def _render_air_panel(payload: dict) -> None:
         st.markdown("**Per-indicator values**")
         _render_row_headers()
         for row in _AIR_ROWS:
+            # M-DOCS-CLEANUP-A3 — native display unit from provenance.extra
+            # (single source of truth, DC5). Absent for non-six_step payloads.
+            row_extra = (payload.get(f"_provenance.air.{row.indicator}") or {}).get("extra", {})
             _render_uniform_row(
                 display_name=row.display_name,
                 value=payload.get(f"air.{row.indicator}.site"),
@@ -318,6 +332,7 @@ def _render_air_panel(payload: dict) -> None:
                 value_spec=row.value_spec,
                 indicator_id=f"air.{row.indicator}.score",
                 key_prefix="c5_air",
+                display_unit=row_extra.get("display_unit"),
             )
             # M-UI-WIND-INLINE — inline wind-attribution flag (high /
             # moderate / low) immediately under the row, parallel to the
@@ -445,7 +460,16 @@ def _render_viirs_card(payload: dict) -> None:
                 f"border-radius:3px;'>{band}</span>", unsafe_allow_html=True,
             )
         cols[3].metric("Confidence", fmt(conf))
-        bright_txt = f"{brightness:.3g} nW/cm²/sr" if isinstance(brightness, (int, float)) else "—"
+        # M-DOCS-CLEANUP-A3 — unit from provenance (single source of truth, DC5);
+        # falls back to the VIIRS native unit if the provenance field is absent.
+        viirs_unit = (
+            (payload.get("_provenance.ghg.viirs") or {}).get("extra", {}).get("display_unit")
+            or "nW/cm²/sr"
+        )
+        bright_txt = (
+            _with_unit(f"{brightness:.3g}", viirs_unit)
+            if isinstance(brightness, (int, float)) else "—"
+        )
         st.caption(f"site brightness {bright_txt} · VIIRS confidence feeds GHG data-quality (→ composite via the pillar min)")
         # Attributability as a compact coloured pill (mirrors the Air wind-attribution
         # inline flag), NOT a paragraph. Separate from severity (M-ATTRIB-A1 invariant).
