@@ -371,8 +371,13 @@ AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
 # 0.44/0.54), not a deliberate "combustion dominates" decision. Sums to 1.00.
 # Pre-M-GHG-REDESIGN-A1: combustion 0.815, activity 0.185.
 CORE_GHG_AUDIT_SUPPORT_WEIGHTS: dict[str, float] = {
-    "ghg.activity_score":       0.60,   # M-GHG-REDESIGN-A1: VIIRS sustained contrast leads
-    "ghg.combustion_proxy":     0.40,   # M-GHG-REDESIGN-A1: Air NO₂/CO borrow, supporting
+    # M-VIIRS-REDESIGN-A1 (VR5): re-derived from M-GHG-SANITY-A1 evidence — the Air
+    # NO₂/CO borrow is the stronger GHG-intensity ranker (Spearman ρ 0.85 vs expected
+    # tier; VIIRS flaring is directional, complementary). Inverted from the old
+    # 0.60/0.40 VIIRS-led split. `ghg.activity_score` now carries VIIRS *flaring*
+    # (= ghg.viirs.score). First-pass; calibration sweep may revisit.
+    "ghg.activity_score":       0.40,   # VIIRS flaring (intense-source), directional
+    "ghg.combustion_proxy":     0.60,   # Air NO₂/CO borrow — stronger intensity ranker
 }
 
 # IC_v4 §2.3 — GHG Data Quality Attribution (v1 rescaled form).

@@ -1105,8 +1105,30 @@ def compute_combustion_proxy(payload: dict) -> dict:
     Air's pillar-wide failure left it None, this returns None and
     downstream sub-aggregates null-propagate.
     """
+    borrow = payload.get("air.industrial_combustion_proxy")
+    w_borrow = CORE_GHG_AUDIT_SUPPORT_WEIGHTS.get("ghg.combustion_proxy")
     return {
-        "ghg.combustion_proxy": payload.get("air.industrial_combustion_proxy"),
+        "ghg.combustion_proxy": borrow,
+        # VR17 — make the Air NO₂/CO borrow visible at the GHG level (it carries
+        # the larger composite weight post-redesign). No value change; surfacing only.
+        "_provenance.ghg.combustion_proxy": {
+            "indicator_id": "ghg.combustion_proxy",
+            "data_type": "derived",
+            "data_source": "air_pillar_borrow",
+            "method_note": (
+                "GHG combustion proxy = the Air pillar's industrial_combustion_proxy "
+                "(weighted NO₂ + CO scores), borrowed by the GHG composite. Only the "
+                "numerical score is borrowed; the Air-pillar wind-attributability flags "
+                "for NO₂/CO are NOT propagated (see the Air NO₂ + CO provenance entries)."
+            ),
+            "extra": {
+                "borrowed_from": ["air.no2", "air.co"],
+                "air_no2_score": payload.get("air.no2.score"),
+                "air_co_score": payload.get("air.co.score"),
+                "borrow_weight_in_ghg": w_borrow,
+                "borrow_contribution": (borrow * w_borrow) if borrow is not None and w_borrow is not None else None,
+            },
+        },
     }
 
 

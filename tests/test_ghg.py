@@ -479,20 +479,22 @@ class TestCo2ContextActivation:
 
 class TestCombustionProxyBorrow:
     def test_borrows_air_industrial_combustion_proxy_value(self) -> None:
+        # VR17 — also emits _provenance.ghg.combustion_proxy; assert the value key.
         result = compute_combustion_proxy({
             "air.industrial_combustion_proxy": 0.7,
         })
-        assert result == {"ghg.combustion_proxy": 0.7}
+        assert result["ghg.combustion_proxy"] == 0.7
+        assert "_provenance.ghg.combustion_proxy" in result
 
     def test_returns_none_when_air_value_missing(self) -> None:
         result = compute_combustion_proxy({})
-        assert result == {"ghg.combustion_proxy": None}
+        assert result["ghg.combustion_proxy"] is None
 
     def test_returns_none_when_air_value_is_none(self) -> None:
         result = compute_combustion_proxy({
             "air.industrial_combustion_proxy": None,
         })
-        assert result == {"ghg.combustion_proxy": None}
+        assert result["ghg.combustion_proxy"] is None
 
     def test_fire_risk_borrows_air_smoke_dust_transport(self) -> None:
         # Parallel structure for the second Air-borrowed sub-aggregate.
@@ -1146,11 +1148,11 @@ class TestCoreGhgAuditSupport:
     the full rationale.
     """
 
-    def test_two_term_weighted_sum_post_m_ghg_redesign_a1(self) -> None:
-        # M-GHG-REDESIGN-A1 (GATE B) — VIIRS sustained contrast leads the
-        # composite: activity 0.60 / combustion 0.40 (was 0.185 / 0.815 under
-        # M-CH4-A1). A ch4_context_adjusted value in the payload is ignored —
-        # it is no longer in CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
+    def test_two_term_weighted_sum_post_m_viirs_redesign_a1(self) -> None:
+        # M-VIIRS-REDESIGN-A1 (VR5) — weights re-derived from sanity-check evidence:
+        # the Air borrow is the stronger ranker → combustion 0.60 / activity(flaring)
+        # 0.40 (inverted from M-GHG-REDESIGN-A1's 0.60/0.40 VIIRS-led). A
+        # ch4_context_adjusted value in the payload is ignored.
         payload = {
             "ghg.ch4_context_adjusted": 0.99,   # reference data — must be ignored
             "ghg.combustion_proxy":     0.40,
@@ -1158,7 +1160,7 @@ class TestCoreGhgAuditSupport:
         }
         selected = set(payload.keys())
         out = compute_core_ghg_audit_support(payload, selected)
-        expected = 0.40 * 0.40 + 0.60 * 0.30
+        expected = 0.60 * 0.40 + 0.40 * 0.30
         assert out["ghg.core_audit_support"] == pytest.approx(expected)
 
     def test_ch4_not_in_composite_weights(self) -> None:
