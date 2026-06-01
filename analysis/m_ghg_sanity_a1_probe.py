@@ -15,7 +15,7 @@ import concurrent.futures
 import ee, pandas as pd
 from engine.core.buffers import site_buffer
 from engine.air import compute_pollutant_snapshot, compute_industrial_combustion_proxy
-from engine.ghg import compute_combustion_proxy, compute_viirs_sustained_contrast
+from engine.ghg import compute_combustion_proxy, compute_viirs_two_output
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WINDOW = ("2025-09-01", "2025-11-30")        # GS4
@@ -99,7 +99,7 @@ def _one(rec):
         row["rad_err"] = type(e).__name__
     row["combustion_proxy"] = _combustion_proxy(aoi)
     try:
-        v = compute_viirs_sustained_contrast(aoi, WINDOW, "screening", ee)
+        v = compute_viirs_two_output(aoi, WINDOW, "screening", ee)
         row["viirs_score"] = v.get("ghg.viirs.score")
     except Exception as e:  # noqa: BLE001
         row["viirs_score"] = None
