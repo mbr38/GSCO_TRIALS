@@ -504,7 +504,7 @@ stateDiagram-v2
 | C2 | Centre-input control (varies by mode) | S1 |
 | C3 | Map with centre marker and (in S2+) circular buffer | S1, S2, S3 |
 | C4 | Centre summary with "Change centre" link | S2, S3 |
-| C5 | Radius slider with labelled stops (1, 5, 10, 25, 50, 100 km) and suggested-default chip | S2, S3 |
+| C5 | Radius slider with labelled stops (1, 5, 10, 25, 50, 100 km) and suggested-default chip. A per-stop guidance note updates with the selected radius to describe a sensible use for it (single facility at 1 km → broad airshed at 100 km), with the 25 km note carrying the CAMS PM₂.₅/₁₀ ~44 km native-pixel floor. | S2, S3 |
 | C6 | Indicator selection panels (collapsible by pillar). **All indicators are pre-selected by default**; the user deselects ones they don't want. A "Reset to all selected" link restores the default. | S2, S3 |
 | C7 | Time range selector — **hidden in screening mode** (screening always uses the latest valid 90-day composite per dataset). Shown when the user toggles toward Run Trend. Validates against per-dataset earliest-available date. | S2 (trend path), S3 (trend path) |
 | C8 | Configuration summary | S3 |
@@ -867,7 +867,7 @@ stateDiagram-v2
 | C2 | Mode summary chip | S2, S3 |
 | C3 | Filter panel — by tier, region, sector, individual nodes (mode-dependent) | S2 |
 | C4 | Node selection list with map view; supports check/uncheck and map-select | S2 |
-| C5 | Fixed-radius selector (locked across all nodes; same 1/5/10/25/50/100 km stops as P-04) | S2 |
+| C5 | Fixed-radius selector (locked across all nodes; same 1/5/10/25/50/100 km stops as P-04, with the same per-stop guidance note mirrored from P-04) | S2 |
 | C6 | Indicator selection panels (same as P-04; all indicators pre-selected by default) | S2 |
 | C7 | Time range selector | S2 |
 | C8 | Estimated compute time and node-count indicator with hard cap of 20 nodes | S2 |
@@ -1554,7 +1554,7 @@ Tests: `tests/test_c4a_indicator_map.py` (12 tests) covers the registry shape, t
 
 v1 scope:
 - **Centre input.** Free Coordinates only. Region and Supplier tabs render explanatory info — both require a `supplyChain` object from P-02 (Scope Setup), which isn't built yet.
-- **Radius.** Six fixed stops (1, 5, 10, 25, 50, 100 km); default 5 km. Caption explains that CAMS PM₁₀/₂.₅ need ≥ 25 km to produce a value.
+- **Radius.** Six fixed stops (1, 5, 10, 25, 50, 100 km); default 5 km. A per-stop guidance note (`_RADIUS_NOTES` in [ui/components/p04_form.py](../ui/components/p04_form.py)) appends to the echo caption and updates with the selected radius, giving a sensible-value cue for each stop (1 km → single facility; 5 km → single site, the default; 25 km → district scale and the floor at which CAMS PM₂.₅/₁₀ at ~44 km native pixel first returns a value; 100 km → broad airshed). This replaces the earlier single CAMS-only caption — the ≥25 km guidance now lives on the 25 km stop's note rather than buried in the slider tooltip.
 - **Indicators.** Three per-pillar collapsible groups, all 19 pre-selected. "Reset to all" link restores the default. Selection persists across reruns via `st.session_state["p04_selected_indicators"]`.
 - **Time range.** Hidden in screening mode per Wireframes §P-04 C7; the screening always uses the latest 90-day window. The selector lands with P-06.
 - **Run Screening.** Primary button. Enabled when centre is set and ≥1 indicator is selected. Writes `screening_setup` in the same shape P-05 already reads, then `st.switch_page`s to P-05. A single-indicator selection routes naturally to P-05's single-indicator variant (M-UI-E.6).

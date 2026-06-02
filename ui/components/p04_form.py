@@ -30,6 +30,18 @@ from ui.components.p04_indicator_registry import (
 # Fixed radius stops per Wireframes §P-04 C5 (resolved design choice 3).
 _RADIUS_STOPS_KM: tuple[int, ...] = (1, 5, 10, 25, 50, 100)
 
+# Per-stop guidance on a sensible value. Surfaced as a note that updates with
+# the selected radius (addresses the "radius input carried no guidance" gap).
+# The 25 km note carries the CAMS PM₂.₅/₁₀ ~44 km native-pixel floor.
+_RADIUS_NOTES: dict[int, str] = {
+    1: "Single facility or building footprint — tightest per-site detail.",
+    5: "One industrial site plus immediate surroundings. Sensible default for a single supplier.",
+    10: "A facility cluster or small town.",
+    25: "District scale — the smallest radius at which CAMS PM₂.₅/₁₀ (~44 km native pixel) reliably returns a value.",
+    50: "Regional context spanning multiple sites.",
+    100: "Broad airshed / regional scale — most context, least per-facility specificity.",
+}
+
 # M-UI-A3: the 90-day default lives in engine/constants.py
 # (SCREENING_WINDOW_DAYS_DEFAULT) and is consumed via the picker's
 # profile fixture. The picker overrides this default per-screening
@@ -292,7 +304,7 @@ def _render_radius_section() -> int:
         )
         st.caption(
             f"Screening will inspect a **{radius_km} km radius** around "
-            f"the centre."
+            f"the centre. {_RADIUS_NOTES[radius_km]}"
         )
     return radius_km
 

@@ -244,6 +244,18 @@ def _render_country_db_placeholder() -> None:
 # Same radius stops as P-04's MNC mode.
 _RADIUS_STOPS_KM = (1, 5, 10, 25, 50, 100)
 
+# Per-stop guidance, mirrored from P-04 (_RADIUS_NOTES) so the batch picker
+# gives the same sensible-value cues. The 25 km note carries the CAMS
+# PM₂.₅/₁₀ ~44 km native-pixel floor.
+_RADIUS_NOTES = {
+    1: "Single facility or building footprint — tightest per-site detail.",
+    5: "One industrial site plus immediate surroundings. Sensible default for a single supplier.",
+    10: "A facility cluster or small town.",
+    25: "District scale — the smallest radius at which CAMS PM₂.₅/₁₀ (~44 km native pixel) reliably returns a value.",
+    50: "Regional context spanning multiple sites.",
+    100: "Broad airshed / regional scale — most context, least per-facility specificity.",
+}
+
 
 def _render_radius_section() -> int:
     """Shared radius — same buffer applied to every supplier."""
@@ -261,6 +273,7 @@ def _render_radius_section() -> int:
             value=5,
             key="p07_radius",
         )
+        st.caption(_RADIUS_NOTES[radius_km])
         # M-FALLBACK-A1 §5.4 — soft large-AOI alert. The fixed stops top out
         # at 100 km so this won't fire today, but it future-proofs the page
         # and keeps the warning consistent with P-04's region mode.
