@@ -33,9 +33,12 @@ M5.5 — CO₂ activated via the ODIAC personal asset
 (projects/supply-chain-observatory/assets/odiac). Three single-value
 indicators (CH₄, CO₂, VIIRS), the three CO₂-dependent sub-aggregates
 (ghg.co2_context, ghg.fossil_combustion_score, ghg.activity_adjusted_co2),
-and full pillar-aggregate computation are all live. GHG quality sub-scores
-are still placeholders pending the IC_v5 §6.3 confidence-formula doc fix
-(same TODO chain as Air's confidence).
+and full pillar-aggregate computation are all live. GHG quality is computed,
+not placeholder: the three `data_quality_attribution` sub-scores derive from
+per-indicator A1 confidence inputs (M-ATTRIB-A1), and `ghg.measurement_quality`
+(M-WEIGHTS-HARMONISE-A1) is a bottom-up mean of the SCORED GHG terms' per-
+indicator confidences (combustion borrow + VIIRS flaring), feeding the
+follow-up's uniform 0.20 quality term exactly like Air/Nature.
 
 Layers (mirrors engine/air.py architecture):
 1. Single-value indicators (IC_v4 §2.1 / Schema_v2 §3.1) — ch4, co2, viirs.
@@ -44,8 +47,11 @@ Layers (mirrors engine/air.py architecture):
    emissions allocation, not an atmospheric measurement, so the
    six-step "anomaly" framing was misleading).
 2. GHG quality sub-scores (Schema_v2 §3.4) — temporal_coverage,
-   spatial_resolution_suitability, retrieval_inventory_quality,
-   nearby_source_isolation. All placeholders pending IC_v5 §6.3.
+   spatial_resolution_suitability, retrieval_inventory_quality (all three
+   now mean per-indicator A1 confidence inputs, M-ATTRIB-A1); plus
+   nearby_source_isolation (reserved placeholder, not in any aggregate).
+   `ghg.measurement_quality` (M-WEIGHTS-HARMONISE-A1) is the follow-up's
+   quality term — bottom-up mean of the scored terms' confidences.
 3. Sub-aggregates (IC_v4 §2.2 / Schema_v2 §3.2) — eight, all activatable
    in v1: ch4_hotspot_signal, combustion_proxy, activity_score,
    fire_or_regional_transport_risk, ch4_context_adjusted, co2_context,
@@ -67,8 +73,9 @@ TODOs still deferred:
 - TODO(v1.x): CARMA-overlap flag — when ODIAC's Site_Buffer overlaps a
   CARMA point source the score should carry a `carma_overlap=True`
   provenance flag and the limiting-factor template should surface it.
-- TODO(IC_v5): replace placeholder GHG quality sub-scores with real
-  formulas once §6.3 lands.
+  # (GHG quality sub-scores now derive from per-indicator A1 confidence
+  #  inputs — M-ATTRIB-A1 — and `ghg.measurement_quality` is computed
+  #  bottom-up — M-WEIGHTS-HARMONISE-A1; the old placeholder TODO is closed.)
 - TODO(IC_v5): no wind, no sector match in v1 — Wind_Consistency,
   Sector_Match, High_GWP_Sector_Risk are reserved namespace per Schema_v2 §8.
 """
@@ -93,6 +100,7 @@ from engine.constants import (
     CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
     GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
     GHG_FOLLOWUP_WEIGHTS,
+    INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS,
     VIIRS_FLARING_ABS_THRESHOLD_NW,
     VIIRS_FLARING_SATURATION_FRAC,
     VIIRS_MIN_SITE_PIXELS,
@@ -282,7 +290,7 @@ _ACTIVITY_ADJUSTED_CO2_WEIGHTS: dict[str, float] = {
 
 
 # `_FOLLOWUP_TERM_TO_ID` maps the short keys in GHG_FOLLOWUP_WEIGHTS to
-# the canonical pillar-aggregate IDs they reference.
+# the canonical pillar-aggregate IDs they reference (M-WEIGHTS-HARMONISE-A1).
 _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     "core_support": "ghg.core_audit_support",
     # M-TREND-A1 (TR10): the "trend" term is removed — trend is drill-down-
@@ -293,7 +301,11 @@ _FOLLOWUP_TERM_TO_ID: dict[str, str] = {
     # detector and CH₄/CO₂ carry no `.z`, so the GHG pillar has no
     # spatiotemporal-anomaly source. See compute_ghg_spatiotemporal_anomaly
     # removal below and CORE_GHG_AUDIT_SUPPORT_WEIGHTS.
-    "quality":      "ghg.data_quality_attribution",
+    # M-WEIGHTS-HARMONISE-A1: the uniform quality term now points at the
+    # bottom-up `ghg.measurement_quality` (mean of the scored terms'
+    # confidences), NOT `ghg.data_quality_attribution`. The latter is
+    # unchanged and still feeds the composite-confidence min chain.
+    "quality":      "ghg.measurement_quality",
 }
 
 
@@ -1283,19 +1295,76 @@ def compute_ghg_data_quality_attribution(payload: dict) -> dict:
     return {"ghg.data_quality_attribution": score}
 
 
+def _combustion_borrow_confidence(payload: dict) -> float | None:
+    """Per-indicator confidence of the GHG combustion borrow.
+
+    The borrow value (`ghg.combustion_proxy`) is the Air pillar's
+    `industrial_combustion_proxy` (weighted NO₂ + CO scores). Its confidence
+    is the same-weighted (INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS) survivor-mean of
+    the borrowed pollutants' per-indicator confidences — themselves produced
+    by the shared `compute_indicator_confidence` core in the Air pillar.
+
+    Returns None if the borrow didn't resolve (Air absent) or neither
+    pollutant confidence is available, so it drops out of the GHG mean.
+    """
+    if payload.get("ghg.combustion_proxy") is None:
+        return None
+    num = 0.0
+    denom = 0.0
+    for score_id, weight in INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS.items():
+        conf = payload.get(score_id.replace(".score", ".confidence"))
+        if conf is None:
+            continue
+        num += weight * conf
+        denom += weight
+    return num / denom if denom > 0 else None
+
+
+def compute_ghg_measurement_quality(payload: dict) -> dict:
+    """IC_v4 §2.3 (M-WEIGHTS-HARMONISE-A1) — bottom-up GHG measurement quality.
+
+    Mean of the SCORED GHG terms' per-indicator confidences, mirroring Air's
+    `compute_measurement_quality_score` and Nature's
+    `compute_nature_measurement_quality`. The two scored terms feeding
+    `Core_GHG_Audit_Support` are:
+
+      • VIIRS flaring  → `ghg.viirs.confidence`
+      • combustion borrow → weighted NO₂/CO confidence (see helper)
+
+    CO₂ and CH₄ are reference-only (not scored into the core) and must NOT
+    contribute to the quality of the scored core — they are excluded here, by
+    construction. Survivor-mean over the available terms; None only when
+    neither scored term is available (strict-None then propagates through the
+    follow-up). All confidences are products of the shared
+    `compute_indicator_confidence` core.
+    """
+    contributions: list[float] = []
+    viirs_conf = payload.get("ghg.viirs.confidence")
+    if viirs_conf is not None:
+        contributions.append(viirs_conf)
+    borrow_conf = _combustion_borrow_confidence(payload)
+    if borrow_conf is not None:
+        contributions.append(borrow_conf)
+    value = sum(contributions) / len(contributions) if contributions else None
+    return {"ghg.measurement_quality": value}
+
+
 def compute_ghg_audit_followup_priority(
     payload: dict, mode: str,                            # noqa: ARG001 — parity
 ) -> dict:
-    """IC_v4 §2.3 — weighted sum per GHG_FOLLOWUP_WEIGHTS over the four
-    pillar aggregates.
+    """IC_v4 §2.3 — uniform two-level follow-up (M-WEIGHTS-HARMONISE-A1):
 
-    `mode` is accepted for signature stability (M-TREND-A1 removed the
-    only mode-dependent term, the aggregate trend).
+        GHG_FollowUp = 0.80·Core_GHG_Audit_Support + 0.20·measurement_quality
+
+    The GHG severity core (`ghg.core_audit_support` = 0.60 combustion / 0.40
+    flaring) is unchanged; the quality term is the bottom-up
+    `ghg.measurement_quality` (replacing the prior `data_quality_attribution`
+    routing — see `_FOLLOWUP_TERM_TO_ID`). `mode` is accepted for signature
+    stability (M-TREND-A1 removed the only mode-dependent term).
 
     M-FOLLOWUP-FALLBACK: strict-None propagation. Same shape as
-    ``compute_air_audit_followup_priority`` — any None among the
-    sub-aggregates means a real upstream failure and the priority is
-    None.
+    ``compute_air_audit_followup_priority`` — a None core or quality means a
+    real upstream failure and the priority is None.
     """
     values: list[float] = []
     for term in GHG_FOLLOWUP_WEIGHTS:
@@ -1574,6 +1643,10 @@ def recompute_ghg_aggregates(
     # M-GHG-REDESIGN-A1 (GATE B): no spatiotemporal-anomaly term — retired
     # (GHG has no anomaly source after the VIIRS re-grammar; see above).
     payload.update(compute_ghg_data_quality_attribution(payload))
+    # M-WEIGHTS-HARMONISE-A1: bottom-up GHG measurement quality — must run
+    # after the scored sub-aggregates (combustion borrow, VIIRS) and before
+    # the follow-up, which reads it as its uniform 0.20 quality term.
+    payload.update(compute_ghg_measurement_quality(payload))
     payload.update(compute_ghg_audit_followup_priority(payload, mode))
     return payload
 

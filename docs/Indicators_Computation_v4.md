@@ -1,5 +1,9 @@
 # GSCO Environmental Tool — Indicators Computation Reference (v4.2)
 
+**Changes from v4.2 (M-WEIGHTS-HARMONISE-A1, 2 Jun 2026).**
+- **§1.3 / §2.3 / §3.3 — pillar follow-up priorities harmonised to a uniform shape.** Every pillar follow-up is now `(1 − w_q)·Severity_core + w_q·MeasurementQuality` with a single shared `w_q = 0.20`; only the severity core differs by pillar (Air proxy/anomaly, GHG combustion/flaring, Nature exposure/change/condition). This replaced the per-pillar spurious-precision splits (Air 0.4375/0.3750/0.1875; GHG 0.7273/0.2727; Nature 0.30/0.30/0.25/0.15). The weights express term ordering plus a uniform quality modifier — not a fitted optimum; calibration deferred (`v1x_followups.md`).
+- **§2.3 — GHG measurement quality computed bottom-up.** The GHG follow-up's quality term is now `GHG_Measurement_Quality` (mean of the scored terms' per-indicator confidences: VIIRS flaring + Air NO₂/CO combustion borrow; CO₂/CH₄ excluded), replacing the placeholder routing through `GHG_Data_Quality_Attribution`. The composite-confidence `min(...)` was also unified onto it so each pillar uses one measurement-quality concept across both the follow-up and the confidence chain. `GHG_Data_Quality_Attribution` is unchanged and still computed as a displayed data-quality breakdown.
+
 **Changes from v4.1 (M-TIER-A1, 22 May 2026).**
 - **New §8 — Confidence formula.** Pre-A1, `§0.2 step 6` promised a confidence formula in §6.3 but §6.3 was occupied by buffer-warning logic and the formula had no home in the doc (the engine docstring called this out as a known doc gap). §8 now carries the canonical 4-term + column-to-surface multiplier formula, the pillar-level rollup logic (Air uniform mean; GHG and Nature via existing weight dicts with re-derived sub-scores), and the composite `min(...)` rule. The §0.2 step 6 pointer should be read as `see §8` until the next renumbering.
 - **GHG_Data_Quality_Attribution sub-scores rewired.** Three of the four — `temporal_coverage`, `spatial_resolution_suitability`, `retrieval_inventory_quality` — now derive from per-indicator A1 confidence terms (mean of `N_valid`, `spatial_context`, `QA` respectively across the three GHG indicators) instead of placeholders. Sums-to-1.00 weight dict (0.33 / 0.27 / 0.27 / 0.13) is unchanged. `nearby_source_isolation` stays an independent §7.2 spatial proxy.
@@ -197,10 +201,22 @@ SpatioTemporal_Anomaly_Score   = mean of Z_score across all selected pollutants
 Attribution_Confidence_Score   = mean of Conf across all selected pollutants
 
 Air_Pollution_Audit_FollowUp_Priority =
-    0.4375·Air_Pollution_Proxy_Score
-  + 0.3750·SpatioTemporal_Anomaly_Score
-  + 0.1875·Attribution_Confidence_Score
+    0.80·Air_Severity_Core + 0.20·Measurement_Quality   (M-WEIGHTS-HARMONISE-A1)
+
+  where Air_Severity_Core = 0.625·Air_Pollution_Proxy_Score
+                          + 0.375·SpatioTemporal_Anomaly_Score   (sums to 1.00)
+  (effective: 0.50 proxy + 0.30 anomaly + 0.20 quality)
 ```
+
+> **M-WEIGHTS-HARMONISE-A1 (2 Jun 2026).** All three pillar follow-ups now share
+> the uniform two-level shape `(1 − w_q)·Severity_core + w_q·MeasurementQuality`
+> with a single shared `w_q = 0.20`; only the severity core differs by pillar.
+> `Measurement_Quality` is the mean of the surviving per-indicator confidences
+> (the renamed `Attribution_Confidence_Score`). These weights express term
+> *ordering plus a uniform quality modifier* — not an empirically fitted optimum;
+> calibration is deferred (see `v1x_followups.md`). This replaced the prior
+> spurious-precision split (0.4375 / 0.3750 / 0.1875), a historical
+> renormalisation over a removed trend term.
 
 > **M-TREND-A1 (TR10 / decision-log E3).** The former `0.20·Trend_Score`
 > term is **removed** — there is no cross-indicator aggregate trend (averaging
@@ -408,9 +424,22 @@ GHG_Data_Quality_Attribution_v1 =
   surface.
 
 GHG_Audit_FollowUp_Priority =
-    0.7273·Core_GHG_Audit_Support
-  + 0.2727·GHG_Data_Quality_Attribution
+    0.80·Core_GHG_Audit_Support + 0.20·GHG_Measurement_Quality   (M-WEIGHTS-HARMONISE-A1)
 ```
+
+> **M-WEIGHTS-HARMONISE-A1 (2 Jun 2026).** The GHG follow-up adopts the shared
+> two-level shape `0.80·core + 0.20·quality` (same `w_q = 0.20` as Air/Nature).
+> The quality term is now `GHG_Measurement_Quality` — a bottom-up mean of the
+> SCORED GHG terms' per-indicator confidences (VIIRS flaring + the Air NO₂/CO
+> combustion borrow), computed identically to Air/Nature, replacing the prior
+> placeholder routing through `GHG_Data_Quality_Attribution`. CO₂ (ODIAC) and
+> CH₄ are reference-only and excluded from it. `GHG_Data_Quality_Attribution`
+> is unchanged and still computed, but now serves only as a displayed
+> data-quality breakdown; the composite-confidence minimum was unified onto
+> `GHG_Measurement_Quality` so each pillar uses one measurement-quality concept
+> across both formulas. The weights express term ordering plus a uniform quality
+> modifier, not a fitted optimum — calibration deferred (`v1x_followups.md`).
+> Pre-change weights: 0.7273 / 0.2727.
 
 > **M-TREND-A1 (TR10 / decision-log E3).** The former `0.20·GHG_Trend` term was
 > **removed** (trend is drill-down-only).
@@ -547,11 +576,23 @@ Nature_Measurement_Quality =                (M-ATTRIB-A1: renamed from
   + 0.20·Seasonal_Comparability
 
 Nature_FollowUp_Priority =
-    0.30·Biodiversity_Exposure
-  + 0.30·Habitat_Conversion
-  + 0.25·Vegetation_Condition
-  + 0.15·Nature_Measurement_Quality
+    0.80·Nature_Severity_Core + 0.20·Nature_Measurement_Quality   (M-WEIGHTS-HARMONISE-A1)
+
+  where Nature_Severity_Core = 0.375·Biodiversity_Exposure
+                             + 0.375·Habitat_Conversion
+                             + 0.250·Vegetation_Condition   (sums to 1.00)
+  (effective: 0.30 exposure + 0.30 conversion + 0.20 condition + 0.20 quality)
 ```
+
+> **M-WEIGHTS-HARMONISE-A1 (2 Jun 2026).** The Nature follow-up adopts the shared
+> two-level shape `0.80·core + 0.20·quality` (same `w_q = 0.20` as Air/GHG). The
+> severity core is the three exposure/change/condition strands renormalised to
+> sum to 1.00; the quality term is `Nature_Measurement_Quality`, unchanged. The
+> previous weights were 0.30 / 0.30 / 0.25 / 0.15; decision (ii) was taken — clean
+> effective values 0.30 / 0.30 / 0.20 + 0.20 quality (symmetric with Air), which
+> shifts Vegetation_Condition's effective weight 0.25 → 0.20. These weights
+> express term ordering plus a uniform quality modifier, not a fitted optimum —
+> calibration deferred (`v1x_followups.md`).
 
 > **M-ATTRIB-A1 (28 May 2026).** This aggregate was renamed from
 > `Nature_Quality_Attribution` to `Nature_Measurement_Quality` and reshaped to

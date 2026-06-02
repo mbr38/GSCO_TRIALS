@@ -11,9 +11,10 @@ from __future__ import annotations
 import pytest
 
 from engine.constants import (
-    AIR_FOLLOWUP_WEIGHTS,
+    AIR_SEVERITY_CORE_WEIGHTS,
+    FOLLOWUP_QUALITY_WEIGHT,
     GHG_FOLLOWUP_WEIGHTS,
-    NATURE_FOLLOWUP_WEIGHTS,
+    NATURE_SEVERITY_CORE_WEIGHTS,
 )
 from ui.components.c5_drilldown import (
     _AIR_DATASET_KEYS,
@@ -117,19 +118,35 @@ def test_nature_formula_weights_sum_to_one():
 def test_formula_weights_track_engine_constants():
     """The UI breakdown is built from engine.constants — if the engine
     rebalances weights, the UI must follow. This test pins the wiring.
+
+    M-WEIGHTS-HARMONISE-A1: Air/Nature now show the EFFECTIVE per-leaf weights
+    (severity-portion × in-core weight, plus the shared 0.20 quality leaf);
+    GHG stays the raw core_support/quality two-row (GHG_FOLLOWUP_WEIGHTS).
     """
-    assert (
-        {t.weight for t in _AIR_FORMULA}
-        == set(AIR_FOLLOWUP_WEIGHTS.values())
+    sc = 1.0 - FOLLOWUP_QUALITY_WEIGHT   # 0.80
+
+    air_eff = sorted([
+        sc * AIR_SEVERITY_CORE_WEIGHTS["proxy"],
+        sc * AIR_SEVERITY_CORE_WEIGHTS["anomaly"],
+        FOLLOWUP_QUALITY_WEIGHT,
+    ])
+    assert sorted(t.weight for t in _AIR_FORMULA) == pytest.approx(air_eff)
+
+    assert sorted(t.weight for t in _GHG_FORMULA) == pytest.approx(
+        sorted(GHG_FOLLOWUP_WEIGHTS.values())
     )
-    assert (
-        {t.weight for t in _GHG_FORMULA}
-        == set(GHG_FOLLOWUP_WEIGHTS.values())
-    )
-    assert (
-        {t.weight for t in _NATURE_FORMULA}
-        == set(NATURE_FOLLOWUP_WEIGHTS.values())
-    )
+
+    nature_eff = sorted([
+        sc * NATURE_SEVERITY_CORE_WEIGHTS["biodiversity_exposure"],
+        sc * NATURE_SEVERITY_CORE_WEIGHTS["habitat_conversion"],
+        sc * NATURE_SEVERITY_CORE_WEIGHTS["vegetation_condition"],
+        FOLLOWUP_QUALITY_WEIGHT,
+    ])
+    assert sorted(t.weight for t in _NATURE_FORMULA) == pytest.approx(nature_eff)
+
+    # All three breakdowns sum to 1.0 (effective weights are a partition).
+    for formula in (_AIR_FORMULA, _GHG_FORMULA, _NATURE_FORMULA):
+        assert sum(t.weight for t in formula) == pytest.approx(1.0)
 
 
 def test_every_formula_term_payload_key_is_namespaced():

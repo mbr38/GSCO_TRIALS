@@ -76,6 +76,7 @@ from engine.constants import (
     KBA_DISTANCE_DECAY_KM,
     N_MIN_PIXELS_FOR_CENTROID,
     NATURE_FOLLOWUP_WEIGHTS,
+    NATURE_SEVERITY_CORE_WEIGHTS,
     NATURE_MEASUREMENT_QUALITY_WEIGHTS,
     NDVI_NEGATIVE_TREND_THRESHOLD,
     NORMALISATION_K,
@@ -1898,45 +1899,58 @@ def compute_nature_measurement_quality(payload: dict) -> dict:
     return {"nature.measurement_quality": score}
 
 
-# Maps NATURE_FOLLOWUP_WEIGHTS keys to canonical payload IDs.
-# M-ATTRIB-A1 (AT13): the "quality_attribution" term label is retained as an
-# internal followup-weight key (the weight is unchanged per §4.1), but it
-# now points at the renamed `nature.measurement_quality` aggregate ID.
-_FOLLOWUP_TERM_TO_ID: dict[str, str] = {
+# IC §3.3 — Nature severity-core term → payload-ID map (exposure / change /
+# condition). M-WEIGHTS-HARMONISE-A1: the three real strands form the core;
+# the uniform measurement-quality term is layered at the follow-up level.
+_SEVERITY_CORE_TERM_TO_ID: dict[str, str] = {
     "biodiversity_exposure": "nature.biodiversity_exposure",
     "habitat_conversion":    "nature.habitat.conversion_score",
     "vegetation_condition":  "nature.vegetation_condition",
-    "quality_attribution":   "nature.measurement_quality",
 }
+
+# M-WEIGHTS-HARMONISE-A1: the uniform quality term (renamed from the old
+# `quality_attribution` follow-up key) points at `nature.measurement_quality`.
+_FOLLOWUP_QUALITY_ID: str = "nature.measurement_quality"
 
 
 def compute_nature_followup_priority(
     payload: dict,
     mode: str,                                          # noqa: ARG001 — parity
 ) -> dict:
-    """IC §3.3 — Nature_FollowUp_Priority weighted sum.
+    """IC §3.3 — uniform two-level follow-up (M-WEIGHTS-HARMONISE-A1):
+
+        Nature_FollowUp = 0.80·severity_core + 0.20·measurement_quality
+
+    where `severity_core = 0.375·biodiversity_exposure + 0.375·habitat_
+    conversion + 0.250·vegetation_condition` (NATURE_SEVERITY_CORE_WEIGHTS) —
+    effective 0.30 / 0.30 / 0.20 + 0.20 quality.
 
     Per `Engine_Module_Skeleton §3.2` Nature has no separate trend term
     (PLFS §10 H13), so the `mode` arg is accepted for signature parity
     but not used.
 
-    M-FOLLOWUP-FALLBACK: strict-None propagation. If any sub-aggregate
-    is None, the priority is None. The prior survivor-renormalise
-    behaviour produced misleading headlines — Rio de Janeiro region
-    screening had three of four Nature sub-aggregates None but
-    quality_attribution alone drove a 0.858 priority. Sub-aggregates
-    that are intentionally 0.0 in v1 (e.g. vegetation_condition
-    substituting for the trend-not-built case) are explicitly handled
-    at their own emit sites; anything still None here is a real
-    upstream failure.
+    M-FOLLOWUP-FALLBACK: strict-None propagation. If the severity core or the
+    quality term is None, the priority is None. The prior survivor-renormalise
+    behaviour produced misleading headlines — Rio de Janeiro region screening
+    had three of four Nature sub-aggregates None but quality alone drove a
+    0.858 priority. Sub-aggregates that are intentionally 0.0 in v1 (e.g.
+    vegetation_condition substituting for the trend-not-built case) are
+    explicitly handled at their own emit sites; anything still None here is a
+    real upstream failure.
     """
-    values: list[float] = []
-    for term in NATURE_FOLLOWUP_WEIGHTS:
-        v = payload.get(_FOLLOWUP_TERM_TO_ID[term])
-        if v is None:
-            return {"nature.followup_priority": None}
-        values.append(NATURE_FOLLOWUP_WEIGHTS[term] * v)
-    return {"nature.followup_priority": sum(values)}
+    core_weights_by_id = {
+        _SEVERITY_CORE_TERM_TO_ID[t]: w
+        for t, w in NATURE_SEVERITY_CORE_WEIGHTS.items()
+    }
+    severity_core = _weighted_sum_strict(payload, core_weights_by_id)
+    quality = payload.get(_FOLLOWUP_QUALITY_ID)
+    if severity_core is None or quality is None:
+        return {"nature.followup_priority": None}
+    priority = (
+        NATURE_FOLLOWUP_WEIGHTS["severity_core"] * severity_core
+        + NATURE_FOLLOWUP_WEIGHTS["quality"] * quality
+    )
+    return {"nature.followup_priority": priority}
 
 
 def compute_nature_spatiotemporal_anomaly(payload: dict) -> dict:

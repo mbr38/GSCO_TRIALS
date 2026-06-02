@@ -17,8 +17,11 @@ import pytest
 from engine.air import compute_air_audit_followup_priority
 from engine.constants import (
     AIR_FOLLOWUP_WEIGHTS,
+    AIR_SEVERITY_CORE_WEIGHTS,
+    FOLLOWUP_QUALITY_WEIGHT,
     GHG_FOLLOWUP_WEIGHTS,
     NATURE_FOLLOWUP_WEIGHTS,
+    NATURE_SEVERITY_CORE_WEIGHTS,
     VEGETATION_CONDITION_WEIGHTS,
 )
 from engine.ghg import compute_ghg_audit_followup_priority
@@ -29,69 +32,50 @@ from engine.nature import (
 
 
 # ---------------------------------------------------------------------------
-# Pillar configs — (compute_fn, weights_dict, payload_keys, out_key)
+# M-WEIGHTS-HARMONISE-A1 — every pillar follow-up is now the uniform two-level
+# form  0.80·severity_core + 0.20·measurement_quality.  The strict-None /
+# happy-path canaries below are expressed via each pillar's EFFECTIVE per-leaf
+# weights (severity-core weight × the in-core weight, plus the shared 0.20 on
+# the quality leaf). Each effective map sums to 1.0. Air and Nature compute the
+# core from leaf inputs inside the follow-up fn; GHG's core is the already-
+# aggregated `ghg.core_audit_support`, so it has a single core leaf.
 # ---------------------------------------------------------------------------
 
-_AIR_CONFIG = (
-    compute_air_audit_followup_priority,
-    AIR_FOLLOWUP_WEIGHTS,
-    {
-        "proxy":      "air.pollution_proxy_score",
-        "anomaly":    "air.spatiotemporal_anomaly_score",
-        # M-TREND-A1 (TR10): "trend" term removed.
-        "confidence": "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
-    },
-    "air.audit_followup_priority",
-)
+_SC = AIR_FOLLOWUP_WEIGHTS["severity_core"]   # 0.80, shared across pillars
+_Q = FOLLOWUP_QUALITY_WEIGHT                   # 0.20, shared across pillars
 
-_GHG_CONFIG = (
-    compute_ghg_audit_followup_priority,
-    GHG_FOLLOWUP_WEIGHTS,
-    {
-        "core_support": "ghg.core_audit_support",
-        "anomaly":      "ghg.spatiotemporal_anomaly",
-        # M-TREND-A1 (TR10): "trend" term removed.
-        "quality":      "ghg.data_quality_attribution",
-    },
-    "ghg.audit_followup_priority",
-)
+_AIR_EFF = {
+    "air.pollution_proxy_score":        _SC * AIR_SEVERITY_CORE_WEIGHTS["proxy"],
+    "air.spatiotemporal_anomaly_score": _SC * AIR_SEVERITY_CORE_WEIGHTS["anomaly"],
+    "air.measurement_quality_score":    _Q,   # M-ATTRIB-A1 (AT16)
+}
+_GHG_EFF = {
+    "ghg.core_audit_support":  _SC,           # GHG core is pre-aggregated
+    "ghg.measurement_quality": _Q,            # M-WEIGHTS-HARMONISE-A1
+}
+_NATURE_EFF = {
+    "nature.biodiversity_exposure":    _SC * NATURE_SEVERITY_CORE_WEIGHTS["biodiversity_exposure"],
+    "nature.habitat.conversion_score": _SC * NATURE_SEVERITY_CORE_WEIGHTS["habitat_conversion"],
+    "nature.vegetation_condition":     _SC * NATURE_SEVERITY_CORE_WEIGHTS["vegetation_condition"],
+    "nature.measurement_quality":      _Q,    # M-ATTRIB-A1 (AT13)
+}
 
-_NATURE_CONFIG = (
-    compute_nature_followup_priority,
-    NATURE_FOLLOWUP_WEIGHTS,
-    {
-        "biodiversity_exposure": "nature.biodiversity_exposure",
-        "habitat_conversion":    "nature.habitat.conversion_score",
-        "vegetation_condition":  "nature.vegetation_condition",
-        "quality_attribution":   "nature.measurement_quality",  # M-ATTRIB-A1
-    },
-    "nature.followup_priority",
-)
+_AIR_CONFIG = (compute_air_audit_followup_priority, _AIR_EFF, "air.audit_followup_priority")
+_GHG_CONFIG = (compute_ghg_audit_followup_priority, _GHG_EFF, "ghg.audit_followup_priority")
+_NATURE_CONFIG = (compute_nature_followup_priority, _NATURE_EFF, "nature.followup_priority")
 
 
 @pytest.fixture(params=[_AIR_CONFIG, _GHG_CONFIG, _NATURE_CONFIG],
                 ids=["air", "ghg", "nature"])
 def pillar(request):
     """Parametrise tests across all three pillars."""
-    compute_fn, weights, key_map, out_key = request.param
-    return {
-        "compute_fn": compute_fn,
-        "weights":    weights,
-        "key_map":    key_map,
-        "out_key":    out_key,
-    }
-
-
-def _build_payload(key_map: dict, values: dict) -> dict:
-    """Map term-name → value into the canonical payload-key shape."""
-    return {key_map[term]: v for term, v in values.items()}
+    compute_fn, eff, out_key = request.param
+    return {"compute_fn": compute_fn, "eff": eff, "out_key": out_key}
 
 
 def _call(pillar, payload: dict):
     """Invoke the parametrised pillar's compute function."""
-    fn = pillar["compute_fn"]
-    # Nature's signature is (payload, mode); Air/GHG also accept mode.
-    return fn(payload, mode="screening")
+    return pillar["compute_fn"](payload, mode="screening")
 
 
 # ---------------------------------------------------------------------------
@@ -100,22 +84,19 @@ def _call(pillar, payload: dict):
 
 class TestStrictNonePropagation:
     def test_all_populated_returns_weighted_sum(self, pillar):
-        """Every sub-aggregate present → priority is the weighted sum."""
-        values = {term: 0.5 for term in pillar["weights"]}
-        payload = _build_payload(pillar["key_map"], values)
+        """Every leaf input present → priority is the effective-weighted sum."""
+        payload = {k: 0.5 for k in pillar["eff"]}
         out = _call(pillar, payload)
-        expected = sum(pillar["weights"][term] * 0.5 for term in pillar["weights"])
+        expected = sum(w * 0.5 for w in pillar["eff"].values())
         assert out[pillar["out_key"]] == pytest.approx(expected)
 
     def test_one_subaggregate_none_returns_none(self, pillar):
-        """M-FOLLOWUP-FALLBACK: any single None → priority is None.
-        This is the explicit regression for Rio's misleading 0.858."""
-        # Drop the LAST weight term so the test exercises mid-loop None
-        # rather than just first-term-None.
-        terms = list(pillar["weights"])
-        values = {term: 0.5 for term in terms[:-1]}
-        values[terms[-1]] = None
-        payload = _build_payload(pillar["key_map"], values)
+        """M-FOLLOWUP-FALLBACK: any single None leaf → priority is None
+        (a None core leaf collapses the severity core; a None quality leaf
+        collapses the follow-up). Regression for Rio's misleading 0.858."""
+        keys = list(pillar["eff"])
+        payload = {k: 0.5 for k in keys[:-1]}
+        payload[keys[-1]] = None        # mid-loop / last-term None
         out = _call(pillar, payload)
         assert out[pillar["out_key"]] is None
 
@@ -124,31 +105,65 @@ class TestStrictNonePropagation:
         assert out[pillar["out_key"]] is None
 
     def test_all_zeros_returns_zero(self, pillar):
-        """Known-zero case (e.g. Air trend = 0.0 in screening mode):
-        all sub-aggregates 0.0 → priority is 0.0, NOT None. Distinct
-        from "all None" which is the real-failure case.
-        """
-        values = {term: 0.0 for term in pillar["weights"]}
-        payload = _build_payload(pillar["key_map"], values)
+        """All leaves 0.0 → priority is 0.0, NOT None. Distinct from
+        "all None" which is the real-failure case."""
+        payload = {k: 0.0 for k in pillar["eff"]}
         out = _call(pillar, payload)
         assert out[pillar["out_key"]] == 0.0
 
     def test_mixed_zero_and_real_returns_weighted_sum(self, pillar):
-        """Mixed: some real values, some 0.0 (known-zero). All terms
-        present (no Nones) → the priority computes normally, including
-        zero contributions where applicable. This is the standard
-        screening-mode shape with Air/GHG trend = 0.0.
-        """
-        terms = list(pillar["weights"])
-        values = {term: 0.5 for term in terms}
-        values[terms[0]] = 0.0  # one known-zero
-        payload = _build_payload(pillar["key_map"], values)
+        """Mixed real + known-zero leaves (no Nones) → computes normally."""
+        keys = list(pillar["eff"])
+        payload = {k: 0.5 for k in keys}
+        payload[keys[0]] = 0.0          # one known-zero
         out = _call(pillar, payload)
         expected = (
-            pillar["weights"][terms[0]] * 0.0
-            + sum(pillar["weights"][term] * 0.5 for term in terms[1:])
+            pillar["eff"][keys[0]] * 0.0
+            + sum(pillar["eff"][k] * 0.5 for k in keys[1:])
         )
         assert out[pillar["out_key"]] == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# M-WEIGHTS-HARMONISE-A1 invariant — the uniform two-level shape.
+# ---------------------------------------------------------------------------
+
+class TestHarmonisationInvariant:
+    @pytest.mark.parametrize(
+        "followup_weights",
+        [AIR_FOLLOWUP_WEIGHTS, GHG_FOLLOWUP_WEIGHTS, NATURE_FOLLOWUP_WEIGHTS],
+        ids=["air", "ghg", "nature"],
+    )
+    def test_quality_weight_is_uniform_0_20(self, followup_weights):
+        """w_q = 0.20 shared by intent across all three pillars; the severity
+        portion (key `severity_core` for Air/Nature, `core_support` for GHG)
+        takes the remaining 0.80; the dict sums to 1.0."""
+        assert followup_weights["quality"] == pytest.approx(0.20)
+        severity_portion = sum(
+            v for k, v in followup_weights.items() if k != "quality"
+        )
+        assert severity_portion == pytest.approx(0.80)
+        assert sum(followup_weights.values()) == pytest.approx(1.0)
+
+    @pytest.mark.parametrize(
+        "core_weights",
+        [AIR_SEVERITY_CORE_WEIGHTS, NATURE_SEVERITY_CORE_WEIGHTS],
+        ids=["air", "nature"],
+    )
+    def test_severity_core_weights_sum_to_one(self, core_weights):
+        """Each renormalised severity-core dict sums to 1.0 (the 0.80
+        follow-up weight then scales it)."""
+        assert sum(core_weights.values()) == pytest.approx(1.0)
+
+    def test_no_legacy_spurious_precision_literals(self):
+        """The retired spurious-precision FOLLOW-UP splits must not reappear in
+        the follow-up weight dicts. (0.375 legitimately survives in the
+        severity-core dicts as 0.30/0.80, so those are out of scope here.)"""
+        legacy = {0.4375, 0.3750, 0.1875, 0.7273, 0.2727}
+        for wd in (AIR_FOLLOWUP_WEIGHTS, GHG_FOLLOWUP_WEIGHTS,
+                   NATURE_FOLLOWUP_WEIGHTS):
+            for v in wd.values():
+                assert round(v, 4) not in legacy
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +263,7 @@ class TestCompositeStrictNone:
     def test_composite_confidence_is_none_when_any_pillar_none(self):
         run = self._stub_run({
             "air.measurement_quality_score": 0.7,  # M-ATTRIB-A1 (AT16)
-            "ghg.data_quality_attribution":   None,
+            "ghg.measurement_quality":        None,  # M-WEIGHTS-HARMONISE-A1
             "nature.measurement_quality":     0.8,  # M-ATTRIB-A1 (AT13)
         })
         run._compute_composite_confidence()
@@ -257,7 +272,7 @@ class TestCompositeStrictNone:
     def test_composite_confidence_min_when_all_three_populated(self):
         run = self._stub_run({
             "air.measurement_quality_score": 0.7,  # M-ATTRIB-A1 (AT16)
-            "ghg.data_quality_attribution":   0.6,
+            "ghg.measurement_quality":        0.6,  # M-WEIGHTS-HARMONISE-A1
             "nature.measurement_quality":     0.8,  # M-ATTRIB-A1 (AT13)
         })
         run._compute_composite_confidence()

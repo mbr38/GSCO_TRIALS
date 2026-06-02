@@ -18,9 +18,10 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from engine.constants import (
-    AIR_FOLLOWUP_WEIGHTS,
+    AIR_SEVERITY_CORE_WEIGHTS,
+    FOLLOWUP_QUALITY_WEIGHT,
     GHG_FOLLOWUP_WEIGHTS,
-    NATURE_FOLLOWUP_WEIGHTS,
+    NATURE_SEVERITY_CORE_WEIGHTS,
     TRAFFIC_LIGHT_THRESHOLDS,
 )
 from engine.verbal_summary import generate_verbal_summary
@@ -1618,22 +1619,40 @@ def _fmt(value) -> str:
 # Composite formula appendix (M-REPORT-A1.1)
 # ──────────────────────────────────────────────────────────────────
 
-# Human labels for the per-pillar follow-up-priority term keys (the dict keys
-# live in engine.constants; labels describe what each term is).
+# Human labels for the per-pillar follow-up-priority terms. M-WEIGHTS-HARMONISE-A1:
+# the report shows the EFFECTIVE per-leaf weights (severity-portion × in-core
+# weight, plus the shared 0.20 measurement-quality leaf) for Air and Nature,
+# matching the C5 drill-down; GHG's core is pre-aggregated so it stays a
+# two-row core_support + quality table.
 _AIR_FOLLOWUP_LABELS = {
-    "proxy":      "Air Pollution Proxy score",
-    "anomaly":    "Spatiotemporal anomaly",
-    "confidence": "Confidence",
+    "proxy":   "Air Pollution Proxy score",
+    "anomaly": "Spatiotemporal anomaly",
+    "quality": "Measurement quality",
 }
 _GHG_FOLLOWUP_LABELS = {
     "core_support": "Core GHG audit support (VIIRS flaring + combustion proxy)",
-    "quality":      "Data-quality attribution",
+    "quality":      "Measurement quality",
 }
 _NATURE_FOLLOWUP_LABELS = {
     "biodiversity_exposure": "Biodiversity exposure",
     "habitat_conversion":    "Habitat conversion",
     "vegetation_condition":  "Vegetation condition",
-    "quality_attribution":   "Measurement quality",
+    "quality":               "Measurement quality",
+}
+
+# Effective per-leaf weights for the two pillars whose severity core decomposes.
+# Built from engine.constants so the appendix never drifts from the engine.
+_SEVERITY_PORTION = 1.0 - FOLLOWUP_QUALITY_WEIGHT   # 0.80
+_AIR_FOLLOWUP_EFFECTIVE = {
+    "proxy":   _SEVERITY_PORTION * AIR_SEVERITY_CORE_WEIGHTS["proxy"],
+    "anomaly": _SEVERITY_PORTION * AIR_SEVERITY_CORE_WEIGHTS["anomaly"],
+    "quality": FOLLOWUP_QUALITY_WEIGHT,
+}
+_NATURE_FOLLOWUP_EFFECTIVE = {
+    "biodiversity_exposure": _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["biodiversity_exposure"],
+    "habitat_conversion":    _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["habitat_conversion"],
+    "vegetation_condition":  _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["vegetation_condition"],
+    "quality":               FOLLOWUP_QUALITY_WEIGHT,
 }
 
 
@@ -1671,14 +1690,17 @@ def _render_composite_formula(state, sources, ctx=None) -> str:
         "computed the composite is left undefined rather than averaged over the "
         "survivors. Composite <em>confidence</em> is the minimum of the pillar "
         "confidences (IC_v4 §4).</p>",
-        "<p>Each pillar's follow-up priority is itself a weighted blend of its "
-        "terms:</p>",
+        "<p>Each pillar's follow-up priority has the same two-level shape "
+        "(M-WEIGHTS-HARMONISE-A1): <em>0.80 · severity core + 0.20 · measurement "
+        "quality</em>, with the 0.20 measurement-quality weight shared across all "
+        "three pillars and only the severity core differing by pillar. The tables "
+        "below show the resulting effective per-term weights:</p>",
         "<h3 class='pillar-group'>Air Pollution priority (IC_v4 §1.3)</h3>",
-        _render_weight_table(AIR_FOLLOWUP_WEIGHTS, _AIR_FOLLOWUP_LABELS),
+        _render_weight_table(_AIR_FOLLOWUP_EFFECTIVE, _AIR_FOLLOWUP_LABELS),
         "<h3 class='pillar-group'>GHG Emissions priority (IC_v4 §2.3)</h3>",
         _render_weight_table(GHG_FOLLOWUP_WEIGHTS, _GHG_FOLLOWUP_LABELS),
         "<h3 class='pillar-group'>Nature / Land priority (IC_v4 §3.3)</h3>",
-        _render_weight_table(NATURE_FOLLOWUP_WEIGHTS, _NATURE_FOLLOWUP_LABELS),
+        _render_weight_table(_NATURE_FOLLOWUP_EFFECTIVE, _NATURE_FOLLOWUP_LABELS),
         "<p><em>Reference datasets (Hansen forest loss, ODIAC CO₂, CH₄) are "
         "context only and do not enter the composite — see Reference "
         "datasets.</em></p>",

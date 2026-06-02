@@ -394,13 +394,19 @@ def test_composite_formula_appendix_present_in_screening_reports():
 
 
 def test_composite_formula_weights_match_constants():
-    from engine.constants import (AIR_FOLLOWUP_WEIGHTS, GHG_FOLLOWUP_WEIGHTS,
-                                   NATURE_FOLLOWUP_WEIGHTS)
+    # M-WEIGHTS-HARMONISE-A1: the appendix renders the EFFECTIVE per-leaf weights
+    # for Air/Nature (severity portion × in-core weight) and the raw
+    # core_support/quality for GHG.
+    from engine.constants import (
+        AIR_SEVERITY_CORE_WEIGHTS, FOLLOWUP_QUALITY_WEIGHT,
+        GHG_FOLLOWUP_WEIGHTS, NATURE_SEVERITY_CORE_WEIGHTS,
+    )
+    sc = 1.0 - FOLLOWUP_QUALITY_WEIGHT
     out = _build("mnc", "general")
-    # A couple of representative weights, formatted to 2dp, must appear.
-    assert f"{AIR_FOLLOWUP_WEIGHTS['proxy']:.2f}" in out
-    assert f"{GHG_FOLLOWUP_WEIGHTS['core_support']:.2f}" in out
-    assert f"{NATURE_FOLLOWUP_WEIGHTS['biodiversity_exposure']:.2f}" in out
+    # A couple of representative effective weights, formatted to 2dp, must appear.
+    assert f"{sc * AIR_SEVERITY_CORE_WEIGHTS['proxy']:.2f}" in out          # 0.50
+    assert f"{GHG_FOLLOWUP_WEIGHTS['core_support']:.2f}" in out             # 0.80
+    assert f"{sc * NATURE_SEVERITY_CORE_WEIGHTS['biodiversity_exposure']:.2f}" in out  # 0.30
 
 
 def test_composite_formula_absent_from_trend_report():

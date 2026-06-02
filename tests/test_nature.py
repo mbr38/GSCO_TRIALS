@@ -15,6 +15,7 @@ import math
 import pytest
 
 from engine.constants import (
+    NATURE_SEVERITY_CORE_WEIGHTS,
     BIODIVERSITY_EXPOSURE_WEIGHTS,
     CONVERSION_SATURATION_PCT,
     HABITAT_CONVERSION_WEIGHTS,
@@ -100,6 +101,7 @@ class TestConfigIntegrity:
     ("HABITAT_CONVERSION_WEIGHTS",        HABITAT_CONVERSION_WEIGHTS,        1.0),
     ("NATURE_MEASUREMENT_QUALITY_WEIGHTS", NATURE_MEASUREMENT_QUALITY_WEIGHTS, 1.0),
     ("NATURE_FOLLOWUP_WEIGHTS",           NATURE_FOLLOWUP_WEIGHTS,           1.0),
+    ("NATURE_SEVERITY_CORE_WEIGHTS",      NATURE_SEVERITY_CORE_WEIGHTS,      1.0),
 ])
 def test_weights_sum_to_one(name: str, weights: dict, expected_sum: float) -> None:
     total = sum(weights.values())
@@ -584,7 +586,9 @@ class TestNatureMeasurementQuality:
 
 
 class TestNatureFollowupPriority:
-    def test_full_four_term_weighted_sum(self) -> None:
+    def test_two_level_weighted_sum(self) -> None:
+        """M-WEIGHTS-HARMONISE-A1: 0.80·severity_core + 0.20·quality, where
+        the core is the three exposure/change/condition strands."""
         payload = {
             "nature.biodiversity_exposure":      0.7,
             "nature.habitat.conversion_score":   0.6,
@@ -592,12 +596,15 @@ class TestNatureFollowupPriority:
             "nature.measurement_quality":        0.8,  # M-ATTRIB-A1 (AT13)
         }
         out = compute_nature_followup_priority(payload, mode="screening")
-        w = NATURE_FOLLOWUP_WEIGHTS
+        sc = NATURE_SEVERITY_CORE_WEIGHTS
+        core = (
+            sc["biodiversity_exposure"] * 0.7
+            + sc["habitat_conversion"]   * 0.6
+            + sc["vegetation_condition"] * 0.5
+        )
         expected = (
-            w["biodiversity_exposure"] * 0.7
-            + w["habitat_conversion"]   * 0.6
-            + w["vegetation_condition"] * 0.5
-            + w["quality_attribution"]  * 0.8
+            NATURE_FOLLOWUP_WEIGHTS["severity_core"] * core
+            + NATURE_FOLLOWUP_WEIGHTS["quality"] * 0.8
         )
         assert out["nature.followup_priority"] == pytest.approx(expected)
 

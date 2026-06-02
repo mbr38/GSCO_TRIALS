@@ -97,6 +97,20 @@
     ]
   },
 
+  "ghg.measurement_quality": {
+    "sub_section": "component_score",
+    "display_name": "Measurement quality (GHG)",
+    "definition": "Bottom-up measurement-quality term feeding the GHG follow-up priority (its uniform 0.20 quality weight) and the composite-confidence minimum. The mean of the SCORED GHG terms' per-indicator confidences: VIIRS flaring and the borrowed Air NO₂/CO combustion signal. Computed identically to Air and Nature's measurement quality (M-WEIGHTS-HARMONISE-A1).",
+    "decision_relevance": "Calibrates how seriously to take the headline GHG score, using only the confidences of the indicators that actually drive it. CO₂ (ODIAC) and CH₄ are reference-only and are deliberately excluded — their data quality does not bear on the scored core.",
+    "limitations": "Inherits the v1 confidence-formula placeholders of its inputs (per-indicator QA static defaults pending IC §6.3). Distinct from ghg.data_quality_attribution, which is a separate, still-computed GHG data-quality breakdown surfaced in the drill-down but no longer used in the follow-up or composite confidence.",
+    "esg_alignment": "—",
+    "inputs": [
+      "ghg.viirs.confidence",
+      "air.no2.confidence",
+      "air.co.confidence"
+    ]
+  },
+
   "nature.biodiversity_exposure": {
     "sub_section": "component_score",
     "display_name": "Biodiversity exposure",

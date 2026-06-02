@@ -303,7 +303,10 @@ class TestDerivedEntries:
             "air.measurement_quality_score",  # M-ATTRIB-A1 (AT16)
             "ghg.core_audit_support",
             # M-GHG-REDESIGN-A1 (GATE B): ghg.spatiotemporal_anomaly retired.
-            "ghg.data_quality_attribution",
+            # M-WEIGHTS-HARMONISE-A1: the GHG follow-up quality term is now the
+            # bottom-up ghg.measurement_quality (data_quality_attribution leaves
+            # the derived catalogue — it is no longer a follow-up formula term).
+            "ghg.measurement_quality",
             "nature.biodiversity_exposure",
             "nature.habitat.conversion_score",
             "nature.vegetation_condition",

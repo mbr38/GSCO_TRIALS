@@ -464,7 +464,7 @@ class TestPillarTemplateSelection:
         # and activity both absent. (ODIAC is present but not a candidate.)
         payload = {
             "ghg.audit_followup_priority":  0.80,
-            "ghg.data_quality_attribution": 0.80,
+            "ghg.measurement_quality": 0.80,
             "ghg.co2_context":              0.90,   # not a candidate → ignored
             "ghg.combustion_proxy":         None,
             "ghg.activity_score":           None,
@@ -507,7 +507,7 @@ class TestPillarTemplateSelection:
         # Build a payload that lands ghg in (moderate, moderate, main, ch4).
         payload = {
             "ghg.audit_followup_priority":  0.48,
-            "ghg.data_quality_attribution": 0.50,
+            "ghg.measurement_quality": 0.50,
             "ghg.co2_context":              0.10,
             "ghg.ch4_context_adjusted":     0.50,
             "ghg.combustion_proxy":         0.10,
@@ -556,7 +556,7 @@ class TestDirectionStripping:
         # "above background" direction phrase at all for this slot.
         payload = {
             "ghg.audit_followup_priority":  0.70,
-            "ghg.data_quality_attribution": 0.70,
+            "ghg.measurement_quality": 0.70,
             "ghg.co2_context":              0.90,   # not a candidate → ignored
             "ghg.combustion_proxy":         0.50,
             "ghg.activity_score":           0.10,
@@ -631,7 +631,7 @@ _WORKED_EXAMPLE_PAYLOAD: dict = {
     # dominant contributor — both are reference data. The combustion proxy
     # (NO₂ + CO) is the dominant live-trio GHG term here.
     "ghg.audit_followup_priority":   0.48,
-    "ghg.data_quality_attribution":  0.62,
+    "ghg.measurement_quality":       0.62,
     "ghg.combustion_proxy":          0.20,
     "ghg.activity_score":            0.10,
     "ghg.spatial_resolution_suitability": 0.34,  # Lowest → limiting.
@@ -715,7 +715,7 @@ class TestEngineShapedPayload:
             "air.pm_or_aerosol": 0.1,
             "air.o3.score":      0.1,
             "ghg.audit_followup_priority":   0.30,
-            "ghg.data_quality_attribution":  0.65,
+            "ghg.measurement_quality":  0.65,
             "ghg.ch4_context_adjusted":      0.3,
             "ghg.combustion_proxy":          0.1,
             "ghg.activity_score":            0.1,
@@ -746,7 +746,7 @@ class TestEngineShapedPayload:
             "air.audit_followup_priority":      None,
             "air.measurement_quality_score": None,
             "ghg.audit_followup_priority":  None,
-            "ghg.data_quality_attribution": None,
+            "ghg.measurement_quality": None,
             "nature.followup_priority":     None,
             "nature.measurement_quality":   None,
         }
@@ -767,7 +767,7 @@ class TestEngineShapedPayload:
             "air.audit_followup_priority":      0.80,
             "air.measurement_quality_score": 0.80,
             "ghg.audit_followup_priority":  0.80,
-            "ghg.data_quality_attribution": 0.80,
+            "ghg.measurement_quality": 0.80,
             "nature.followup_priority":     0.80,
             "nature.measurement_quality":   0.80,
         }
@@ -785,7 +785,7 @@ class TestEngineShapedPayload:
             "air.audit_followup_priority":      0.80,
             "air.measurement_quality_score": 0.80,
             "ghg.audit_followup_priority":  0.50,
-            "ghg.data_quality_attribution": 0.80,
+            "ghg.measurement_quality": 0.80,
             "nature.followup_priority":     0.80,
             "nature.measurement_quality":   0.80,
         }

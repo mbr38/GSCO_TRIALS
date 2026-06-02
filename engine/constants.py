@@ -248,16 +248,43 @@ AIR_POLLUTION_PROXY_WEIGHTS: dict[str, float] = {
 }
 AIR_POLLUTANT_WEIGHTS = AIR_POLLUTION_PROXY_WEIGHTS
 
-# IC_v4 §1.3 — Air Audit Follow-Up Priority terms.
-# M-TREND-A1 (TR10 / decision-log E3): the "trend" term (was 0.20) is
-# removed — trend is now a per-indicator drill-down only and never enters
-# composite arithmetic. The surviving three terms are renormalised over the
-# remaining 0.80 so the dict still sums to 1.00.
-# Pre-change values: proxy 0.35, anomaly 0.30, trend 0.20, confidence 0.15.
+# ===========================================================================
+# M-WEIGHTS-HARMONISE-A1 (2 Jun 2026) — uniform follow-up shape across pillars.
+# ---------------------------------------------------------------------------
+# Every pillar follow-up now adopts the SAME two-level form:
+#
+#     Pillar_FollowUp = (1 − w_q) · Severity_core  +  w_q · MeasurementQuality
+#
+# with a single shared measurement-quality weight `w_q = FOLLOWUP_QUALITY_WEIGHT
+# = 0.20` across all three pillars. The 0.20 is shared BY INTENT, not by
+# coincidence — the fourth term means the same thing in every pillar
+# (measurement quality = mean per-indicator confidence: QA, N_valid, anomaly
+# strength, spatial context), so it carries the same weight everywhere. Only
+# the severity CORE differs between pillars — each retains its own grammar
+# (Air proxy/anomaly, GHG combustion/flaring, Nature exposure/change/condition).
+#
+# These weights express term ORDERING plus a uniform quality modifier, NOT an
+# empirically fitted optimum — calibration is deferred (see v1x_followups.md).
+# This replaced the prior per-pillar spurious-precision splits (Air
+# 0.4375/0.3750/0.1875; GHG 0.7273/0.2727; Nature 0.30/0.30/0.25/0.15), which
+# were historical renormalisations over removed terms with no scientific
+# meaning. See docs/Indicators_Computation_v4.md §1.3 / §2.3 / §3.3.
+# ===========================================================================
+
+# Shared measurement-quality weight w_q — the SAME for all three pillars.
+FOLLOWUP_QUALITY_WEIGHT: float = 0.20
+
+# IC_v4 §1.3 — Air severity core (proxy / anomaly), renormalised to sum to 1.
+# Was effective 0.50 proxy / 0.30 anomaly; ÷0.80 → 0.625 / 0.375.
+AIR_SEVERITY_CORE_WEIGHTS: dict[str, float] = {
+    "proxy":   0.50 / 0.80,   # 0.625
+    "anomaly": 0.30 / 0.80,   # 0.375
+}
+# Air follow-up = 0.80·severity_core + 0.20·quality
+# → effective 0.50 proxy + 0.30 anomaly + 0.20 quality.
 AIR_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "proxy":      0.35 / 0.80,   # 0.4375
-    "anomaly":    0.30 / 0.80,   # 0.3750
-    "confidence": 0.15 / 0.80,   # 0.1875
+    "severity_core": 1.0 - FOLLOWUP_QUALITY_WEIGHT,   # 0.80
+    "quality":       FOLLOWUP_QUALITY_WEIGHT,         # 0.20
 }
 
 # IC_v4 §2.3 — Core GHG Audit Support (M5.5b: ODIAC demoted).
@@ -325,19 +352,18 @@ GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS: dict[str, float] = {
     "ghg.retrieval_inventory_quality":    0.33,
 }
 
-# IC_v4 §2.3 — GHG Audit Follow-Up Priority terms. Sums to 1.00.
-# M-TREND-A1 (TR10 / decision-log E3): the "trend" term (was 0.20) is
-# removed — trend is drill-down-only.
-# M-GHG-REDESIGN-A1 (GATE B): the "anomaly" term (`ghg.spatiotemporal_anomaly`,
-# was 0.3125) is RETIRED. With CH₄ reclassified as reference data and VIIRS
-# re-grammared away from anomaly detection (sustained contrast, not a z-score),
-# the GHG pillar has no spatiotemporal-anomaly source left — the term was
-# structurally empty and conceptually obsolete. Surviving two terms renormalise
-# over the remaining 0.55 (mirrors the M-TREND-A1 removal pattern).
-# Pre-M-GHG-REDESIGN-A1: core_support 0.5000, anomaly 0.3125, quality 0.1875.
+# IC_v4 §2.3 — GHG Audit Follow-Up Priority terms (M-WEIGHTS-HARMONISE-A1).
+# Uniform shape: 0.80·core_support + 0.20·quality. The GHG severity core is
+# CORE_GHG_AUDIT_SUPPORT_WEIGHTS (0.60 combustion / 0.40 flaring), unchanged.
+# The quality term now points at `ghg.measurement_quality` — a bottom-up mean
+# of the scored GHG terms' per-indicator confidences (combustion borrow +
+# VIIRS flaring), computed identically to Air/Nature, replacing the prior
+# placeholder routing through `ghg.data_quality_attribution`. (data_quality_
+# attribution is unchanged and still feeds the composite-confidence min chain.)
+# Pre-M-WEIGHTS-HARMONISE-A1: core_support 0.7273, quality 0.2727.
 GHG_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "core_support": 0.40 / 0.55,   # 0.7273
-    "quality":      0.15 / 0.55,   # 0.2727
+    "core_support": 1.0 - FOLLOWUP_QUALITY_WEIGHT,   # 0.80
+    "quality":      FOLLOWUP_QUALITY_WEIGHT,         # 0.20
 }
 
 # Schema_v2 §3.4 — Sentinel-5P CH₄'s real on-ground footprint is ~7 km
@@ -473,12 +499,24 @@ NATURE_MEASUREMENT_QUALITY_WEIGHTS: dict[str, float] = {
     "nature.seasonal_comparability":    0.20,   # was 0.15
 }
 
-# IC_v4 §3.3 — Nature_FollowUp_Priority. Sums to 1.00.
+# IC_v4 §3.3 — Nature severity core (exposure / change / condition),
+# renormalised to sum to 1 (M-WEIGHTS-HARMONISE-A1, decision (ii): clean
+# effective values 0.30/0.30/0.20 + 0.20 quality → core 0.375/0.375/0.250).
+# Decision (ii) is chosen over preserving the old 0.30/0.30/0.25 ratios
+# (which would give 0.282/0.282/0.235 effective) — (ii) is cleaner and
+# symmetric with Air. The only behavioural shift is vegetation_condition's
+# effective weight 0.25 → 0.20.
+NATURE_SEVERITY_CORE_WEIGHTS: dict[str, float] = {
+    "biodiversity_exposure": 0.30 / 0.80,   # 0.375
+    "habitat_conversion":    0.30 / 0.80,   # 0.375
+    "vegetation_condition":  0.20 / 0.80,   # 0.250
+}
+# Nature follow-up = 0.80·severity_core + 0.20·quality
+# → effective 0.30 exposure + 0.30 conversion + 0.20 condition + 0.20 quality.
+# Pre-M-WEIGHTS-HARMONISE-A1: 0.30 / 0.30 / 0.25 / 0.15 (quality_attribution).
 NATURE_FOLLOWUP_WEIGHTS: dict[str, float] = {
-    "biodiversity_exposure": 0.30,
-    "habitat_conversion":    0.30,
-    "vegetation_condition":  0.25,
-    "quality_attribution":   0.15,
+    "severity_core": 1.0 - FOLLOWUP_QUALITY_WEIGHT,   # 0.80
+    "quality":       FOLLOWUP_QUALITY_WEIGHT,         # 0.20
 }
 
 # ---------------------------------------------------------------------------
@@ -699,6 +737,9 @@ INDICATOR_CONFIDENCE_FAMILY: dict[str, str] = {
     "ghg.spatiotemporal_anomaly":       "derived",
     # M-TREND-A1 (TR10): ghg.trend removed (drill-down-only).
     "ghg.data_quality_attribution":     "derived",
+    # M-WEIGHTS-HARMONISE-A1: bottom-up GHG measurement quality (follow-up
+    # quality term + composite-confidence term).
+    "ghg.measurement_quality":          "derived",
     "nature.biodiversity_exposure":     "derived",
     "nature.habitat.conversion_score":  "derived",
     "nature.vegetation_condition":      "derived",

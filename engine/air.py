@@ -58,6 +58,7 @@ _AIR_MAX_PARALLEL_WORKERS: int = 4
 
 from engine.constants import (
     AIR_FOLLOWUP_WEIGHTS,
+    AIR_SEVERITY_CORE_WEIGHTS,
     AIR_POLLUTION_PROXY_WEIGHTS,
     AOD_QA_VALID_BIT_MASK,
     CAMS_MIN_VALID_PCT,
@@ -550,17 +551,20 @@ def _pollutant_keys_from_selected(selected: set[str]) -> set[str]:
 # pollutants and pick `.z`, `.confidence`, etc. out of the payload.
 _SINGLE_VALUE_POLLUTANTS: tuple[str, ...] = tuple(AIR_POLLUTANT_CONFIG.keys())
 
-# IC_v4 §1.3 — the four pillar-aggregate IDs that feed `audit_followup_priority`,
-# in the same key order as AIR_FOLLOWUP_WEIGHTS.
-_FOLLOWUP_TERM_TO_ID: dict[str, str] = {
-    "proxy":      "air.pollution_proxy_score",
-    "anomaly":    "air.spatiotemporal_anomaly_score",
-    # M-TREND-A1 (TR10): the "trend" term is removed — trend is drill-down-
-    # only and never enters the follow-up priority. `air.trend_score` is no
-    # longer emitted (see compute_trend_score removal below).
-    # M-ATTRIB-A1 (AT16): points at the renamed measurement-quality ID.
-    "confidence": "air.measurement_quality_score",
+# IC_v4 §1.3 — Air severity-core term → pillar-aggregate ID map. The core is
+# proxy + anomaly (M-WEIGHTS-HARMONISE-A1); each retains the §0.2 anomaly
+# grammar. The follow-up then layers the uniform measurement-quality term.
+_SEVERITY_CORE_TERM_TO_ID: dict[str, str] = {
+    "proxy":   "air.pollution_proxy_score",
+    "anomaly": "air.spatiotemporal_anomaly_score",
 }
+
+# IC_v4 §1.3 — the two follow-up terms (M-WEIGHTS-HARMONISE-A1): the severity
+# core (computed inline from `_SEVERITY_CORE_TERM_TO_ID`) and the uniform
+# measurement-quality term. `quality` (renamed from the old `confidence` key
+# for cross-pillar consistency) points at `air.measurement_quality_score`.
+# M-TREND-A1 (TR10): the "trend" term was removed — trend is drill-down-only.
+_FOLLOWUP_QUALITY_ID: str = "air.measurement_quality_score"
 
 
 # ---------------------------------------------------------------------------
@@ -720,12 +724,19 @@ def compute_measurement_quality_score(
     new name is honest. Attributability (wind asymmetry per M-WIND-A1 v2.0)
     is a separate categorical surface that does NOT enter this value.
 
-    Dual-emit (AT16 / Q-AT-3, 1-milestone window): emits the new canonical
-    ID `air.measurement_quality_score` AND the legacy
-    `air.attribution_confidence_score` with the identical value, so any
-    out-of-repo consumer still reading the old key keeps working for one
-    milestone. Remove the legacy key (and the module alias below) next
-    milestone — see M-ATTRIB-A1 spec §4.6.
+    Dual-emit (AT16 / Q-AT-3): emits the new canonical ID
+    `air.measurement_quality_score` AND the legacy
+    `air.attribution_confidence_score` with the identical value.
+
+    TODO(M-WEIGHTS-HARMONISE-A1, 2 Jun 2026 — alias retention reviewed):
+    the original "remove next milestone" plan is DEFERRED. The legacy key is
+    no longer just a one-milestone dual-emit — it is now part of the
+    legacy-ID back-compat fallback (`tests/test_legacy_id_fallback.py`,
+    alongside `nature.quality_attribution`) that lets the screening loader
+    read historical saved analyses, and it persists in baseline fixtures and
+    seeded saved analyses. Retiring it is therefore a standalone deprecation
+    (drop the loader fallback + migrate fixtures), not a cleanup that belongs
+    on a weights-harmonisation milestone. Alias and module shim retained.
     """
     contributions: list[float] = []
     for pol in _SINGLE_VALUE_POLLUTANTS:
@@ -753,25 +764,33 @@ def compute_air_audit_followup_priority(
     payload: dict,
     mode: str,                                          # noqa: ARG001 — parity
 ) -> dict:
-    """IC_v4 §1.3 — weighted sum per AIR_FOLLOWUP_WEIGHTS over the four
-    pillar aggregates.
+    """IC_v4 §1.3 — uniform two-level follow-up (M-WEIGHTS-HARMONISE-A1):
 
-    `mode` is accepted for signature stability (M-TREND-A1 removed the only
-    mode-dependent term, the aggregate trend).
+        Air_FollowUp = 0.80·severity_core + 0.20·measurement_quality
 
-    M-FOLLOWUP-FALLBACK: strict-None propagation. If any sub-aggregate
-    is None, the priority is None. The prior renormalise-over-survivors
-    pattern produced misleading "high priority" headlines from a single
-    surviving input when the rest had silently failed (e.g. coastal
+    where `severity_core = 0.625·proxy + 0.375·anomaly`
+    (AIR_SEVERITY_CORE_WEIGHTS) — effective 0.50 proxy / 0.30 anomaly / 0.20
+    quality. `mode` is accepted for signature stability (M-TREND-A1 removed the
+    only mode-dependent term, the aggregate trend).
+
+    M-FOLLOWUP-FALLBACK: strict-None propagation. If the severity core or the
+    quality term is None, the priority is None. The prior renormalise-over-
+    survivors pattern produced misleading "high priority" headlines from a
+    single surviving input when the rest had silently failed (e.g. coastal
     AOIs where every pollutant tripped the background-ring skip).
     """
-    values: list[float] = []
-    for term in AIR_FOLLOWUP_WEIGHTS:
-        v = payload.get(_FOLLOWUP_TERM_TO_ID[term])
-        if v is None:
-            return {"air.audit_followup_priority": None}
-        values.append(AIR_FOLLOWUP_WEIGHTS[term] * v)
-    return {"air.audit_followup_priority": sum(values)}
+    core_weights_by_id = {
+        _SEVERITY_CORE_TERM_TO_ID[t]: w for t, w in AIR_SEVERITY_CORE_WEIGHTS.items()
+    }
+    severity_core = _weighted_sum_strict(payload, core_weights_by_id)
+    quality = payload.get(_FOLLOWUP_QUALITY_ID)
+    if severity_core is None or quality is None:
+        return {"air.audit_followup_priority": None}
+    priority = (
+        AIR_FOLLOWUP_WEIGHTS["severity_core"] * severity_core
+        + AIR_FOLLOWUP_WEIGHTS["quality"] * quality
+    )
+    return {"air.audit_followup_priority": priority}
 
 
 # ---------------------------------------------------------------------------

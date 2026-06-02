@@ -28,6 +28,7 @@ from engine.ghg import (
     compute_fire_or_regional_transport_risk,
     compute_ghg_audit_followup_priority,
     compute_ghg_data_quality_attribution,
+    compute_ghg_measurement_quality,
     compute_core_ghg_audit_support,
     compute_temporal_coverage,
     compute_spatial_resolution_suitability,
@@ -579,10 +580,12 @@ class TestAuditFollowupPartialMissing:
         rebalanced the formula and produced misleading scores when
         upstream signals had failed. M-TREND-A1 (TR10) removed the trend
         term; M-GHG-REDESIGN-A1 (GATE B) retired the anomaly term, so the
-        priority is now core_support + quality. A None in either → None."""
+        priority is now core_support + quality. A None in either → None.
+        M-WEIGHTS-HARMONISE-A1: the quality term is now
+        `ghg.measurement_quality` (was `ghg.data_quality_attribution`)."""
         payload = {
-            "ghg.core_audit_support":          0.50,
-            "ghg.data_quality_attribution":    None,
+            "ghg.core_audit_support":   0.50,
+            "ghg.measurement_quality":  None,
         }
         out = compute_ghg_audit_followup_priority(payload, mode="trend")
         assert out["ghg.audit_followup_priority"] is None
@@ -590,6 +593,48 @@ class TestAuditFollowupPartialMissing:
     def test_returns_none_when_all_inputs_missing(self) -> None:
         out = compute_ghg_audit_followup_priority({}, mode="screening")
         assert out["ghg.audit_followup_priority"] is None
+
+
+# ---------------------------------------------------------------------------
+# 5b. compute_ghg_measurement_quality — bottom-up, scored-terms-only
+# (M-WEIGHTS-HARMONISE-A1)
+# ---------------------------------------------------------------------------
+
+class TestGhgMeasurementQuality:
+    def test_mean_of_viirs_and_combustion_borrow_confidence(self) -> None:
+        """Computed (not a constant): mean of VIIRS flaring confidence and the
+        weighted NO₂/CO borrow confidence. CO₂/CH₄ are excluded by construction."""
+        from engine.constants import INDUSTRIAL_COMBUSTION_PROXY_WEIGHTS as W
+        payload = {
+            "ghg.viirs.confidence": 0.80,
+            "ghg.combustion_proxy": 0.42,   # borrow resolved (non-None gate)
+            "air.no2.confidence":   0.70,
+            "air.co.confidence":    0.50,
+            # CO₂/CH₄ confidences present but MUST be ignored:
+            "ghg.co2.confidence":   1.00,
+            "ghg.ch4.confidence":   0.90,
+        }
+        out = compute_ghg_measurement_quality(payload)
+        w_no2 = W["air.no2.score"]
+        w_co = W["air.co.score"]
+        borrow = (w_no2 * 0.70 + w_co * 0.50) / (w_no2 + w_co)
+        expected = (0.80 + borrow) / 2
+        assert out["ghg.measurement_quality"] == pytest.approx(expected)
+
+    def test_none_when_both_scored_terms_missing(self) -> None:
+        """No VIIRS confidence and no resolved borrow → None (strict-None
+        then collapses the GHG follow-up). CO₂/CH₄ alone cannot rescue it."""
+        out = compute_ghg_measurement_quality({
+            "ghg.co2.confidence": 1.00,
+            "ghg.ch4.confidence": 0.90,
+        })
+        assert out["ghg.measurement_quality"] is None
+
+    def test_viirs_only_when_borrow_unresolved(self) -> None:
+        """If the combustion borrow didn't resolve (Air absent), quality is
+        just the VIIRS flaring confidence."""
+        out = compute_ghg_measurement_quality({"ghg.viirs.confidence": 0.75})
+        assert out["ghg.measurement_quality"] == pytest.approx(0.75)
 
 
 # ---------------------------------------------------------------------------

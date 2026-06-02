@@ -27,12 +27,13 @@ from dataclasses import dataclass
 import streamlit as st
 
 from engine.constants import (
-    AIR_FOLLOWUP_WEIGHTS,
+    AIR_SEVERITY_CORE_WEIGHTS,
     COLUMN_TO_SURFACE_MULTIPLIER,
     CONFIDENCE_FORMULA_WEIGHTS,
+    FOLLOWUP_QUALITY_WEIGHT,
     GHG_FOLLOWUP_WEIGHTS,
     HABITAT_SPATIAL_LINK_MOD_KM,
-    NATURE_FOLLOWUP_WEIGHTS,
+    NATURE_SEVERITY_CORE_WEIGHTS,
     WIND_ATTRIBUTABILITY_INDICATORS,
 )
 from ui.components.indicator_info import render_indicator_name_with_info
@@ -81,33 +82,52 @@ class _FormulaTerm:
 
 
 # Internal-key → (display name, payload key) bindings, paired with the
-# weight dicts in engine.constants. The internal keys MUST match the
-# engine's dict keys exactly — see _build_formula().
-# M-TREND-A1 (TR10): the "trend" term is removed from both follow-up
-# formulas — trend is a per-indicator drill-down only. The dead `air.trend_score`
-# / `ghg.trend` bindings are dropped here so `_build_formula` (which zips the
-# weight dict with these bindings) stays in lock-step with the engine.
+# EFFECTIVE per-leaf weight dicts built below. The internal keys MUST match
+# the effective-weight dict keys exactly — see _build_formula().
+#
+# M-WEIGHTS-HARMONISE-A1: the follow-up is now 0.80·severity_core + 0.20·
+# quality. For Air and Nature the severity core itself decomposes into leaf
+# terms, so the breakdown shows the EFFECTIVE per-leaf weights (severity-core
+# weight × in-core weight, plus the shared 0.20 on the quality leaf) — more
+# informative than two opaque core/quality rows. GHG's core is the already-
+# aggregated `ghg.core_audit_support`, so its breakdown stays a clean two-row
+# core_support + quality (= GHG_FOLLOWUP_WEIGHTS directly).
+# M-TREND-A1 (TR10): the trend term is removed (drill-down-only).
 _AIR_TERMS: dict[str, tuple[str, str]] = {
-    "proxy":      ("Pollution proxy score",   "air.pollution_proxy_score"),
-    "anomaly":    ("Spatiotemporal anomaly",  "air.spatiotemporal_anomaly_score"),
+    "proxy":   ("Pollution proxy score",   "air.pollution_proxy_score"),
+    "anomaly": ("Spatiotemporal anomaly",  "air.spatiotemporal_anomaly_score"),
     # M-ATTRIB-A1 (AT16): renamed — measurement quality, not attribution.
-    "confidence": ("Measurement quality",     "air.measurement_quality_score"),
+    "quality": ("Measurement quality",     "air.measurement_quality_score"),
 }
 _GHG_TERMS: dict[str, tuple[str, str]] = {
     "core_support": ("GHG severity (core audit support)", "ghg.core_audit_support"),
-    # M-GHG-REDESIGN-A1 (GATE B): the "anomaly" row is dropped — the GHG
-    # spatiotemporal-anomaly aggregate is retired (no anomaly source after the
-    # VIIRS sustained-contrast re-grammar). `_build_formula` zips this with
-    # GHG_FOLLOWUP_WEIGHTS, which also dropped "anomaly", so they stay in
-    # lock-step.
-    "quality":      ("Measurement quality",          "ghg.data_quality_attribution"),
+    # M-WEIGHTS-HARMONISE-A1: the uniform quality term reads the bottom-up
+    # `ghg.measurement_quality` (was `ghg.data_quality_attribution`).
+    "quality":      ("Measurement quality",          "ghg.measurement_quality"),
 }
 _NATURE_TERMS: dict[str, tuple[str, str]] = {
     "biodiversity_exposure": ("Biodiversity exposure",  "nature.biodiversity_exposure"),
     "habitat_conversion":    ("Habitat conversion",     "nature.habitat.conversion_score"),
     "vegetation_condition":  ("Vegetation condition",   "nature.vegetation_condition"),
     # M-ATTRIB-A1 (AT13): renamed — measurement quality, not attribution.
-    "quality_attribution":   ("Measurement quality",    "nature.measurement_quality"),
+    "quality":               ("Measurement quality",    "nature.measurement_quality"),
+}
+
+# Effective per-leaf weights for the two pillars whose severity core decomposes
+# (Air, Nature). Derived from the engine constants so any engine weight change
+# flows straight through; referencing the severity-core keys by name keeps the
+# fail-loud lock-step (a renamed engine key → KeyError at import).
+_SEVERITY_PORTION = 1.0 - FOLLOWUP_QUALITY_WEIGHT   # 0.80
+_AIR_EFFECTIVE: dict[str, float] = {
+    "proxy":   _SEVERITY_PORTION * AIR_SEVERITY_CORE_WEIGHTS["proxy"],
+    "anomaly": _SEVERITY_PORTION * AIR_SEVERITY_CORE_WEIGHTS["anomaly"],
+    "quality": FOLLOWUP_QUALITY_WEIGHT,
+}
+_NATURE_EFFECTIVE: dict[str, float] = {
+    "biodiversity_exposure": _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["biodiversity_exposure"],
+    "habitat_conversion":    _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["habitat_conversion"],
+    "vegetation_condition":  _SEVERITY_PORTION * NATURE_SEVERITY_CORE_WEIGHTS["vegetation_condition"],
+    "quality":               FOLLOWUP_QUALITY_WEIGHT,
 }
 
 
@@ -115,12 +135,11 @@ def _build_formula(
     weights: dict[str, float],
     terms: dict[str, tuple[str, str]],
 ) -> tuple[_FormulaTerm, ...]:
-    """Zip an engine weight dict with the UI term bindings.
+    """Zip a weight dict with the UI term bindings.
 
-    Raises ``KeyError`` at import time if the engine adds or renames a
-    weight key — that's an intentional fail-loud, since silent drift
-    between the breakdown UI and the live formula is the bug this
-    construction is designed to prevent.
+    Raises ``KeyError`` at import time if a weight key has no term binding
+    — an intentional fail-loud, since silent drift between the breakdown UI
+    and the live formula is the bug this construction is designed to prevent.
     """
     return tuple(
         _FormulaTerm(terms[k][0], terms[k][1], weights[k])
@@ -128,9 +147,9 @@ def _build_formula(
     )
 
 
-_AIR_FORMULA    = _build_formula(AIR_FOLLOWUP_WEIGHTS,    _AIR_TERMS)
-_GHG_FORMULA    = _build_formula(GHG_FOLLOWUP_WEIGHTS,    _GHG_TERMS)
-_NATURE_FORMULA = _build_formula(NATURE_FOLLOWUP_WEIGHTS, _NATURE_TERMS)
+_AIR_FORMULA    = _build_formula(_AIR_EFFECTIVE,         _AIR_TERMS)
+_GHG_FORMULA    = _build_formula(GHG_FOLLOWUP_WEIGHTS,   _GHG_TERMS)
+_NATURE_FORMULA = _build_formula(_NATURE_EFFECTIVE,      _NATURE_TERMS)
 
 
 def _render_headline(
@@ -387,7 +406,7 @@ def _render_ghg_panel(payload: dict) -> None:
     with st.expander("GHG Emissions — drill-down"):
         _render_headline(
             "ghg.audit_followup_priority",
-            "ghg.data_quality_attribution",
+            "ghg.measurement_quality",   # M-WEIGHTS-HARMONISE-A1 (unified)
             _GHG_FORMULA,
             payload,
         )

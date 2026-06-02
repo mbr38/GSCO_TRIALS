@@ -78,11 +78,17 @@ _PILLAR_PRIORITY_IDS: tuple[str, ...] = (
 
 # IC_v4 §4 — composite confidence is the minimum across the pillars that
 # produced a confidence aggregate.
+# M-WEIGHTS-HARMONISE-A1: the GHG term is unified onto the bottom-up
+# `ghg.measurement_quality` (was `ghg.data_quality_attribution`), so all three
+# pillars feed the composite-confidence min() with the SAME measurement-quality
+# aggregate they use for their follow-up's 0.20 quality term — one consistent
+# "measurement quality" concept per pillar across both formulas.
+# `ghg.data_quality_attribution` is still computed and surfaced (C5/C6/report)
+# as the GHG data-quality breakdown, but no longer drives the composite min.
 _PILLAR_CONFIDENCE_IDS: tuple[str, ...] = (
-    # M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
-    "air.measurement_quality_score",
-    "ghg.data_quality_attribution",
-    "nature.measurement_quality",
+    "air.measurement_quality_score",   # M-ATTRIB-A1 (AT16)
+    "ghg.measurement_quality",         # M-WEIGHTS-HARMONISE-A1 (was data_quality_attribution)
+    "nature.measurement_quality",      # M-ATTRIB-A1 (AT13)
 )
 
 

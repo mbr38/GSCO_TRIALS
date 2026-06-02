@@ -377,6 +377,9 @@ def _fake_ghg_payload() -> dict:
     payload["ghg.spatiotemporal_anomaly"]     = 0.50
     # M-TREND-A1 (TR10): ghg.trend no longer emitted.
     payload["ghg.data_quality_attribution"]   = 0.65
+    # M-WEIGHTS-HARMONISE-A1: composite confidence now reads the bottom-up
+    # measurement-quality aggregate, not data_quality_attribution.
+    payload["ghg.measurement_quality"]        = 0.65
     payload["ghg.audit_followup_priority"]    = 0.55
     return payload
 

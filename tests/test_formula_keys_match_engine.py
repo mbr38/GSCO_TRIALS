@@ -27,7 +27,7 @@ from engine.air import (
 )
 from engine.ghg import (
     compute_core_ghg_audit_support,
-    compute_ghg_data_quality_attribution,
+    compute_ghg_measurement_quality,  # M-WEIGHTS-HARMONISE-A1
 )
 from engine.nature import (
     compute_biodiversity_exposure,
@@ -74,7 +74,9 @@ _AIR_AGGREGATE_KEYS: set[str] = _harvest_keys([
 # the GHG spatiotemporal-anomaly aggregate is no longer computed or emitted.
 _GHG_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_core_ghg_audit_support({}, set()),
-    lambda: compute_ghg_data_quality_attribution({}),
+    # M-WEIGHTS-HARMONISE-A1: the GHG follow-up quality term now reads the
+    # bottom-up `ghg.measurement_quality` (was `ghg.data_quality_attribution`).
+    lambda: compute_ghg_measurement_quality({}),
 ])
 _NATURE_AGGREGATE_KEYS: set[str] = _harvest_keys([
     lambda: compute_biodiversity_exposure({}),

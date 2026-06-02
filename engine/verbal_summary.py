@@ -86,8 +86,10 @@ _PRIORITY_KEY: dict[Pillar, str] = {
 }
 _CONFIDENCE_KEY: dict[Pillar, str] = {
     # M-ATTRIB-A1 (AT16 / AT13): renamed measurement-quality IDs.
+    # M-WEIGHTS-HARMONISE-A1: GHG unified onto `ghg.measurement_quality` so the
+    # prose reports the same per-pillar confidence the composite min() uses.
     "air":    "air.measurement_quality_score",
-    "ghg":    "ghg.data_quality_attribution",
+    "ghg":    "ghg.measurement_quality",
     "nature": "nature.measurement_quality",
 }
 
