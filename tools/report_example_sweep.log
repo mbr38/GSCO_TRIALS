@@ -1,0 +1,129 @@
+Traceback (most recent call last):
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/ee/data.py", line 402, in _execute_cloud_call
+    return call.execute(num_retries=num_retries)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/googleapiclient/_helpers.py", line 130, in positional_wrapper
+    return wrapped(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/googleapiclient/http.py", line 938, in execute
+    raise HttpError(resp, content, uri=self.uri)
+googleapiclient.errors.HttpError: <HttpError 400 when requesting https://earthengine.googleapis.com/v1/projects/supply-chain-observatory/value:compute?prettyPrint=false&alt=json returned "Image.remap: Image has no bands.". Details: "Image.remap: Image has no bands.">
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/tools/report_example_sweep.py", line 485, in main
+    ).run()
+      ^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/orchestrator.py", line 165, in run
+    stage1[name] = fut.result()
+                   ^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/orchestrator.py", line 218, in _call_pillar
+    result = run_pillar_fn(
+             ^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/nature.py", line 2100, in run_pillar
+    outcomes = list(ex.map(_run_one_nature_task, tasks))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/usr/local/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/nature.py", line 1989, in _run_one_nature_task
+    return fn(), None
+           ^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/nature.py", line 2083, in <lambda>
+    lambda: compute_supplier_spatial_link(aoi, time_range, ee_client),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/engine/nature.py", line 1296, in compute_supplier_spatial_link
+    ).getInfo() or {}).get("change") or 0
+      ^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/ee/computedobject.py", line 107, in getInfo
+    return data.computeValue(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/ee/data.py", line 1107, in computeValue
+    return _execute_cloud_call(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/benedettaradicefossati/Downloads/gsco-demo/.venv/lib/python3.11/site-packages/ee/data.py", line 404, in _execute_cloud_call
+    raise _translate_cloud_exception(e)  # pylint: disable=raise-missing-from
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ee.ee_exception.EEException: Image.remap: Image has no bands.
+[sweep] Earth Engine initialised (project=supply-chain-observatory)
+[sweep] window=('2026-03-05', '2026-06-03')  radius=5.0 km  indicators=19 (all 3 pillars)
+[sweep] pillars selected: air=9, ghg=3, nature=7
+
+[sweep] (1/12) Norilsk Nickel — Nadezhda smelter (69.33, 88.16)…
+[sweep]   composite=0.305 (Low)  conf=0.594  flags=GHG_GRAMMAR_DIVERGENCE;DEGRADATION
+
+[sweep] (2/12) Escondida copper mine (-24.27, -69.07)…
+[sweep]   composite=0.328 (Low)  conf=0.694  flags=DEGRADATION
+
+[sweep] (3/12) Grasberg mine (-4.06, 137.11)…
+[sweep]   FAILED — EEException: Image.remap: Image has no bands.
+
+[sweep] (4/12) Comodoro Rivadavia oil & gas (-45.86, -67.5)…
+[sweep]   composite=0.432 (Moderate)  conf=0.683  flags=GHG_GRAMMAR_DIVERGENCE;NATURE_ACTIVE;DEGRADATION
+
+[sweep] (5/12) Jamnagar refinery (22.35, 69.85)…
+[sweep]   composite=0.35 (Moderate)  conf=0.668  flags=GHG_GRAMMAR_DIVERGENCE;DEGRADATION
+
+[sweep] (6/12) Ganzhou rare-earth processing (25.85, 114.93)…
+[sweep]   composite=0.269 (Low)  conf=0.675  flags=NATURE_ACTIVE;DEGRADATION
+
+[sweep] (7/12) CATL battery plant, Ningde (26.66, 119.55)…
+[sweep]   composite=0.306 (Low)  conf=0.686  flags=NATURE_ACTIVE;DEGRADATION
+
+[sweep] (8/12) Tongwei/LONGi polysilicon, Leshan (29.55, 103.77)…
+[sweep]   composite=0.24 (Low)  conf=0.663  flags=NATURE_ACTIVE;DEGRADATION
+
+[sweep] (9/12) TSMC Fab 18, Tainan (22.97, 120.27)…
+[sweep]   composite=0.232 (Low)  conf=0.663  flags=DEGRADATION
+
+[sweep] (10/12) Morowali Industrial Park (IMIP) (-2.82, 122.15)…
+[sweep]   composite=0.531 (Moderate)  conf=0.662  flags=HIGH_SIGNAL;GHG_GRAMMAR_DIVERGENCE;NATURE_ACTIVE;DEGRADATION
+
+[sweep] (11/12) Carajás iron ore mine (-6.06, -50.16)…
+[sweep]   composite=0.304 (Low)  conf=0.661  flags=NATURE_ACTIVE;DEGRADATION
+
+[sweep] (12/12) Bayan Obo rare-earth mine (41.77, 109.97)…
+[sweep]   composite=0.248 (Low)  conf=0.658  flags=NATURE_ACTIVE;DEGRADATION
+
+[sweep] wrote /Users/benedettaradicefossati/Downloads/gsco-demo/tools/report_example_perindicator.csv (132 rows)
+
+[sweep] wrote /Users/benedettaradicefossati/Downloads/gsco-demo/tools/report_example_sweep.csv
+
+=== COMPARISON TABLE (most mechanism-rich first) ===
+
+| # | Site | Comp | Band | Conf | Air | GHG | Nat | Comb | VIIRS | KBA_ov | HabConv | Pedagogy flags |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Morowali Industrial Park (IMIP) | 0.531 | Moderate | 0.662 | 0.3 | 0.571 | 0.723 | 0.341 | 0.792 | 0.0 | 0.726 | HIGH_SIGNAL;GHG_GRAMMAR_DIVERGENCE;NATURE_ACTIVE;DEGRADATION |
+| 2 | Comodoro Rivadavia oil & gas | 0.432 | Moderate | 0.683 | 0.182 | 0.526 | 0.588 | 0.098 | 1.0 | 2760.96 | 0.047 | GHG_GRAMMAR_DIVERGENCE;NATURE_ACTIVE;DEGRADATION |
+| 3 | Jamnagar refinery | 0.35 | Moderate | 0.668 | 0.161 | 0.501 | 0.388 | 0.051 | 1.0 | 0.0 | 0.324 | GHG_GRAMMAR_DIVERGENCE;DEGRADATION |
+| 4 | CATL battery plant, Ningde | 0.306 | Low | 0.686 | 0.196 | 0.284 | 0.439 | 0.101 | 0.297 | 0.0 | 0.187 | NATURE_ACTIVE;DEGRADATION |
+| 5 | Norilsk Nickel — Nadezhda smelter | 0.305 | Low | 0.594 | 0.2 | 0.501 | 0.216 | 0.047 | 1.0 | 0.0 | 0.004 | GHG_GRAMMAR_DIVERGENCE;DEGRADATION |
+| 6 | Carajás iron ore mine | 0.304 | Low | 0.661 | 0.148 | 0.163 | 0.601 | 0.045 | 0.028 | 7760.151 | 0.201 | NATURE_ACTIVE;DEGRADATION |
+| 7 | Ganzhou rare-earth processing | 0.269 | Low | 0.675 | 0.178 | 0.219 | 0.411 | 0.087 | 0.125 | 0.0 | 0.089 | NATURE_ACTIVE;DEGRADATION |
+| 8 | Bayan Obo rare-earth mine | 0.248 | Low | 0.658 | 0.144 | 0.139 | 0.461 | 0.015 | 0.0 | 7760.151 | 0.077 | NATURE_ACTIVE;DEGRADATION |
+| 9 | Tongwei/LONGi polysilicon, Leshan | 0.24 | Low | 0.663 | 0.146 | 0.159 | 0.415 | 0.04 | 0.024 | 0.0 | 0.069 | NATURE_ACTIVE;DEGRADATION |
+| 10 | Escondida copper mine | 0.328 | Low | 0.694 | 0.264 | 0.35 | 0.369 | 0.265 | 0.252 | 0.0 | 0.002 | DEGRADATION |
+| 11 | TSMC Fab 18, Tainan | 0.232 | Low | 0.663 | 0.159 | 0.143 | 0.395 | 0.022 | 0.0 | 0.0 | 0.0 | DEGRADATION |
+| 12 | Grasberg mine |  | — |  |  |  |  |  |  |  |  | SITE_FAILED |
+
+[sweep] window used: 2026-03-05 → 2026-06-03 (standard latest-valid 90-day, end anchored to today)
