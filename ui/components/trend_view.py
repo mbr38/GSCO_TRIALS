@@ -96,7 +96,14 @@ def render_active_trend(setup: dict, result: dict) -> None:
     if result_trend is None:
         return  # error already surfaced
     lat = (setup.get("centre") or {}).get("lat")
-    _render_trend_body(result_trend, display_name, lat, key_prefix=base_id)
+    # Reuse the anomaly days already computed by the screening run (six_step)
+    # for this indicator — same window, no recompute. They live on the flat
+    # `_provenance.<base_id>` block under `extra`; absent for non-six_step
+    # indicators, which correctly yields an empty list (toggle hidden).
+    base_prov = result.get(f"_provenance.{base_id}") if isinstance(result, dict) else None
+    anomaly_dates = ((base_prov or {}).get("extra") or {}).get("anomaly_dates_utc") or []
+    _render_trend_body(result_trend, display_name, lat, key_prefix=base_id,
+                       anomaly_dates=anomaly_dates)
     _render_save_action(base_id, display_name, setup, result_trend)
 
 
@@ -122,9 +129,11 @@ def render_saved_trend(record: dict) -> None:
 # Shared body (plot + verdict + metrics + overlays)
 # ---------------------------------------------------------------------------
 
-def _render_trend_body(result: dict, display_name: str, lat, *, key_prefix: str) -> None:
+def _render_trend_body(result: dict, display_name: str, lat, *, key_prefix: str,
+                       anomaly_dates: list | None = None) -> None:
     seasonal = bool(result.get("seasonal_flag"))
     bucket = result.get("significance_bucket")
+    anomaly_dates = anomaly_dates or []
 
     # Overlay toggles (UT3): all default-off except the season-banded axis,
     # which is default-ON when the seasonal flag fires.
@@ -135,9 +144,20 @@ def _render_trend_body(result: dict, display_name: str, lat, *, key_prefix: str)
         )
         show_conf = tcol2.checkbox("Confidence band", value=False, key=f"{key_prefix}_ov_conf")
         show_cov = tcol3.checkbox("Coverage details", value=False, key=f"{key_prefix}_ov_cov")
-        show_anom = tcol4.checkbox("Anomaly days", value=False, key=f"{key_prefix}_ov_anom")
+        # Only offer the anomaly overlay when the screening run actually supplied
+        # anomaly days for this indicator (live six_step indicators only — saved
+        # trends and non-six_step indicators pass an empty list). Avoids the dead
+        # toggle that silently did nothing.
+        if anomaly_dates:
+            show_anom = tcol4.checkbox(
+                "Anomaly days", value=False, key=f"{key_prefix}_ov_anom",
+                help="Days the site crossed the z-score anomaly threshold vs the "
+                     "regional baseline (from the screening run) — these are "
+                     "baseline anomalies, not residual outliers off the trend line.",
+            )
+        else:
+            show_anom = False
 
-    anomaly_dates = ((result.get("provenance") or {}).get("anomaly_dates_utc")) or []
     fig = build_trend_figure(
         result,
         lat=lat,
@@ -149,10 +169,13 @@ def _render_trend_body(result: dict, display_name: str, lat, *, key_prefix: str)
     )
     st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_plot")
     st.caption(
-        "Drag the slider beneath the chart (or box-select on the plot) to zoom "
-        "into a date sub-window. Zoom is visual only — the verdict reflects the "
-        "computed Theil–Sen slope + Mann–Kendall significance over the full "
-        "window, not the displayed steepness."
+        "**The shaded strip directly above is the range-slider** — a miniature "
+        "of the entire chart (every daily point, the trend line and any anomaly "
+        "diamonds, shrunk to fit). Drag its handles (or box-select on the main "
+        "plot) to zoom the chart into a date sub-window; the slider keeps the "
+        "full series in view so you don't lose your place. Zoom is visual only — "
+        "the verdict reflects the computed Theil–Sen slope + Mann–Kendall "
+        "significance over the full window, not the displayed steepness."
     )
     if show_cov:
         _render_coverage_caption(result)

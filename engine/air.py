@@ -377,6 +377,13 @@ def _format_result(
     granule_count = raw.get("granule_count")
     if granule_count is not None:
         extra["granule_count"] = granule_count
+    # M-TREND anomaly-overlay reuse — six_step flags the per-image dates that
+    # crossed the z-score anomaly threshold vs the regional baseline. Surface
+    # them so the live trend view (P-06) can overlay them without recomputing.
+    # Absent for non-six_step paths; consumers handle absence.
+    anomaly_dates_utc = raw.get("anomaly_dates_utc")
+    if anomaly_dates_utc:
+        extra["anomaly_dates_utc"] = anomaly_dates_utc
     # M-TIER-A3 Step E — three MOD44W land-mask provenance fields per
     # spec §3.6. Absent for non-six_step paths (matches the existing
     # n_valid_dates / granule_count convention).

@@ -63,7 +63,8 @@ def build_trend_figure(
         shapes, annotations = _season_shapes(xs[0], xs[-1], regime)
     elif show_season_bands and regime == "tropical":
         annotations.append(dict(
-            xref="paper", yref="paper", x=0.0, y=1.10, showarrow=False,
+            xref="paper", yref="paper", x=0.0, y=1.04, yanchor="top",
+            showarrow=False,
             text="Seasonality unclear at this latitude — tropical wet/dry "
                  "varies regionally, so no season bands are drawn.",
             font=dict(size=11, color="#000000"), align="left",
@@ -105,12 +106,24 @@ def build_trend_figure(
                 hovertemplate="Anomaly · %{x|%d %b %Y}<br>%{y:.4g}<extra></extra>",
             ))
 
+    # Range-slider label. The slider strip renders *below* the main plot, i.e.
+    # at NEGATIVE paper-y (paper y=0 is the main x-axis; y=1 its top). It's laid
+    # out client-side so its exact band isn't in the JSON — y≈-0.18 lands on the
+    # strip for the current thickness/height; nudge if it drifts.
+    annotations = list(annotations) + [dict(
+        xref="paper", yref="paper", x=0.012, xanchor="left",
+        y=-0.18, yanchor="middle", showarrow=False,
+        text="range-slider", font=dict(size=11, color="#64748b"),
+    )]
+
     fig.update_layout(
-        height=520,
-        # Base margins; `automargin=True` on both axes (below) then expands
-        # these as needed so the rotated y-title and the x-title + range-slider
-        # are never crammed or clipped, regardless of tick-label width.
-        margin=dict(l=70, r=28, t=72, b=70),
+        # Taller frame (vs the original 520) so the plot reads clearly.
+        height=640,
+        # Top margin gives the title + the (optional) tropical caveat line room
+        # to stack without colliding; bottom is kept tight because the slider +
+        # x-title get their space from `automargin` (below), which expands these
+        # minimums to fit the rotated y-title / x-title / slider as needed.
+        margin=dict(l=70, r=28, t=96, b=70),
         title=dict(text=f"{display_name} — daily site value",
                    font=dict(size=18, color="#000000")),
         font=dict(size=14, color="#000000"),
@@ -124,13 +137,17 @@ def build_trend_figure(
     )
     # Word-format dates + a draggable range slider to zoom a sub-window.
     # Explicit black tick + title fonts so the axes read clearly (the chart
-    # paints its own white background, independent of the app theme).
+    # paints its own white background, independent of the app theme). The
+    # slider is a faithful miniature of the whole chart (dots + trend +
+    # anomalies) — see the labelled caption in trend_view.py — so a thicker
+    # strip makes that mini-map legible rather than a cramped smear.
     fig.update_xaxes(
         title_text="Date", title_standoff=16, automargin=True,
         type="date", tickformat="%d %b %Y",
         gridcolor="#e5e7eb", linecolor="#94a3b8",
         tickfont=dict(color="#000000"), title_font=dict(color="#000000"),
-        rangeslider=dict(visible=True), rangeslider_thickness=0.07,
+        rangeslider=dict(visible=True, thickness=0.16,
+                         bgcolor="#f8fafc", bordercolor="#cbd5e1", borderwidth=1),
     )
     fig.update_yaxes(
         title_text=display_name, title_standoff=16, automargin=True,

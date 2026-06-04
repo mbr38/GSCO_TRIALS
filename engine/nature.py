@@ -1441,6 +1441,14 @@ def compute_ndvi_condition(
     ndvi_granule_count = raw.get("granule_count")
     if ndvi_granule_count is not None:
         ndvi_extra["granule_count"] = ndvi_granule_count
+    # M-TREND anomaly-overlay reuse — six_step already flags the per-composite
+    # dates that crossed the z-score anomaly threshold vs the regional baseline.
+    # Surface them so the live trend view (P-06) can overlay them without a
+    # recompute. NOTE these are baseline anomalies, NOT residual outliers off
+    # the Theil–Sen line — the grammars differ deliberately (CLAUDE.md §7).
+    ndvi_anomaly_dates = raw.get("anomaly_dates_utc")
+    if ndvi_anomaly_dates:
+        ndvi_extra["anomaly_dates_utc"] = ndvi_anomaly_dates
     # M-TIER-A3 Step E — MOD44W land-mask provenance fields per spec §3.6.
     ndvi_ring_land_fraction = raw.get("ring_land_fraction")
     if ndvi_ring_land_fraction is not None:
