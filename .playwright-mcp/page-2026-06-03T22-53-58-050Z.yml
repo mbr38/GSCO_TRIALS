@@ -1,0 +1,187 @@
+- generic [active]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+      - generic [ref=e27]:
+        - generic [ref=e5435]:
+          - generic [ref=e5440]:
+            - button "Fullscreen" [ref=e5445] [cursor=pointer]:
+              - img [ref=e5446]
+            - img "0" [ref=e5451]
+          - paragraph [ref=e5458]:
+            - text: Signed in as
+            - strong [ref=e5459]: MNC
+            - text: · Session
+            - code [ref=e5460]: e29893a0
+          - generic [ref=e5464]:
+            - paragraph [ref=e5471]: "Scope: Soy & Cattle — Pará / Mato Grosso"
+            - button "Change" [ref=e5476] [cursor=pointer]:
+              - paragraph [ref=e5480]: Change
+          - button "Sign out" [ref=e5485] [cursor=pointer]:
+            - paragraph [ref=e5489]: Sign out
+        - separator [ref=e5494]
+        - heading "Prioritisation — Results" [level=1] [ref=e5499]:
+          - text: Prioritisation — Results
+          - generic [ref=e5500]:
+            - link "Link to heading":
+              - /url: "#prioritisation-results"
+              - img
+        - paragraph [ref=e5505]:
+          - strong [ref=e5506]: Suppliers.
+          - text: "10"
+          - strong [ref=e5507]: Buffer.
+          - text: 5 km
+          - strong [ref=e5508]: Pillars.
+          - text: Air, GHG, Nature
+          - strong [ref=e5509]: Indicators.
+          - text: "19"
+        - alert [ref=e5689]:
+          - generic [ref=e5692]:
+            - generic [ref=e5695]: ✅
+            - paragraph [ref=e5697]:
+              - strong [ref=e5698]: Batch complete.
+              - text: 0 succeeded, 9 partial, 1 failed.
+        - heading "Results" [level=3] [ref=e5703]:
+          - text: Results
+          - generic [ref=e5704]:
+            - link "Link to heading":
+              - /url: "#results"
+              - img
+        - generic [ref=e5706]:
+          - tablist [ref=e5708]:
+            - tab "📋 Ranking" [selected] [ref=e5709] [cursor=pointer]:
+              - paragraph [ref=e5711]: 📋 Ranking
+            - tab "📊 Risk matrix" [ref=e5712] [cursor=pointer]:
+              - paragraph [ref=e5714]: 📊 Risk matrix
+          - tabpanel "📋 Ranking" [ref=e5717]:
+            - generic [ref=e5718]:
+              - generic [ref=e5720]:
+                - paragraph [ref=e5727]:
+                  - strong [ref=e5728]: "Rank by:"
+                - radiogroup "Rank by" [ref=e5733] [cursor=pointer]:
+                  - generic [ref=e5734]:
+                    - radio "Composite" [checked]
+                    - paragraph [ref=e5739]: Composite
+                  - generic [ref=e5740]:
+                    - radio "Air"
+                    - paragraph [ref=e5745]: Air
+                  - generic [ref=e5746]:
+                    - radio "GHG"
+                    - paragraph [ref=e5751]: GHG
+                  - generic [ref=e5752]:
+                    - radio "Nature"
+                    - paragraph [ref=e5757]: Nature
+              - generic [ref=e5762]:
+                - button "Show/hide columns" [ref=e5766] [cursor=pointer]:
+                  - img [ref=e5767]
+                - button "Download as CSV" [ref=e5772] [cursor=pointer]:
+                  - img [ref=e5773]
+                - button "Search" [ref=e5778] [cursor=pointer]:
+                  - img [ref=e5779]
+                - button "Fullscreen" [ref=e5784] [cursor=pointer]:
+                  - img [ref=e5785]
+        - generic [ref=e5797]:
+          - button "💾 Save as report" [ref=e5802] [cursor=pointer]:
+            - paragraph [ref=e5806]: 💾 Save as report
+          - button "🔄 New prioritisation" [ref=e5811] [cursor=pointer]:
+            - paragraph [ref=e5815]: 🔄 New prioritisation
+  - img [ref=e4217]

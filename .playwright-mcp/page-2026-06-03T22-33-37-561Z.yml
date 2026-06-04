@@ -1,0 +1,228 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e38] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e39] [cursor=pointer]:
+              - /url: http://localhost:8501/
+              - generic [ref=e42]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e43] [cursor=pointer]:
+              - /url: http://localhost:8501/Scope_Setup
+              - generic [ref=e46]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+              - /url: http://localhost:8501/Workflow_Hub
+              - generic [ref=e50]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+              - /url: http://localhost:8501/Inspect_Setup
+              - generic [ref=e54]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+              - /url: http://localhost:8501/Screening_Results
+              - generic [ref=e58]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Trend View" [ref=e59] [cursor=pointer]:
+              - /url: http://localhost:8501/Trend_View
+              - generic [ref=e62]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Trend View
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Setup
+              - generic [ref=e66]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Results
+              - generic [ref=e70]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e71] [cursor=pointer]:
+              - /url: http://localhost:8501/Indicator_Library
+              - generic [ref=e74]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+              - /url: http://localhost:8501/Saved_Analyses
+              - generic [ref=e78]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e79] [cursor=pointer]:
+              - /url: http://localhost:8501/Reports
+              - generic [ref=e82]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e83] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+              - /url: http://localhost:8501/engine_scratch
+              - generic [ref=e87]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+        - generic [ref=e14]: keyboard_double_arrow_right
+    - generic [ref=e27]:
+      - generic [ref=e89]:
+        - generic [ref=e94]:
+          - button "Fullscreen" [ref=e99] [cursor=pointer]:
+            - img [ref=e100]
+          - img "0" [ref=e105]
+        - paragraph [ref=e112]:
+          - text: Signed in as
+          - strong [ref=e113]: MNC
+          - text: · Session
+          - code [ref=e114]: e29893a0
+        - generic [ref=e118]:
+          - paragraph [ref=e125]: "Scope: not set"
+          - button "Pick scope" [ref=e130] [cursor=pointer]:
+            - paragraph [ref=e134]: Pick scope
+        - button "Sign out" [ref=e139] [cursor=pointer]:
+          - paragraph [ref=e143]: Sign out
+      - separator [ref=e148]
+      - button "👋 Show me around" [ref=e157] [cursor=pointer]:
+        - paragraph [ref=e161]: 👋 Show me around
+      - heading "Scope Setup" [level=1] [ref=e166]:
+        - text: Scope Setup
+        - generic [ref=e167]:
+          - link "Link to heading":
+            - /url: "#scope-setup"
+            - img
+      - paragraph [ref=e172]:
+        - text: Choose what you want to screen. You can change this any time from the
+        - strong [ref=e173]: Change scope
+        - text: link in the top nav.
+      - heading "Preview" [level=3] [ref=e262]:
+        - text: Preview
+        - generic [ref=e180]:
+          - link "Link to heading":
+            - /url: "#pick-a-scope-mode"
+            - img
+      - generic [ref=e264]:
+        - generic [ref=e266]:
+          - paragraph [ref=e271]:
+            - strong [ref=e272]: Soy & Cattle — Pará / Mato Grosso
+          - paragraph [ref=e277]:
+            - text: "Industry:"
+            - emphasis [ref=e278]: Soy and cattle agriculture
+          - paragraph [ref=e283]:
+            - text: "Country:"
+            - emphasis [ref=e284]: Brazil
+          - paragraph [ref=e289]:
+            - text: "Nodes:"
+            - strong [ref=e290]: "10"
+          - paragraph [ref=e295]: "Tiers represented: Tier 1, Tier 1 (downstream), Tier 2 (upstream), Tier 3 (deep upstream)"
+        - iframe [ref=e299]:
+          - generic [ref=f2e2]:
+            - generic:
+              - generic:
+                - button "Marker" [ref=f2e3] [cursor=pointer]
+                - button "Marker" [ref=f2e4] [cursor=pointer]
+                - button "Marker" [ref=f2e5] [cursor=pointer]
+                - button "Marker" [ref=f2e6] [cursor=pointer]
+                - button "Marker" [ref=f2e7] [cursor=pointer]
+                - button "Marker" [ref=f2e8] [cursor=pointer]
+                - button "Marker" [ref=f2e9] [cursor=pointer]
+                - button "Marker" [ref=f2e10] [cursor=pointer]
+                - button "Marker" [ref=f2e11] [cursor=pointer]
+                - button "Marker" [ref=f2e12] [cursor=pointer]
+            - generic:
+              - generic:
+                - generic [ref=f2e13]:
+                  - button "Zoom in" [ref=f2e14] [cursor=pointer]: +
+                  - button "Zoom out" [ref=f2e15] [cursor=pointer]: −
+                  - button "Full Screen" [ref=f2e16] [cursor=pointer]
+                - generic [ref=f2e17]:
+                  - generic [ref=f2e19]:
+                    - link "Draw a polyline" [ref=f2e20] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e21]: Draw a polyline
+                    - link "Draw a polygon" [ref=f2e22] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e23]: Draw a polygon
+                    - link "Draw a rectangle" [ref=f2e24] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e25]: Draw a rectangle
+                    - link "Draw a circle" [ref=f2e26] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e27]: Draw a circle
+                    - link "Draw a marker" [ref=f2e28] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e29]: Draw a marker
+                    - link "Draw a circlemarker" [ref=f2e30] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f2e31]: Draw a circlemarker
+                  - generic [ref=f2e33]:
+                    - link "Edit layers" [ref=f2e34]:
+                      - /url: "#"
+                      - generic [ref=f2e35]: Edit layers
+                    - link "Delete layers" [ref=f2e36]:
+                      - /url: "#"
+                      - generic [ref=f2e37]: Delete layers
+                - button "Initiate a new search" [ref=f2e39] [cursor=pointer]
+              - button "Layers" [ref=f2e41] [cursor=pointer]
+              - generic [ref=f2e42]:
+                - link "Leaflet" [ref=f2e43] [cursor=pointer]:
+                  - /url: https://leafletjs.com
+                  - img [ref=f2e44]
+                  - text: Leaflet
+                - text: "| ©"
+                - link "OpenStreetMap" [ref=f2e48] [cursor=pointer]:
+                  - /url: https://www.openstreetmap.org/copyright
+                - text: contributors, Esri
+      - separator [ref=e304]
+      - paragraph [ref=e309]:
+        - strong [ref=e310]: Nodes in this chain
+      - generic [ref=e315]:
+        - button "Show/hide columns" [ref=e319] [cursor=pointer]:
+          - img [ref=e320]
+        - button "Download as CSV" [ref=e325] [cursor=pointer]:
+          - img [ref=e326]
+        - button "Search" [ref=e331] [cursor=pointer]:
+          - img [ref=e332]
+        - button "Fullscreen" [ref=e337] [cursor=pointer]:
+          - img [ref=e338]
+      - separator [ref=e353]
+      - generic [ref=e355]:
+        - button "← Back to mode pick" [ref=e360] [cursor=pointer]:
+          - paragraph [ref=e364]: ← Back to mode pick
+        - button "Confirm and continue" [ref=e369] [cursor=pointer]:
+          - paragraph [ref=e373]: Confirm and continue

@@ -1,0 +1,198 @@
+- generic:
+  - generic:
+    - generic [ref=e2]:
+      - generic [ref=e3]:
+        - generic:
+          - list:
+            - generic:
+              - generic [ref=e38] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Main
+              - listitem:
+                - link "Landing" [ref=e39] [cursor=pointer]:
+                  - /url: http://localhost:8501/
+                  - generic [ref=e42]: 🏠
+                  - generic:
+                    - generic:
+                      - paragraph: Landing
+              - listitem:
+                - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                  - /url: http://localhost:8501/Scope_Setup
+                  - generic [ref=e46]: 🌍
+                  - generic:
+                    - generic:
+                      - paragraph: Scope Setup
+              - listitem:
+                - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                  - /url: http://localhost:8501/Workflow_Hub
+                  - generic [ref=e50]: 🔀
+                  - generic:
+                    - generic:
+                      - paragraph: Workflow Hub
+              - listitem:
+                - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                  - /url: http://localhost:8501/Inspect_Setup
+                  - generic [ref=e54]: 🔍
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Setup
+              - listitem:
+                - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                  - /url: http://localhost:8501/Screening_Results
+                  - generic [ref=e58]: 📊
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Results
+              - listitem:
+                - link "Trend View" [ref=e59] [cursor=pointer]:
+                  - /url: http://localhost:8501/Trend_View
+                  - generic [ref=e62]: 📈
+                  - generic:
+                    - generic:
+                      - paragraph: Trend View
+              - listitem:
+                - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                  - /url: http://localhost:8501/Prioritisation_Setup
+                  - generic [ref=e66]: 📋
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Setup
+              - listitem:
+                - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                  - /url: http://localhost:8501/Prioritisation_Results
+                  - generic [ref=e70]: 📈
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Results
+              - listitem:
+                - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                  - /url: http://localhost:8501/Indicator_Library
+                  - generic [ref=e74]: 📚
+                  - generic:
+                    - generic:
+                      - paragraph: Indicator Library
+              - listitem:
+                - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                  - /url: http://localhost:8501/Saved_Analyses
+                  - generic [ref=e78]: 💾
+                  - generic:
+                    - generic:
+                      - paragraph: Saved Analyses
+              - listitem:
+                - link "Reports" [ref=e79] [cursor=pointer]:
+                  - /url: http://localhost:8501/Reports
+                  - generic [ref=e82]: 📄
+                  - generic:
+                    - generic:
+                      - paragraph: Reports
+            - generic:
+              - generic [ref=e83] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Developer
+              - listitem:
+                - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                  - /url: http://localhost:8501/engine_scratch
+                  - generic [ref=e87]: 🧪
+                  - generic:
+                    - generic:
+                      - paragraph: Engine Scratch (dev)
+      - generic [ref=e6]:
+        - banner [ref=e7]:
+          - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+            - generic [ref=e14]: keyboard_double_arrow_right
+        - generic [ref=e27]:
+          - generic [ref=e6308]:
+            - generic [ref=e6313]:
+              - button "Fullscreen" [ref=e6318] [cursor=pointer]:
+                - img [ref=e6319]
+              - img "0" [ref=e6324]
+            - paragraph [ref=e6331]:
+              - text: Signed in as
+              - strong [ref=e6332]: Policy Maker
+              - text: · Session
+              - code [ref=e6333]: f2176b8e
+            - generic [ref=e6337]:
+              - paragraph [ref=e6344]: "Scope: not set"
+              - button "Pick scope" [ref=e6349] [cursor=pointer]:
+                - paragraph [ref=e6353]: Pick scope
+            - button "Sign out" [ref=e6358] [cursor=pointer]:
+              - paragraph [ref=e6362]: Sign out
+          - separator [ref=e6367]
+          - button "👋 Show me around" [ref=e6376] [cursor=pointer]:
+            - paragraph [ref=e6380]: 👋 Show me around
+          - heading "Scope Setup" [level=1] [ref=e6385]:
+            - text: Scope Setup
+            - generic [ref=e6386]:
+              - link "Link to heading":
+                - /url: "#scope-setup"
+                - img
+          - paragraph [ref=e6391]:
+            - text: Choose what you want to screen. You can change this any time from the
+            - strong [ref=e6392]: Change scope
+            - text: link in the top nav.
+          - heading "Pick a scope mode" [level=3] [ref=e6398]:
+            - text: Pick a scope mode
+            - generic [ref=e6399]:
+              - link "Link to heading":
+                - /url: "#pick-a-scope-mode"
+                - img
+          - generic [ref=e6401]:
+            - generic [ref=e6405]:
+              - heading "Country / region" [level=4] [ref=e6411]:
+                - text: Country / region
+                - generic [ref=e6412]:
+                  - link "Link to heading":
+                    - /url: "#country-region"
+                    - img
+              - paragraph [ref=e6417]: Screen a whole administrative region. You'll get a representative buffer at the region's centroid.
+              - generic [ref=e6424]:
+                - paragraph [ref=e6428]: Country
+                - generic [ref=e6430]:
+                  - generic [ref=e6431]:
+                    - generic [ref=e6432]: Brazil
+                    - combobox "Selected Brazil. Country" [ref=e6434]
+                  - img "open" [ref=e6436]
+              - generic [ref=e6447]:
+                - paragraph [ref=e6451]: Region
+                - generic [ref=e6453]:
+                  - generic [ref=e6454]:
+                    - generic [ref=e6455]: Acre
+                    - combobox "Selected Acre. Region" [expanded] [active] [ref=e6457]
+                  - img "open" [ref=e6459]
+              - button "Preview" [ref=e6463] [cursor=pointer]:
+                - paragraph [ref=e6467]: Preview
+            - generic [ref=e6469]:
+              - heading "No scope" [level=4] [ref=e6475]:
+                - text: No scope
+                - generic [ref=e6476]:
+                  - link "Link to heading":
+                    - /url: "#no-scope"
+                    - img
+              - paragraph [ref=e6481]: Skip scope setup and configure each screening from scratch using free coordinates.
+              - button "Continue without a scope" [ref=e6484] [cursor=pointer]:
+                - paragraph [ref=e6488]: Continue without a scope
+    - list [ref=e6492]:
+      - generic [ref=e6494]:
+        - option "Acre" [selected] [ref=e6495] [cursor=pointer]:
+          - generic [ref=e6499]: Acre
+        - option "Alagoas" [ref=e6500] [cursor=pointer]:
+          - generic [ref=e6504]: Alagoas
+        - option "Amapa" [ref=e6505] [cursor=pointer]:
+          - generic [ref=e6509]: Amapa
+        - option "Amazonas" [ref=e6510] [cursor=pointer]:
+          - generic [ref=e6514]: Amazonas
+        - option "Bahia" [ref=e6515] [cursor=pointer]:
+          - generic [ref=e6519]: Bahia
+        - option "Ceara" [ref=e6520] [cursor=pointer]:
+          - generic [ref=e6524]: Ceara
+        - option "Distrito Federal" [ref=e6525] [cursor=pointer]:
+          - generic [ref=e6529]: Distrito Federal
+        - option "Espirito Santo" [ref=e6530] [cursor=pointer]:
+          - generic [ref=e6534]: Espirito Santo
+        - option "Goias" [ref=e6535] [cursor=pointer]:
+          - generic [ref=e6539]: Goias
+        - option "Maranhao" [ref=e6540] [cursor=pointer]:
+          - generic [ref=e6544]: Maranhao
+  - img [ref=e4217]

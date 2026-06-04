@@ -1,0 +1,380 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e38] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e39] [cursor=pointer]:
+              - /url: http://localhost:8501/
+              - generic [ref=e42]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e43] [cursor=pointer]:
+              - /url: http://localhost:8501/Scope_Setup
+              - generic [ref=e46]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+              - /url: http://localhost:8501/Workflow_Hub
+              - generic [ref=e50]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+              - /url: http://localhost:8501/Inspect_Setup
+              - generic [ref=e54]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+              - /url: http://localhost:8501/Screening_Results
+              - generic [ref=e58]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Trend View" [ref=e59] [cursor=pointer]:
+              - /url: http://localhost:8501/Trend_View
+              - generic [ref=e62]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Trend View
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Setup
+              - generic [ref=e66]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Results
+              - generic [ref=e70]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e71] [cursor=pointer]:
+              - /url: http://localhost:8501/Indicator_Library
+              - generic [ref=e74]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+              - /url: http://localhost:8501/Saved_Analyses
+              - generic [ref=e78]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e79] [cursor=pointer]:
+              - /url: http://localhost:8501/Reports
+              - generic [ref=e82]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e83] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+              - /url: http://localhost:8501/engine_scratch
+              - generic [ref=e87]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e9]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+        - generic [ref=e3067]:
+          - img "Running..." [ref=e3068]:
+            - img [ref=e3069]
+          - button "Stop" [ref=e3074] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e1742]:
+        - generic [ref=e1747]:
+          - button "Fullscreen" [ref=e1752] [cursor=pointer]:
+            - img [ref=e1753]
+          - img "0" [ref=e1758]
+        - paragraph [ref=e1765]:
+          - text: Signed in as
+          - strong [ref=e1766]: MNC
+          - text: · Session
+          - code [ref=e1767]: e29893a0
+        - generic [ref=e1771]:
+          - paragraph [ref=e1778]: "Scope: not set"
+          - button "Pick scope" [ref=e1783] [cursor=pointer]:
+            - paragraph [ref=e1787]: Pick scope
+        - button "Sign out" [ref=e1792] [cursor=pointer]:
+          - paragraph [ref=e1796]: Sign out
+      - separator [ref=e1801]
+      - heading "Screening Results" [level=1] [ref=e1806]:
+        - text: Screening Results
+        - generic [ref=e1807]:
+          - link "Link to heading":
+            - /url: "#screening-results"
+            - img
+      - generic [ref=e1824]:
+        - heading "Analysis" [level=3] [ref=e1830]:
+          - text: Analysis
+          - generic [ref=e1831]:
+            - link "Link to heading":
+              - /url: "#analysis"
+              - img
+        - generic [ref=e1833]:
+          - generic [ref=e1835]:
+            - paragraph [ref=e1840]:
+              - strong [ref=e1841]: Location.
+              - text: "-6.0600, -50.1600"
+            - paragraph [ref=e1846]:
+              - strong [ref=e1847]: Source.
+              - text: P-04 free coordinates
+            - paragraph [ref=e1852]:
+              - strong [ref=e1853]: Buffer.
+              - text: 5 km radius
+          - generic [ref=e1855]:
+            - paragraph [ref=e1860]:
+              - strong [ref=e1861]: Time range.
+              - text: 2026-03-05 → 2026-06-03
+            - paragraph [ref=e1866]:
+              - strong [ref=e1867]: Indicators.
+              - text: 19 selected
+            - paragraph [ref=e1872]:
+              - strong [ref=e1873]: Computed.
+              - text: 2026-06-03T22:36:21.732019+00:00
+        - group [ref=e1876]:
+          - generic "keyboard_arrow_right Indicator list" [ref=e1877] [cursor=pointer]:
+            - generic [ref=e1878]:
+              - generic [ref=e1880]: keyboard_arrow_right
+              - paragraph [ref=e1883]: Indicator list
+      - alert [ref=e1886]:
+        - generic [ref=e1889]:
+          - generic [ref=e1892]: ⚠️
+          - paragraph [ref=e1894]:
+            - strong [ref=e1895]: Partial coverage
+            - text: — 3 indicators did not return a value. See the failed tiles below for details.
+      - generic [ref=e1897]:
+        - heading "Priority" [level=3] [ref=e1903]:
+          - text: Priority
+          - generic [ref=e1904]:
+            - link "Link to heading":
+              - /url: "#priority"
+              - img
+        - generic [ref=e1906]:
+          - paragraph [ref=e1911]:
+            - strong [ref=e1912]: Overall
+            - generic [ref=e1913]: "0.30"
+          - paragraph [ref=e1924]:
+            - text: Low
+            - generic [ref=e1925]: ●
+        - generic [ref=e1927]:
+          - generic [ref=e1931]:
+            - paragraph [ref=e1936]:
+              - strong [ref=e1937]: Air Pollution
+              - generic [ref=e1938]: "0.15"
+            - paragraph [ref=e1949]:
+              - text: Low
+              - generic [ref=e1950]: ●
+          - generic [ref=e1954]:
+            - paragraph [ref=e1959]:
+              - strong [ref=e1960]: GHG emissions
+              - generic [ref=e1961]: "0.16"
+            - paragraph [ref=e1972]:
+              - text: Low
+              - generic [ref=e1973]: ●
+          - generic [ref=e1977]:
+            - paragraph [ref=e1982]:
+              - strong [ref=e1983]: Nature/Land
+              - generic [ref=e1984]: "0.60"
+            - paragraph [ref=e1995]:
+              - text: Moderate
+              - generic [ref=e1996]: ●
+      - button "❓ How to read this" [ref=e2005] [cursor=pointer]:
+        - paragraph [ref=e2009]: ❓ How to read this
+      - generic [ref=e2011]:
+        - heading "Indicator snapshot 3 critical of 13 screened" [level=3] [ref=e2017]:
+          - generic [ref=e2018]: Indicator snapshot 3 critical of 13 screened
+          - generic [ref=e2019]:
+            - link "Link to heading":
+              - /url: "#indicator-snapshot-3-critical-of-13-screened"
+              - img
+        - generic [ref=e2021]:
+          - generic [ref=e2025]:
+            - generic [ref=e2027]:
+              - button "KBA" [ref=e2033] [cursor=pointer]:
+                - paragraph [ref=e2038]: KBA
+              - generic [ref=e2050]: High
+            - generic [ref=e2055]: 0.0 km
+            - generic [ref=e2060]: to nearest Key Biodiversity Area
+            - paragraph [ref=e2065]: "Buffer overlap: 98.81%"
+            - paragraph [ref=e2070]:
+              - generic [ref=e2071]: Confidence ●
+            - button "View on map →" [active] [ref=e2074] [cursor=pointer]:
+              - paragraph [ref=e2078]: View on map →
+          - generic [ref=e2082]:
+            - generic [ref=e2084]:
+              - button "NDVI" [ref=e2090] [cursor=pointer]:
+                - paragraph [ref=e2095]: NDVI
+              - generic [ref=e2107]: High
+            - generic [ref=e2112]: "-4.7σ"
+            - generic [ref=e2117]: ▼ below regional baseline
+            - paragraph [ref=e2122]: Site 0.580 NDVI
+            - paragraph [ref=e2127]:
+              - generic [ref=e2128]: Confidence ◐
+            - button "View on map →" [ref=e2131] [cursor=pointer]:
+              - paragraph [ref=e2135]: View on map →
+            - button "View trend →" [ref=e2138] [cursor=pointer]:
+              - paragraph [ref=e2142]: View trend →
+          - generic [ref=e2146]:
+            - generic [ref=e2148]:
+              - button "NO₂" [ref=e2154] [cursor=pointer]:
+                - paragraph [ref=e2159]: NO₂
+              - generic [ref=e2171]: Normal
+            - generic [ref=e2176]: +0.2σ
+            - generic [ref=e2181]: ▲ above regional baseline
+            - paragraph [ref=e2186]: Site 42 · Background 41 µmol m⁻²
+            - paragraph [ref=e2191]:
+              - generic [ref=e2192]: Confidence ●
+            - button "View on map →" [ref=e2195] [cursor=pointer]:
+              - paragraph [ref=e2199]: View on map →
+            - button "View trend →" [ref=e2202] [cursor=pointer]:
+              - paragraph [ref=e2206]: View trend →
+        - group [ref=e2211]:
+          - generic "keyboard_arrow_right Show all indicators" [ref=e3063] [cursor=pointer]:
+            - generic [ref=e2213]:
+              - generic [ref=e3065]: keyboard_arrow_right
+              - paragraph [ref=e2218]: Show all indicators
+      - generic [ref=e2220]:
+        - generic [ref=e3076]:
+          - heading "Map" [level=3] [ref=e3084]:
+            - text: Map
+            - generic [ref=e3085]:
+              - link "Link to heading":
+                - /url: "#map"
+                - img
+          - button "✕ Close map" [ref=e3090] [cursor=pointer]:
+            - paragraph [ref=e3094]: ✕ Close map
+        - paragraph [ref=e3098]:
+          - strong [ref=e3099]: Key Biodiversity Areas (BirdLife International)
+          - text: within ~5× the buffer radius. Green polygons mark the boundaries of designated areas; the red marker is the AOI centre, the red ring the screened buffer.
+        - paragraph [ref=e3103]:
+          - text: "Nearest KBA:"
+          - strong [ref=e3104]: 0.00 km
+          - text: "away. Buffer overlap:"
+          - strong [ref=e3105]: 98.81%
+          - text: .
+        - iframe [ref=e3107]:
+          - generic [ref=f4e2]:
+            - button "Marker" [ref=f4e3] [cursor=pointer]
+            - generic:
+              - generic:
+                - generic [ref=f4e4]:
+                  - button "Zoom in" [ref=f4e5] [cursor=pointer]: +
+                  - button "Zoom out" [ref=f4e6] [cursor=pointer]: −
+                  - button "Full Screen" [ref=f4e7] [cursor=pointer]
+                - generic [ref=f4e8]:
+                  - generic [ref=f4e10]:
+                    - link "Draw a polyline" [ref=f4e11] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e12]: Draw a polyline
+                    - link "Draw a polygon" [ref=f4e13] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e14]: Draw a polygon
+                    - link "Draw a rectangle" [ref=f4e15] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e16]: Draw a rectangle
+                    - link "Draw a circle" [ref=f4e17] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e18]: Draw a circle
+                    - link "Draw a marker" [ref=f4e19] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e20]: Draw a marker
+                    - link "Draw a circlemarker" [ref=f4e21] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=f4e22]: Draw a circlemarker
+                  - generic [ref=f4e24]:
+                    - link "Edit layers" [ref=f4e25]:
+                      - /url: "#"
+                      - generic [ref=f4e26]: Edit layers
+                    - link "Delete layers" [ref=f4e27]:
+                      - /url: "#"
+                      - generic [ref=f4e28]: Delete layers
+                - button "Initiate a new search" [ref=f4e30] [cursor=pointer]
+              - button "Layers" [ref=f4e32] [cursor=pointer]
+              - generic [ref=f4e33]:
+                - link "Leaflet" [ref=f4e34] [cursor=pointer]:
+                  - /url: https://leafletjs.com
+                  - img [ref=f4e35]
+                  - text: Leaflet
+                - text: "| ©"
+                - link "OpenStreetMap" [ref=f4e39] [cursor=pointer]:
+                  - /url: https://www.openstreetmap.org/copyright
+                - text: contributors, Esri, Google Earth Engine
+        - paragraph [ref=e3112]: "Map cache: 0 hits · 1 misses · 1 entries"
+      - generic:
+        - iframe
+      - generic [ref=e2293]:
+        - heading "Drill-down by pillar" [level=3] [ref=e3113]:
+          - text: Drill-down by pillar
+          - generic [ref=e2300]:
+            - link "Link to heading":
+              - /url: "#confidence"
+              - img
+        - group [ref=e3116]:
+          - generic "keyboard_arrow_right Air Pollution — drill-down" [ref=e3117] [cursor=pointer]:
+            - generic [ref=e3118]:
+              - generic [ref=e3120]: keyboard_arrow_right
+              - paragraph [ref=e3123]: Air Pollution — drill-down
+        - separator [ref=e2310]
+        - generic [ref=e2312]:
+          - paragraph [ref=e2319]:
+            - strong [ref=e2320]: Air Pollution
+          - paragraph [ref=e2327]: 0.66 ● High
+          - paragraph [ref=e2334]: "Limited by: low valid-pixel coverage for CO"
+        - generic [ref=e2336]:
+          - paragraph [ref=e2343]:
+            - strong [ref=e2344]: GHG emissions
+          - paragraph [ref=e2351]: 0.96 ● High
+          - paragraph [ref=e2358]: "Limited by: weak retrieval quality flags"
+        - generic [ref=e2360]:
+          - paragraph [ref=e2367]:
+            - strong [ref=e2368]: Nature/Land
+          - paragraph [ref=e2375]: 0.85 ● High
+          - paragraph [ref=e2382]: "Limited by: ambiguous land-cover classification (no dominant class)"
+      - generic [ref=e2384]:
+        - heading "Summary" [level=3] [ref=e2390]:
+          - text: Summary
+          - generic [ref=e2391]:
+            - link "Link to heading":
+              - /url: "#summary"
+              - img
+        - generic [ref=e2395]:
+          - paragraph [ref=e2396]: Overall priority is moderate (composite 0.30). Concern centres on Nature/Land. Data quality is high.
+          - paragraph [ref=e2397]: Air pollution at this site is consistent with its surrounding region — no anomalous local contribution detected across the monitored pollutants. Data quality is high.
+          - paragraph [ref=e2398]: Greenhouse gases are at background levels across the monitored GHG indicators at this location. Data quality is high.
+          - paragraph [ref=e2399]: Nature/Land shows moderate exposure at this location, with proximity to Key Biodiversity Areas as the main contributor (99% of buffer overlaps a Key Biodiversity Area). Data quality is high. The Hansen reference dataset shows 3.9% cumulative loss in the buffer area, consistent with the live nature signals from proximity to Key Biodiversity Areas. This suggests sustained pressure on the area over the cumulative window.
+      - generic [ref=e2403]:
+        - button "Save as report" [ref=e2408] [cursor=pointer]:
+          - paragraph [ref=e2412]: Save as report
+        - button "Switch to Trend" [disabled] [ref=e2420]:
+          - paragraph [ref=e2424]: Switch to Trend
+      - group [ref=e2427]:
+        - 'generic "keyboard_arrow_right Debug: raw payload" [ref=e2428] [cursor=pointer]':
+          - generic [ref=e2429]:
+            - generic [ref=e2431]: keyboard_arrow_right
+            - paragraph [ref=e2434]: "Debug: raw payload"

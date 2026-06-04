@@ -1,0 +1,132 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic:
+      - list:
+        - generic:
+          - generic [ref=e38] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Main
+          - listitem:
+            - link "Landing" [ref=e39] [cursor=pointer]:
+              - /url: http://localhost:8501/
+              - generic [ref=e42]: 🏠
+              - generic:
+                - generic:
+                  - paragraph: Landing
+          - listitem:
+            - link "Scope Setup" [ref=e43] [cursor=pointer]:
+              - /url: http://localhost:8501/Scope_Setup
+              - generic [ref=e46]: 🌍
+              - generic:
+                - generic:
+                  - paragraph: Scope Setup
+          - listitem:
+            - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+              - /url: http://localhost:8501/Workflow_Hub
+              - generic [ref=e50]: 🔀
+              - generic:
+                - generic:
+                  - paragraph: Workflow Hub
+          - listitem:
+            - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+              - /url: http://localhost:8501/Inspect_Setup
+              - generic [ref=e54]: 🔍
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Setup
+          - listitem:
+            - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+              - /url: http://localhost:8501/Screening_Results
+              - generic [ref=e58]: 📊
+              - generic:
+                - generic:
+                  - paragraph: Inspect — Results
+          - listitem:
+            - link "Trend View" [ref=e59] [cursor=pointer]:
+              - /url: http://localhost:8501/Trend_View
+              - generic [ref=e62]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Trend View
+          - listitem:
+            - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Setup
+              - generic [ref=e66]: 📋
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Setup
+          - listitem:
+            - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+              - /url: http://localhost:8501/Prioritisation_Results
+              - generic [ref=e70]: 📈
+              - generic:
+                - generic:
+                  - paragraph: Prioritisation — Results
+          - listitem:
+            - link "Indicator Library" [ref=e71] [cursor=pointer]:
+              - /url: http://localhost:8501/Indicator_Library
+              - generic [ref=e74]: 📚
+              - generic:
+                - generic:
+                  - paragraph: Indicator Library
+          - listitem:
+            - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+              - /url: http://localhost:8501/Saved_Analyses
+              - generic [ref=e78]: 💾
+              - generic:
+                - generic:
+                  - paragraph: Saved Analyses
+          - listitem:
+            - link "Reports" [ref=e79] [cursor=pointer]:
+              - /url: http://localhost:8501/Reports
+              - generic [ref=e82]: 📄
+              - generic:
+                - generic:
+                  - paragraph: Reports
+        - generic:
+          - generic [ref=e83] [cursor=pointer]:
+            - generic:
+              - generic:
+                - paragraph: Developer
+          - listitem:
+            - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+              - /url: http://localhost:8501/engine_scratch
+              - generic [ref=e87]: 🧪
+              - generic:
+                - generic:
+                  - paragraph: Engine Scratch (dev)
+  - generic [ref=e6]:
+    - banner [ref=e7]:
+      - generic [ref=e9]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+        - generic [ref=e1733]:
+          - img "Running..." [ref=e1734]:
+            - img [ref=e1816]
+          - button "Stop" [ref=e1740] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e1742]:
+        - generic [ref=e1747]:
+          - button "Fullscreen" [ref=e1752] [cursor=pointer]:
+            - img [ref=e1753]
+          - img "0" [ref=e1758]
+        - paragraph [ref=e1765]:
+          - text: Signed in as
+          - strong [ref=e1766]: MNC
+          - text: · Session
+          - code [ref=e1767]: e29893a0
+        - generic [ref=e1771]:
+          - paragraph [ref=e1778]: "Scope: not set"
+          - button "Pick scope" [ref=e1783] [cursor=pointer]:
+            - paragraph [ref=e1787]: Pick scope
+        - button "Sign out" [ref=e1792] [cursor=pointer]:
+          - paragraph [ref=e1796]: Sign out
+      - separator [ref=e1801]
+      - heading "Screening Results" [level=1] [ref=e1806]:
+        - text: Screening Results
+        - generic [ref=e1807]:
+          - link "Link to heading":
+            - /url: "#screening-results"
+            - img
+      - paragraph [ref=e1815]: Running screening — typically 1-3 minutes. Larger AOIs and coastal locations may take longer.

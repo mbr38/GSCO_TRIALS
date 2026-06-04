@@ -1,0 +1,166 @@
+- generic:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+      - generic [ref=e27]:
+        - generic [ref=e1742]:
+          - generic [ref=e4221]:
+            - button "Fullscreen" [ref=e4226] [cursor=pointer]:
+              - img [ref=e4227]
+            - img "0" [ref=e4232]
+          - paragraph [ref=e4237]:
+            - text: Signed in as
+            - strong [ref=e4238]: MNC
+            - text: · Session
+            - code [ref=e4239]: e29893a0
+          - generic [ref=e4241]:
+            - paragraph [ref=e4248]: "Scope: not set"
+            - button "Pick scope" [ref=e4253] [cursor=pointer]:
+              - paragraph [ref=e4257]: Pick scope
+          - button "Sign out" [ref=e4260] [cursor=pointer]:
+            - paragraph [ref=e4264]: Sign out
+        - separator [ref=e4269]
+        - button "👋 Show me around" [ref=e4278] [cursor=pointer]:
+          - paragraph [ref=e4282]: 👋 Show me around
+        - heading "Scope Setup" [level=1] [ref=e4287]:
+          - text: Scope Setup
+          - generic [ref=e4288]:
+            - link "Link to heading":
+              - /url: "#scope-setup"
+              - img
+        - paragraph [ref=e4293]:
+          - text: Choose what you want to screen. You can change this any time from the
+          - strong [ref=e4294]: Change scope
+          - text: link in the top nav.
+        - heading "Pick a scope mode" [level=3] [ref=e4300]:
+          - text: Pick a scope mode
+          - generic [ref=e4301]:
+            - link "Link to heading":
+              - /url: "#pick-a-scope-mode"
+              - img
+        - generic [ref=e4303]:
+          - generic [ref=e4307]:
+            - heading "Demo supply chain" [level=4] [ref=e4313]:
+              - text: Demo supply chain
+              - generic [ref=e4314]:
+                - link "Link to heading":
+                  - /url: "#demo-supply-chain"
+                  - img
+            - paragraph [ref=e4319]: Load one of the curated supply chains. You'll be able to screen any node in the chain on the next page.
+            - generic [ref=e4323]:
+              - generic [ref=e4324]:
+                - generic [ref=e4325]: Soy & Cattle — Pará / Mato Grosso
+                - combobox "Selected Soy & Cattle — Pará / Mato Grosso. Supply chain" [active] [ref=e4382]
+              - img "open" [ref=e4329]
+            - button "Preview" [ref=e4333] [cursor=pointer]:
+              - paragraph [ref=e4337]: Preview
+          - generic [ref=e4341]:
+            - heading "No scope" [level=4] [ref=e4347]:
+              - text: No scope
+              - generic [ref=e4348]:
+                - link "Link to heading":
+                  - /url: "#no-scope"
+                  - img
+            - paragraph [ref=e4353]: Skip scope setup and configure each screening from scratch using free coordinates.
+            - button "Continue without a scope" [ref=e4356] [cursor=pointer]:
+              - paragraph [ref=e4360]: Continue without a scope
+  - img [ref=e4217]

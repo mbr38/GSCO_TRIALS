@@ -1,0 +1,208 @@
+- generic:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - generic [ref=e9]:
+          - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+            - generic [ref=e14]: keyboard_double_arrow_right
+          - generic [ref=e6604]:
+            - img "Running..." [ref=e6605]:
+              - img [ref=e6606]
+            - button "Stop" [ref=e6610] [cursor=pointer]
+      - generic [ref=e27]:
+        - generic [ref=e6308]:
+          - generic [ref=e6313]:
+            - button "Fullscreen" [ref=e6318] [cursor=pointer]:
+              - img [ref=e6319]
+            - img "0" [ref=e6324]
+          - paragraph [ref=e6331]:
+            - text: Signed in as
+            - strong [ref=e6332]: Policy Maker
+            - text: · Session
+            - code [ref=e6333]: f2176b8e
+          - generic [ref=e6337]:
+            - paragraph [ref=e6344]: "Scope: not set"
+            - button "Pick scope" [ref=e6349] [cursor=pointer]:
+              - paragraph [ref=e6353]: Pick scope
+          - button "Sign out" [ref=e6358] [cursor=pointer]:
+            - paragraph [ref=e6362]: Sign out
+        - separator [ref=e6367]
+        - button "👋 Show me around" [ref=e6376] [cursor=pointer]:
+          - paragraph [ref=e6380]: 👋 Show me around
+        - heading "Scope Setup" [level=1] [ref=e6385]:
+          - text: Scope Setup
+          - generic [ref=e6386]:
+            - link "Link to heading":
+              - /url: "#scope-setup"
+              - img
+        - paragraph [ref=e6391]:
+          - text: Choose what you want to screen. You can change this any time from the
+          - strong [ref=e6392]: Change scope
+          - text: link in the top nav.
+        - heading "Preview" [level=3] [ref=e6571]:
+          - text: Preview
+          - generic [ref=e6399]:
+            - link "Link to heading":
+              - /url: "#pick-a-scope-mode"
+              - img
+        - generic [ref=e6573]:
+          - generic [ref=e6575]:
+            - paragraph [ref=e6580]:
+              - strong [ref=e6581]: Para, Brazil
+            - paragraph [ref=e6586]: "Centroid: (-3.9944, -53.0914)"
+            - paragraph [ref=e6591]:
+              - text: "Representative buffer:"
+              - strong [ref=e6592]: 400.0 km radius
+            - alert [ref=e6595]:
+              - paragraph [ref=e6600]: This region is larger than the 400.0 km representative buffer (natural radius 629.3 km). The screening will cover a representative portion centred on the region's centroid.
+          - iframe [ref=e6612]:
+            - generic [ref=f8e2]:
+              - button "Marker" [ref=f8e3] [cursor=pointer]
+              - generic:
+                - generic:
+                  - generic [ref=f8e4]:
+                    - button "Zoom in" [ref=f8e5] [cursor=pointer]: +
+                    - button "Zoom out" [ref=f8e6] [cursor=pointer]: −
+                    - button "Full Screen" [ref=f8e7] [cursor=pointer]
+                  - generic [ref=f8e8]:
+                    - generic [ref=f8e10]:
+                      - link "Draw a polyline" [ref=f8e11] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e12]: Draw a polyline
+                      - link "Draw a polygon" [ref=f8e13] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e14]: Draw a polygon
+                      - link "Draw a rectangle" [ref=f8e15] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e16]: Draw a rectangle
+                      - link "Draw a circle" [ref=f8e17] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e18]: Draw a circle
+                      - link "Draw a marker" [ref=f8e19] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e20]: Draw a marker
+                      - link "Draw a circlemarker" [ref=f8e21] [cursor=pointer]:
+                        - /url: "#"
+                        - generic [ref=f8e22]: Draw a circlemarker
+                    - generic [ref=f8e24]:
+                      - link "Edit layers" [ref=f8e25]:
+                        - /url: "#"
+                        - generic [ref=f8e26]: Edit layers
+                      - link "Delete layers" [ref=f8e27]:
+                        - /url: "#"
+                        - generic [ref=f8e28]: Delete layers
+                  - button "Initiate a new search" [ref=f8e30] [cursor=pointer]
+                - button "Layers" [ref=f8e32] [cursor=pointer]
+                - generic [ref=f8e33]:
+                  - link "Leaflet" [ref=f8e34] [cursor=pointer]:
+                    - /url: https://leafletjs.com
+                    - img [ref=f8e35]
+                    - text: Leaflet
+                  - text: "| ©"
+                  - link "OpenStreetMap" [ref=f8e39] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: contributors, Esri, Google Earth Engine
+        - separator [ref=e6617]
+        - generic [ref=e6619]:
+          - button "← Back to mode pick" [ref=e6624] [cursor=pointer]:
+            - paragraph [ref=e6628]: ← Back to mode pick
+          - button "Confirm and continue" [active] [ref=e6633] [cursor=pointer]:
+            - paragraph [ref=e6637]: Confirm and continue
+  - img [ref=e4217]

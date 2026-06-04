@@ -1,0 +1,710 @@
+- generic [active]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+      - generic [ref=e27]:
+        - generic [ref=e5917]:
+          - generic [ref=e5922]:
+            - button "Fullscreen" [ref=e5927] [cursor=pointer]:
+              - img [ref=e5928]
+            - img "0" [ref=e5933]
+          - paragraph [ref=e5940]:
+            - text: Signed in as
+            - strong [ref=e5941]: MNC
+            - text: · Session
+            - code [ref=e5942]: e29893a0
+          - generic [ref=e5948]:
+            - paragraph [ref=e5955]: "Scope: Soy & Cattle — Pará / Mato Grosso"
+            - button "Change" [ref=e5960] [cursor=pointer]:
+              - paragraph [ref=e5964]: Change
+          - button "Sign out" [ref=e5967] [cursor=pointer]:
+            - paragraph [ref=e5971]: Sign out
+        - separator [ref=e5976]
+        - heading "Reports" [level=1] [ref=e5981]:
+          - text: Reports
+          - generic [ref=e5982]:
+            - link "Link to heading":
+              - /url: "#reports"
+              - img
+        - paragraph [ref=e5987]: Build a report from one or more saved analyses. Templates are filtered by your user type; sources are filtered to compatible saved-analysis types.
+        - generic [ref=e6123]:
+          - button "← Back to template selection" [ref=e6128] [cursor=pointer]:
+            - paragraph [ref=e6132]: ← Back to template selection
+          - button "Continue to Export →" [ref=e6137] [cursor=pointer]:
+            - paragraph [ref=e6141]: Continue to Export →
+        - separator [ref=e6146]
+        - iframe [ref=e6147]:
+          - generic [active] [ref=f7e1]:
+            - generic [ref=f7e2]:
+              - paragraph [ref=f7e3]: Environmental screening report
+              - heading "Carajás iron-ore mine — environmental screening (ESG / due-diligence)" [level=1] [ref=f7e4]
+              - generic [ref=f7e5]:
+                - generic [ref=f7e6]: Report type
+                - generic [ref=f7e7]: Environmental screening report
+                - generic [ref=f7e8]: Report date
+                - generic [ref=f7e9]: 03 June 2026
+                - generic [ref=f7e10]: Sources
+                - generic [ref=f7e11]: 1 source
+                - generic [ref=f7e12]: Generated by
+                - generic [ref=f7e13]: GSCO Environmental Monitoring tool
+            - generic [ref=f7e14]:
+              - heading "Executive Summary" [level=2] [ref=f7e15]
+              - paragraph [ref=f7e16]: This report covers 1 saved analysis selected from the GSCO Environmental Monitoring tool.
+              - table [ref=f7e17]:
+                - rowgroup [ref=f7e18]:
+                  - row "Source Type Composite Band" [ref=f7e19]:
+                    - columnheader "Source" [ref=f7e20]
+                    - columnheader "Type" [ref=f7e21]
+                    - columnheader "Composite" [ref=f7e22]
+                    - columnheader "Band" [ref=f7e23]
+                  - row "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC screening 0.30 Low priority" [ref=f7e24]:
+                    - cell "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC" [ref=f7e25]
+                    - cell "screening" [ref=f7e26]
+                    - cell "0.30" [ref=f7e27]
+                    - cell "Low priority" [ref=f7e28]:
+                      - generic [ref=f7e29]: Low priority
+            - generic [ref=f7e30]:
+              - heading "Methodology" [level=2] [ref=f7e31]
+              - paragraph [ref=f7e32]: The GSCO Environmental Monitoring tool computes environmental screening across three pillars — Air Pollution, Greenhouse Gas Emissions, and Nature/Land — drawing on satellite earth-observation data via Google Earth Engine, scientific reference datasets, and emissions inventory products.
+              - paragraph [ref=f7e33]: "Each pillar produces a 0–1 follow-up priority score. Bands: 0.66+ = red (audit-first), 0.33–0.66 = amber (investigate), < 0.33 = green (routine). Confidence is reported alongside each score and reflects coverage, retrieval quality, and spatial-temporal applicability."
+              - paragraph [ref=f7e34]:
+                - strong [ref=f7e35]: How to read severity (attributability framing).
+                - text: Severity scores measure whether a site shows unusual pollution
+                - emphasis [ref=f7e36]: relative to its surrounding region
+                - text: — not absolute pollution levels. A low (green) rating means the site is not standing out from its surroundings, even where the wider region is itself polluted; an amber or red rating means the site stands out as anomalous against its regional context, suggesting a site-specific contribution worth investigating. This applies to the Air pillar's satellite indicators and the equivalent anomaly grammars elsewhere. Reference datasets (CH₄, Hansen, ODIAC) are shown for context and do not feed the scores.
+            - generic [ref=f7e37]:
+              - heading "Scope Summary" [level=2] [ref=f7e38]
+              - table [ref=f7e39]:
+                - rowgroup [ref=f7e40]:
+                  - row "Source Centre Buffer (km) Time range" [ref=f7e41]:
+                    - columnheader "Source" [ref=f7e42]
+                    - columnheader "Centre" [ref=f7e43]
+                    - columnheader "Buffer (km)" [ref=f7e44]
+                    - columnheader "Time range" [ref=f7e45]
+                  - row "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC (-6.0600, -50.1600) 5 2026-03-05 → 2026-06-03" [ref=f7e46]:
+                    - cell "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC" [ref=f7e47]
+                    - cell "(-6.0600, -50.1600)" [ref=f7e48]
+                    - cell "5" [ref=f7e49]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e50]
+            - generic [ref=f7e51]:
+              - heading "Findings by ESRS topic" [level=2] [ref=f7e52]
+              - generic [ref=f7e53]:
+                - 'heading "ESRS E2 — Pollution: metrics & evidence" [level=2] [ref=f7e54]'
+                - paragraph [ref=f7e55]:
+                  - emphasis [ref=f7e56]:
+                    - text: This section provides the
+                    - strong [ref=f7e57]: metrics & evidence
+                    - text: contribution to ESRS E2 (Pollution). It presents environmental-screening measurements only — it is not a complete ESRS disclosure.
+                - paragraph [ref=f7e58]: Air pollution at this site is consistent with its surrounding region — no anomalous local contribution detected across the monitored pollutants. Data quality is high.
+                - table [ref=f7e59]:
+                  - rowgroup [ref=f7e60]:
+                    - row "Pillar Follow-up priority Band" [ref=f7e61]:
+                      - columnheader "Pillar" [ref=f7e62]
+                      - columnheader "Follow-up priority" [ref=f7e63]
+                      - columnheader "Band" [ref=f7e64]
+                    - row "Air Pollution 0.15 Low priority" [ref=f7e65]:
+                      - cell "Air Pollution" [ref=f7e66]
+                      - cell "0.15" [ref=f7e67]
+                      - cell "Low priority" [ref=f7e68]:
+                        - generic [ref=f7e69]: Low priority
+                - generic [ref=f7e70]:
+                  - heading "ESRS E2 — policies, actions & targets out of scope" [level=4] [ref=f7e71]:
+                    - text: ESRS E2 — policies, actions & targets
+                    - generic [ref=f7e72]: out of scope
+                  - paragraph [ref=f7e73]:
+                    - emphasis [ref=f7e74]: The disclosing company supplies the policies, actions, and targets that ESRS E2 requires. The GSCO Environmental Monitoring tool produces the environmental-screening metrics & evidence layer only; these sub-sections are intentionally out of scope for this report.
+              - generic [ref=f7e75]:
+                - 'heading "ESRS E1 — Climate change: metrics & evidence" [level=2] [ref=f7e76]'
+                - paragraph [ref=f7e77]:
+                  - emphasis [ref=f7e78]:
+                    - text: This section provides the
+                    - strong [ref=f7e79]: metrics & evidence
+                    - text: contribution to ESRS E1 (Climate change). It presents environmental-screening measurements only — it is not a complete ESRS disclosure.
+                - paragraph [ref=f7e80]: Greenhouse gases are at background levels across the monitored GHG indicators at this location. Data quality is high.
+                - table [ref=f7e81]:
+                  - rowgroup [ref=f7e82]:
+                    - row "Pillar Follow-up priority Band" [ref=f7e83]:
+                      - columnheader "Pillar" [ref=f7e84]
+                      - columnheader "Follow-up priority" [ref=f7e85]
+                      - columnheader "Band" [ref=f7e86]
+                    - row "GHG Emissions 0.16 Low priority" [ref=f7e87]:
+                      - cell "GHG Emissions" [ref=f7e88]
+                      - cell "0.16" [ref=f7e89]
+                      - cell "Low priority" [ref=f7e90]:
+                        - generic [ref=f7e91]: Low priority
+                - generic [ref=f7e92]:
+                  - heading "ESRS E1 — policies, actions & targets out of scope" [level=4] [ref=f7e93]:
+                    - text: ESRS E1 — policies, actions & targets
+                    - generic [ref=f7e94]: out of scope
+                  - paragraph [ref=f7e95]:
+                    - emphasis [ref=f7e96]: The disclosing company supplies the policies, actions, and targets that ESRS E1 requires. The GSCO Environmental Monitoring tool produces the environmental-screening metrics & evidence layer only; these sub-sections are intentionally out of scope for this report.
+              - generic [ref=f7e97]:
+                - 'heading "ESRS E4 — Biodiversity and ecosystems: metrics & evidence" [level=2] [ref=f7e98]'
+                - paragraph [ref=f7e99]:
+                  - emphasis [ref=f7e100]:
+                    - text: This section provides the
+                    - strong [ref=f7e101]: metrics & evidence
+                    - text: contribution to ESRS E4 (Biodiversity and ecosystems). It presents environmental-screening measurements only — it is not a complete ESRS disclosure.
+                - paragraph [ref=f7e102]: Nature/Land shows moderate exposure at this location, with proximity to Key Biodiversity Areas as the main contributor (99% of buffer overlaps a Key Biodiversity Area). Data quality is high. The Hansen reference dataset shows 3.9% cumulative loss in the buffer area, consistent with the live nature signals from proximity to Key Biodiversity Areas. This suggests sustained pressure on the area over the cumulative window.
+                - table [ref=f7e103]:
+                  - rowgroup [ref=f7e104]:
+                    - row "Pillar Follow-up priority Band" [ref=f7e105]:
+                      - columnheader "Pillar" [ref=f7e106]
+                      - columnheader "Follow-up priority" [ref=f7e107]
+                      - columnheader "Band" [ref=f7e108]
+                    - row "Nature/Land 0.60 Moderate" [ref=f7e109]:
+                      - cell "Nature/Land" [ref=f7e110]
+                      - cell "0.60" [ref=f7e111]
+                      - cell "Moderate" [ref=f7e112]:
+                        - generic [ref=f7e113]: Moderate
+                - generic [ref=f7e114]:
+                  - heading "ESRS E4 — policies, actions & targets out of scope" [level=4] [ref=f7e115]:
+                    - text: ESRS E4 — policies, actions & targets
+                    - generic [ref=f7e116]: out of scope
+                  - paragraph [ref=f7e117]:
+                    - emphasis [ref=f7e118]: The disclosing company supplies the policies, actions, and targets that ESRS E4 requires. The GSCO Environmental Monitoring tool produces the environmental-screening metrics & evidence layer only; these sub-sections are intentionally out of scope for this report.
+            - generic [ref=f7e119]:
+              - heading "Indicator Detail" [level=2] [ref=f7e120]
+              - paragraph [ref=f7e121]:
+                - emphasis [ref=f7e122]: Per-indicator audit evidence, grouped by pillar. Each pillar reports the parameters that fit its measurement grammar — Air uses site-vs-background z-score anomalies, GHG (VIIRS) uses sustained lit-contrast, Nature uses cover / area / vegetation metrics. Values are projected from the screening payload.
+              - heading "Air Pollution" [level=3] [ref=f7e123]
+              - table [ref=f7e124]:
+                - rowgroup [ref=f7e125]:
+                  - row "Indicator Site value Background z-score Anomaly frequency Confidence Attributability" [ref=f7e126]:
+                    - columnheader "Indicator" [ref=f7e127]
+                    - columnheader "Site value" [ref=f7e128]
+                    - columnheader "Background" [ref=f7e129]
+                    - columnheader "z-score" [ref=f7e130]
+                    - columnheader "Anomaly frequency" [ref=f7e131]
+                    - columnheader "Confidence" [ref=f7e132]
+                    - columnheader "Attributability" [ref=f7e133]
+                  - row "NO₂ 42.3 µmol/m² 41 µmol/m² +0.23 3% 0.69 Sparse" [ref=f7e134]:
+                    - cell "NO₂" [ref=f7e135]
+                    - cell "42.3 µmol/m²" [ref=f7e136]
+                    - cell "41 µmol/m²" [ref=f7e137]
+                    - cell "+0.23" [ref=f7e138]
+                    - cell "3%" [ref=f7e139]
+                    - cell "0.69" [ref=f7e140]
+                    - cell "Sparse" [ref=f7e141]
+                  - row "SO₂ -10.8 µmol/m² 14.5 µmol/m² -0.55 12% 0.62 Moderate" [ref=f7e142]:
+                    - cell "SO₂" [ref=f7e143]
+                    - cell "-10.8 µmol/m²" [ref=f7e144]
+                    - cell "14.5 µmol/m²" [ref=f7e145]
+                    - cell "-0.55" [ref=f7e146]
+                    - cell "12%" [ref=f7e147]
+                    - cell "0.62" [ref=f7e148]
+                    - cell "Moderate" [ref=f7e149]
+                  - row "CO 25.7 mmol/m² 25.8 mmol/m² -0.05 0% 0.56 —" [ref=f7e150]:
+                    - cell "CO" [ref=f7e151]
+                    - cell "25.7 mmol/m²" [ref=f7e152]
+                    - cell "25.8 mmol/m²" [ref=f7e153]
+                    - cell "-0.05" [ref=f7e154]
+                    - cell "0%" [ref=f7e155]
+                    - cell "0.56" [ref=f7e156]
+                    - cell "—" [ref=f7e157]
+                  - row "HCHO 95.7 µmol/m² 108 µmol/m² -0.16 5% 0.68 Sparse" [ref=f7e158]:
+                    - cell "HCHO" [ref=f7e159]
+                    - cell "95.7 µmol/m²" [ref=f7e160]
+                    - cell "108 µmol/m²" [ref=f7e161]
+                    - cell "-0.16" [ref=f7e162]
+                    - cell "5%" [ref=f7e163]
+                    - cell "0.68" [ref=f7e164]
+                    - cell "Sparse" [ref=f7e165]
+                  - row "PM₂.₅ — — — — — —" [ref=f7e166]:
+                    - cell "PM₂.₅" [ref=f7e167]
+                    - cell "—" [ref=f7e168]
+                    - cell "—" [ref=f7e169]
+                    - cell "—" [ref=f7e170]
+                    - cell "—" [ref=f7e171]
+                    - cell "—" [ref=f7e172]
+                    - cell "—" [ref=f7e173]
+                  - row "PM₁₀ — — — — — —" [ref=f7e174]:
+                    - cell "PM₁₀" [ref=f7e175]
+                    - cell "—" [ref=f7e176]
+                    - cell "—" [ref=f7e177]
+                    - cell "—" [ref=f7e178]
+                    - cell "—" [ref=f7e179]
+                    - cell "—" [ref=f7e180]
+                    - cell "—" [ref=f7e181]
+                  - row "O₃ 260 DU 261 DU -0.08 0% 0.70 —" [ref=f7e182]:
+                    - cell "O₃" [ref=f7e183]
+                    - cell "260 DU" [ref=f7e184]
+                    - cell "261 DU" [ref=f7e185]
+                    - cell "-0.08" [ref=f7e186]
+                    - cell "0%" [ref=f7e187]
+                    - cell "0.70" [ref=f7e188]
+                    - cell "—" [ref=f7e189]
+                  - row "AAI (Aerosol Absorbing Index) -0.647 -0.673 +0.04 4% 0.71 Sparse" [ref=f7e190]:
+                    - cell "AAI (Aerosol Absorbing Index)" [ref=f7e191]
+                    - cell "-0.647" [ref=f7e192]
+                    - cell "-0.673" [ref=f7e193]
+                    - cell "+0.04" [ref=f7e194]
+                    - cell "4%" [ref=f7e195]
+                    - cell "0.71" [ref=f7e196]
+                    - cell "Sparse" [ref=f7e197]
+                  - row "AOD (Aerosol Optical Depth) 37.4 41.2 -0.07 0% 0.65 Sparse" [ref=f7e198]:
+                    - cell "AOD (Aerosol Optical Depth)" [ref=f7e199]
+                    - cell "37.4" [ref=f7e200]
+                    - cell "41.2" [ref=f7e201]
+                    - cell "-0.07" [ref=f7e202]
+                    - cell "0%" [ref=f7e203]
+                    - cell "0.65" [ref=f7e204]
+                    - cell "Sparse" [ref=f7e205]
+              - heading "GHG Emissions" [level=3] [ref=f7e206]
+              - table [ref=f7e207]:
+                - rowgroup [ref=f7e208]:
+                  - row "Indicator Site brightness Lit-contrast percentile Flaring fraction Lit ring pixels Confidence Attributability" [ref=f7e209]:
+                    - columnheader "Indicator" [ref=f7e210]
+                    - columnheader "Site brightness" [ref=f7e211]
+                    - columnheader "Lit-contrast percentile" [ref=f7e212]
+                    - columnheader "Flaring fraction" [ref=f7e213]
+                    - columnheader "Lit ring pixels" [ref=f7e214]
+                    - columnheader "Confidence" [ref=f7e215]
+                    - columnheader "Attributability" [ref=f7e216]
+                  - row "Nighttime lights (VIIRS) 8.31 nW/cm²/sr 1% 0% 8,708 0.68 High" [ref=f7e217]:
+                    - cell "Nighttime lights (VIIRS)" [ref=f7e218]
+                    - cell "8.31 nW/cm²/sr" [ref=f7e219]
+                    - cell "1%" [ref=f7e220]
+                    - cell "0%" [ref=f7e221]
+                    - cell "8,708" [ref=f7e222]
+                    - cell "0.68" [ref=f7e223]
+                    - cell "High" [ref=f7e224]
+              - heading "Nature / Land" [level=3] [ref=f7e225]
+              - table [ref=f7e226]:
+                - rowgroup [ref=f7e227]:
+                  - row "Indicator Key metric Confidence Attributability" [ref=f7e228]:
+                    - columnheader "Indicator" [ref=f7e229]
+                    - columnheader "Key metric" [ref=f7e230]
+                    - columnheader "Confidence" [ref=f7e231]
+                    - columnheader "Attributability" [ref=f7e232]
+                  - row "Key Biodiversity Areas 0.0 km to nearest KBA; 99% buffer overlap 1.00 —" [ref=f7e233]:
+                    - cell "Key Biodiversity Areas" [ref=f7e234]
+                    - cell "0.0 km to nearest KBA; 99% buffer overlap" [ref=f7e235]
+                    - cell "1.00" [ref=f7e236]
+                    - cell "—" [ref=f7e237]
+                  - 'row "Dynamic World land cover dominant: trees; trees 60%; built 1% 0.97 —" [ref=f7e238]':
+                    - cell "Dynamic World land cover" [ref=f7e239]
+                    - 'cell "dominant: trees; trees 60%; built 1%" [ref=f7e240]'
+                    - cell "0.97" [ref=f7e241]
+                    - cell "—" [ref=f7e242]
+                  - row "Habitat conversion 234 ha natural loss (3.0% of buffer); 47 ha/yr 0.95 Moderate" [ref=f7e243]:
+                    - cell "Habitat conversion" [ref=f7e244]
+                    - cell "234 ha natural loss (3.0% of buffer); 47 ha/yr" [ref=f7e245]
+                    - cell "0.95" [ref=f7e246]
+                    - cell "Moderate" [ref=f7e247]
+                  - row "NDVI (vegetation index) NDVI mean 0.58; z -4.65 0.50 —" [ref=f7e248]:
+                    - cell "NDVI (vegetation index)" [ref=f7e249]
+                    - cell "NDVI mean 0.58; z -4.65" [ref=f7e250]
+                    - cell "0.50" [ref=f7e251]
+                    - cell "—" [ref=f7e252]
+                  - row "Water / flooded vegetation 53 ha water / flooded veg 0.97 —" [ref=f7e253]:
+                    - cell "Water / flooded vegetation" [ref=f7e254]
+                    - cell "53 ha water / flooded veg" [ref=f7e255]
+                    - cell "0.97" [ref=f7e256]
+                    - cell "—" [ref=f7e257]
+                  - row "Vegetation recovery — 0.95 —" [ref=f7e258]:
+                    - cell "Vegetation recovery" [ref=f7e259]
+                    - cell "—" [ref=f7e260]
+                    - cell "0.95" [ref=f7e261]
+                    - cell "—" [ref=f7e262]
+            - generic [ref=f7e263]:
+              - heading "Reference datasets" [level=2] [ref=f7e264]
+              - paragraph [ref=f7e265]:
+                - emphasis [ref=f7e266]: Reference data context — not part of the composite score. Each dataset below is shown to inform interpretation; none feeds the scored site-vs-region anomaly. Their individual roles are noted underneath.
+              - table [ref=f7e267]:
+                - rowgroup [ref=f7e268]:
+                  - row "Reference dataset Value Source" [ref=f7e269]:
+                    - columnheader "Reference dataset" [ref=f7e270]
+                    - columnheader "Value" [ref=f7e271]
+                    - columnheader "Source" [ref=f7e272]
+                  - row "Hansen forest loss 3.88% of buffer area lost (5-year cumulative) Hansen Global Forest Change (University of Maryland)" [ref=f7e273]:
+                    - cell "Hansen forest loss" [ref=f7e274]
+                    - cell "3.88% of buffer area lost (5-year cumulative)" [ref=f7e275]
+                    - cell "Hansen Global Forest Change (University of Maryland)" [ref=f7e276]
+                  - row "ODIAC CO₂ 593 t CO₂ yr⁻¹ per pixel (annual emissions intensity) ODIAC fossil-fuel CO₂ (NIES, Japan)" [ref=f7e277]:
+                    - cell "ODIAC CO₂" [ref=f7e278]
+                    - cell "593 t CO₂ yr⁻¹ per pixel (annual emissions intensity)" [ref=f7e279]
+                    - cell "ODIAC fossil-fuel CO₂ (NIES, Japan)" [ref=f7e280]
+                  - row "CH₄ (methane) Data not available for this AOI Sentinel-5P TROPOMI (Copernicus / ESA)" [ref=f7e281]:
+                    - cell "CH₄ (methane)" [ref=f7e282]
+                    - cell "Data not available for this AOI" [ref=f7e283]
+                    - cell "Sentinel-5P TROPOMI (Copernicus / ESA)" [ref=f7e284]
+              - paragraph [ref=f7e285]:
+                - emphasis [ref=f7e286]: Hansen forest loss feeds only the regional_loss_evidence binary flag in External Driver Screening — it appears here as regional context and is not scored in the composite. ODIAC is an inventory-allocated emissions product, not an atmospheric measurement; it appears as an emissions-intensity reference and is excluded from the composite. CH₄ is a raw column reading for the screening window, shown as reference context rather than a scored anomaly.
+            - generic [ref=f7e287]:
+              - heading "Provenance Appendix" [level=2] [ref=f7e288]
+              - paragraph [ref=f7e289]: Reference assets, computation scales, and time windows for every indicator that returned data in this report's sources.
+              - table [ref=f7e290]:
+                - rowgroup [ref=f7e291]:
+                  - row "Indicator Asset Scale (m) Time range Status" [ref=f7e292]:
+                    - columnheader "Indicator" [ref=f7e293]
+                    - columnheader "Asset" [ref=f7e294]
+                    - columnheader "Scale (m)" [ref=f7e295]
+                    - columnheader "Time range" [ref=f7e296]
+                    - columnheader "Status" [ref=f7e297]
+                  - row "air.aai COPERNICUS/S5P/OFFL/L3_AER_AI 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e298]:
+                    - cell "air.aai" [ref=f7e299]
+                    - cell "COPERNICUS/S5P/OFFL/L3_AER_AI" [ref=f7e300]
+                    - cell "1113.2" [ref=f7e301]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e302]
+                    - cell "OK" [ref=f7e303]
+                  - row "air.aod MODIS/061/MCD19A2_GRANULES 1000.0 2026-03-05 → 2026-06-03 OK" [ref=f7e304]:
+                    - cell "air.aod" [ref=f7e305]
+                    - cell "MODIS/061/MCD19A2_GRANULES" [ref=f7e306]
+                    - cell "1000.0" [ref=f7e307]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e308]
+                    - cell "OK" [ref=f7e309]
+                  - row "air.co COPERNICUS/S5P/OFFL/L3_CO 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e310]:
+                    - cell "air.co" [ref=f7e311]
+                    - cell "COPERNICUS/S5P/OFFL/L3_CO" [ref=f7e312]
+                    - cell "1113.2" [ref=f7e313]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e314]
+                    - cell "OK" [ref=f7e315]
+                  - row "air.hcho COPERNICUS/S5P/OFFL/L3_HCHO 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e316]:
+                    - cell "air.hcho" [ref=f7e317]
+                    - cell "COPERNICUS/S5P/OFFL/L3_HCHO" [ref=f7e318]
+                    - cell "1113.2" [ref=f7e319]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e320]
+                    - cell "OK" [ref=f7e321]
+                  - row "air.no2 COPERNICUS/S5P/OFFL/L3_NO2 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e322]:
+                    - cell "air.no2" [ref=f7e323]
+                    - cell "COPERNICUS/S5P/OFFL/L3_NO2" [ref=f7e324]
+                    - cell "1113.2" [ref=f7e325]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e326]
+                    - cell "OK" [ref=f7e327]
+                  - row "air.o3 COPERNICUS/S5P/OFFL/L3_O3 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e328]:
+                    - cell "air.o3" [ref=f7e329]
+                    - cell "COPERNICUS/S5P/OFFL/L3_O3" [ref=f7e330]
+                    - cell "1113.2" [ref=f7e331]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e332]
+                    - cell "OK" [ref=f7e333]
+                  - row "air.pm_or_aerosol — — — OK" [ref=f7e334]:
+                    - cell "air.pm_or_aerosol" [ref=f7e335]
+                    - cell "—" [ref=f7e336]
+                    - cell "—" [ref=f7e337]
+                    - cell "—" [ref=f7e338]
+                    - cell "OK" [ref=f7e339]
+                  - row "air.so2 COPERNICUS/S5P/OFFL/L3_SO2 1113.2 2026-03-05 → 2026-06-03 OK" [ref=f7e340]:
+                    - cell "air.so2" [ref=f7e341]
+                    - cell "COPERNICUS/S5P/OFFL/L3_SO2" [ref=f7e342]
+                    - cell "1113.2" [ref=f7e343]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e344]
+                    - cell "OK" [ref=f7e345]
+                  - row "ghg.ch4 COPERNICUS/S5P/OFFL/L3_CH4 1113.2 2026-03-05 → 2026-06-03 Skipped" [ref=f7e346]:
+                    - cell "ghg.ch4" [ref=f7e347]
+                    - cell "COPERNICUS/S5P/OFFL/L3_CH4" [ref=f7e348]
+                    - cell "1113.2" [ref=f7e349]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e350]
+                    - cell "Skipped" [ref=f7e351]
+                  - row "ghg.co2 projects/supply-chain-observatory/assets/odiac 1000.0 2023-01-01 → 2023-12-31 OK" [ref=f7e352]:
+                    - cell "ghg.co2" [ref=f7e353]
+                    - cell "projects/supply-chain-observatory/assets/odiac" [ref=f7e354]
+                    - cell "1000.0" [ref=f7e355]
+                    - cell "2023-01-01 → 2023-12-31" [ref=f7e356]
+                    - cell "OK" [ref=f7e357]
+                  - row "ghg.combustion_proxy — — — OK" [ref=f7e358]:
+                    - cell "ghg.combustion_proxy" [ref=f7e359]
+                    - cell "—" [ref=f7e360]
+                    - cell "—" [ref=f7e361]
+                    - cell "—" [ref=f7e362]
+                    - cell "OK" [ref=f7e363]
+                  - row "ghg.viirs NASA/VIIRS/002/VNP46A2 463.83 2026-03-05 → 2026-06-03 OK" [ref=f7e364]:
+                    - cell "ghg.viirs" [ref=f7e365]
+                    - cell "NASA/VIIRS/002/VNP46A2" [ref=f7e366]
+                    - cell "463.83" [ref=f7e367]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e368]
+                    - cell "OK" [ref=f7e369]
+                  - row "ghg.viirs_lit_contrast NASA/VIIRS/002/VNP46A2 463.83 2026-03-05 → 2026-06-03 OK" [ref=f7e370]:
+                    - cell "ghg.viirs_lit_contrast" [ref=f7e371]
+                    - cell "NASA/VIIRS/002/VNP46A2" [ref=f7e372]
+                    - cell "463.83" [ref=f7e373]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e374]
+                    - cell "OK" [ref=f7e375]
+                  - row "nature.dw GOOGLE/DYNAMICWORLD/V1 10.0 2026-03-05 → 2026-06-03 OK" [ref=f7e376]:
+                    - cell "nature.dw" [ref=f7e377]
+                    - cell "GOOGLE/DYNAMICWORLD/V1" [ref=f7e378]
+                    - cell "10.0" [ref=f7e379]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e380]
+                    - cell "OK" [ref=f7e381]
+                  - row "nature.forest_loss UMD/hansen/global_forest_change_2023_v1_11 30.92 2019-01-01 → 2023-12-31 OK" [ref=f7e382]:
+                    - cell "nature.forest_loss" [ref=f7e383]
+                    - cell "UMD/hansen/global_forest_change_2023_v1_11" [ref=f7e384]
+                    - cell "30.92" [ref=f7e385]
+                    - cell "2019-01-01 → 2023-12-31" [ref=f7e386]
+                    - cell "OK" [ref=f7e387]
+                  - row "nature.habitat GOOGLE/DYNAMICWORLD/V1 10.0 2026-03-05 → 2026-06-03 OK" [ref=f7e388]:
+                    - cell "nature.habitat" [ref=f7e389]
+                    - cell "GOOGLE/DYNAMICWORLD/V1" [ref=f7e390]
+                    - cell "10.0" [ref=f7e391]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e392]
+                    - cell "OK" [ref=f7e393]
+                  - row "nature.kba projects/supply-chain-observatory/assets/KBAsGlobal_2026_March_01_POL 0.0 2026-03-05 → 2026-06-03 OK" [ref=f7e394]:
+                    - cell "nature.kba" [ref=f7e395]
+                    - cell "projects/supply-chain-observatory/assets/KBAsGlobal_2026_March_01_POL" [ref=f7e396]
+                    - cell "0.0" [ref=f7e397]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e398]
+                    - cell "OK" [ref=f7e399]
+                  - row "nature.ndvi MODIS/061/MOD13Q1 250.0 2026-03-05 → 2026-06-03 OK" [ref=f7e400]:
+                    - cell "nature.ndvi" [ref=f7e401]
+                    - cell "MODIS/061/MOD13Q1" [ref=f7e402]
+                    - cell "250.0" [ref=f7e403]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e404]
+                    - cell "OK" [ref=f7e405]
+                  - row "nature.recovery MODIS/061/MOD13Q1 250.0 2026-03-05 → 2026-06-03 OK" [ref=f7e406]:
+                    - cell "nature.recovery" [ref=f7e407]
+                    - cell "MODIS/061/MOD13Q1" [ref=f7e408]
+                    - cell "250.0" [ref=f7e409]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e410]
+                    - cell "OK" [ref=f7e411]
+                  - row "nature.regional_loss_evidence UMD/hansen/global_forest_change_2023_v1_11 30.92 2019-01-01 → 2023-12-31 OK" [ref=f7e412]:
+                    - cell "nature.regional_loss_evidence" [ref=f7e413]
+                    - cell "UMD/hansen/global_forest_change_2023_v1_11" [ref=f7e414]
+                    - cell "30.92" [ref=f7e415]
+                    - cell "2019-01-01 → 2023-12-31" [ref=f7e416]
+                    - cell "OK" [ref=f7e417]
+                  - row "nature.supplier_spatial_link GOOGLE/DYNAMICWORLD/V1 10.0 2026-03-05 → 2026-06-03 OK" [ref=f7e418]:
+                    - cell "nature.supplier_spatial_link" [ref=f7e419]
+                    - cell "GOOGLE/DYNAMICWORLD/V1" [ref=f7e420]
+                    - cell "10.0" [ref=f7e421]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e422]
+                    - cell "OK" [ref=f7e423]
+                  - row "nature.water GOOGLE/DYNAMICWORLD/V1 10.0 2026-03-05 → 2026-06-03 OK" [ref=f7e424]:
+                    - cell "nature.water" [ref=f7e425]
+                    - cell "GOOGLE/DYNAMICWORLD/V1" [ref=f7e426]
+                    - cell "10.0" [ref=f7e427]
+                    - cell "2026-03-05 → 2026-06-03" [ref=f7e428]
+                    - cell "OK" [ref=f7e429]
+              - heading "Audit-transparency extras" [level=4] [ref=f7e430]
+              - paragraph [ref=f7e431]:
+                - emphasis [ref=f7e432]: Multi-swath satellite indicators, showing distinct observation dates vs raw image counts processed.
+              - list [ref=f7e433]:
+                - listitem [ref=f7e434]:
+                  - strong [ref=f7e435]: air.aai
+                  - text: — 85 distinct dates observed across 1,238 raw images
+                - listitem [ref=f7e436]:
+                  - strong [ref=f7e437]: air.aod
+                  - text: — 21 distinct dates observed across 5,094 raw images
+                - listitem [ref=f7e438]:
+                  - strong [ref=f7e439]: air.co
+                  - text: — 50 distinct dates observed across 1,106 raw images
+                - listitem [ref=f7e440]:
+                  - strong [ref=f7e441]: air.hcho
+                  - text: — 62 distinct dates observed across 1,088 raw images
+                - listitem [ref=f7e442]:
+                  - strong [ref=f7e443]: air.no2
+                  - text: — 77 distinct dates observed across 1,013 raw images
+                - listitem [ref=f7e444]:
+                  - strong [ref=f7e445]: air.o3
+                  - text: — 84 distinct dates observed across 1,208 raw images
+                - listitem [ref=f7e446]:
+                  - strong [ref=f7e447]: air.so2
+                  - text: — 40 distinct dates observed across 625 raw images
+              - paragraph [ref=f7e448]:
+                - emphasis [ref=f7e449]: Per-indicator engineering parameters are available in the CSV export.
+            - generic [ref=f7e450]:
+              - heading "Composite score methodology" [level=2] [ref=f7e451]
+              - paragraph [ref=f7e452]:
+                - text: The
+                - strong [ref=f7e453]: overall screening composite
+                - text: "is the equal-weighted mean of the three pillar follow-up-priority scores (Indicators_Computation_v4 §4):"
+              - paragraph [ref=f7e454]:
+                - emphasis [ref=f7e455]: composite = ( Air priority + GHG priority + Nature priority ) ÷ 3
+              - paragraph [ref=f7e456]:
+                - text: Scores run 0–1; bands are 0.66+ red (audit-first), 0.33–0.66 amber (investigate), <0.33 green (routine). If any pillar could not be computed the composite is left undefined rather than averaged over the survivors. Composite
+                - emphasis [ref=f7e457]: confidence
+                - text: is the minimum of the pillar confidences (IC_v4 §4).
+              - paragraph [ref=f7e458]:
+                - text: "Each pillar's follow-up priority has the same two-level shape (M-WEIGHTS-HARMONISE-A1):"
+                - emphasis [ref=f7e459]: 0.80 · severity core + 0.20 · measurement quality
+                - text: ", with the 0.20 measurement-quality weight shared across all three pillars and only the severity core differing by pillar. The tables below show the resulting effective per-term weights:"
+              - heading "Air Pollution priority (IC_v4 §1.3)" [level=3] [ref=f7e460]
+              - table [ref=f7e461]:
+                - rowgroup [ref=f7e462]:
+                  - row "Term Weight" [ref=f7e463]:
+                    - columnheader "Term" [ref=f7e464]
+                    - columnheader "Weight" [ref=f7e465]
+                  - row "Air Pollution Proxy score 0.50" [ref=f7e466]:
+                    - cell "Air Pollution Proxy score" [ref=f7e467]
+                    - cell "0.50" [ref=f7e468]
+                  - row "Spatiotemporal anomaly 0.30" [ref=f7e469]:
+                    - cell "Spatiotemporal anomaly" [ref=f7e470]
+                    - cell "0.30" [ref=f7e471]
+                  - row "Measurement quality 0.20" [ref=f7e472]:
+                    - cell "Measurement quality" [ref=f7e473]
+                    - cell "0.20" [ref=f7e474]
+              - heading "GHG Emissions priority (IC_v4 §2.3)" [level=3] [ref=f7e475]
+              - table [ref=f7e476]:
+                - rowgroup [ref=f7e477]:
+                  - row "Term Weight" [ref=f7e478]:
+                    - columnheader "Term" [ref=f7e479]
+                    - columnheader "Weight" [ref=f7e480]
+                  - row "Core GHG audit support (VIIRS flaring + combustion proxy) 0.80" [ref=f7e481]:
+                    - cell "Core GHG audit support (VIIRS flaring + combustion proxy)" [ref=f7e482]
+                    - cell "0.80" [ref=f7e483]
+                  - row "Measurement quality 0.20" [ref=f7e484]:
+                    - cell "Measurement quality" [ref=f7e485]
+                    - cell "0.20" [ref=f7e486]
+              - heading "Nature / Land priority (IC_v4 §3.3)" [level=3] [ref=f7e487]
+              - table [ref=f7e488]:
+                - rowgroup [ref=f7e489]:
+                  - row "Term Weight" [ref=f7e490]:
+                    - columnheader "Term" [ref=f7e491]
+                    - columnheader "Weight" [ref=f7e492]
+                  - row "Biodiversity exposure 0.30" [ref=f7e493]:
+                    - cell "Biodiversity exposure" [ref=f7e494]
+                    - cell "0.30" [ref=f7e495]
+                  - row "Habitat conversion 0.30" [ref=f7e496]:
+                    - cell "Habitat conversion" [ref=f7e497]
+                    - cell "0.30" [ref=f7e498]
+                  - row "Vegetation condition 0.20" [ref=f7e499]:
+                    - cell "Vegetation condition" [ref=f7e500]
+                    - cell "0.20" [ref=f7e501]
+                  - row "Measurement quality 0.20" [ref=f7e502]:
+                    - cell "Measurement quality" [ref=f7e503]
+                    - cell "0.20" [ref=f7e504]
+              - paragraph [ref=f7e505]:
+                - emphasis [ref=f7e506]: Reference datasets (Hansen forest loss, ODIAC CO₂, CH₄) are context only and do not enter the composite — see Reference datasets.
+            - generic [ref=f7e507]:
+              - heading "Glossary" [level=2] [ref=f7e508]
+              - paragraph [ref=f7e509]:
+                - emphasis [ref=f7e510]: Plain-language definitions of the terms used in this report.
+              - heading "Statistical" [level=3] [ref=f7e511]
+              - generic [ref=f7e512]:
+                - term [ref=f7e513]: z-score (σ)
+                - definition [ref=f7e514]: How far a value sits from its local average, measured in standard-deviation units.
+                - term [ref=f7e515]: percentile
+                - definition [ref=f7e516]: Where a value falls in a ranked distribution (90th percentile = higher than 90% of the rest).
+              - heading "Methodological" [level=3] [ref=f7e517]
+              - generic [ref=f7e518]:
+                - term [ref=f7e519]: AOI / buffer
+                - definition [ref=f7e520]: The circular area screened around the site (centre plus radius).
+                - term [ref=f7e521]: anomaly
+                - definition [ref=f7e522]: A value departing from the local norm by more than the set threshold (2σ).
+                - term [ref=f7e523]: follow-up priority score
+                - definition [ref=f7e524]: The per-pillar severity ranking the tool produces; a measure of severity, not certainty.
+                - term [ref=f7e525]: measurement quality / attribution confidence
+                - definition [ref=f7e526]: How trustworthy a measurement is, kept deliberately separate from severity (the M-ATTRIB-A1 split).
+                - term [ref=f7e527]: attributability
+                - definition [ref=f7e528]: Whether an observed signal can plausibly be linked to the specific site, versus drifting in from elsewhere (wind, regional background). Context only; never enters the score.
+                - term [ref=f7e529]: composite / overall screening score
+                - definition [ref=f7e530]: The blend of the three pillar priority scores.
+              - heading "Domain / dataset" [level=3] [ref=f7e531]
+              - generic [ref=f7e532]:
+                - term [ref=f7e533]: NDVI
+                - definition [ref=f7e534]: A vegetation-health index from satellite reflectance; higher means greener / healthier.
+                - term [ref=f7e535]: AAI (Absorbing Aerosol Index)
+                - definition [ref=f7e536]: A measure of UV-absorbing aerosols such as smoke and dust.
+                - term [ref=f7e537]: AOD (Aerosol Optical Depth)
+                - definition [ref=f7e538]: How much aerosol blocks light through the atmospheric column.
+                - term [ref=f7e539]: Dynamic World classes
+                - definition [ref=f7e540]: Google's nine satellite land-cover categories (Water, Trees, Crops, Built, etc.).
+                - term [ref=f7e541]: TROPOMI / Sentinel-5P
+                - definition [ref=f7e542]: The satellite instrument behind the gas measurements (NO₂, SO₂, CO, HCHO, O₃, CH₄).
+                - term [ref=f7e543]: VIIRS nightlights
+                - definition [ref=f7e544]: Night-time light intensity, used as an industrial / urban activity proxy.
+                - term [ref=f7e545]: KBA (Key Biodiversity Area)
+                - definition [ref=f7e546]: Designated biodiversity-important sites (BirdLife International).
+                - term [ref=f7e547]: Hansen / ODIAC
+                - definition [ref=f7e548]: Reference datasets (forest loss; CO₂ emissions) shown as context, not scored.
+                - term [ref=f7e549]: ESRS E1 / E2 / E4
+                - definition [ref=f7e550]: The EU disclosure standards for Climate / Pollution / Biodiversity.
+  - img [ref=e4217]

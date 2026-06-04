@@ -1,0 +1,145 @@
+- generic [active]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - generic [ref=e9]:
+          - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+            - generic [ref=e14]: keyboard_double_arrow_right
+          - generic [ref=e4757]:
+            - img "Running..." [ref=e4758]:
+              - img [ref=e4759]
+            - button "Stop" [ref=e4764] [cursor=pointer]
+      - generic [ref=e27]:
+        - generic [ref=e4766]:
+          - generic [ref=e4771]:
+            - button "Fullscreen" [ref=e4776] [cursor=pointer]:
+              - img [ref=e4777]
+            - img "0" [ref=e4782]
+          - paragraph [ref=e4789]:
+            - text: Signed in as
+            - strong [ref=e4790]: MNC
+            - text: · Session
+            - code [ref=e4791]: e29893a0
+          - generic [ref=e4795]:
+            - paragraph [ref=e4802]: "Scope: Soy & Cattle — Pará / Mato Grosso"
+            - button "Change" [ref=e4807] [cursor=pointer]:
+              - paragraph [ref=e4811]: Change
+          - button "Sign out" [ref=e4816] [cursor=pointer]:
+            - paragraph [ref=e4820]: Sign out
+        - separator [ref=e4825]
+        - button "👋 Show me around" [ref=e4834] [cursor=pointer]:
+          - paragraph [ref=e4838]: 👋 Show me around
+        - heading "Prioritisation — Setup" [level=1] [ref=e4843]:
+          - text: Prioritisation — Setup
+          - generic [ref=e4844]:
+            - link "Link to heading":
+              - /url: "#prioritisation-setup"
+              - img
+        - paragraph [ref=e4849]: Batch-screen up to 20 suppliers in one run. Results land on the Prioritisation Results page (P-08) ranked by audit priority.
+        - generic [ref=e4851]:
+          - tablist [ref=e4853]:
+            - tab "Supply chain" [selected] [ref=e4854] [cursor=pointer]:
+              - paragraph [ref=e4856]: Supply chain
+            - tab "Ad hoc locations" [ref=e4857] [cursor=pointer]:
+              - paragraph [ref=e4859]: Ad hoc locations
+            - tab "Country database (v1.x)" [ref=e4860] [cursor=pointer]:
+              - paragraph [ref=e4862]: Country database (v1.x)
+          - tabpanel "Supply chain" [ref=e4865]
+  - img [ref=e4217]

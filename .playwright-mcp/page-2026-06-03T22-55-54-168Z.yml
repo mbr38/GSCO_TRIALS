@@ -1,0 +1,192 @@
+- generic [active]:
+  - generic:
+    - generic [ref=e2]:
+      - generic [ref=e3]:
+        - generic:
+          - list:
+            - generic:
+              - generic [ref=e38] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Main
+              - listitem:
+                - link "Landing" [ref=e39] [cursor=pointer]:
+                  - /url: http://localhost:8501/
+                  - generic [ref=e42]: 🏠
+                  - generic:
+                    - generic:
+                      - paragraph: Landing
+              - listitem:
+                - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                  - /url: http://localhost:8501/Scope_Setup
+                  - generic [ref=e46]: 🌍
+                  - generic:
+                    - generic:
+                      - paragraph: Scope Setup
+              - listitem:
+                - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                  - /url: http://localhost:8501/Workflow_Hub
+                  - generic [ref=e50]: 🔀
+                  - generic:
+                    - generic:
+                      - paragraph: Workflow Hub
+              - listitem:
+                - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                  - /url: http://localhost:8501/Inspect_Setup
+                  - generic [ref=e54]: 🔍
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Setup
+              - listitem:
+                - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                  - /url: http://localhost:8501/Screening_Results
+                  - generic [ref=e58]: 📊
+                  - generic:
+                    - generic:
+                      - paragraph: Inspect — Results
+              - listitem:
+                - link "Trend View" [ref=e59] [cursor=pointer]:
+                  - /url: http://localhost:8501/Trend_View
+                  - generic [ref=e62]: 📈
+                  - generic:
+                    - generic:
+                      - paragraph: Trend View
+              - listitem:
+                - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                  - /url: http://localhost:8501/Prioritisation_Setup
+                  - generic [ref=e66]: 📋
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Setup
+              - listitem:
+                - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                  - /url: http://localhost:8501/Prioritisation_Results
+                  - generic [ref=e70]: 📈
+                  - generic:
+                    - generic:
+                      - paragraph: Prioritisation — Results
+              - listitem:
+                - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                  - /url: http://localhost:8501/Indicator_Library
+                  - generic [ref=e74]: 📚
+                  - generic:
+                    - generic:
+                      - paragraph: Indicator Library
+              - listitem:
+                - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                  - /url: http://localhost:8501/Saved_Analyses
+                  - generic [ref=e78]: 💾
+                  - generic:
+                    - generic:
+                      - paragraph: Saved Analyses
+              - listitem:
+                - link "Reports" [ref=e79] [cursor=pointer]:
+                  - /url: http://localhost:8501/Reports
+                  - generic [ref=e82]: 📄
+                  - generic:
+                    - generic:
+                      - paragraph: Reports
+            - generic:
+              - generic [ref=e83] [cursor=pointer]:
+                - generic:
+                  - generic:
+                    - paragraph: Developer
+              - listitem:
+                - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                  - /url: http://localhost:8501/engine_scratch
+                  - generic [ref=e87]: 🧪
+                  - generic:
+                    - generic:
+                      - paragraph: Engine Scratch (dev)
+      - generic [ref=e6]:
+        - banner [ref=e7]:
+          - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+            - generic [ref=e14]: keyboard_double_arrow_right
+        - generic [ref=e27]:
+          - generic [ref=e5917]:
+            - generic [ref=e5922]:
+              - button "Fullscreen" [ref=e5927] [cursor=pointer]:
+                - img [ref=e5928]
+              - img "0" [ref=e5933]
+            - paragraph [ref=e5940]:
+              - text: Signed in as
+              - strong [ref=e5941]: MNC
+              - text: · Session
+              - code [ref=e5942]: e29893a0
+            - generic [ref=e5948]:
+              - paragraph [ref=e5955]: "Scope: Soy & Cattle — Pará / Mato Grosso"
+              - button "Change" [ref=e5960] [cursor=pointer]:
+                - paragraph [ref=e5964]: Change
+            - button "Sign out" [ref=e5967] [cursor=pointer]:
+              - paragraph [ref=e5971]: Sign out
+          - separator [ref=e5976]
+          - heading "Reports" [level=1] [ref=e5981]:
+            - text: Reports
+            - generic [ref=e5982]:
+              - link "Link to heading":
+                - /url: "#reports"
+                - img
+          - paragraph [ref=e5987]: Build a report from one or more saved analyses. Templates are filtered by your user type; sources are filtered to compatible saved-analysis types.
+          - heading "Template" [level=3] [ref=e5993]:
+            - text: Template
+            - generic [ref=e5994]:
+              - link "Link to heading":
+                - /url: "#template"
+                - img
+          - generic [ref=e5996]:
+            - paragraph [ref=e6000]: Choose a report template
+            - generic [ref=e6002]:
+              - generic [ref=e6003]:
+                - generic [ref=e6004]: General report
+                - combobox "Selected General report. Choose a report template" [ref=e6006]
+              - img "open" [ref=e6008]
+          - paragraph [ref=e6014]: All three pillars — Air, GHG, and Nature. For MNCs the findings are framed as the metrics & evidence section of ESRS E1/E2/E4; for policy makers the same body is rendered without ESRS framing.
+          - heading "Sources" [level=3] [ref=e6020]:
+            - text: Sources
+            - generic [ref=e6021]:
+              - link "Link to heading":
+                - /url: "#sources"
+                - img
+          - generic [ref=e6023]:
+            - paragraph [ref=e6027]: Pick one or more saved analyses to include
+            - generic [ref=e6030]:
+              - generic [ref=e6031]:
+                - button "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC (screening), close by backspace":
+                  - generic "Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC (screening)" [ref=e6115]
+                  - img [ref=e6117] [cursor=pointer]
+                - combobox "Selected Screening @ (-6.0600, -50.1600) — 2026-06-03 22:40 UTC (screening). Pick one or more saved analyses to include" [expanded] [ref=e6119]
+              - generic [ref=e6034]:
+                - button "Clear all" [ref=e6120] [cursor=pointer]
+                - img "open" [ref=e6035] [cursor=pointer]
+          - heading "Title and notes" [level=3] [ref=e6042]:
+            - text: Title and notes
+            - generic [ref=e6043]:
+              - link "Link to heading":
+                - /url: "#title-and-notes"
+                - img
+          - generic [ref=e6045]:
+            - paragraph [ref=e6049]: Report title (will appear on the title page)
+            - textbox "Report title (will appear on the title page)" [ref=e6052]:
+              - /placeholder: e.g. Q2 2026 audit — Brazilian Soy & Cattle suppliers
+          - generic [ref=e6054]:
+            - paragraph [ref=e6058]: Additional notes (optional, included in the report's introduction)
+            - textbox "Additional notes (optional, included in the report's introduction)" [ref=e6061]:
+              - /placeholder: ""
+          - paragraph [ref=e6066]: "Missing: title."
+          - 'button "Next: Preview report" [disabled] [ref=e6069]':
+            - paragraph [ref=e6073]: "Next: Preview report"
+    - list [ref=e6077]:
+      - generic [ref=e6079]:
+        - option "Select all" [selected] [ref=e6080] [cursor=pointer]:
+          - generic [ref=e6084]: Select all
+        - option "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso (screening)" [ref=e6085] [cursor=pointer]:
+          - generic [ref=e6089]: Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso (screening)
+        - option "Distrito Federal, Brazil — Region screening (screening)" [ref=e6090] [cursor=pointer]:
+          - generic [ref=e6094]: Distrito Federal, Brazil — Region screening (screening)
+        - option "Norilsk — Nornickel Polar Smelter Complex, Russia (screening)" [ref=e6095] [cursor=pointer]:
+          - generic [ref=e6099]: Norilsk — Nornickel Polar Smelter Complex, Russia (screening)
+        - option "Comodoro Rivadavia — San Jorge Oil & Gas Basin, Argentina (screening)" [ref=e6100] [cursor=pointer]:
+          - generic [ref=e6104]: Comodoro Rivadavia — San Jorge Oil & Gas Basin, Argentina (screening)
+        - option "Suape Port Industrial Complex — Pernambuco, Brazil (screening)" [ref=e6105] [cursor=pointer]:
+          - generic [ref=e6109]: Suape Port Industrial Complex — Pernambuco, Brazil (screening)
+  - img [ref=e4217]

@@ -1,0 +1,142 @@
+- generic [active]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic:
+        - list:
+          - generic:
+            - generic [ref=e38] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Main
+            - listitem:
+              - link "Landing" [ref=e39] [cursor=pointer]:
+                - /url: http://localhost:8501/
+                - generic [ref=e42]: 🏠
+                - generic:
+                  - generic:
+                    - paragraph: Landing
+            - listitem:
+              - link "Scope Setup" [ref=e43] [cursor=pointer]:
+                - /url: http://localhost:8501/Scope_Setup
+                - generic [ref=e46]: 🌍
+                - generic:
+                  - generic:
+                    - paragraph: Scope Setup
+            - listitem:
+              - link "Workflow Hub" [ref=e47] [cursor=pointer]:
+                - /url: http://localhost:8501/Workflow_Hub
+                - generic [ref=e50]: 🔀
+                - generic:
+                  - generic:
+                    - paragraph: Workflow Hub
+            - listitem:
+              - link "Inspect — Setup" [ref=e51] [cursor=pointer]:
+                - /url: http://localhost:8501/Inspect_Setup
+                - generic [ref=e54]: 🔍
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Setup
+            - listitem:
+              - link "Inspect — Results" [ref=e55] [cursor=pointer]:
+                - /url: http://localhost:8501/Screening_Results
+                - generic [ref=e58]: 📊
+                - generic:
+                  - generic:
+                    - paragraph: Inspect — Results
+            - listitem:
+              - link "Trend View" [ref=e59] [cursor=pointer]:
+                - /url: http://localhost:8501/Trend_View
+                - generic [ref=e62]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Trend View
+            - listitem:
+              - link "Prioritisation — Setup" [ref=e63] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Setup
+                - generic [ref=e66]: 📋
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Setup
+            - listitem:
+              - link "Prioritisation — Results" [ref=e67] [cursor=pointer]:
+                - /url: http://localhost:8501/Prioritisation_Results
+                - generic [ref=e70]: 📈
+                - generic:
+                  - generic:
+                    - paragraph: Prioritisation — Results
+            - listitem:
+              - link "Indicator Library" [ref=e71] [cursor=pointer]:
+                - /url: http://localhost:8501/Indicator_Library
+                - generic [ref=e74]: 📚
+                - generic:
+                  - generic:
+                    - paragraph: Indicator Library
+            - listitem:
+              - link "Saved Analyses" [ref=e75] [cursor=pointer]:
+                - /url: http://localhost:8501/Saved_Analyses
+                - generic [ref=e78]: 💾
+                - generic:
+                  - generic:
+                    - paragraph: Saved Analyses
+            - listitem:
+              - link "Reports" [ref=e79] [cursor=pointer]:
+                - /url: http://localhost:8501/Reports
+                - generic [ref=e82]: 📄
+                - generic:
+                  - generic:
+                    - paragraph: Reports
+          - generic:
+            - generic [ref=e83] [cursor=pointer]:
+              - generic:
+                - generic:
+                  - paragraph: Developer
+            - listitem:
+              - link "Engine Scratch (dev)" [ref=e84] [cursor=pointer]:
+                - /url: http://localhost:8501/engine_scratch
+                - generic [ref=e87]: 🧪
+                - generic:
+                  - generic:
+                    - paragraph: Engine Scratch (dev)
+    - generic [ref=e6]:
+      - banner [ref=e7]:
+        - button "keyboard_double_arrow_right" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: keyboard_double_arrow_right
+      - generic [ref=e27]:
+        - heading "GSCO Environmental Monitoring & Decision-Support Tool" [level=1] [ref=e6214]:
+          - text: GSCO Environmental Monitoring & Decision-Support Tool
+          - link "Link to heading" [ref=e6216] [cursor=pointer]:
+            - /url: "#gsco-environmental-monitoring-and-decision-support-tool"
+            - img [ref=e6217]
+        - paragraph [ref=e6223]: A geospatial decision-support tool for monitoring environmental conditions across supply chains. Built on Earth Engine, designed for two audiences.
+        - separator [ref=e6228]
+        - heading "Who's using the tool today?" [level=3] [ref=e6233]:
+          - text: Who's using the tool today?
+          - generic [ref=e6234]:
+            - link "Link to heading":
+              - /url: "#whos-using-the-tool-today"
+              - img
+        - paragraph [ref=e6239]: Pick the role that matches what you're doing in this session.
+        - generic [ref=e6241]:
+          - generic [ref=e6245]:
+            - heading "Policy Maker" [level=3] [ref=e6251]:
+              - text: Policy Maker
+              - generic [ref=e6252]:
+                - link "Link to heading":
+                  - /url: "#policy-maker"
+                  - img
+            - paragraph [ref=e6257]: Monitor environmental conditions across regions and named supply chains. Connect to the GSCO catalogue or upload your own regions.
+            - button "Continue as Policy Maker" [ref=e6260] [cursor=pointer]:
+              - paragraph [ref=e6264]: Continue as Policy Maker
+          - generic [ref=e6268]:
+            - heading "MNC" [level=3] [ref=e6274]:
+              - text: MNC
+              - generic [ref=e6275]:
+                - link "Link to heading":
+                  - /url: "#mnc"
+                  - img
+            - paragraph [ref=e6280]: Screen and prioritise environmental conditions across your suppliers. Upload your supplier list and run targeted analyses.
+            - button "Continue as MNC" [ref=e6283] [cursor=pointer]:
+              - paragraph [ref=e6287]: Continue as MNC
+        - separator [ref=e6292]
+        - paragraph [ref=e6297]: Demo build — authentication deferred.
+  - img [ref=e4217]

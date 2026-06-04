@@ -1,0 +1,18 @@
+[   25236ms] [WARNING] Unrecognized feature: 'ambient-light-sensor'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'battery'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'document-domain'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'layout-animations'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'legacy-image-formats'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'oversized-images'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'vr'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25236ms] [WARNING] Unrecognized feature: 'wake-lock'. @ http://localhost:8501/static/js/isLength.DwwZub7z.js:0
+[   25524ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[  193844ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[  238601ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[  238609ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[  425120ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[  518255ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[ 1394862ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[ 1522514ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[ 1812861ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
+[ 3588687ms] [WARNING] WebSocket onclose @ http://localhost:8501/static/js/index.D2ZqaFuW.js:17
