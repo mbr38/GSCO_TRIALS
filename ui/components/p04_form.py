@@ -496,25 +496,13 @@ def _render_run_section(
             and window is not None
         )
 
-        col_screening, col_trend = st.columns(2)
-        with col_screening:
-            if st.button(
-                "Run Screening",
-                type="primary",
-                disabled=not can_run,
-                use_container_width=True,
-            ):
-                _commit_and_navigate(centre, radius_km, indicators, window)
-        with col_trend:
-            st.button(
-                "Run Trend",
-                disabled=True,
-                use_container_width=True,
-                help=(
-                    "Trend View (P-06) lands in a later milestone. "
-                    "Until then, screening is the only mode."
-                ),
-            )
+        if st.button(
+            "Run Screening",
+            type="primary",
+            disabled=not can_run,
+            use_container_width=True,
+        ):
+            _commit_and_navigate(centre, radius_km, indicators, window)
 
 
 def _pre_filled_saved_window() -> tuple[str, str] | None:

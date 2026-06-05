@@ -3,8 +3,8 @@
 Plot-first (decision-log U1): the per-day scatter + Theil–Sen line leads, then
 a verdict badge, then the separate confidence / significance / seasonal /
 attributability surfaces (U5). Reached from a screening via the "view trend →"
-affordance (C4b tiles) or the single-indicator map "View trend" button, both of
-which set the active trend indicator and route to the **dedicated P-06 page**
+affordance on a C4b indicator tile, which sets the active trend indicator and
+routes to the **dedicated P-06 page**
 (`pages/06_Trend_View.py`). The trend is computed once over the screening
 window (U4 — no window picker) and cached in session, so re-renders and overlay
 toggles never re-fetch and the verdict badge is fixed (UT5).
@@ -82,8 +82,7 @@ def render_active_trend(setup: dict, result: dict) -> None:
     if active is None:
         st.info(
             "No indicator selected. Open a screening (P-05) and choose "
-            "**view trend →** on an indicator tile, or **View trend** in the "
-            "single-indicator map, to drill into its trend."
+            "**view trend →** on an indicator tile to drill into its trend."
         )
         return
 

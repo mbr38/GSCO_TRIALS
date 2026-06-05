@@ -89,6 +89,21 @@ _TREND_SECTIONS: tuple[str, ...] = (
     "glossary",
 )
 
+# Supplier cooperation report (M-REPORT-COOP): a deliberately concise,
+# supplier-facing single-pillar report that frames a screening result as a
+# shared starting point for improvement, not a verdict. Its own short section
+# family — no executive composite, no indicator-detail table, no provenance
+# appendix, no ESRS framing (all intentionally excluded, spec §"Deliberately
+# excluded"). The pillar is user-chosen at render time (threaded via the
+# RenderContext), so unlike the MNC pillar reports it carries no fixed pillar.
+_COOPERATION_SECTIONS: tuple[str, ...] = (
+    "cooperation_title",        # title + supplier + screening window
+    "cooperation_finding",      # the pillar's finding in plain language (verbal summary)
+    "cooperation_improvement",  # where improvement would matter most (dominant driver)
+    "cooperation_framing",      # screening-signal, not a determination of cause/compliance
+    "glossary",                 # content-aware appendix, scoped to terms used (RT13)
+)
+
 
 _TEMPLATES: tuple[ReportTemplate, ...] = (
     # ── General report (both user types, dual-framed — RT7/RT8) ──────────
@@ -149,6 +164,25 @@ _TEMPLATES: tuple[ReportTemplate, ...] = (
         sections=_PILLAR_SECTIONS,
         pillars=frozenset({"nature"}),
         esrs=True,
+    ),
+    # ── Supplier cooperation report (both user types — M-REPORT-COOP) ────
+    ReportTemplate(
+        template_id="supplier_cooperation",
+        display_name="Supplier cooperation report",
+        description=(
+            "A short, supplier-facing report on one pillar (you choose which). "
+            "It frames the screening result as a shared starting point for "
+            "improvement — where attention would matter most — rather than a "
+            "determination of cause or compliance. No cross-supplier ranking, "
+            "confidence payload, provenance appendix, or ESRS codes."
+        ),
+        user_types=frozenset({"policy_maker", "mnc"}),
+        accepted_source_types=frozenset({"screening"}),
+        sections=_COOPERATION_SECTIONS,
+        # Candidate set; the actual pillar is user-chosen and threaded through
+        # the RenderContext at render time (M-REPORT-COOP). Never ESRS-framed.
+        pillars=ALL_PILLARS,
+        esrs=False,
     ),
     # ── Trend report (both user types, not ESRS-framed — RT9/RT11) ───────
     ReportTemplate(

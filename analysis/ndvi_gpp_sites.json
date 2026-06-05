@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "purpose": "NDVI validation site set — raw NDVI vs engine anomaly-scored NDVI, against independent MOD17 GPP productivity reference.",
+    "categories": ["deforestation_frontier", "mine_adjacent", "plantation_monoculture", "drought_affected", "stable_forest_control"],
+    "n_per_category": 5,
+    "radius_km": 5.0,
+    "note": "Operator-picked, illustrative n. Coordinates are land-surface centroids chosen to sit inside the named land cover, not infrastructure pixels.",
+    "control_polarity": "stable_forest_control is the healthy anchor; the other four are degraded/stressed."
+  },
+  "sites": [
+    {"id": "def_amazon_arc",      "category": "deforestation_frontier",  "name": "Amazon 'arc of deforestation', Novo Progresso (BR)", "lat": -7.05,  "lon": -55.40},
+    {"id": "def_cerrado_matopiba","category": "deforestation_frontier",  "name": "Cerrado MATOPIBA frontier, Western Bahia (BR)",     "lat": -12.10, "lon": -45.80},
+    {"id": "def_riau_sumatra",    "category": "deforestation_frontier",  "name": "Riau peatland clearance, Sumatra (ID)",            "lat": 0.50,   "lon": 101.80},
+    {"id": "def_congo_kisangani", "category": "deforestation_frontier",  "name": "Congo Basin frontier, nr Kisangani (CD)",          "lat": 0.30,   "lon": 25.50},
+    {"id": "def_gran_chaco",      "category": "deforestation_frontier",  "name": "Gran Chaco clearance, Salta (AR)",                 "lat": -23.20, "lon": -62.30},
+
+    {"id": "mine_carajas",        "category": "mine_adjacent",           "name": "Carajás iron mine fringe, Pará (BR)",          "lat": -6.06,  "lon": -50.16},
+    {"id": "mine_hambach",        "category": "mine_adjacent",           "name": "Hambach lignite mine fringe (DE)",                 "lat": 50.91,  "lon": 6.49},
+    {"id": "mine_grasberg",       "category": "mine_adjacent",           "name": "Grasberg/Tembagapura mine fringe, Papua (ID)",     "lat": -4.08,  "lon": 137.05},
+    {"id": "mine_mpumalanga",     "category": "mine_adjacent",           "name": "Mpumalanga coalfield fringe, Witbank (ZA)",        "lat": -25.95, "lon": 29.30},
+    {"id": "mine_sangatta",       "category": "mine_adjacent",           "name": "Sangatta coal mine fringe, Kalimantan (ID)",       "lat": -0.55,  "lon": 117.55},
+
+    {"id": "plant_palm_riau",     "category": "plantation_monoculture",  "name": "Mature oil-palm estate, Riau (ID)",                "lat": 0.10,   "lon": 101.30},
+    {"id": "plant_soy_sorriso",   "category": "plantation_monoculture",  "name": "Soy monoculture, Sorriso, Mato Grosso (BR)",       "lat": -12.55, "lon": -55.72},
+    {"id": "plant_euca_bahia",    "category": "plantation_monoculture",  "name": "Eucalyptus pulp plantation, Eunápolis (BR)",      "lat": -16.37, "lon": -39.58},
+    {"id": "plant_sugar_sp",      "category": "plantation_monoculture",  "name": "Sugarcane monoculture, Ribeirão Preto (BR)",      "lat": -21.20, "lon": -47.90},
+    {"id": "plant_palm_johor",    "category": "plantation_monoculture",  "name": "Oil-palm estate, Johor (MY)",                      "lat": 1.85,   "lon": 103.30},
+
+    {"id": "drought_sahel_niger", "category": "drought_affected",        "name": "Sahel rangeland, Maradi (NE)",                     "lat": 13.80,  "lon": 7.60},
+    {"id": "drought_madagascar",  "category": "drought_affected",        "name": "Grand Sud chronic drought, Ambovombe (MG)",        "lat": -25.17, "lon": 46.08},
+    {"id": "drought_murray",      "category": "drought_affected",        "name": "Murray-Darling rangeland, Cobar (AU)",             "lat": -31.50, "lon": 145.80},
+    {"id": "drought_caatinga",    "category": "drought_affected",        "name": "Caatinga sertão, Petrolina hinterland (BR)",      "lat": -9.00,  "lon": -40.70},
+    {"id": "drought_helmand",     "category": "drought_affected",        "name": "Helmand basin margin, semi-arid (AF)",             "lat": 31.20,  "lon": 64.20},
+
+    {"id": "ctrl_amazon_core",    "category": "stable_forest_control",   "name": "Intact Amazon interior, Jaú NP (BR)",             "lat": -2.00,  "lon": -62.50},
+    {"id": "ctrl_congo_core",     "category": "stable_forest_control",   "name": "Intact Congo interior, Salonga NP (CD)",           "lat": -2.00,  "lon": 21.00},
+    {"id": "ctrl_borneo_core",    "category": "stable_forest_control",   "name": "Intact Borneo interior, Heart of Borneo (MY)",     "lat": 2.30,   "lon": 114.80},
+    {"id": "ctrl_bialowieza",     "category": "stable_forest_control",   "name": "Białowieża old-growth forest (PL/BY)",         "lat": 52.73,  "lon": 23.87},
+    {"id": "ctrl_boreal_ontario", "category": "stable_forest_control",   "name": "Intact boreal forest, N. Ontario (CA)",            "lat": 51.50,  "lon": -88.50}
+  ]
+}

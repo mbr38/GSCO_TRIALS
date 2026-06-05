@@ -40,6 +40,11 @@ class ReportState:
     # (RT4) can branch at render time off this — not off two separate template
     # IDs. Default "" keeps pre-existing state objects valid on reload.
     user_type:   str             = ""
+    # M-REPORT-COOP: the user-chosen pillar for the supplier cooperation report
+    # (that template renders one pillar, selected at S1 rather than fixed by the
+    # template). ``None`` for every other template — the assembler only applies
+    # it to the cooperation template, so a stale value can't leak elsewhere.
+    pillar:      str | None      = None
 
 
 # M-P11.4

@@ -1,9 +1,9 @@
 """P-06 — Per-indicator Trend View (M-TREND-A2).
 
 A dedicated drill-down page reached from a screening (P-05) via a
-"view trend →" affordance on a C4b indicator tile or the "View trend" button
-in the single-indicator map, and from P-10 when a saved trend analysis is
-opened. Renders the plot-first trend view for one series indicator:
+"view trend →" affordance on a C4b indicator tile, and from P-10 when a saved
+trend analysis is opened. Renders the plot-first trend view for one series
+indicator:
 
 - **Live** — computes the trend on open over the screening window (the
   screening's setup + result are still in session) and caches it.

@@ -212,6 +212,35 @@ def _resolve_dominant(
     return winner_id, winner_display
 
 
+# Pillar → its dominant-contributor candidate table, so callers can resolve the
+# driver for one pillar without reaching into the private per-pillar dicts.
+_DOMINANT_CANDIDATES_BY_PILLAR: dict[Pillar, dict[str, tuple[float, str]]] = {
+    "air":    _AIR_DOMINANT_CANDIDATES,
+    "ghg":    _GHG_DOMINANT_CANDIDATES,
+    "nature": _NATURE_DOMINANT_CANDIDATES,
+}
+
+
+def dominant_contributor(
+    payload: dict, pillar: str,
+) -> tuple[str, str] | None:
+    """The dominant contributing indicator / sub-aggregate for one pillar.
+
+    Public re-use of the same resolution the per-pillar prose uses
+    (``_resolve_dominant`` over the pillar's candidate table): returns
+    ``(term_id, display_name)`` when one term carries a clear majority of the
+    pillar's weighted contribution (share ≥ ``DOMINANT_CONTRIBUTOR_SHARE_THRESHOLD``),
+    or ``None`` when no single term dominates. Surfaced for P-11's supplier
+    cooperation report, whose "where improvement would matter most" line names
+    the same driver the verbal summary's prose does — no new generator. Unknown
+    pillars return ``None``.
+    """
+    candidates = _DOMINANT_CANDIDATES_BY_PILLAR.get(pillar)  # type: ignore[arg-type]
+    if candidates is None:
+        return None
+    return _resolve_dominant(payload, candidates)
+
+
 # ---------------------------------------------------------------------------
 # Per-pillar dominant-slot formatters  (M-UI-E.0; doc §4)
 # ---------------------------------------------------------------------------

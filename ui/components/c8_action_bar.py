@@ -1,13 +1,12 @@
 """C8 — action bar (M-UI-E.5 / M-P11.4).
 
-Two buttons at the bottom of P-05:
+Action bar at the bottom of P-05:
   - **Save as report** pushes the screening result into
     ``st.session_state["saved_analyses"]`` (a list, initialised on
     first save). Entry shape mirrors the planned P-10 row schema.
     M-P11.4: after a successful save, a sticky banner surfaces with
     an "Open in Reports" button that routes to P-11 with the
     just-saved source pre-selected.
-  - **Switch to Trend** is disabled until P-06 (Trend View) exists.
 
 The save is half-real: it persists for the browser session via
 Streamlit's session_state, but does NOT survive a page reload or a
@@ -33,26 +32,14 @@ _SAVE_BANNER_KEY = "c8_last_saved_for_p11"
 
 
 def render_c8_action_bar(payload: dict) -> None:
-    """Render the action bar — Save as report + Switch to Trend."""
+    """Render the action bar — Save as report."""
     with st.container(border=True):
-        col_save, col_trend = st.columns(2)
-        with col_save:
-            if st.button(
-                "Save as report",
-                use_container_width=True,
-                type="primary",
-            ):
-                _save_as_report(payload)
-        with col_trend:
-            st.button(
-                "Switch to Trend",
-                use_container_width=True,
-                disabled=True,
-                help=(
-                    "Trend View (P-06) lands in a later milestone. "
-                    "Until then, screening is the only mode."
-                ),
-            )
+        if st.button(
+            "Save as report",
+            use_container_width=True,
+            type="primary",
+        ):
+            _save_as_report(payload)
 
         # M-P11.4: post-save banner. Rendered whenever the sentinel
         # is set, so it survives reruns until the user clicks Open

@@ -15,8 +15,8 @@ v1 scope (M-P04, M-P04-ACTIVATE):
     90 days, user-configurable per run — M-UI-A3 retired the earlier
     "hidden in screening mode" rule H4).
   - **Run Screening:** primary, enabled when ≥1 indicator + centre.
-  - **Run Trend:** disabled. Trend is a per-indicator drill-down
-    launched from P-05 ("view trend →"), not a P-04 run mode (M-TREND-A2).
+    Trend is a per-indicator drill-down launched from P-05
+    ("view trend →"), not a P-04 run mode (M-TREND-A2).
 
 State machine collapses to a single editable form — there's no
 intermediate "review" state in v1, since the form's summary line is

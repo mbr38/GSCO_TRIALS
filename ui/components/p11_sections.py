@@ -24,7 +24,8 @@ from engine.constants import (
     NATURE_SEVERITY_CORE_WEIGHTS,
     TRAFFIC_LIGHT_THRESHOLDS,
 )
-from engine.verbal_summary import generate_verbal_summary
+from demo.indicator_library import tooltip_summary_for
+from engine.verbal_summary import dominant_contributor, generate_verbal_summary
 from ui.components.p04_indicator_registry import (
     ALL_INDICATOR_IDS,
     INDICATORS_BY_PILLAR,
@@ -78,12 +79,23 @@ class RenderContext:
     template_id: str            = ""
 
     @classmethod
-    def from_template(cls, template, user_type: str) -> "RenderContext":
+    def from_template(
+        cls, template, user_type: str, pillar: str | None = None,
+    ) -> "RenderContext":
         # ESRS framing (RT4) only takes effect for MNC renders. A policy maker
         # picking the General report gets the same body with ESRS stripped (RT8).
+        #
+        # M-REPORT-COOP: the supplier cooperation report renders one pillar
+        # chosen by the user at S1 (not fixed by the template). When that
+        # template is in play and a valid pillar was picked, narrow ``pillars``
+        # to it. Other templates ignore ``pillar`` entirely, so a stale value
+        # can never leak into a fixed-pillar or all-pillar report.
+        pillars = template.pillars
+        if template.template_id == "supplier_cooperation" and pillar in ALL_PILLARS:
+            pillars = frozenset({pillar})
         return cls(
             user_type=user_type or "",
-            pillars=template.pillars,
+            pillars=pillars,
             apply_esrs=bool(template.esrs) and (user_type == "mnc"),
             template_id=template.template_id,
         )
@@ -268,6 +280,31 @@ def _render_executive_summary(state, sources, ctx=None) -> str:
 # Methodology
 # ──────────────────────────────────────────────────────────────────
 
+# Canonical "screening signal, not a determination" framing (M-ATTRIB-A2):
+# severity measures a site-vs-region anomaly — not absolute pollution and not a
+# verdict on cause or compliance. Single source of truth for the wording, so an
+# audit report (methodology section) and a supplier-facing cooperation report
+# (framing statement) never drift apart. The reusable core sentence is below;
+# the methodology section wraps it with an audit-report dataset tail.
+ATTRIBUTABILITY_FRAMING_CORE_HTML = (
+    "Severity scores measure whether a site shows unusual pollution "
+    "<em>relative to its surrounding region</em> — not absolute pollution "
+    "levels. A low (green) rating means the site is not standing out from "
+    "its surroundings, even where the wider region is itself polluted; an "
+    "amber or red rating means the site stands out as anomalous against "
+    "its regional context, suggesting a site-specific contribution worth "
+    "investigating."
+)
+
+_ATTRIBUTABILITY_FRAMING_METHODOLOGY_HTML = (
+    "<p><strong>How to read severity (attributability framing).</strong> "
+    + ATTRIBUTABILITY_FRAMING_CORE_HTML
+    + " This applies to the Air pillar's satellite indicators and the "
+    "equivalent anomaly grammars elsewhere. Reference datasets "
+    "(CH₄, Hansen, ODIAC) are shown for context and do not feed the scores.</p>"
+)
+
+
 def _render_methodology(state, sources, ctx=None) -> str:
     """Standard methodology block, source-agnostic."""
     n_indicators_each = [_count_indicators_run(s) for s in sources]
@@ -295,17 +332,7 @@ def _render_methodology(state, sources, ctx=None) -> str:
          &lt; 0.33 = green (routine). Confidence is reported alongside
          each score and reflects coverage, retrieval quality, and
          spatial-temporal applicability.</p>
-      <p><strong>How to read severity (attributability framing).</strong>
-         Severity scores measure whether a site shows unusual pollution
-         <em>relative to its surrounding region</em> — not absolute pollution
-         levels. A low (green) rating means the site is not standing out from
-         its surroundings, even where the wider region is itself polluted; an
-         amber or red rating means the site stands out as anomalous against
-         its regional context, suggesting a site-specific contribution worth
-         investigating. This applies to the Air pillar's satellite indicators
-         and the equivalent anomaly grammars elsewhere. Reference datasets
-         (CH₄, Hansen, ODIAC) are shown for context and do not feed the
-         scores.</p>
+      {_ATTRIBUTABILITY_FRAMING_METHODOLOGY_HTML}
       {caveat}
     </section>
     """
@@ -1710,6 +1737,277 @@ def _render_composite_formula(state, sources, ctx=None) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────
+# Supplier cooperation report (M-REPORT-COOP)
+# ──────────────────────────────────────────────────────────────────
+#
+# A deliberately concise, supplier-facing report on ONE user-chosen pillar. It
+# frames a screening result as a shared starting point for improvement, not a
+# verdict. Every section reuses existing machinery — the verbal-summary prose
+# (`generate_verbal_summary`), the dominant-contributor resolution
+# (`dominant_contributor`), the canonical attributability framing
+# (`ATTRIBUTABILITY_FRAMING_CORE_HTML`), and the content-aware glossary. No new
+# generators. Cross-supplier ranking, the confidence payload, the provenance
+# appendix, and ESRS datapoint codes are intentionally absent (spec §excluded).
+
+# Plain, collaborative pillar labels (no ESRS framing — this report never
+# implies a compliance disclosure).
+_COOP_PILLAR_LABEL: dict[str, str] = {
+    "air":    "air pollution",
+    "ghg":    "greenhouse-gas emissions",
+    "nature": "nature & land",
+}
+
+
+def highest_priority_pillar(payload: dict) -> str:
+    """The pillar with the highest follow-up-priority score in a payload.
+
+    Used as the cooperation report's default pillar (the user can override).
+    Iterates in the locked air → ghg → nature order with a strict ``>`` so the
+    earliest pillar wins ties; falls back to ``"air"`` when no pillar carries a
+    numeric score (an empty / partial payload).
+    """
+    best_pillar = "air"
+    best_score: float | None = None
+    for pillar in _PILLAR_ORDER:
+        key = _PILLAR_SCORE[pillar][1]
+        score = (payload or {}).get(key)
+        if isinstance(score, (int, float)) and (
+            best_score is None or score > best_score
+        ):
+            best_pillar, best_score = pillar, score
+    return best_pillar
+
+
+def _coop_source(sources) -> dict | None:
+    """The single supplier this report addresses (the first selected source).
+
+    The cooperation report is single-supplier by design (spec: "one site /
+    supplier", no cross-supplier ranking). If several sources are selected we
+    address the first and ignore the rest rather than ranking them.
+    """
+    return sources[0] if sources else None
+
+
+def _coop_pillar(payload: dict, ctx: "RenderContext") -> str:
+    """Resolve the report's pillar: the user's choice, else highest-priority.
+
+    The assembler narrows ``ctx.pillars`` to the single user-chosen pillar
+    (M-REPORT-COOP). A bare/no-ctx call (or a test) leaves all three present —
+    there we fall back to the highest follow-up-priority pillar, matching the
+    S1 selector's default.
+    """
+    ordered = _ordered_pillars(ctx.pillars)
+    if len(ordered) == 1:
+        return ordered[0]
+    return highest_priority_pillar(payload)
+
+
+def _coop_window_str(src: dict) -> str:
+    """The screening window as ``start → end``, or ``—`` when absent."""
+    setup = src.get("screening_setup") or {}
+    time_range = setup.get("time_range") or []
+    return " → ".join(time_range) if time_range else "—"
+
+
+def _render_cooperation_title(state, sources, ctx=None) -> str:
+    """Title + supplier + screening window (spec content item 1)."""
+    ctx = _ctx(ctx)
+    src = _coop_source(sources)
+    title = html.escape((state.title or "").strip() or "Untitled report")
+    if src is None:
+        return (
+            "<section><p class='report-type'>Supplier cooperation report</p>"
+            f"<h1>{title}</h1>"
+            "<p><em>No screening source was available for this report.</em>"
+            "</p></section>"
+        )
+    payload = src.get("payload") or {}
+    pillar = _coop_pillar(payload, ctx)
+    supplier = html.escape(src.get("name", "Untitled supplier"))
+    window = html.escape(_coop_window_str(src))
+    pillar_label = html.escape(_COOP_PILLAR_LABEL.get(pillar, pillar))
+    return f"""
+    <section>
+      <p class="report-type">Supplier cooperation report</p>
+      <h1>{title}</h1>
+      <p class="coop-lead"><em>A shared starting point for improving
+         {pillar_label} — prepared together, not as a verdict.</em></p>
+      <div class="meta-grid">
+        <span class="meta-label">Supplier / site</span><span>{supplier}</span>
+        <span class="meta-label">Focus area</span><span>{pillar_label}</span>
+        <span class="meta-label">Screening window</span><span>{window}</span>
+      </div>
+    </section>
+    """
+
+
+def _render_cooperation_finding(state, sources, ctx=None) -> str:
+    """The chosen pillar's finding in plain language (spec content item 2).
+
+    Reuses the existing verbal-summary prose for that pillar — no new generator.
+    Full-coverage screenings get the narrative paragraph; partial screenings get
+    a short collaborative note plus the pillar's headline score (mirroring the
+    breadth gate elsewhere in P-11).
+    """
+    ctx = _ctx(ctx)
+    src = _coop_source(sources)
+    if src is None:
+        return "<section><h2>What the screening shows</h2><p><em>No source.</em></p></section>"
+    payload = src.get("payload") or {}
+    pillar = _coop_pillar(payload, ctx)
+    pillar_label = html.escape(_COOP_PILLAR_LABEL.get(pillar, pillar))
+    blocks = [
+        "<section class='chapter-break'>",
+        f"<h2>What the screening shows — {pillar_label}</h2>",
+    ]
+    verbal = _verbal_paragraph_map(src)
+    para = (verbal or {}).get(pillar)
+    if para:
+        blocks.append(f"<p>{html.escape(para)}</p>")
+    else:
+        blocks.append(
+            "<p>A plain-language narrative is shown only for full "
+            "(19-indicator) screenings. The headline score below reflects what "
+            "was measured for this pillar — a useful basis for a conversation "
+            "even where coverage was partial.</p>"
+        )
+    # The pillar's headline follow-up-priority score + band, as the other
+    # reports show it — grounds the plain-language finding in the number.
+    blocks.append(_render_single_pillar_score(payload, pillar))
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+# Dominant sub-aggregate / proxy term → the underlying screening indicator(s)
+# that determine it. Lets the cooperation report name the concrete measurement
+# behind the driver and explain it briefly (reusing the indicator-library
+# plain-language copy). ``air.pm_or_aerosol`` is resolved per-payload below
+# (PM₂.₅ when present, else AAI), matching the verbal summary's logic.
+_COOP_DRIVER_INDICATORS: dict[str, tuple[str, ...]] = {
+    "air.no2.score":                   ("air.no2.score",),
+    "air.so2.score":                   ("air.so2.score",),
+    "air.co.score":                    ("air.co.score",),
+    "air.hcho.score":                  ("air.hcho.score",),
+    "air.o3.score":                    ("air.o3.score",),
+    "ghg.combustion_proxy":            ("air.no2.score", "air.co.score"),
+    "ghg.activity_score":              ("ghg.viirs.score",),
+    "nature.biodiversity_exposure":    ("nature.kba.proximity_score",),
+    "nature.habitat.conversion_score": ("nature.habitat.natural_loss_ha",),
+    "nature.vegetation_condition":     ("nature.ndvi.score",),
+}
+
+
+def _coop_driver_indicators(term_id: str, payload: dict) -> tuple[str, ...]:
+    """The underlying indicator IDs behind a dominant driver term."""
+    if term_id == "air.pm_or_aerosol":
+        return (
+            ("air.pm25.score",)
+            if payload.get("air.pm25.score") is not None
+            else ("air.aai.score",)
+        )
+    return _COOP_DRIVER_INDICATORS.get(term_id, ())
+
+
+def _coop_indicator_brief(indicator_id: str) -> str | None:
+    """An indicator's plain-language brief as an HTML list item, or None.
+
+    Reuses the indicator-library ``tooltip_summary_for`` copy (the same
+    plain-language text the P-05 / P-09 info popovers show). The summaries are
+    written as ``**Bold title.** Body…`` markdown; we render the bold title and
+    escape the rest — no new copy is authored here.
+    """
+    summary = tooltip_summary_for(indicator_id)
+    if not summary:
+        return None
+    summary = summary.strip()
+    if summary.startswith("**") and "**" in summary[2:]:
+        end = summary.index("**", 2)
+        title = summary[2:end]
+        body = summary[end + 2:].strip()
+        return f"<strong>{html.escape(title)}</strong> {html.escape(body)}"
+    return html.escape(summary)
+
+
+def _render_cooperation_improvement(state, sources, ctx=None) -> str:
+    """Where improvement would matter most (spec content item 3).
+
+    Names the pillar's dominant contributing indicator / sub-aggregate, resolved
+    via the same ``dominant_contributor`` the verbal summary uses — so the line
+    points at the same driver the prose names — then lists the concrete
+    underlying indicator(s) that determine it with a brief plain-language
+    meaning (reused from the indicator library). Stated collaboratively ("where
+    attention would matter most"), never as an accusation.
+    """
+    ctx = _ctx(ctx)
+    src = _coop_source(sources)
+    if src is None:
+        return (
+            "<section><h2>Where improvement would matter most</h2>"
+            "<p><em>No source.</em></p></section>"
+        )
+    payload = src.get("payload") or {}
+    pillar = _coop_pillar(payload, ctx)
+    pillar_label = html.escape(_COOP_PILLAR_LABEL.get(pillar, pillar))
+    blocks = ["<section>", "<h2>Where improvement would matter most</h2>"]
+    dominant = dominant_contributor(payload, pillar)
+    if dominant is not None:
+        term_id, driver = dominant
+        blocks.append(
+            f"<p>Within {pillar_label}, the screening points to "
+            f"<strong>{html.escape(driver)}</strong> as where attention would "
+            "matter most — it is the largest contributor to this pillar's "
+            "signal. That makes it a natural place to start a joint review.</p>"
+        )
+        # The concrete indicator(s) behind the driver + what each means.
+        briefs = [
+            brief for iid in _coop_driver_indicators(term_id, payload)
+            if (brief := _coop_indicator_brief(iid))
+        ]
+        if briefs:
+            label = (
+                "The measurement behind this"
+                if len(briefs) == 1 else "The measurements behind this"
+            )
+            blocks.append(f"<p><strong>{label}:</strong></p>")
+            blocks.append("<ul class='coop-indicators'>")
+            blocks.extend(f"<li>{brief}</li>" for brief in briefs)
+            blocks.append("</ul>")
+    else:
+        blocks.append(
+            f"<p>Within {pillar_label}, no single measure dominates the "
+            "screening signal — the contributions are spread across the "
+            "pillar's indicators. A broad look across them, rather than one "
+            "focus, would be the most useful starting point.</p>"
+        )
+    blocks.append("</section>")
+    return "\n".join(blocks)
+
+
+def _render_cooperation_framing(state, sources, ctx=None) -> str:
+    """The explicit screening-signal framing statement (spec content item 4).
+
+    Reuses the canonical attributability framing
+    (``ATTRIBUTABILITY_FRAMING_CORE_HTML``) — the codebase's screening-not-
+    determination language — wrapped in collaborative tone: this is a starting
+    point for discussion, not a determination of cause or compliance.
+    """
+    return (
+        "<section class='chapter-break coop-framing'>"
+        "<h2>How to read this report</h2>"
+        "<p>This report is a <strong>starting point for a conversation</strong>, "
+        "not a determination of cause or compliance. It shares what a "
+        "satellite-based screening signal suggests, so we can look at it "
+        "together and decide where improvement would matter most.</p>"
+        f"<p>{ATTRIBUTABILITY_FRAMING_CORE_HTML}</p>"
+        "<p>A screening signal flags where attention is worth focusing — it "
+        "does not establish a cause, assign responsibility, or judge "
+        "compliance. We would welcome your context on these findings as the "
+        "next step.</p>"
+        "</section>"
+    )
+
+
+# ──────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────
 
@@ -1729,4 +2027,9 @@ _SECTION_REGISTRY: dict[str, Callable] = {
     "provenance_appendix":   _render_provenance_appendix,
     # M-REPORT-A1.1 — composite-formula appendix.
     "composite_formula":     _render_composite_formula,
+    # M-REPORT-COOP — supplier cooperation report (single user-chosen pillar).
+    "cooperation_title":       _render_cooperation_title,
+    "cooperation_finding":     _render_cooperation_finding,
+    "cooperation_improvement": _render_cooperation_improvement,
+    "cooperation_framing":     _render_cooperation_framing,
 }

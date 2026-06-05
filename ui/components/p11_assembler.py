@@ -44,7 +44,11 @@ def build_report_html(
     The glossary section is deferred and rendered from the joined body of the
     other sections (content-aware, RT13).
     """
-    ctx = RenderContext.from_template(template, getattr(state, "user_type", ""))
+    ctx = RenderContext.from_template(
+        template,
+        getattr(state, "user_type", ""),
+        pillar=getattr(state, "pillar", None),
+    )
 
     # Render each section to a slot, deferring the glossary.
     fragments: list[str] = [""] * len(template.sections)

@@ -1,0 +1,173 @@
+- generic [active]:
+  - generic:
+    - generic [ref=e2]:
+      - list [ref=e10]:
+        - generic [ref=e11]:
+          - paragraph [ref=e15] [cursor=pointer]: Main
+          - listitem [ref=e16]:
+            - link "Landing" [ref=e18] [cursor=pointer]:
+              - /url: http://localhost:8521/
+              - generic [ref=e21]: 🏠
+              - paragraph [ref=e24]: Landing
+          - listitem [ref=e25]:
+            - link "Scope Setup" [ref=e27] [cursor=pointer]:
+              - /url: http://localhost:8521/Scope_Setup
+              - generic [ref=e30]: 🌍
+              - paragraph [ref=e33]: Scope Setup
+          - listitem [ref=e34]:
+            - link "Workflow Hub" [ref=e36] [cursor=pointer]:
+              - /url: http://localhost:8521/Workflow_Hub
+              - generic [ref=e39]: 🔀
+              - paragraph [ref=e42]: Workflow Hub
+          - listitem [ref=e43]:
+            - link "Inspect — Setup" [ref=e45] [cursor=pointer]:
+              - /url: http://localhost:8521/Inspect_Setup
+              - generic [ref=e48]: 🔍
+              - paragraph [ref=e51]: Inspect — Setup
+          - listitem [ref=e52]:
+            - link "Inspect — Results" [ref=e54] [cursor=pointer]:
+              - /url: http://localhost:8521/Screening_Results
+              - generic [ref=e57]: 📊
+              - paragraph [ref=e60]: Inspect — Results
+          - listitem [ref=e61]:
+            - link "Trend View" [ref=e63] [cursor=pointer]:
+              - /url: http://localhost:8521/Trend_View
+              - generic [ref=e66]: 📈
+              - paragraph [ref=e69]: Trend View
+          - listitem [ref=e70]:
+            - link "Prioritisation — Setup" [ref=e72] [cursor=pointer]:
+              - /url: http://localhost:8521/Prioritisation_Setup
+              - generic [ref=e75]: 📋
+              - paragraph [ref=e78]: Prioritisation — Setup
+          - listitem [ref=e79]:
+            - link "Prioritisation — Results" [ref=e81] [cursor=pointer]:
+              - /url: http://localhost:8521/Prioritisation_Results
+              - generic [ref=e84]: 📈
+              - paragraph [ref=e87]: Prioritisation — Results
+          - listitem [ref=e88]:
+            - link "Indicator Library" [ref=e90] [cursor=pointer]:
+              - /url: http://localhost:8521/Indicator_Library
+              - generic [ref=e93]: 📚
+              - paragraph [ref=e96]: Indicator Library
+          - listitem [ref=e97]:
+            - link "Saved Analyses" [ref=e99] [cursor=pointer]:
+              - /url: http://localhost:8521/Saved_Analyses
+              - generic [ref=e102]: 💾
+              - paragraph [ref=e105]: Saved Analyses
+          - listitem [ref=e106]:
+            - link "Reports" [ref=e108] [cursor=pointer]:
+              - /url: http://localhost:8521/Reports
+              - generic [ref=e111]: 📄
+              - paragraph [ref=e114]: Reports
+        - generic [ref=e115]:
+          - paragraph [ref=e119] [cursor=pointer]: Developer
+          - listitem [ref=e120]:
+            - link "Engine Scratch (dev)" [ref=e122] [cursor=pointer]:
+              - /url: http://localhost:8521/engine_scratch
+              - generic [ref=e125]: 🧪
+              - paragraph [ref=e128]: Engine Scratch (dev)
+      - generic [ref=e3]:
+        - banner [ref=e132]
+        - generic [ref=e144]:
+          - generic [ref=e246]:
+            - generic [ref=e251]:
+              - button "Fullscreen" [ref=e256] [cursor=pointer]:
+                - img [ref=e257]
+              - img "0" [ref=e262]
+            - paragraph [ref=e269]:
+              - text: Signed in as
+              - strong [ref=e270]: MNC
+              - text: · Session
+              - code [ref=e271]: 6a98a1f3
+            - generic [ref=e275]:
+              - paragraph [ref=e282]: "Scope: not set"
+              - button "Pick scope" [ref=e287] [cursor=pointer]:
+                - paragraph [ref=e291]: Pick scope
+            - button "Sign out" [ref=e296] [cursor=pointer]:
+              - paragraph [ref=e300]: Sign out
+          - separator [ref=e305]
+          - heading "Reports" [level=1] [ref=e310]:
+            - text: Reports
+            - generic [ref=e311]:
+              - link "Link to heading":
+                - /url: "#reports"
+                - img
+          - paragraph [ref=e316]: Build a report from one or more saved analyses. Templates are filtered by your user type; sources are filtered to compatible saved-analysis types.
+          - heading "Template" [level=3] [ref=e322]:
+            - text: Template
+            - generic [ref=e323]:
+              - link "Link to heading":
+                - /url: "#template"
+                - img
+          - generic [ref=e325]:
+            - paragraph [ref=e329]: Choose a report template
+            - generic [ref=e331]:
+              - generic [ref=e332]:
+                - generic [ref=e333]: Supplier cooperation report
+                - combobox "Selected Supplier cooperation report. Choose a report template" [ref=e442]
+              - img "open" [ref=e337]
+          - paragraph [ref=e343]: A short, supplier-facing report on one pillar (you choose which). It frames the screening result as a shared starting point for improvement — where attention would matter most — rather than a determination of cause or compliance. No cross-supplier ranking, confidence payload, provenance appendix, or ESRS codes.
+          - heading "Sources" [level=3] [ref=e349]:
+            - text: Sources
+            - generic [ref=e350]:
+              - link "Link to heading":
+                - /url: "#sources"
+                - img
+          - generic [ref=e352]:
+            - paragraph [ref=e356]: Pick one or more saved analyses to include
+            - generic [ref=e359]:
+              - generic [ref=e360]:
+                - button "Carajás Iron Ore Complex (demo) — Pará, Brazil (screening), close by backspace":
+                  - generic "Carajás Iron Ore Complex (demo) — Pará, Brazil (screening)" [ref=e535]
+                  - img [ref=e537] [cursor=pointer]
+                - combobox "Selected Carajás Iron Ore Complex (demo) — Pará, Brazil (screening). Pick one or more saved analyses to include" [expanded] [ref=e539]
+              - generic [ref=e363]:
+                - button "Clear all" [ref=e540] [cursor=pointer]
+                - img "open" [ref=e364] [cursor=pointer]
+          - heading "Pillar" [level=3] [ref=e443]:
+            - text: Pillar
+            - generic [ref=e372]:
+              - link "Link to heading":
+                - /url: "#title-and-notes"
+                - img
+          - generic [ref=e445]:
+            - generic [ref=e446]:
+              - paragraph [ref=e449]: Which pillar should this cooperation report address?
+              - button "Help for Which pillar should this cooperation report address?" [ref=e453] [cursor=pointer]:
+                - img [ref=e454]
+            - generic [ref=e458]:
+              - generic [ref=e459]:
+                - generic [ref=e460]: Nature & land
+                - combobox "Selected Nature & land. Which pillar should this cooperation report address?" [ref=e462]
+              - img "open" [ref=e464]
+          - heading "Title and notes" [level=3] [ref=e471]:
+            - text: Title and notes
+            - generic [ref=e472]:
+              - link "Link to heading":
+                - /url: "#title-and-notes"
+                - img
+          - generic [ref=e374]:
+            - paragraph [ref=e378]: Report title (will appear on the title page)
+            - textbox "Report title (will appear on the title page)" [ref=e381]:
+              - /placeholder: e.g. Q2 2026 audit — Brazilian Soy & Cattle suppliers
+          - generic [ref=e474]:
+            - paragraph [ref=e478]: Additional notes (optional, included in the report's introduction)
+            - textbox "Additional notes (optional, included in the report's introduction)" [ref=e481]:
+              - /placeholder: ""
+          - paragraph [ref=e486]: "Missing: title."
+          - 'button "Next: Preview report" [disabled] [ref=e489]':
+            - paragraph [ref=e493]: "Next: Preview report"
+    - list [ref=e497]:
+      - generic [ref=e499]:
+        - option "Select all" [ref=e500] [cursor=pointer]:
+          - generic [ref=e504]: Select all
+        - option "Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso (screening)" [selected] [ref=e510] [cursor=pointer]:
+          - generic [ref=e514]: Sapezal Plantation (demo) — Soy & Cattle — Pará / Mato Grosso (screening)
+        - option "Distrito Federal, Brazil — Region screening (screening)" [ref=e515] [cursor=pointer]:
+          - generic [ref=e519]: Distrito Federal, Brazil — Region screening (screening)
+        - option "Norilsk — Nornickel Polar Smelter Complex, Russia (screening)" [ref=e520] [cursor=pointer]:
+          - generic [ref=e524]: Norilsk — Nornickel Polar Smelter Complex, Russia (screening)
+        - option "Comodoro Rivadavia — San Jorge Oil & Gas Basin, Argentina (screening)" [ref=e525] [cursor=pointer]:
+          - generic [ref=e529]: Comodoro Rivadavia — San Jorge Oil & Gas Basin, Argentina (screening)
+        - option "Suape Port Industrial Complex — Pernambuco, Brazil (screening)" [ref=e530] [cursor=pointer]:
+          - generic [ref=e534]: Suape Port Industrial Complex — Pernambuco, Brazil (screening)

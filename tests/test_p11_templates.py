@@ -21,18 +21,21 @@ from ui.components.p11_templates import (
 # templates_for — user-type membership (RT7/RT8/RT11)
 # ---------------------------------------------------------------------------
 
-def test_templates_for_policy_maker_sees_general_and_trend():
+def test_templates_for_policy_maker_sees_general_coop_and_trend():
     ids = [t.template_id for t in templates_for("policy_maker")]
-    assert ids == ["general", "trend"]
+    assert ids == ["general", "supplier_cooperation", "trend"]
 
 
-def test_templates_for_mnc_sees_four_plus_trend():
+def test_templates_for_mnc_sees_four_plus_coop_and_trend():
     ids = [t.template_id for t in templates_for("mnc")]
-    assert ids == ["general", "mnc_ghg", "mnc_air", "mnc_nature", "trend"]
+    assert ids == [
+        "general", "mnc_ghg", "mnc_air", "mnc_nature",
+        "supplier_cooperation", "trend",
+    ]
 
 
-def test_general_and_trend_belong_to_both_user_types():
-    for tid in ("general", "trend"):
+def test_general_coop_and_trend_belong_to_both_user_types():
+    for tid in ("general", "supplier_cooperation", "trend"):
         t = get_template(tid)
         assert t.user_types == frozenset({"policy_maker", "mnc"})
 
@@ -101,11 +104,53 @@ def test_every_report_carries_a_glossary_appendix():
 
 
 # ---------------------------------------------------------------------------
+# Supplier cooperation report (M-REPORT-COOP)
+# ---------------------------------------------------------------------------
+
+def test_cooperation_template_is_present_for_both_user_types():
+    """Presence: the cooperation report is registered and offered to both."""
+    t = get_template("supplier_cooperation")
+    assert isinstance(t, ReportTemplate)
+    assert t.user_types == frozenset({"policy_maker", "mnc"})
+
+
+def test_cooperation_template_is_screening_only_and_not_esrs():
+    t = get_template("supplier_cooperation")
+    # Single-supplier, needs a screening payload for the verbal summary; never
+    # a cross-supplier prioritisation, never ESRS-framed.
+    assert t.accepted_source_types == frozenset({"screening"})
+    assert t.esrs is False
+
+
+def test_cooperation_template_excludes_audit_sections():
+    """Deliberately concise: no composite exec summary, indicator-detail table,
+    provenance appendix, or ESRS sections (spec §"Deliberately excluded")."""
+    t = get_template("supplier_cooperation")
+    for excluded in (
+        "executive_summary", "indicator_detail", "provenance_appendix",
+        "composite_formula", "priority_findings", "reference_datasets",
+    ):
+        assert excluded not in t.sections
+
+
+def test_cooperation_template_section_order():
+    """Spec content order: title → finding → improvement → framing → glossary."""
+    t = get_template("supplier_cooperation")
+    assert t.sections == (
+        "cooperation_title",
+        "cooperation_finding",
+        "cooperation_improvement",
+        "cooperation_framing",
+        "glossary",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Registry-wide invariants
 # ---------------------------------------------------------------------------
 
-def test_registry_has_five_templates():
-    assert len(_TEMPLATES) == 5
+def test_registry_has_six_templates():
+    assert len(_TEMPLATES) == 6
 
 
 def test_every_template_has_non_empty_sections():

@@ -1,0 +1,141 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8521/
+          - generic [ref=e21]: 🏠
+          - paragraph [ref=e24]: Landing
+      - listitem [ref=e25]:
+        - link "Scope Setup" [ref=e27] [cursor=pointer]:
+          - /url: http://localhost:8521/Scope_Setup
+          - generic [ref=e30]: 🌍
+          - paragraph [ref=e33]: Scope Setup
+      - listitem [ref=e34]:
+        - link "Workflow Hub" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8521/Workflow_Hub
+          - generic [ref=e39]: 🔀
+          - paragraph [ref=e42]: Workflow Hub
+      - listitem [ref=e43]:
+        - link "Inspect — Setup" [ref=e45] [cursor=pointer]:
+          - /url: http://localhost:8521/Inspect_Setup
+          - generic [ref=e48]: 🔍
+          - paragraph [ref=e51]: Inspect — Setup
+      - listitem [ref=e52]:
+        - link "Inspect — Results" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8521/Screening_Results
+          - generic [ref=e57]: 📊
+          - paragraph [ref=e60]: Inspect — Results
+      - listitem [ref=e61]:
+        - link "Trend View" [ref=e63] [cursor=pointer]:
+          - /url: http://localhost:8521/Trend_View
+          - generic [ref=e66]: 📈
+          - paragraph [ref=e69]: Trend View
+      - listitem [ref=e70]:
+        - link "Prioritisation — Setup" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8521/Prioritisation_Setup
+          - generic [ref=e75]: 📋
+          - paragraph [ref=e78]: Prioritisation — Setup
+      - listitem [ref=e79]:
+        - link "Prioritisation — Results" [ref=e81] [cursor=pointer]:
+          - /url: http://localhost:8521/Prioritisation_Results
+          - generic [ref=e84]: 📈
+          - paragraph [ref=e87]: Prioritisation — Results
+      - listitem [ref=e88]:
+        - link "Indicator Library" [ref=e90] [cursor=pointer]:
+          - /url: http://localhost:8521/Indicator_Library
+          - generic [ref=e93]: 📚
+          - paragraph [ref=e96]: Indicator Library
+      - listitem [ref=e97]:
+        - link "Saved Analyses" [ref=e99] [cursor=pointer]:
+          - /url: http://localhost:8521/Saved_Analyses
+          - generic [ref=e102]: 💾
+          - paragraph [ref=e105]: Saved Analyses
+      - listitem [ref=e106]:
+        - link "Reports" [ref=e108] [cursor=pointer]:
+          - /url: http://localhost:8521/Reports
+          - generic [ref=e111]: 📄
+          - paragraph [ref=e114]: Reports
+    - generic [ref=e115]:
+      - paragraph [ref=e119] [cursor=pointer]: Developer
+      - listitem [ref=e120]:
+        - link "Engine Scratch (dev)" [ref=e122] [cursor=pointer]:
+          - /url: http://localhost:8521/engine_scratch
+          - generic [ref=e125]: 🧪
+          - paragraph [ref=e128]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e132]
+    - generic [ref=e144]:
+      - generic [ref=e246]:
+        - generic [ref=e251]:
+          - button "Fullscreen" [ref=e256] [cursor=pointer]:
+            - img [ref=e257]
+          - img "0" [ref=e262]
+        - paragraph [ref=e269]:
+          - text: Signed in as
+          - strong [ref=e270]: MNC
+          - text: · Session
+          - code [ref=e271]: 6a98a1f3
+        - generic [ref=e275]:
+          - paragraph [ref=e282]: "Scope: not set"
+          - button "Pick scope" [ref=e287] [cursor=pointer]:
+            - paragraph [ref=e291]: Pick scope
+        - button "Sign out" [ref=e296] [cursor=pointer]:
+          - paragraph [ref=e300]: Sign out
+      - separator [ref=e305]
+      - heading "Reports" [level=1] [ref=e310]:
+        - text: Reports
+        - generic [ref=e311]:
+          - link "Link to heading":
+            - /url: "#reports"
+            - img
+      - paragraph [ref=e316]: Build a report from one or more saved analyses. Templates are filtered by your user type; sources are filtered to compatible saved-analysis types.
+      - generic [ref=e547]:
+        - button "← Back to template selection" [ref=e552] [cursor=pointer]:
+          - paragraph [ref=e556]: ← Back to template selection
+        - button "Continue to Export →" [ref=e561] [cursor=pointer]:
+          - paragraph [ref=e565]: Continue to Export →
+      - separator [ref=e570]
+      - iframe [ref=e571]:
+        - generic [active] [ref=f1e1]:
+          - generic [ref=f1e2]:
+            - paragraph [ref=f1e3]: Supplier cooperation report
+            - heading "Carajás — Nature cooperation report" [level=1] [ref=f1e4]
+            - paragraph [ref=f1e5]:
+              - emphasis [ref=f1e6]: A shared starting point for improving nature & land — prepared together, not as a verdict.
+            - generic [ref=f1e7]:
+              - generic [ref=f1e8]: Supplier / site
+              - generic [ref=f1e9]: Carajás Iron Ore Complex (demo) — Pará, Brazil
+              - generic [ref=f1e10]: Focus area
+              - generic [ref=f1e11]: nature & land
+              - generic [ref=f1e12]: Screening window
+              - generic [ref=f1e13]: 2026-02-22 → 2026-05-23
+          - generic [ref=f1e14]:
+            - heading "What the screening shows — nature & land" [level=2] [ref=f1e15]
+            - paragraph [ref=f1e16]: Nature/Land shows moderate exposure at this location, with vegetation condition as the main contributor (NDVI -0.04 relative to background, with 73% of natural-cover pixels degraded). Data quality is high.
+          - generic [ref=f1e17]:
+            - heading "Where improvement would matter most" [level=2] [ref=f1e18]
+            - paragraph [ref=f1e19]:
+              - text: Within nature & land, the screening points to
+              - strong [ref=f1e20]: vegetation condition
+              - text: as where attention would matter most — it is the largest contributor to this pillar's signal. That makes it a natural place to start a joint review.
+          - generic [ref=f1e21]:
+            - heading "How to read this report" [level=2] [ref=f1e22]
+            - paragraph [ref=f1e23]:
+              - text: This report is a
+              - strong [ref=f1e24]: starting point for a conversation
+              - text: ", not a determination of cause or compliance. It shares what a satellite-based screening signal suggests, so we can look at it together and decide where improvement would matter most."
+            - paragraph [ref=f1e25]:
+              - text: Severity scores measure whether a site shows unusual pollution
+              - emphasis [ref=f1e26]: relative to its surrounding region
+              - text: — not absolute pollution levels. A low (green) rating means the site is not standing out from its surroundings, even where the wider region is itself polluted; an amber or red rating means the site stands out as anomalous against its regional context, suggesting a site-specific contribution worth investigating.
+            - paragraph [ref=f1e27]: A screening signal flags where attention is worth focusing — it does not establish a cause, assign responsibility, or judge compliance. We would welcome your context on these findings as the next step.
+          - generic [ref=f1e28]:
+            - heading "Glossary" [level=2] [ref=f1e29]
+            - paragraph [ref=f1e30]:
+              - emphasis [ref=f1e31]: Plain-language definitions of the terms used in this report.
+            - heading "Domain / dataset" [level=3] [ref=f1e32]
+            - generic [ref=f1e33]:
+              - term [ref=f1e34]: NDVI
+              - definition [ref=f1e35]: A vegetation-health index from satellite reflectance; higher means greener / healthier.

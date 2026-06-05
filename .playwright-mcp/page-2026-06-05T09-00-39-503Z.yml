@@ -1,0 +1,41 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - paragraph [ref=e3]: Supplier cooperation report
+    - heading "Carajás — Nature cooperation report" [level=1] [ref=e4]
+    - paragraph [ref=e5]:
+      - emphasis [ref=e6]: A shared starting point for improving nature & land — prepared together, not as a verdict.
+    - generic [ref=e7]:
+      - generic [ref=e8]: Supplier / site
+      - generic [ref=e9]: Carajás Iron Ore Complex (demo) — Pará, Brazil
+      - generic [ref=e10]: Focus area
+      - generic [ref=e11]: nature & land
+      - generic [ref=e12]: Screening window
+      - generic [ref=e13]: 2026-02-22 → 2026-05-23
+  - generic [ref=e14]:
+    - heading "What the screening shows — nature & land" [level=2] [ref=e15]
+    - paragraph [ref=e16]: Nature/Land shows moderate exposure at this location, with vegetation condition as the main contributor (NDVI -0.04 relative to background, with 73% of natural-cover pixels degraded). Data quality is high.
+  - generic [ref=e17]:
+    - heading "Where improvement would matter most" [level=2] [ref=e18]
+    - paragraph [ref=e19]:
+      - text: Within nature & land, the screening points to
+      - strong [ref=e20]: vegetation condition
+      - text: as where attention would matter most — it is the largest contributor to this pillar's signal. That makes it a natural place to start a joint review.
+  - generic [ref=e21]:
+    - heading "How to read this report" [level=2] [ref=e22]
+    - paragraph [ref=e23]:
+      - text: This report is a
+      - strong [ref=e24]: starting point for a conversation
+      - text: ", not a determination of cause or compliance. It shares what a satellite-based screening signal suggests, so we can look at it together and decide where improvement would matter most."
+    - paragraph [ref=e25]:
+      - text: Severity scores measure whether a site shows unusual pollution
+      - emphasis [ref=e26]: relative to its surrounding region
+      - text: — not absolute pollution levels. A low (green) rating means the site is not standing out from its surroundings, even where the wider region is itself polluted; an amber or red rating means the site stands out as anomalous against its regional context, suggesting a site-specific contribution worth investigating.
+    - paragraph [ref=e27]: A screening signal flags where attention is worth focusing — it does not establish a cause, assign responsibility, or judge compliance. We would welcome your context on these findings as the next step.
+  - generic [ref=e28]:
+    - heading "Glossary" [level=2] [ref=e29]
+    - paragraph [ref=e30]:
+      - emphasis [ref=e31]: Plain-language definitions of the terms used in this report.
+    - heading "Domain / dataset" [level=3] [ref=e32]
+    - generic [ref=e33]:
+      - term [ref=e34]: NDVI
+      - definition [ref=e35]: A vegetation-health index from satellite reflectance; higher means greener / healthier.

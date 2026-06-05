@@ -1,0 +1,9 @@
+[   80681ms] [WARNING] Unrecognized feature: 'ambient-light-sensor'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80681ms] [WARNING] Unrecognized feature: 'battery'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80681ms] [WARNING] Unrecognized feature: 'document-domain'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80683ms] [WARNING] Unrecognized feature: 'layout-animations'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80684ms] [WARNING] Unrecognized feature: 'legacy-image-formats'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80685ms] [WARNING] Unrecognized feature: 'oversized-images'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80686ms] [WARNING] Unrecognized feature: 'vr'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80687ms] [WARNING] Unrecognized feature: 'wake-lock'. @ http://localhost:8521/static/js/isLength.DwwZub7z.js:0
+[   80903ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0

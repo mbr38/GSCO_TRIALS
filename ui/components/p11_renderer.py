@@ -20,6 +20,7 @@ from ui.components.p11_assembler import build_report_html
 from ui.components.p11_csv       import render_csv
 from ui.components.p11_json      import render_json
 from ui.components.p11_pdf       import PdfDependencyError, render_pdf
+from ui.components.p11_sections  import highest_priority_pillar
 from ui.components.p11_templates import get_template, templates_for
 from ui.p11_state import ReportState, ReportStateKind
 
@@ -101,12 +102,35 @@ def _render_s1(state: ReportState) -> None:
         f"{s.get('name', 'Unnamed')} ({s.get('type', '?')})": s["id"]
         for s in compatible
     }
-    selected_labels = st.multiselect(
-        "Pick one or more saved analyses to include",
-        options=list(source_options.keys()),
-        key="p11_source_select",
-    )
-    state.source_ids = [source_options[label] for label in selected_labels]
+    # M-REPORT-COOP: the supplier cooperation report is single-supplier by
+    # design (no cross-supplier ranking), so it picks exactly one source via a
+    # selectbox rather than the multi-select other templates use.
+    if state.template_id == "supplier_cooperation":
+        selected_label = st.selectbox(
+            "Pick the saved analysis (one supplier)",
+            options=list(source_options.keys()),
+            index=None,
+            placeholder="Choose a saved analysis",
+            key="p11_source_select_single",
+        )
+        state.source_ids = (
+            [source_options[selected_label]] if selected_label else []
+        )
+    else:
+        selected_labels = st.multiselect(
+            "Pick one or more saved analyses to include",
+            options=list(source_options.keys()),
+            key="p11_source_select",
+        )
+        state.source_ids = [source_options[label] for label in selected_labels]
+
+    # M-REPORT-COOP: the supplier cooperation report renders one user-chosen
+    # pillar. Surface a pillar picker only for that template; every other
+    # template leaves ``state.pillar`` None so a stale value can't narrow a
+    # fixed-pillar or all-pillar report.
+    state.pillar = None
+    if state.template_id == "supplier_cooperation":
+        _render_coop_pillar_picker(state, compatible)
 
     # Title + notes. Widget keys manage persistence across reruns; the
     # state assignments capture the current value for validation.
@@ -144,6 +168,43 @@ def _render_s1(state: ReportState) -> None:
     ):
         state.kind = ReportStateKind.S2_PREVIEW
         st.rerun()
+
+
+# M-REPORT-COOP
+_COOP_PILLAR_ORDER = ("air", "ghg", "nature")
+_COOP_PILLAR_LABELS = {
+    "air": "Air pollution", "ghg": "GHG emissions", "nature": "Nature & land",
+}
+
+
+def _render_coop_pillar_picker(state: ReportState, compatible: list[dict]) -> None:
+    """Pillar selector for the supplier cooperation report.
+
+    Defaults to the (first) selected source's highest follow-up-priority pillar
+    — the natural focus — but the choice is the user's. Writes the chosen pillar
+    onto ``state.pillar``; the assembler threads it into the RenderContext.
+    """
+    st.markdown("### Pillar")
+    default_pillar = "nature"
+    selected = [s for s in compatible if s["id"] in state.source_ids]
+    if selected:
+        default_pillar = highest_priority_pillar(selected[0].get("payload") or {})
+    default_idx = (
+        _COOP_PILLAR_ORDER.index(default_pillar)
+        if default_pillar in _COOP_PILLAR_ORDER else 0
+    )
+    choice = st.selectbox(
+        "Which pillar should this cooperation report address?",
+        options=[_COOP_PILLAR_LABELS[p] for p in _COOP_PILLAR_ORDER],
+        index=default_idx,
+        key="p11_coop_pillar",
+        help=(
+            "Defaults to the pillar with the highest follow-up priority for "
+            "the selected supplier — you can change it."
+        ),
+    )
+    inverse = {v: k for k, v in _COOP_PILLAR_LABELS.items()}
+    state.pillar = inverse[choice]
 
 
 def _disabled_preview_button() -> None:
@@ -406,6 +467,9 @@ def _pdf_cache_key(state: ReportState) -> str:
     return (
         f"{state.template_id}|"
         f"{getattr(state, 'user_type', '')}|"
+        # M-REPORT-COOP: the cooperation report's pillar is user-chosen, so two
+        # renders differing only by pillar must not share a cached PDF.
+        f"{getattr(state, 'pillar', None)}|"
         f"{','.join(sorted(state.source_ids))}|"
         f"{state.title}|"
         f"{state.notes}"
