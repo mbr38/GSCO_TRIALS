@@ -67,7 +67,10 @@ def render_setup_form() -> None:
         _render_no_scope_form()
     elif scope["kind"] == "supply_chain":
         _render_supply_chain_scoped_form(scope["data"])
+    elif scope["kind"] == "country_regional":
+        _render_country_regional_scoped_form(scope["data"]["country"])
     elif scope["kind"] == "region":
+        # Legacy region scope — kept for backward-compat.
         _render_region_scoped_form(scope["data"])
     else:
         # Defensive — unknown scope kind, fall through.
@@ -634,6 +637,61 @@ def _render_region_scoped_form(region) -> None:
     _render_ad_hoc_link(centre)
 
 
+def _render_country_regional_scoped_form(country: str) -> None:
+    """P-04 form for a Regional-analysis (``country_regional``) scope.
+
+    The scope fixes only the country; the region is chosen here. Pick one
+    region within the country → lock its centroid + area-matched radius
+    (same as the legacy region form) → indicators → run. Ad-hoc escape
+    link below.
+    """
+    from demo.regions import regions_for_country
+
+    _render_scope_header(
+        label=f"Regional analysis — {country}",
+        sublabel="Pick a single region within the country to screen.",
+    )
+
+    with st.spinner("Loading regions…"):
+        regions = regions_for_country(country)
+
+    if not regions:
+        st.warning(
+            f"No screenable regions found for {country}. Use **free "
+            f"coordinates** instead."
+        )
+        if st.button("Use free coordinates instead", key="p04_cr_to_free"):
+            st.session_state["scope"] = {"kind": "none", "data": None}
+            st.rerun()
+        return
+
+    with st.container(border=True):
+        st.markdown("### Region")
+        region_names = [r.name for r in regions]
+        pick = st.selectbox(
+            "Pick a region to screen",
+            options=range(len(regions)),
+            format_func=lambda i: region_names[i],
+            key="p04_region_pick",
+        )
+        region = regions[pick]
+
+    _render_locked_region_aoi(region)
+    # Thread region identity through the centre so the run commit can
+    # populate centre_metadata (region_name / country) for save-naming.
+    centre = {
+        "lat":         region.centroid_lat,
+        "lon":         region.centroid_lon,
+        "region_name": region.name,
+        "country":     region.country,
+    }
+    radius_km = region.radius_km
+
+    indicators = _render_indicator_section()
+    _render_run_section(centre, radius_km, indicators)
+    _render_ad_hoc_link(centre)
+
+
 def _render_locked_region_aoi(region) -> None:
     """Read-only display of the region's centroid + buffer."""
     with st.container(border=True):
@@ -708,6 +766,8 @@ def _source_for_scope(scope: dict | None) -> str:
     data = scope.get("data")
     if kind == "supply_chain" and data is not None:
         return f"P-04 supply-chain scope · {data.name}"
+    if kind == "country_regional" and isinstance(data, dict):
+        return f"P-04 regional analysis · {data.get('country')}"
     if kind == "region" and data is not None:
         return f"P-04 region scope · {data.name}, {data.country}"
     return "P-04 setup"
@@ -737,8 +797,13 @@ def _commit_and_navigate(
     if "node_id" in centre or "node_name" in centre:
         centre_metadata["node_id"]   = centre.get("node_id")
         centre_metadata["node_name"] = centre.get("node_name")
-    # M-P10-POLISH — region saves carry region_name + country.
-    if scope is not None and scope.get("kind") == "region":
+    # Region saves carry region_name + country. The Regional-analysis
+    # (country_regional) form threads these through ``centre``; the legacy
+    # region scope reads them off the scope data.
+    if "region_name" in centre:
+        centre_metadata["region_name"] = centre.get("region_name")
+        centre_metadata["country"]     = centre.get("country")
+    elif scope is not None and scope.get("kind") == "region":
         region = scope.get("data")
         if region is not None:
             centre_metadata["region_name"] = region.name

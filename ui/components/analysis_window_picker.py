@@ -8,7 +8,7 @@ with a ``trend`` profile via a fixture-only change.
 UI layout (collapsed):
 
     Analysis window
-    [ 30 d ] [ 90 d ✓ ] [ 6 mo ] [ 12 mo ] [ Custom ]
+    [ 30 d ] [ 90 d ] [ 6 mo ] [ 12 mo ] [ Custom ]
 
     Estimated compute time: ~95 seconds (approximate)
 
@@ -372,7 +372,7 @@ def _render_estimate(
         f" (approximate{suffix})"
     )
     if estimate_seconds > coefs.soft_warning_threshold_s:
-        st.info(coefs.long_window_warning, icon="⏱️")
+        st.info(coefs.long_window_warning)
 
 
 def _render_advanced_options(

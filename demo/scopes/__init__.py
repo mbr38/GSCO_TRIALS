@@ -33,13 +33,22 @@ class SupplyChainNode:
 
 @dataclass(frozen=True)
 class SupplyChain:
-    """A demo supply chain — name, industry, list of nodes."""
+    """A demo supply chain — name, industry, list of nodes.
+
+    ``audience`` separates corporate chains (``"mnc"``) from country
+    supply chains (``"policy_maker"``, e.g. India EV). The two are never
+    shown in the same picker: MNC users see ``mnc_scopes()``; Policy
+    Maker users pick a country and see ``country_scopes(country)``.
+    Missing in JSON → defaults to ``"mnc"`` so legacy demo files load
+    unchanged.
+    """
 
     id:       str
     name:     str
     industry: str
     country:  str
     nodes:    tuple[SupplyChainNode, ...]
+    audience: str = "mnc"
 
     @classmethod
     def from_dict(cls, raw: dict) -> "SupplyChain":
@@ -48,6 +57,7 @@ class SupplyChain:
             name=raw["name"],
             industry=raw["industry"],
             country=raw["country"],
+            audience=raw.get("audience", "mnc"),
             nodes=tuple(
                 SupplyChainNode(
                     id=n["id"],
@@ -87,6 +97,38 @@ _SCOPES: dict[str, SupplyChain] = _load_all()
 def all_scopes() -> tuple[SupplyChain, ...]:
     """Return every demo scope, sorted alphabetically by name."""
     return tuple(sorted(_SCOPES.values(), key=lambda s: s.name))
+
+
+def mnc_scopes() -> tuple[SupplyChain, ...]:
+    """Corporate (MNC) supply chains, sorted by name.
+
+    Excludes country supply chains (``audience == "policy_maker"``), so
+    the MNC scope picker never surfaces e.g. the India EV chain.
+    """
+    return tuple(
+        sorted(
+            (s for s in _SCOPES.values() if s.audience == "mnc"),
+            key=lambda s: s.name,
+        )
+    )
+
+
+def country_scopes(country: str) -> tuple[SupplyChain, ...]:
+    """Policy-Maker country supply chains for ``country``, sorted by name.
+
+    Filters to ``audience == "policy_maker"`` and an exact ``country``
+    match — the chains a Policy Maker can pick once they've chosen a
+    country under Supply-chain analysis.
+    """
+    return tuple(
+        sorted(
+            (
+                s for s in _SCOPES.values()
+                if s.audience == "policy_maker" and s.country == country
+            ),
+            key=lambda s: s.name,
+        )
+    )
 
 
 def get_scope(scope_id: str) -> SupplyChain | None:

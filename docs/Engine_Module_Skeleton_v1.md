@@ -364,6 +364,8 @@ Trend mode flips the `Trend_Score` (Air) and `GHG_Trend` terms from 0 to their c
 
 ### 3.3 `PrioritisationBatch`
 
+> **Change note — M-PM-SCOPE-A1 (5 June 2026).** The live batch executor (`engine/prioritisation_executor.py::run_batch`) supports an **optional per-supplier radius override**. A supplier dict carrying a `radius_km` (used by Policy-Maker Regional-analysis region batches, where each region screens at its own area-matched buffer) screens at that radius; suppliers with no `radius_km` (node / ad-hoc) fall back to the shared `setup["radius_km"]`. The single-radius sketch below predates this — `aoi = _build_aoi(node, supplier.get("radius_km") or self.radius_km)` is the current shape.
+
 ```python
 class PrioritisationBatch:
     """P-08: run a ScreeningRun (or TrendRun) for each node in the batch.

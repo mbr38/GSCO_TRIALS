@@ -210,7 +210,7 @@ def _render_trend_body(result: dict, display_name: str, lat, *, key_prefix: str,
 
     caveat = seasonal_caveat(result)
     if caveat:
-        st.caption(f"⚠️ Possibly seasonal — {caveat}")
+        st.caption(f"Possibly seasonal — {caveat}")
 
 
 def _metric_block(label: str, value: str, *, full_width: bool = False) -> None:
@@ -240,7 +240,7 @@ def _render_coverage_caption(result: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def _render_save_action(base_id: str, display_name: str, setup: dict, result: dict) -> None:
-    if not st.button("💾 Save trend analysis", key=f"save_trend_{base_id}"):
+    if not st.button("Save trend analysis", key=f"save_trend_{base_id}"):
         return
     if "saved_analyses" not in st.session_state:
         st.session_state["saved_analyses"] = []
@@ -258,7 +258,7 @@ def _render_save_action(base_id: str, display_name: str, setup: dict, result: di
         date_saved_iso=now.isoformat(),
     )
     st.session_state["saved_analyses"].append(entry)
-    st.toast(f"Saved trend — '{name}'.", icon="📈")
+    st.toast(f"Saved trend — '{name}'.")
 
 
 # ---------------------------------------------------------------------------

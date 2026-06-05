@@ -26,7 +26,6 @@ from utils.state import require_user_type
 
 st.set_page_config(
     page_title="Workflow Hub — GSCO",
-    page_icon="🧭",
     layout="wide",
     initial_sidebar_state="expanded",
 )

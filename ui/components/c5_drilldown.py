@@ -1620,25 +1620,14 @@ _DATA_UNAVAILABLE_TEXT: str = "Data not available for this AOI"
 # latest-available window that need not align with the analysis period.
 _REFERENCE_SECTION_HEADER_COPY: str = (
     "The following data are shown for context and are not part of the "
-    "composite score. Hansen and ODIAC reflect cumulative or "
-    "inventory-allocated values over a fixed, latest-available window (not "
+    "composite score — each measures something different from the live scored "
+    "indicators (a multi-year forest-loss tally, an emissions inventory, and a "
+    "well-mixed atmospheric column), on a scale that complements rather than "
+    "competes with the screening signals. Hansen and ODIAC reflect cumulative "
+    "or inventory-allocated values over a fixed, latest-available window (not "
     "your analysis window); CH₄ is a well-mixed atmospheric column read over "
     "the screening window itself. Use them to cross-reference the live scored "
     "signals rather than as scored measurements of the screening period."
-)
-
-# §5.3 / RD11 — "Why reference data?" explainer (sub-section-level per the
-# Step B decision on Q-A6-1).
-_WHY_REFERENCE_DATA_COPY: str = (
-    "Hansen forest loss, ODIAC CO₂, and CH₄ aren't included in the composite "
-    "score because they measure different things from the live scored "
-    "indicators. Hansen is a cumulative tally of forest cover loss over a "
-    "multi-year window; ODIAC is an annual inventory of estimated fossil-fuel "
-    "emissions allocated to grid cells; CH₄ is a well-mixed atmospheric "
-    "column that the validation showed does not reliably resolve local "
-    "emissions at the screening scale. All three are shown here as "
-    "**context** — useful background that complements the live screening "
-    "signals without competing with them on the same scale."
 )
 
 
@@ -1919,6 +1908,36 @@ def _render_reference_datasets_section(payload: dict) -> None:
     window (cadence asymmetry — CH4 lock).
     """
     st.divider()
+    # Scope the cyan "context" treatment to *this* expander only via the
+    # st.container(key=...) hook (Streamlit ≥1.39 emits a `.st-key-<key>`
+    # class on the container's DOM node), so the green scored pillar panels
+    # above keep their default chrome. Cyan = accent_cyan token — the on-brand
+    # "context, not scored" colour that sets reference data apart.
+    with st.container(key="gsco_ref_datasets"):
+        st.markdown(
+            """
+            <style>
+            .st-key-gsco_ref_datasets div[data-testid="stExpander"] details {
+                border: 1px solid rgba(11, 186, 176, 0.40);
+                border-radius: 6px;
+                background: rgba(11, 186, 176, 0.05);
+            }
+            .st-key-gsco_ref_datasets div[data-testid="stExpander"] summary {
+                color: #0bbab0;
+                font-weight: 600;
+            }
+            .st-key-gsco_ref_datasets div[data-testid="stExpander"] summary svg {
+                fill: #0bbab0;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        _render_reference_datasets_body(payload)
+
+
+def _render_reference_datasets_body(payload: dict) -> None:
+    """The Reference-datasets expander body (cards + context caption)."""
     with st.expander("Reference datasets", expanded=False):
         st.caption(_REFERENCE_SECTION_HEADER_COPY)
         # M-ATTRIB-A1 alignment fix: the two reference cards live in a
@@ -1954,9 +1973,6 @@ def _render_reference_datasets_section(payload: dict) -> None:
             _render_reference_card(_odiac_card_fields(payload))
         with col_ch4:
             _render_reference_card(_ch4_card_fields(payload))
-        # RD11 / Q-A6-1 — single sub-section-level explainer.
-        with st.expander("Why reference data?", expanded=False):
-            st.markdown(_WHY_REFERENCE_DATA_COPY)
 
 
 # ---------------------------------------------------------------------------

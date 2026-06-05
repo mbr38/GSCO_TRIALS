@@ -1,0 +1,136 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8533/
+          - paragraph [ref=e21]: Landing
+      - listitem [ref=e22]:
+        - link "Scope Setup" [ref=e24] [cursor=pointer]:
+          - /url: http://localhost:8533/Scope_Setup
+          - paragraph [ref=e27]: Scope Setup
+      - listitem [ref=e28]:
+        - link "Workflow Hub" [ref=e30] [cursor=pointer]:
+          - /url: http://localhost:8533/Workflow_Hub
+          - paragraph [ref=e33]: Workflow Hub
+      - listitem [ref=e34]:
+        - link "Inspect — Setup" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8533/Inspect_Setup
+          - paragraph [ref=e39]: Inspect — Setup
+      - listitem [ref=e40]:
+        - link "Inspect — Results" [ref=e42] [cursor=pointer]:
+          - /url: http://localhost:8533/Screening_Results
+          - paragraph [ref=e45]: Inspect — Results
+      - listitem [ref=e46]:
+        - link "Trend View" [ref=e48] [cursor=pointer]:
+          - /url: http://localhost:8533/Trend_View
+          - paragraph [ref=e51]: Trend View
+      - listitem [ref=e52]:
+        - link "Prioritisation — Setup" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Setup
+          - paragraph [ref=e57]: Prioritisation — Setup
+      - listitem [ref=e58]:
+        - link "Prioritisation — Results" [ref=e60] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Results
+          - paragraph [ref=e63]: Prioritisation — Results
+      - listitem [ref=e64]:
+        - link "Indicator Library" [ref=e66] [cursor=pointer]:
+          - /url: http://localhost:8533/Indicator_Library
+          - paragraph [ref=e69]: Indicator Library
+      - listitem [ref=e70]:
+        - link "Saved Analyses" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8533/Saved_Analyses
+          - paragraph [ref=e75]: Saved Analyses
+      - listitem [ref=e76]:
+        - link "Reports" [ref=e78] [cursor=pointer]:
+          - /url: http://localhost:8533/Reports
+          - paragraph [ref=e81]: Reports
+    - generic [ref=e82]:
+      - paragraph [ref=e86] [cursor=pointer]: Developer
+      - listitem [ref=e87]:
+        - link "Engine Scratch (dev)" [ref=e89] [cursor=pointer]:
+          - /url: http://localhost:8533/engine_scratch
+          - paragraph [ref=e92]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e96]
+    - generic [ref=e108]:
+      - generic [ref=e1296]:
+        - generic [ref=e1301]:
+          - button "Fullscreen" [ref=e1306] [cursor=pointer]:
+            - img [ref=e1307]
+          - img "0" [ref=e1312]
+        - paragraph [ref=e1319]:
+          - text: Signed in as
+          - strong [ref=e1320]: Policy Maker
+          - text: · Session
+          - code [ref=e1321]: 7e3ba95b
+        - generic [ref=e1325]:
+          - paragraph [ref=e1332]: "Scope: India (regional)"
+          - button "Change" [ref=e2248] [cursor=pointer]:
+            - paragraph [ref=e2252]: Change
+        - button "Sign out" [ref=e2255] [cursor=pointer]:
+          - paragraph [ref=e2259]: Sign out
+      - separator [ref=e1355]
+      - button "Show me around" [ref=e2262] [cursor=pointer]:
+        - paragraph [ref=e2266]: Show me around
+      - heading "Scope Setup" [level=1] [ref=e2267]:
+        - text: Scope Setup
+        - generic [ref=e1374]:
+          - link "Link to heading":
+            - /url: "#prioritisation-setup"
+            - img
+      - paragraph [ref=e2272]:
+        - text: Choose what you want to screen. You can change this any time from the
+        - strong [ref=e2273]: Change scope
+        - text: link in the top nav.
+      - heading "Pick a scope mode" [level=3] [ref=e2279]:
+        - text: Pick a scope mode
+        - generic [ref=e2280]:
+          - link "Link to heading":
+            - /url: "#pick-a-scope-mode"
+            - img
+      - generic [ref=e2282]:
+        - generic [ref=e2286]:
+          - heading "Country" [level=4] [ref=e2292]:
+            - text: Country
+            - generic [ref=e2293]:
+              - link "Link to heading":
+                - /url: "#country"
+                - img
+          - paragraph [ref=e2298]: Screen a country. Choose a region-by-region analysis, or a supply chain operating in that country.
+          - generic [ref=e2300]:
+            - paragraph [ref=e2304]: Country
+            - generic [ref=e2306]:
+              - generic [ref=e2307]:
+                - generic [ref=e2308]: India
+                - combobox "Selected India. Country" [ref=e2310]
+              - img "open" [ref=e2312]
+          - generic [ref=e2315]:
+            - paragraph [ref=e2319]: Analysis type
+            - radiogroup "Analysis type" [ref=e2320] [cursor=pointer]:
+              - generic [ref=e2321]:
+                - radio "Regional analysis"
+                - paragraph [ref=e2326]: Regional analysis
+              - generic [ref=e2327]:
+                - radio "Supply-chain analysis" [checked] [active]
+                - paragraph [ref=e2332]: Supply-chain analysis
+          - generic [ref=e2369]:
+            - paragraph [ref=e2373]: Supply chain
+            - generic [ref=e2375]:
+              - generic [ref=e2376]:
+                - generic [ref=e2377]: India — EV Battery Supply Chain (demo)
+                - combobox "Selected India — EV Battery Supply Chain (demo). Supply chain" [ref=e2379]
+              - img "open" [ref=e2381]
+          - button "Preview" [ref=e2385] [cursor=pointer]:
+            - paragraph [ref=e2389]: Preview
+        - generic [ref=e2348]:
+          - heading "No scope" [level=4] [ref=e2354]:
+            - text: No scope
+            - generic [ref=e2355]:
+              - link "Link to heading":
+                - /url: "#no-scope"
+                - img
+          - paragraph [ref=e2360]: Skip scope setup and configure each screening from scratch using free coordinates.
+          - button "Continue without a scope" [ref=e2363] [cursor=pointer]:
+            - paragraph [ref=e2367]: Continue without a scope

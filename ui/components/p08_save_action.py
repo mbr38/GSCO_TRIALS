@@ -40,7 +40,7 @@ def save_prioritisation_as_report(state: PrioritisationState) -> None:
     are no completed results to save.
     """
     if not state.supplier_results:
-        st.toast("Nothing to save — no suppliers completed.", icon="⚠️")
+        st.toast("Nothing to save — no suppliers completed.")
         return
 
     entry = _build_save_entry(state)
@@ -52,9 +52,8 @@ def save_prioritisation_as_report(state: PrioritisationState) -> None:
         "name": entry["name"],
     }
     st.toast(
-        f"✓ Saved as **{entry['name']}**. "
+        f"Saved as **{entry['name']}**. "
         f"View on Saved Analyses (P-10).",
-        icon="💾",
     )
 
 
@@ -69,9 +68,9 @@ def render_p08_save_banner() -> None:
     pending = st.session_state.get(_SAVE_BANNER_KEY)
     if not pending:
         return
-    st.success(f"Saved as **{pending['name']}**.", icon="💾")
+    st.success(f"Saved as **{pending['name']}**.")
     if st.button(
-        "📄 Open in Reports",
+        "Open in Reports",
         key=f"p08_open_in_reports_{pending['id']}",
         use_container_width=True,
     ):

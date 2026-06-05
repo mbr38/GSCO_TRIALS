@@ -46,7 +46,7 @@ import streamlit as st
 from ui.components.traffic_light import band_colour
 from ui.theme.tokens import CARD, COLORS, FONTS, RADIUS, TYPE_SCALE
 
-TRIGGER_LABEL: str = "👋 Show me around"
+TRIGGER_LABEL: str = "Show me around"
 DIALOG_TITLE: str = "Quick tour"
 
 
@@ -218,7 +218,7 @@ TUTORIALS: dict[str, dict] = {
     # ----------------------------------------------------------------------
     "P-05-RESULTS": {
         "title": "How to read your results",
-        "trigger_label": "❓ How to read this",
+        "trigger_label": "How to read this",
         "steps": [
             {
                 "title": "What this page tells you",
@@ -293,7 +293,7 @@ TUTORIALS: dict[str, dict] = {
     },
     "P-06-TREND": {
         "title": "How to read this chart",
-        "trigger_label": "❓ How to read this chart",
+        "trigger_label": "How to read this chart",
         "steps": [
             {
                 "title": "What this chart is",
@@ -443,7 +443,7 @@ def _step_card_html(step: dict) -> str:
         font-family: {FONTS['sans_body']};
         font-size: {TYPE_SCALE['caption']['size']};
         color: {COLORS['text_secondary']};
-    ">🎯&nbsp;&nbsp;{html.escape(hint)}</div>"""
+    ">&nbsp;&nbsp;{html.escape(hint)}</div>"""
 
     return f"""
 <div style="

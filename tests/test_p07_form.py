@@ -140,11 +140,16 @@ def test_max_suppliers_constant_pinned_at_20():
 # Supplier dataclass shape
 # ---------------------------------------------------------------------------
 
-def test_supplier_is_frozen_with_five_fields():
+def test_supplier_is_frozen_with_expected_fields():
     fields = dataclasses.fields(Supplier)
-    assert [f.name for f in fields] == ["id", "name", "lat", "lon", "source"]
-    # Frozen — mutation raises FrozenInstanceError.
+    assert [f.name for f in fields] == [
+        "id", "name", "lat", "lon", "source", "radius_km",
+    ]
+    # radius_km is an optional per-supplier override (region buffers);
+    # defaults to None for node / ad-hoc suppliers.
     s = Supplier(id="x", name="X", lat=0.0, lon=0.0, source="ad_hoc")
+    assert s.radius_km is None
+    # Frozen — mutation raises FrozenInstanceError.
     with pytest.raises(dataclasses.FrozenInstanceError):
         s.lat = 1.0  # type: ignore[misc]
 

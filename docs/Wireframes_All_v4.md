@@ -226,6 +226,8 @@ On leaving P-01:
 
 ## P-02 — Scope set-up
 
+> **Change note — M-PM-SCOPE-A1 (5 June 2026, Policy-Maker scope redesign).** The Policy-Maker S1_ModePick below is replaced by a **Country** card + a **No scope** card. The Country card: pick a country, then an **Analysis type** radio — **Regional analysis** (no region picked here; preview is the whole-country map with a marker per inspectable region; scope kind `country_regional`) or **Supply-chain analysis** (pick a supply chain available for that country, e.g. India EV; scope kind `supply_chain`). Region/node selection moves downstream (P-04 single, P-07 multiple). MNC's S1_ModePick is unchanged; country chains are kept out of the MNC picker via an `audience` tag. The legacy single-`region` mode is retired from this page (handlers retained for backward-compat only). UI in `ui/components/p02_form.py` / `p02_preview.py`.
+
 ### Summary
 
 | Field | Value |
@@ -439,6 +441,8 @@ None.
 ---
 
 ## P-04 — Inspect — Setup
+
+> **Change note — M-PM-SCOPE-A1 (5 June 2026).** With a Regional-analysis scope (`country_regional`), the centre block renders a **single-region selectbox** scoped to the country, then locks that region's centroid + area-matched buffer (read-only Screening-area card, same as the legacy region path). With a `supply_chain` scope the node picker renders. See `ui/components/p04_form.py::_render_country_regional_scoped_form`.
 
 ### Summary
 
@@ -806,6 +810,8 @@ Same pattern as P-05: E1 (all failed), E2 (some failed), E3 (save failure).
 ---
 
 ## P-07 — Prioritisation — Setup
+
+> **Change note — M-PM-SCOPE-A1 (5 June 2026).** With a Regional-analysis scope (`country_regional`), the supplier section adds a **Regions** tab (checkbox per admin1 region, each labelled with its own buffer) next to **Ad hoc locations**. Selected regions screen at **their own area-matched buffer** (per-supplier radius); the shared radius slider now applies only to ad-hoc entries, and a caption says so. With a `supply_chain` scope the node checkboxes render. See `ui/components/p07_form.py`.
 
 ### Summary
 

@@ -49,7 +49,7 @@ def render_p08(state: PrioritisationState) -> None:
     elif kind == PrioritisationStateKind.S3_RESULTS:
         _render_s3_results(state)
     else:
-        st.error(f"Unknown prioritisation state: {kind}", icon="⚠️")
+        st.error(f"Unknown prioritisation state: {kind}")
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -60,13 +60,11 @@ def _render_e1_failed(state: PrioritisationState) -> None:
     if state.error:
         st.error(
             f"**Prioritisation failed.** {state.error}",
-            icon="⚠️",
         )
     else:
         st.error(
             "**Prioritisation can't start.** No batch setup is loaded. "
             "Go to **Prioritisation Setup (P-07)** to configure a batch.",
-            icon="⚠️",
         )
     if st.button("Go to P-07 Setup", type="primary"):
         st.switch_page("pages/07_Prioritisation_Setup.py")
@@ -87,10 +85,10 @@ def _render_s2_running(state: PrioritisationState) -> None:
     col_cancel, _ = st.columns([1, 5])
     with col_cancel:
         if st.button(
-            "✋ Cancel batch", type="secondary", use_container_width=True,
+            "Cancel batch", type="secondary", use_container_width=True,
         ):
             state.cancelled = True
-            st.toast("Cancelling at next supplier boundary...", icon="✋")
+            st.toast("Cancelling at next supplier boundary...")
 
     # Progress bar + status.
     progress_container = st.empty()
@@ -119,7 +117,6 @@ def _render_s2_running(state: PrioritisationState) -> None:
             )
             status_container.info(
                 f"Last completed: **{latest.name}** ({latest.status})",
-                icon="📋",
             )
             # M-P08.2-FIX: table redraws use the rank_by from the
             # selector above; the selector itself is NOT re-rendered.
@@ -166,19 +163,17 @@ def _render_s3_results(state: PrioritisationState) -> None:
         st.warning(
             f"**Batch cancelled** after {total - n_cancelled} of {total} "
             f"suppliers. {n_cancelled} unprocessed.",
-            icon="✋",
         )
     else:
         st.success(
             f"**Batch complete.** {n_success} succeeded, "
             f"{n_partial} partial, {n_failed} failed.",
-            icon="✅",
         )
 
     st.markdown("### Results")
     # M-P08.3: two-tab structure per Wireframes §P-08. Ranking is the
     # default view; Risk matrix renders lazily on tab activation.
-    tab_ranking, tab_matrix = st.tabs(["📋 Ranking", "📊 Risk matrix"])
+    tab_ranking, tab_matrix = st.tabs(["Ranking", "Risk matrix"])
 
     with tab_ranking:
         # M-P08.2-FIX: selector once, then table.
@@ -197,7 +192,7 @@ def _render_s3_results(state: PrioritisationState) -> None:
         # M-P08.4: working save action — pushes the whole batch into
         # saved_analyses as a single entry with type="prioritisation".
         if st.button(
-            "💾 Save as report",
+            "Save as report",
             type="primary",
             use_container_width=True,
             key="p08_save_button",
@@ -205,7 +200,7 @@ def _render_s3_results(state: PrioritisationState) -> None:
             save_prioritisation_as_report(state)
     with col_rerun:
         if st.button(
-            "🔄 New prioritisation",
+            "New prioritisation",
             use_container_width=True,
         ):
             st.session_state.pop("prioritisation_state", None)

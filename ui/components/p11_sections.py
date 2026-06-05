@@ -261,6 +261,17 @@ def _render_executive_summary(state, sources, ctx=None) -> str:
         )
     blocks.append("</table>")
 
+    # M-PRIO-REPORT — clarify what the composite column means for a
+    # prioritisation source (a batch mean, not a single-site score).
+    if any(s.get("type") == "prioritisation" for s in sources):
+        blocks.append(
+            "<p class='composite-scope-note'><em>For a prioritisation source "
+            "the composite above is the mean of its suppliers' composite "
+            "scores (each the equal-weighted mean of the three pillar "
+            "follow-up priorities). The per-supplier ranking and breakdown "
+            "are in the findings section below.</em></p>"
+        )
+
     # RA2 — scope-of-composite note (single-pillar ESRS reports only).
     if single_pillar:
         pillar = _ordered_pillars(ctx.pillars)[0]
@@ -455,12 +466,7 @@ def _render_esrs_pillar_findings(sources, ctx) -> str:
             blocks.append(divider)
 
         if src.get("type") == "prioritisation":
-            blocks.append(
-                "<div class='caveat'>"
-                "This is a prioritisation source — see the Priority Findings "
-                "section for the per-supplier breakdown."
-                "</div>"
-            )
+            blocks.append(_render_prioritisation_findings_inline(src, ctx))
             continue
 
         payload = src.get("payload") or {}
@@ -491,15 +497,11 @@ def _render_source_pillar_block(src, ctx=None, *, multi=True) -> str:
     payload = src.get("payload") or {}
     blocks = [_source_divider(name, multi=multi)]  # RF2 — "" when single-source
 
-    # M-P11.2-FIX: prioritisation sources don't carry a single
-    # screening payload — point readers to the priority section.
+    # M-PRIO-REPORT: prioritisation sources carry no single screening payload,
+    # so render the ranked table + per-supplier breakdown inline here rather
+    # than punting to a Priority Findings section the template doesn't include.
     if src.get("type") == "prioritisation":
-        blocks.append(
-            "<div class='caveat'>"
-            "This is a prioritisation source — see the Priority Findings "
-            "section for the per-supplier breakdown."
-            "</div>"
-        )
+        blocks.append(_render_prioritisation_findings_inline(src, ctx))
         return "\n".join(blocks)
 
     # M-P11.2-FIX: verbal summary requires breadth-of-coverage. If the
@@ -549,10 +551,11 @@ def _render_priority_findings(state, sources, ctx=None) -> str:
     return "\n".join(blocks)
 
 
-def _render_prioritisation_table(src) -> str:
+def _render_prioritisation_table(src, *, with_heading: bool = True) -> str:
     name = html.escape(src.get("name", "Untitled prioritisation"))
     supplier_results = src.get("supplier_results", [])
-    blocks = [f"<h3>{name}</h3>", "<table>"]
+    blocks = [f"<h3>{name}</h3>"] if with_heading else []
+    blocks.append("<table>")
     blocks.append(
         "<tr><th>Supplier</th><th>Status</th>"
         "<th>Air</th><th>GHG</th><th>Nature</th><th>Composite</th></tr>"
@@ -576,6 +579,46 @@ def _render_screening_priority_block(src) -> str:
     name = html.escape(src.get("name", "Untitled screening"))
     payload = src.get("payload") or {}
     return f"<h3>{name}</h3>" + _render_pillar_score_block(payload)
+
+
+# Plain-language note explaining the composite column on a prioritisation
+# table — the per-supplier composite is the equal-weighted mean of the three
+# pillar follow-up priorities (engine.orchestrator: composite.overall_screening),
+# so a higher value = a higher cross-pillar audit priority for that supplier.
+_PRIORITISATION_COMPOSITE_NOTE: str = (
+    "<p class='composite-scope-note'><em>Composite = the equal-weighted mean "
+    "of the three pillar follow-up priorities (Air, GHG, Nature) for each "
+    "supplier, on a 0–1 scale. A higher composite means a higher overall "
+    "cross-pillar audit priority — it is the value suppliers are ranked by, "
+    "not a measurement of absolute environmental harm.</em></p>"
+)
+
+
+# M-PRIO-REPORT — full prioritisation content for the pillar-findings slot.
+# The General / MNC templates route every source's findings through
+# ``pillar_findings`` but a prioritisation source carries no single screening
+# payload, so the pillar paths used to punt to a "Priority Findings" section
+# that those templates don't include — leaving the report effectively empty.
+# This renders the ranked table + per-supplier breakdown inline instead.
+def _render_prioritisation_findings_inline(src, ctx=None) -> str:
+    ctx = _ctx(ctx)
+    name = html.escape(src.get("name", "Prioritisation"))
+    # Per-indicator audit tables (parity with the MNC screening report's
+    # Indicator Detail) are shown per supplier only when the batch ran the
+    # full 19-indicator set — otherwise the tables would carry blank rows.
+    setup = src.get("prioritisation_setup") or {}
+    full_coverage = set(setup.get("indicators") or []) == set(ALL_INDICATOR_IDS)
+    indicator_pillars = _ordered_pillars(ctx.pillars) if full_coverage else None
+    return "\n".join([
+        f"<h3>{name}</h3>",
+        "<h4>Supplier ranking</h4>",
+        _render_prioritisation_table(src, with_heading=False),
+        _PRIORITISATION_COMPOSITE_NOTE,
+        "<h4>Per-supplier detail</h4>",
+        _render_prioritisation_supplier_breakdown(
+            src, with_heading=False, indicator_pillars=indicator_pillars,
+        ),
+    ])
 
 
 def _render_pillar_score_block(payload) -> str:
@@ -794,6 +837,32 @@ _PILLAR_DETAIL_RENDERERS = {
 }
 
 
+def _render_indicator_tables_for_payload(
+    payload: dict, active_pillars, *, heading: str = "h3",
+) -> str:
+    """Per-pillar indicator-detail tables for a single screening payload.
+
+    Shared by the top-level Indicator Detail section (screening sources) and
+    the per-supplier prioritisation breakdown (M-PRIO-REPORT) so both render
+    the same audit-evidence tables. Reference-only indicators (CH₄ / ODIAC /
+    Hansen) are excluded; pillars are filtered to ``active_pillars``.
+    """
+    blocks: list[str] = []
+    for pillar in active_pillars:
+        ids = [
+            i for i in INDICATORS_BY_PILLAR.get(pillar, [])
+            if i not in _REFERENCE_ONLY_INDICATOR_IDS
+        ]
+        if not ids:
+            continue
+        blocks.append(
+            f"<{heading} class='pillar-group'>"
+            f"{_PILLAR_DETAIL_LABELS[pillar]}</{heading}>"
+        )
+        blocks.append(_PILLAR_DETAIL_RENDERERS[pillar](payload, ids))
+    return "\n".join(blocks)
+
+
 # M-P11-FIX / M-REPORT-A1.1
 def _render_indicator_detail(state, sources, ctx=None) -> str:
     """Per-indicator audit evidence, **grouped into one table per pillar**.
@@ -848,14 +917,11 @@ def _render_indicator_detail(state, sources, ctx=None) -> str:
         if divider:
             blocks.append(divider)
         payload = src.get("payload") or {}
-        for pillar in active_pillars:
-            ids = pillar_indicators[pillar]
-            if not ids:
-                continue
-            blocks.append(
-                f"<h3 class='pillar-group'>{_PILLAR_DETAIL_LABELS[pillar]}</h3>"
+        blocks.append(
+            _render_indicator_tables_for_payload(
+                payload, active_pillars, heading="h3",
             )
-            blocks.append(_PILLAR_DETAIL_RENDERERS[pillar](payload, ids))
+        )
     blocks.append("</section>")
     return "\n".join(blocks)
 
@@ -884,11 +950,17 @@ def _render_per_supplier_detail(state, sources, ctx=None) -> str:
     return "\n".join(blocks)
 
 
-def _render_prioritisation_supplier_breakdown(src) -> str:
-    """For prioritisation source: one h3 per supplier with their scores."""
+def _render_prioritisation_supplier_breakdown(
+    src, *, with_heading: bool = True, indicator_pillars=None,
+) -> str:
+    """For prioritisation source: one h3 per supplier with their scores.
+
+    When ``indicator_pillars`` is given (the batch ran full coverage), each
+    supplier also gets the per-indicator audit tables — parity with the MNC
+    screening report's Indicator Detail (M-PRIO-REPORT)."""
     name = html.escape(src.get("name", "Prioritisation"))
     supplier_results = src.get("supplier_results", [])
-    blocks = [f"<h3>{name}</h3>"]
+    blocks = [f"<h3>{name}</h3>"] if with_heading else []
     for sup in supplier_results:
         if sup.get("status") in ("failed", "cancelled"):
             continue
@@ -896,6 +968,12 @@ def _render_prioritisation_supplier_breakdown(src) -> str:
         result = sup.get("result") or {}
         blocks.append(f"<h4>{supplier_name}</h4>")
         blocks.append(_render_pillar_score_block(result))
+        if indicator_pillars:
+            blocks.append(
+                _render_indicator_tables_for_payload(
+                    result, indicator_pillars, heading="h5",
+                )
+            )
     return "\n".join(blocks)
 
 

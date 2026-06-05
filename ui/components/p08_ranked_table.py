@@ -86,7 +86,6 @@ def render_ranked_table(
     if not state.supplier_results:
         st.info(
             "Results will appear here as each supplier completes.",
-            icon="📋",
         )
         return
 
@@ -303,9 +302,8 @@ def drill_to_supplier(
             continue
         if r.status in ("failed", "cancelled") or r.result is None:
             st.toast(
-                f"⚠️ {supplier_name} has no result to inspect "
+                f"{supplier_name} has no result to inspect "
                 f"(status: {r.status}).",
-                icon="⚠️",
             )
             return
         _hydrate_p05_and_route(r, state.setup)

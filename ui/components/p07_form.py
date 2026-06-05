@@ -30,12 +30,19 @@ _MAX_SUPPLIERS: int = 20
 
 @dataclass(frozen=True)
 class Supplier:
-    """One supplier to be screened in the batch."""
+    """One supplier to be screened in the batch.
+
+    ``radius_km`` is an optional per-supplier override. Region suppliers
+    (Regional analysis) carry their own area-matched buffer; node and
+    ad-hoc suppliers leave it ``None`` and fall back to the shared
+    page-level radius in the executor.
+    """
     id:     str
     name:   str
     lat:    float
     lon:    float
-    source: str  # "supply_chain" or "ad_hoc"
+    source: str  # "supply_chain", "region", or "ad_hoc"
+    radius_km: float | None = None
 
 
 def render_prioritisation_setup() -> None:
@@ -52,9 +59,20 @@ def render_prioritisation_setup() -> None:
 # ──────────────────────────────────────────────────────────────────
 
 def _render_supplier_section() -> list[Supplier]:
-    """Three-mode tab interface. Returns the chosen supplier list."""
+    """Mode-tab interface. Returns the chosen supplier list.
+
+    Three scope shapes drive the primary tab:
+      - ``supply_chain`` → node checkboxes (MNC chain or country chain).
+      - ``country_regional`` → region multi-select within the country.
+      - otherwise → ad-hoc list is the active tab.
+    """
     scope = st.session_state.get("scope")
-    has_supply_chain = bool(scope) and scope.get("kind") == "supply_chain"
+    kind = scope.get("kind") if scope else None
+
+    if kind == "country_regional":
+        return _render_region_supplier_section(scope["data"]["country"])
+
+    has_supply_chain = kind == "supply_chain"
 
     # Three tabs, order by relevance to current scope.
     if has_supply_chain:
@@ -87,6 +105,118 @@ def _render_supplier_section() -> list[Supplier]:
         _render_country_db_placeholder()
 
     return suppliers
+
+
+def _render_region_supplier_section(country: str) -> list[Supplier]:
+    """Regional-analysis batch input: pick multiple regions, or ad-hoc.
+
+    Each selected region becomes a Supplier at its centroid carrying its
+    own area-matched ``radius_km`` (per-region buffer). The ad-hoc tab is
+    the alternative input for free coordinates.
+    """
+    tab_regions, tab_adhoc, tab_db = st.tabs([
+        "Regions",
+        "Ad hoc locations",
+        "Country database (v1.x)",
+    ])
+
+    suppliers: list[Supplier] = []
+    with tab_regions:
+        suppliers = _render_region_picker(country)
+
+    with tab_adhoc:
+        # Ad-hoc is a fallback; only adopt it when no region is selected.
+        adhoc_suppliers = _render_ad_hoc_textarea()
+        if not suppliers:
+            suppliers = adhoc_suppliers
+
+    with tab_db:
+        _render_country_db_placeholder()
+
+    return suppliers
+
+
+def _render_region_picker(country: str) -> list[Supplier]:
+    """Checkbox list of the country's regions; return selected as Suppliers.
+
+    Mirrors the supply-chain node picker's generation-counter pattern so
+    Select all / Deselect all force clean checkbox refreshes.
+    """
+    from demo.regions import regions_for_country
+
+    with st.spinner("Loading regions…"):
+        regions = regions_for_country(country)
+
+    if not regions:
+        st.warning(
+            f"No screenable regions found for {country}. Use **Ad hoc "
+            f"locations** to paste your own list."
+        )
+        return []
+
+    if "p07_region_generation" not in st.session_state:
+        st.session_state["p07_region_generation"] = 0
+    if "p07_selected_region_names" not in st.session_state:
+        # Default to none selected — region batches are usually a deliberate
+        # subset (whole-country batches can exceed the 20-supplier cap).
+        st.session_state["p07_selected_region_names"] = set()
+
+    selected_names = st.session_state["p07_selected_region_names"]
+    generation     = st.session_state["p07_region_generation"]
+    by_name        = {r.name: r for r in regions}
+
+    with st.container(border=True):
+        header_cols = st.columns([4, 2])
+        with header_cols[0]:
+            st.markdown(f"**{country} — regions**")
+            st.caption(
+                f"{len(regions)} regions. Each screens at its own "
+                f"area-matched buffer."
+            )
+        with header_cols[1]:
+            col_all, col_none = st.columns(2)
+            with col_all:
+                if st.button("Select all", use_container_width=True,
+                             key="p07_region_all"):
+                    st.session_state["p07_selected_region_names"] = {
+                        r.name for r in regions
+                    }
+                    st.session_state["p07_region_generation"] += 1
+                    st.rerun()
+            with col_none:
+                if st.button("Deselect all", use_container_width=True,
+                             key="p07_region_none"):
+                    st.session_state["p07_selected_region_names"] = set()
+                    st.session_state["p07_region_generation"] += 1
+                    st.rerun()
+
+        st.divider()
+
+        for region in regions:
+            checked = region.name in selected_names
+            new_checked = st.checkbox(
+                f"{region.name} — {region.radius_km} km buffer"
+                + (" (capped)" if region.is_capped else ""),
+                value=checked,
+                key=f"p07_region_{region.name}_v{generation}",
+            )
+            if new_checked and region.name not in selected_names:
+                selected_names.add(region.name)
+            elif not new_checked and region.name in selected_names:
+                selected_names.discard(region.name)
+
+    return [
+        Supplier(
+            id=f"region_{r.name}",
+            name=f"{r.name}, {r.country}",
+            lat=r.centroid_lat,
+            lon=r.centroid_lon,
+            source="region",
+            radius_km=r.radius_km,
+        )
+        for name in selected_names
+        if (r := by_name.get(name)) is not None
+    ]
 
 
 def _render_supply_chain_picker(chain) -> list[Supplier]:
@@ -177,7 +307,7 @@ def _render_ad_hoc_textarea() -> list[Supplier]:
         parsed, errors = _parse_ad_hoc(text)
         if errors:
             with st.expander(
-                f"⚠️ {len(errors)} line(s) couldn't be parsed"
+                f"{len(errors)} line(s) couldn't be parsed"
             ):
                 for line_no, line, reason in errors:
                     st.caption(f"Line {line_no}: `{line}` — {reason}")
@@ -274,6 +404,12 @@ def _render_radius_section() -> int:
             key="p07_radius",
         )
         st.caption(_RADIUS_NOTES[radius_km])
+        if st.session_state.get("scope", {}).get("kind") == "country_regional":
+            st.caption(
+                "Note: selected **regions** screen at their own "
+                "area-matched buffer; this radius applies only to any "
+                "**ad-hoc** locations in the batch."
+            )
         # M-FALLBACK-A1 §5.4 — soft large-AOI alert. The fixed stops top out
         # at 100 km so this won't fire today, but it future-proofs the page
         # and keeps the warning consistent with P-04's region mode.
@@ -495,6 +631,7 @@ def _commit_and_navigate(
             {
                 "id": s.id, "name": s.name,
                 "lat": s.lat, "lon": s.lon, "source": s.source,
+                "radius_km": s.radius_km,
             }
             for s in suppliers
         ],
@@ -512,6 +649,5 @@ def _commit_and_navigate(
         st.switch_page("pages/08_Prioritisation_Results.py")
     except Exception:
         st.toast(
-            "✓ Setup saved to session. P-08 (results) lands in M-P08.1.",
-            icon="📋",
+            "Setup saved to session. P-08 (results) lands in M-P08.1.",
         )

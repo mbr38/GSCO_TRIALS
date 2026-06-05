@@ -24,28 +24,23 @@ apply_gsco_theme()
 landing = st.Page(
     "app.py",
     title="Landing",
-    icon="🏠",
     default=True,
 )
 scope = st.Page(
     "pages/02_Scope_Setup.py",
     title="Scope Setup",
-    icon="🌍",
 )
 hub = st.Page(
     "pages/03_Workflow_Hub.py",
     title="Workflow Hub",
-    icon="🔀",
 )
 inspect = st.Page(
     "pages/04_Inspect_Setup.py",
     title="Inspect — Setup",
-    icon="🔍",
 )
 results = st.Page(
     "pages/05_Screening_Results.py",
     title="Inspect — Results",
-    icon="📊",
 )
 # M-TREND-A2 — per-indicator trend drill-down (P-06). Registered so the
 # ``st.switch_page("pages/06_Trend_View.py")`` calls from the C4b "view trend"
@@ -55,32 +50,26 @@ results = st.Page(
 trend = st.Page(
     "pages/06_Trend_View.py",
     title="Trend View",
-    icon="📈",
 )
 prio = st.Page(
     "pages/07_Prioritisation_Setup.py",
     title="Prioritisation — Setup",
-    icon="📋",
 )
 prio_results = st.Page(
     "pages/08_Prioritisation_Results.py",
     title="Prioritisation — Results",
-    icon="📈",
 )
 library = st.Page(
     "pages/09_Indicator_Library.py",
     title="Indicator Library",
-    icon="📚",
 )
 saved = st.Page(
     "pages/10_Saved_Analyses.py",
     title="Saved Analyses",
-    icon="💾",
 )
 reports = st.Page(
     "pages/11_Reports.py",
     title="Reports",
-    icon="📄",
 )
 # Developer-only — kept in the navigation registry so existing
 # ``st.switch_page("pages/99_engine_scratch.py")`` calls from P-05
@@ -88,7 +77,6 @@ reports = st.Page(
 scratch = st.Page(
     "pages/99_engine_scratch.py",
     title="Engine Scratch (dev)",
-    icon="🧪",
 )
 
 

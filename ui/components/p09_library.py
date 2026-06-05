@@ -39,10 +39,10 @@ _TIER_BADGE_COLOURS: dict[str, str] = {
 
 # M-P09-COMPOSITES: fourth tab for cross-pillar / composite entries.
 _PILLAR_LABELS: tuple[tuple[str, str], ...] = (
-    ("air",       "💨 Air Pollution"),
-    ("ghg",       "🔥 GHG Emissions"),
-    ("nature",    "🌿 Nature / Land"),
-    ("composite", "📊 Composite / Cross-pillar"),
+    ("air",       "Air Pollution"),
+    ("ghg",       "GHG Emissions"),
+    ("nature",    "Nature / Land"),
+    ("composite", "Composite / Cross-pillar"),
 )
 
 _SUB_SECTION_LABELS: dict[str, str] = {
@@ -83,32 +83,12 @@ _COASTAL_HANDLING_CARD_PARAGRAPH: str = (
 )
 
 
-# M-ATTRIB-A2 — canonical Air-pillar attributability framing (§4.1). Rendered
-# once at the top of the Air tab; the per-card "What this measures" notes
-# inherit this rather than repeating it (operator constraint: no repetition
-# across the inventory). Master wording also lives in IC_v4 §0.7.
-_AIR_ATTRIBUTABILITY_CALLOUT: str = (
-    "**What Air severity measures.** These indicators flag whether a site "
-    "shows **unusual pollution relative to its surrounding region** — not "
-    "absolute pollution levels. A **Normal** rating means the site isn't "
-    "standing out from its surroundings, even if the wider region is itself "
-    "polluted. A **Concern** or **Severe** rating means the site stands out "
-    "as anomalous against its regional context, suggesting a site-specific "
-    "contribution worth investigating.\n\n"
-    "Two sites in the same polluted region can both read Normal if neither "
-    "stands out locally; a site in a clean region can read Concern if its "
-    "local readings sit noticeably above the regional background. The tool's "
-    "job is to flag sites worth investigating — not to grade absolute air "
-    "quality."
-)
-
-
 def render_indicator_library() -> None:
     library    = load_library()
     esg_caveat = get_esg_caveat()
 
     if esg_caveat:
-        st.info(esg_caveat, icon="ℹ️")
+        st.info(esg_caveat)
 
     search_query = st.text_input(
         "Search indicators",
@@ -130,19 +110,12 @@ def render_indicator_library() -> None:
     tabs = st.tabs([label for _, label in _PILLAR_LABELS])
     for tab, (pillar_id, _) in zip(tabs, _PILLAR_LABELS):
         with tab:
-            # M-ATTRIB-A2: Air-pillar attributability callout — the canonical
-            # framing, rendered once at the top of the Air tab so the
-            # per-card "What this measures" notes don't have to repeat it.
-            if pillar_id == "air":
-                st.info(_AIR_ATTRIBUTABILITY_CALLOUT, icon="🎯")
-
             pillar_cards = _filter_cards(
                 library, pillar_id, search_query, esg_filter,
             )
             if not pillar_cards:
                 st.info(
                     "No indicators match the current filter.",
-                    icon="🔍",
                 )
                 continue
             _render_pillar_tab(pillar_cards)
@@ -352,7 +325,7 @@ def _render_parameters_section(indicator_id: str) -> None:
     if not params:
         return
     with st.expander(
-        f"⚙ Parameters & calibration ({len(params)})",
+        f"Parameters & calibration ({len(params)})",
         expanded=False,
     ):
         st.caption(

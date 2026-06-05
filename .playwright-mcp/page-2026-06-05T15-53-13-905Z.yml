@@ -1,0 +1,166 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8533/
+          - paragraph [ref=e21]: Landing
+      - listitem [ref=e22]:
+        - link "Scope Setup" [ref=e24] [cursor=pointer]:
+          - /url: http://localhost:8533/Scope_Setup
+          - paragraph [ref=e27]: Scope Setup
+      - listitem [ref=e28]:
+        - link "Workflow Hub" [ref=e30] [cursor=pointer]:
+          - /url: http://localhost:8533/Workflow_Hub
+          - paragraph [ref=e33]: Workflow Hub
+      - listitem [ref=e34]:
+        - link "Inspect — Setup" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8533/Inspect_Setup
+          - paragraph [ref=e39]: Inspect — Setup
+      - listitem [ref=e40]:
+        - link "Inspect — Results" [ref=e42] [cursor=pointer]:
+          - /url: http://localhost:8533/Screening_Results
+          - paragraph [ref=e45]: Inspect — Results
+      - listitem [ref=e46]:
+        - link "Trend View" [ref=e48] [cursor=pointer]:
+          - /url: http://localhost:8533/Trend_View
+          - paragraph [ref=e51]: Trend View
+      - listitem [ref=e52]:
+        - link "Prioritisation — Setup" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Setup
+          - paragraph [ref=e57]: Prioritisation — Setup
+      - listitem [ref=e58]:
+        - link "Prioritisation — Results" [ref=e60] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Results
+          - paragraph [ref=e63]: Prioritisation — Results
+      - listitem [ref=e64]:
+        - link "Indicator Library" [ref=e66] [cursor=pointer]:
+          - /url: http://localhost:8533/Indicator_Library
+          - paragraph [ref=e69]: Indicator Library
+      - listitem [ref=e70]:
+        - link "Saved Analyses" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8533/Saved_Analyses
+          - paragraph [ref=e75]: Saved Analyses
+      - listitem [ref=e76]:
+        - link "Reports" [ref=e78] [cursor=pointer]:
+          - /url: http://localhost:8533/Reports
+          - paragraph [ref=e81]: Reports
+    - generic [ref=e82]:
+      - paragraph [ref=e86] [cursor=pointer]: Developer
+      - listitem [ref=e87]:
+        - link "Engine Scratch (dev)" [ref=e89] [cursor=pointer]:
+          - /url: http://localhost:8533/engine_scratch
+          - paragraph [ref=e92]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e96]
+    - generic [ref=e108]:
+      - generic [ref=e462]:
+        - generic [ref=e467]:
+          - button "Fullscreen" [ref=e472] [cursor=pointer]:
+            - img [ref=e473]
+          - img "0" [ref=e478]
+        - paragraph [ref=e485]:
+          - text: Signed in as
+          - strong [ref=e486]: Policy Maker
+          - text: · Session
+          - code [ref=e487]: 7e3ba95b
+        - generic [ref=e491]:
+          - paragraph [ref=e498]: "Scope: India (regional)"
+          - button "Change" [ref=e503] [cursor=pointer]:
+            - paragraph [ref=e507]: Change
+        - button "Sign out" [ref=e512] [cursor=pointer]:
+          - paragraph [ref=e516]: Sign out
+      - separator [ref=e521]
+      - heading "Workflow Hub" [level=1] [ref=e526]:
+        - text: Workflow Hub
+        - generic [ref=e527]:
+          - link "Link to heading":
+            - /url: "#workflow-hub"
+            - img
+      - heading "Welcome, Policy Maker." [level=3] [ref=e533]:
+        - text: Welcome, Policy Maker.
+        - generic [ref=e534]:
+          - link "Link to heading":
+            - /url: "#welcome-policy-maker"
+            - img
+      - generic [ref=e536]:
+        - generic [ref=e541]:
+          - paragraph [ref=e544]: Country
+          - paragraph [ref=e547]: India
+        - generic [ref=e552]:
+          - paragraph [ref=e555]: Analysis
+          - paragraph [ref=e558]: Regional
+      - paragraph [ref=e563]:
+        - text: Pick a single region on
+        - strong [ref=e564]: Inspect
+        - text: ", or several regions on"
+        - strong [ref=e565]: Prioritisation
+        - text: . Each region screens at its own area-matched buffer.
+      - separator [ref=e570]
+      - heading "Workflows" [level=3] [ref=e576]:
+        - text: Workflows
+        - generic [ref=e577]:
+          - link "Link to heading":
+            - /url: "#workflows"
+            - img
+      - generic [ref=e579]:
+        - generic [ref=e583]:
+          - heading "Inspect" [level=4] [ref=e589]:
+            - text: Inspect
+            - generic [ref=e590]:
+              - link "Link to heading":
+                - /url: "#inspect"
+                - img
+          - paragraph [ref=e595]: Screen a single location across the three environmental pillars. Pick a centre, a buffer radius, and the indicators to run.
+          - button "Open Inspect →" [ref=e598] [cursor=pointer]:
+            - paragraph [ref=e602]: Open Inspect →
+        - generic [ref=e606]:
+          - heading "Prioritisation" [level=4] [ref=e612]:
+            - text: Prioritisation
+            - generic [ref=e613]:
+              - link "Link to heading":
+                - /url: "#prioritisation"
+                - img
+          - paragraph [ref=e618]: Batch-screen up to 20 suppliers in one run. Results are ranked by audit priority across all pillars.
+          - button "Open Prioritisation →" [ref=e621] [cursor=pointer]:
+            - paragraph [ref=e625]: Open Prioritisation →
+      - separator [ref=e630]
+      - heading "Persistent modules" [level=3] [ref=e636]:
+        - text: Persistent modules
+        - generic [ref=e637]:
+          - link "Link to heading":
+            - /url: "#persistent-modules"
+            - img
+      - paragraph [ref=e642]: Reference and history surfaces, accessible from any page.
+      - generic [ref=e644]:
+        - generic [ref=e648]:
+          - heading "Indicator Library" [level=4] [ref=e654]:
+            - text: Indicator Library
+            - generic [ref=e655]:
+              - link "Link to heading":
+                - /url: "#indicator-library"
+                - img
+          - paragraph [ref=e660]: Reference catalogue of every indicator the tool can compute — formulas, sources, decision relevance.
+          - button "Open →" [ref=e663] [cursor=pointer]:
+            - paragraph [ref=e667]: Open →
+        - generic [ref=e671]:
+          - heading "Saved Analyses" [level=4] [ref=e677]:
+            - text: Saved Analyses
+            - generic [ref=e678]:
+              - link "Link to heading":
+                - /url: "#saved-analyses"
+                - img
+          - paragraph [ref=e683]: List of screenings and prioritisation runs you've saved. Re-open any one back on its results page without recomputing.
+          - button "Open →" [ref=e686] [cursor=pointer]:
+            - paragraph [ref=e690]: Open →
+        - generic [ref=e694]:
+          - heading "Reports" [level=4] [ref=e700]:
+            - text: Reports
+            - generic [ref=e701]:
+              - link "Link to heading":
+                - /url: "#reports"
+                - img
+          - paragraph [ref=e706]: Build and export reports from saved analyses. Pick a template, select sources, preview, and export.
+          - button "Open →" [ref=e709] [cursor=pointer]:
+            - paragraph [ref=e713]: Open →

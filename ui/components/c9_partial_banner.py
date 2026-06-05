@@ -137,7 +137,6 @@ def render_c9_partial_banner(
     st.warning(
         f"**Partial coverage** — {n} indicator{plural} did not return "
         f"a value. See the failed tiles below for details.",
-        icon="⚠️",
     )
 
 

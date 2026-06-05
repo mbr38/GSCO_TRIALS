@@ -54,10 +54,9 @@ def _render_post_save_banner() -> None:
         return
     st.success(
         f"Saved as **{pending['name']}**.",
-        icon="💾",
     )
     if st.button(
-        "📄 Open in Reports",
+        "Open in Reports",
         key=f"c8_open_in_reports_{pending['id']}",
         use_container_width=True,
     ):
@@ -108,7 +107,6 @@ def _save_as_report(payload: dict) -> None:
     }
     st.toast(
         f"Saved as report — '{entry['name']}'.",
-        icon="💾",
     )
 
 
@@ -124,8 +122,9 @@ def _build_save_name(
 
     1. **Supply chain** scope with a node name on ``centre_metadata`` →
        "<node name> — <chain name>".
-    2. **Region** scope with a region name + country on
-       ``centre_metadata`` → "<region>, <country> — Region screening".
+    2. **Region** or **Regional-analysis** (``country_regional``) scope
+       with a region name + country on ``centre_metadata`` →
+       "<region>, <country> — Region screening".
     3. **Fallback** (no scope, ``scope.kind == "none"``, missing
        metadata, or any unexpected shape) → the original coordinate +
        timestamp format.
@@ -141,7 +140,7 @@ def _build_save_name(
         if node_name and chain_data is not None:
             return f"{node_name} — {chain_data.name}"
 
-    if scope and scope.get("kind") == "region":
+    if scope and scope.get("kind") in ("region", "country_regional"):
         region_name = metadata.get("region_name")
         country     = metadata.get("country")
         if region_name and country:

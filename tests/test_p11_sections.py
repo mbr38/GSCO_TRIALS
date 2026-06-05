@@ -502,15 +502,22 @@ def test_pillar_block_subset_screening_renders_caveat_and_table():
     assert "Composite" in out
 
 
-def test_pillar_block_prioritisation_source_renders_redirect_caveat():
+def test_pillar_block_prioritisation_source_renders_inline_findings():
+    # M-PRIO-REPORT: a prioritisation source carries no single screening
+    # payload, so the pillar-findings slot renders the ranked table +
+    # per-supplier breakdown inline (instead of the old dead pointer to a
+    # "Priority Findings" section the General/MNC templates never include).
     src = _prioritisation_source(name="Prio source")
     with patch.object(
         p11_sections, "generate_verbal_summary",
     ) as mock_vs:
         out = _render_source_pillar_block(src)
     mock_vs.assert_not_called()
-    assert "prioritisation source" in out
-    assert "Priority Findings" in out
+    assert "Supplier ranking" in out
+    assert "Per-supplier detail" in out
+    assert "Supplier 0" in out
+    # Composite column is explained, not left unlabelled.
+    assert "Composite =" in out
 
 
 def test_pillar_block_empty_screening_setup_treated_as_partial():

@@ -116,6 +116,7 @@ def _scope_chip_label(scope: dict | None) -> tuple[str, str]:
 
     - ``None`` or ``{"kind": "none"}``  → "Scope: not set" / "Pick scope"
     - ``{"kind": "supply_chain"}``      → "Scope: <name>"        / "Change"
+    - ``{"kind": "country_regional"}``  → "Scope: <country> (regional)" / "Change"
     - ``{"kind": "region"}``            → "Scope: <name>, <country>" / "Change"
     - Anything else                     → defensive fallback "Scope: —"
     """
@@ -125,6 +126,8 @@ def _scope_chip_label(scope: dict | None) -> tuple[str, str]:
     data = scope.get("data")
     if kind == "supply_chain" and data is not None:
         return (f"Scope: {data.name}", "Change")
+    if kind == "country_regional" and isinstance(data, dict):
+        return (f"Scope: {data.get('country')} (regional)", "Change")
     if kind == "region" and data is not None:
         return (f"Scope: {data.name}, {data.country}", "Change")
     return ("Scope: —", "Pick scope")

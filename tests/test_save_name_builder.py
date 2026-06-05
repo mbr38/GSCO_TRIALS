@@ -92,6 +92,23 @@ class TestRegionName:
         name = _build_save_name(setup, scope, _FIXED_NOW)
         assert name == "Distrito Federal, Brazil — Region screening"
 
+    def test_country_regional_scope_uses_region_metadata(self) -> None:
+        """A Regional-analysis (``country_regional``) screening picks its
+        region downstream on P-04, which writes region_name + country to
+        ``centre_metadata``. The builder must give it the same readable
+        name as a legacy region scope so report-making is unaffected."""
+        setup = {
+            "centre":          {"lat": 28.61, "lon": 77.20},
+            "centre_metadata": {
+                "source":      "P-04 regional analysis · India",
+                "region_name": "NCT of Delhi",
+                "country":     "India",
+            },
+        }
+        scope = {"kind": "country_regional", "data": {"country": "India"}}
+        name = _build_save_name(setup, scope, _FIXED_NOW)
+        assert name == "NCT of Delhi, India — Region screening"
+
     def test_region_falls_back_when_metadata_incomplete(self) -> None:
         """Region scope without region_name on centre_metadata falls to
         the coordinate format — same defensive behaviour as supply-chain.

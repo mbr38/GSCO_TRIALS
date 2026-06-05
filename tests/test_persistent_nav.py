@@ -76,6 +76,15 @@ def test_region_scope_label_includes_name_and_country():
     assert button == "Change"
 
 
+def test_country_regional_scope_label_includes_country():
+    """Regional-analysis scope stores only the country; the chip marks it
+    as a regional analysis."""
+    scope = {"kind": "country_regional", "data": {"country": "India"}}
+    label, button = _scope_chip_label(scope)
+    assert label  == "Scope: India (regional)"
+    assert button == "Change"
+
+
 def test_unknown_scope_kind_falls_back():
     """Future scope kinds we haven't taught the chip about render a
     neutral fallback rather than crashing the nav strip."""

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-st.set_page_config(page_title="Trend View — GSCO", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Trend View — GSCO", layout="wide")
 
 from utils.state import require_user_type
 

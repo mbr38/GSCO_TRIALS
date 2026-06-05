@@ -51,6 +51,15 @@ def render_c6_confidence_panel(payload: dict) -> None:
             "aggregate — the thing that constrains how much weight to "
             "place on the priority score."
         )
+        st.caption(
+            "Reference / single-snapshot indicators (protected areas, "
+            "forest-loss, the CO₂ inventory) read close to 1.00 by "
+            "construction: they carry no satellite revisit or retrieval "
+            "uncertainty, so their coverage and anomaly-strength terms are "
+            "1.0. Lower scores come from the live-revisit satellite "
+            "indicators (Air pollutants, CH₄, NDVI), where cloud cover and "
+            "limited overpasses reduce coverage."
+        )
         st.divider()
         for display_name, conf_key, pillar in _PILLAR_ROWS:
             # M-ATTRIB-A1 dual-emit shim — read new ID, fall back to legacy

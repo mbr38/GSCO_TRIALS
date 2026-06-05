@@ -22,16 +22,20 @@ from typing import Literal
 
 import streamlit as st
 
-from demo.regions import Region, all_countries, regions_for_country
-from demo.scopes import SupplyChain, all_scopes
+from demo.regions import Region, all_countries
+from demo.scopes import SupplyChain, country_scopes, mnc_scopes
 from ui.components.p02_preview import (
+    render_country_regional_preview,
     render_none_preview,
     render_region_preview,
     render_supply_chain_preview,
 )
 
 
-Mode = Literal["supply_chain", "region", "none"]
+# "country" is the Policy-Maker top-level card (its sub-choice resolves to
+# either a "country_regional" or a "supply_chain" pending scope). "region"
+# is retained only for the legacy preview branch / backward-compat.
+Mode = Literal["supply_chain", "country", "country_regional", "region", "none"]
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +61,13 @@ def render_scope_setup() -> None:
 # ---------------------------------------------------------------------------
 
 def _render_mode_pick(user_type: str | None) -> None:
-    """Render the mode-selection screen, branched by user_type."""
+    """Render the mode-selection screen, branched by user_type.
+
+    MNC users (and the defensive fallback) get the curated-supply-chain
+    cards. Policy Maker users get the Country card — country first, then
+    a Regional-analysis / Supply-chain-analysis sub-choice — alongside
+    No scope.
+    """
     st.markdown("### Pick a scope mode")
 
     # M-PARTIAL-CAVEAT — uniform card heights for adjacent mode cards.
@@ -77,40 +87,45 @@ def _render_mode_pick(user_type: str | None) -> None:
         unsafe_allow_html=True,
     )
 
-    modes_for_user = _available_modes(user_type)
-    cols = st.columns(len(modes_for_user))
-    for col, mode in zip(cols, modes_for_user):
-        with col:
-            _render_mode_card(mode)
+    if user_type == "policy_maker":
+        _render_policy_maker_mode_pick()
+    else:
+        _render_mnc_mode_pick()
 
 
 def _available_modes(user_type: str | None) -> tuple[Mode, ...]:
-    """Modes visible per user_type. Defensive fallback returns all three.
+    """Top-level cards visible per user_type.
 
-    The hard branch keeps MNC users out of the country/region picker
-    (their scopes are curated supply chains) and Policy Maker users
-    out of the supply-chain picker (their scopes are administrative
-    regions). Both can opt into None.
+    MNC (and the defensive fallback) pick a curated supply chain or no
+    scope. Policy Maker picks a Country (whose sub-choice resolves to a
+    regional or a supply-chain scope) or no scope. The hard branch keeps
+    each user type in its own scope grammar.
     """
-    if user_type == "mnc":
-        return ("supply_chain", "none")
     if user_type == "policy_maker":
-        return ("region", "none")
-    return ("supply_chain", "region", "none")
+        return ("country", "none")
+    return ("supply_chain", "none")
+
+
+# ---------------------------------------------------------------------------
+# MNC mode pick — curated supply chains
+# ---------------------------------------------------------------------------
+
+def _render_mnc_mode_pick() -> None:
+    """Two cards: a curated supply chain, or no scope."""
+    cols = st.columns(2)
+    with cols[0]:
+        _render_mode_card("supply_chain")
+    with cols[1]:
+        _render_mode_card("none")
 
 
 def _render_mode_card(mode: Mode) -> None:
-    """One mode card. Title + description + mode-specific picker."""
+    """One MNC mode card. Title + description + mode-specific picker."""
     descriptions: dict[Mode, tuple[str, str]] = {
         "supply_chain": (
             "Demo supply chain",
             "Load one of the curated supply chains. You'll be able to "
             "screen any node in the chain on the next page.",
-        ),
-        "region": (
-            "Country / region",
-            "Screen a whole administrative region. You'll get a "
-            "representative buffer at the region's centroid.",
         ),
         "none": (
             "No scope",
@@ -127,8 +142,6 @@ def _render_mode_card(mode: Mode) -> None:
 
         if mode == "supply_chain":
             _render_supply_chain_picker()
-        elif mode == "region":
-            _render_region_picker()
         elif mode == "none":
             if st.button(
                 "Continue without a scope",
@@ -140,8 +153,12 @@ def _render_mode_card(mode: Mode) -> None:
 
 
 def _render_supply_chain_picker() -> None:
-    """Dropdown of demo supply chains + Preview button."""
-    scopes = all_scopes()
+    """Dropdown of MNC (corporate) supply chains + Preview button.
+
+    Uses ``mnc_scopes()`` so country supply chains (e.g. India EV,
+    ``audience == "policy_maker"``) never surface in the MNC picker.
+    """
+    scopes = mnc_scopes()
     labels = [s.name for s in scopes]
     choice = st.selectbox(
         "Supply chain",
@@ -159,53 +176,95 @@ def _render_supply_chain_picker() -> None:
         st.rerun()
 
 
-def _render_region_picker() -> None:
-    """Country dropdown → region dropdown → Preview button.
+# ---------------------------------------------------------------------------
+# Policy-Maker mode pick — Country (regional / supply-chain) or none
+# ---------------------------------------------------------------------------
 
-    First-time pick of a country fires one EE round-trip via
-    ``regions_for_country`` (~2s); subsequent picks within the same
-    country are instant thanks to the module-level cache.
+def _render_policy_maker_mode_pick() -> None:
+    """Two cards: Country analysis, or no scope."""
+    cols = st.columns(2)
+    with cols[0]:
+        _render_country_card()
+    with cols[1]:
+        _render_mode_card("none")
+
+
+def _render_country_card() -> None:
+    """Country card: pick a country, then a regional / supply-chain analysis.
+
+    - **Regional analysis** — no region picked here; the pending scope is
+      ``country_regional`` (region chosen later on Inspect/Prioritisation).
+    - **Supply-chain analysis** — pick from the supply chains available for
+      the chosen country (``country_scopes``).
     """
-    countries = all_countries()
-    default_country_idx = (
-        countries.index("Brazil") if "Brazil" in countries else 0
-    )
-    country = st.selectbox(
-        "Country",
-        options=countries,
-        index=default_country_idx,
-        key="p02_country_choice",
-    )
+    with st.container(border=True):
+        st.markdown("#### Country")
+        st.caption(
+            "Screen a country. Choose a region-by-region analysis, or a "
+            "supply chain operating in that country."
+        )
+        st.write("")
 
-    with st.spinner("Loading regions…"):
-        regions = regions_for_country(country)
+        countries = all_countries()
+        default_idx = countries.index("India") if "India" in countries else 0
+        country = st.selectbox(
+            "Country",
+            options=countries,
+            index=default_idx,
+            key="p02_pm_country",
+        )
 
-    if not regions:
-        st.warning(
-            f"No screenable regions found for {country}. Try another "
-            f"country or use **No scope** to screen ad-hoc."
+        analysis = st.radio(
+            "Analysis type",
+            options=["Regional analysis", "Supply-chain analysis"],
+            key="p02_pm_analysis",
+        )
+
+        if analysis == "Regional analysis":
+            st.caption(
+                "Screen administrative regions. You'll pick the region(s) "
+                "on the Inspect / Prioritisation page."
+            )
+            if st.button(
+                "Preview",
+                use_container_width=True,
+                key="p02_preview_country_regional",
+            ):
+                _set_pending_scope("country_regional", {"country": country})
+                st.rerun()
+        else:
+            _render_country_supply_chain_picker(country)
+
+
+def _render_country_supply_chain_picker(country: str) -> None:
+    """Supply chains available for ``country`` + Preview button."""
+    scopes = country_scopes(country)
+    if not scopes:
+        st.info(
+            f"No supply chains available for {country} yet. Use "
+            f"**Regional analysis**, or pick another country."
         )
         return
 
-    region_labels = [r.name for r in regions]
-    region_choice = st.selectbox(
-        "Region",
-        options=region_labels,
-        key="p02_region_choice",
+    labels = [s.name for s in scopes]
+    choice = st.selectbox(
+        "Supply chain",
+        options=labels,
+        key="p02_pm_supply_chain_choice",
     )
     if st.button(
         "Preview",
         use_container_width=True,
-        key="p02_preview_region",
+        key="p02_preview_pm_supply_chain",
     ):
-        picked = next(r for r in regions if r.name == region_choice)
-        _set_pending_scope("region", picked)
+        picked = next(s for s in scopes if s.name == choice)
+        _set_pending_scope("supply_chain", picked)
         st.rerun()
 
 
 def _set_pending_scope(
     kind: Mode,
-    data: SupplyChain | Region | None,
+    data: SupplyChain | Region | dict | None,
 ) -> None:
     """Stash the pick in session_state and transition to Preview."""
     st.session_state["p02_pending_scope"] = {"kind": kind, "data": data}
@@ -231,7 +290,10 @@ def _render_preview(user_type: str | None) -> None:
     st.markdown("### Preview")
     if kind == "supply_chain":
         render_supply_chain_preview(data)
+    elif kind == "country_regional":
+        render_country_regional_preview(data["country"])
     elif kind == "region":
+        # Legacy region scope — kept for backward-compat.
         render_region_preview(data)
     elif kind == "none":
         render_none_preview()

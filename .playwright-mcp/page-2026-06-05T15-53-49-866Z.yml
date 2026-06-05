@@ -1,0 +1,391 @@
+- generic [ref=e2]:
+  - generic [ref=e7]:
+    - button "keyboard_double_arrow_left" [ref=e1292] [cursor=pointer]:
+      - generic [ref=e1294]: keyboard_double_arrow_left
+    - list [ref=e10]:
+      - generic [ref=e11]:
+        - paragraph [ref=e15] [cursor=pointer]: Main
+        - listitem [ref=e16]:
+          - link "Landing" [ref=e18] [cursor=pointer]:
+            - /url: http://localhost:8533/
+            - paragraph [ref=e21]: Landing
+        - listitem [ref=e22]:
+          - link "Scope Setup" [ref=e24] [cursor=pointer]:
+            - /url: http://localhost:8533/Scope_Setup
+            - paragraph [ref=e27]: Scope Setup
+        - listitem [ref=e28]:
+          - link "Workflow Hub" [ref=e30] [cursor=pointer]:
+            - /url: http://localhost:8533/Workflow_Hub
+            - paragraph [ref=e33]: Workflow Hub
+        - listitem [ref=e34]:
+          - link "Inspect — Setup" [ref=e36] [cursor=pointer]:
+            - /url: http://localhost:8533/Inspect_Setup
+            - paragraph [ref=e39]: Inspect — Setup
+        - listitem [ref=e40]:
+          - link "Inspect — Results" [ref=e42] [cursor=pointer]:
+            - /url: http://localhost:8533/Screening_Results
+            - paragraph [ref=e45]: Inspect — Results
+        - listitem [ref=e46]:
+          - link "Trend View" [ref=e48] [cursor=pointer]:
+            - /url: http://localhost:8533/Trend_View
+            - paragraph [ref=e51]: Trend View
+        - listitem [ref=e52]:
+          - link "Prioritisation — Setup" [active] [ref=e54] [cursor=pointer]:
+            - /url: http://localhost:8533/Prioritisation_Setup
+            - paragraph [ref=e57]: Prioritisation — Setup
+        - listitem [ref=e58]:
+          - link "Prioritisation — Results" [ref=e60] [cursor=pointer]:
+            - /url: http://localhost:8533/Prioritisation_Results
+            - paragraph [ref=e63]: Prioritisation — Results
+        - listitem [ref=e64]:
+          - link "Indicator Library" [ref=e66] [cursor=pointer]:
+            - /url: http://localhost:8533/Indicator_Library
+            - paragraph [ref=e69]: Indicator Library
+        - listitem [ref=e70]:
+          - link "Saved Analyses" [ref=e72] [cursor=pointer]:
+            - /url: http://localhost:8533/Saved_Analyses
+            - paragraph [ref=e75]: Saved Analyses
+        - listitem [ref=e76]:
+          - link "Reports" [ref=e78] [cursor=pointer]:
+            - /url: http://localhost:8533/Reports
+            - paragraph [ref=e81]: Reports
+      - generic [ref=e82]:
+        - paragraph [ref=e86] [cursor=pointer]: Developer
+        - listitem [ref=e87]:
+          - link "Engine Scratch (dev)" [ref=e89] [cursor=pointer]:
+            - /url: http://localhost:8533/engine_scratch
+            - paragraph [ref=e92]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e96]
+    - generic [ref=e108]:
+      - generic [ref=e1296]:
+        - generic [ref=e1301]:
+          - button "Fullscreen" [ref=e1306] [cursor=pointer]:
+            - img [ref=e1307]
+          - img "0" [ref=e1312]
+        - paragraph [ref=e1319]:
+          - text: Signed in as
+          - strong [ref=e1320]: Policy Maker
+          - text: · Session
+          - code [ref=e1321]: 7e3ba95b
+        - generic [ref=e1325]:
+          - paragraph [ref=e1332]: "Scope: India (regional)"
+          - button "Change" [ref=e1337] [cursor=pointer]:
+            - paragraph [ref=e1341]: Change
+        - button "Sign out" [ref=e1346] [cursor=pointer]:
+          - paragraph [ref=e1350]: Sign out
+      - separator [ref=e1355]
+      - button "Show me around" [ref=e1364] [cursor=pointer]:
+        - paragraph [ref=e1368]: Show me around
+      - heading "Prioritisation — Setup" [level=1] [ref=e1373]:
+        - text: Prioritisation — Setup
+        - generic [ref=e1374]:
+          - link "Link to heading":
+            - /url: "#prioritisation-setup"
+            - img
+      - paragraph [ref=e1379]: Batch-screen up to 20 suppliers in one run. Results land on the Prioritisation Results page (P-08) ranked by audit priority.
+      - generic [ref=e1381]:
+        - tablist [ref=e1383]:
+          - tab "Regions" [selected] [ref=e1384] [cursor=pointer]:
+            - paragraph [ref=e1386]: Regions
+          - tab "Ad hoc locations" [ref=e1387] [cursor=pointer]:
+            - paragraph [ref=e1389]: Ad hoc locations
+          - tab "Country database (v1.x)" [ref=e1390] [cursor=pointer]:
+            - paragraph [ref=e1392]: Country database (v1.x)
+        - tabpanel "Regions" [ref=e1395]:
+          - generic [ref=e1398]:
+            - generic [ref=e1400]:
+              - generic [ref=e1402]:
+                - paragraph [ref=e1407]:
+                  - strong [ref=e1408]: India — regions
+                - paragraph [ref=e1413]: 33 regions. Each screens at its own area-matched buffer.
+              - generic [ref=e1417]:
+                - button "Select all" [ref=e1422] [cursor=pointer]:
+                  - paragraph [ref=e1426]: Select all
+                - button "Deselect all" [ref=e1431] [cursor=pointer]:
+                  - paragraph [ref=e1435]: Deselect all
+            - separator [ref=e1440]
+            - generic [ref=e1443] [cursor=pointer]:
+              - checkbox "Andaman and Nicobar — 49.0 km buffer"
+              - paragraph [ref=e1448]: Andaman and Nicobar — 49.0 km buffer
+            - generic [ref=e1451] [cursor=pointer]:
+              - checkbox "Andhra Pradesh — 296.2 km buffer"
+              - paragraph [ref=e1456]: Andhra Pradesh — 296.2 km buffer
+            - generic [ref=e1459] [cursor=pointer]:
+              - checkbox "Arunachal Pradesh — 69.6 km buffer"
+              - paragraph [ref=e1464]: Arunachal Pradesh — 69.6 km buffer
+            - generic [ref=e1467] [cursor=pointer]:
+              - checkbox "Assam — 157.5 km buffer"
+              - paragraph [ref=e1472]: Assam — 157.5 km buffer
+            - generic [ref=e1475] [cursor=pointer]:
+              - checkbox "Bihar — 173.4 km buffer"
+              - paragraph [ref=e1480]: Bihar — 173.4 km buffer
+            - generic [ref=e1483] [cursor=pointer]:
+              - checkbox "Chandigarh — 6.1 km buffer"
+              - paragraph [ref=e1488]: Chandigarh — 6.1 km buffer
+            - generic [ref=e1491] [cursor=pointer]:
+              - checkbox "Chhattisgarh — 207.9 km buffer"
+              - paragraph [ref=e1496]: Chhattisgarh — 207.9 km buffer
+            - generic [ref=e1499] [cursor=pointer]:
+              - checkbox "Dadra and Nagar Haveli — 12.5 km buffer"
+              - paragraph [ref=e1504]: Dadra and Nagar Haveli — 12.5 km buffer
+            - generic [ref=e1507] [cursor=pointer]:
+              - checkbox "Daman and Diu — 13.3 km buffer"
+              - paragraph [ref=e1512]: Daman and Diu — 13.3 km buffer
+            - generic [ref=e1515] [cursor=pointer]:
+              - checkbox "Delhi — 21.9 km buffer"
+              - paragraph [ref=e1520]: Delhi — 21.9 km buffer
+            - generic [ref=e1523] [cursor=pointer]:
+              - checkbox "Goa — 34.2 km buffer"
+              - paragraph [ref=e1528]: Goa — 34.2 km buffer
+            - generic [ref=e1531] [cursor=pointer]:
+              - checkbox "Gujarat — 232.5 km buffer"
+              - paragraph [ref=e1536]: Gujarat — 232.5 km buffer
+            - generic [ref=e1539] [cursor=pointer]:
+              - checkbox "Haryana — 118.5 km buffer"
+              - paragraph [ref=e1544]: Haryana — 118.5 km buffer
+            - generic [ref=e1547] [cursor=pointer]:
+              - checkbox "Himachal Pradesh — 131.9 km buffer"
+              - paragraph [ref=e1552]: Himachal Pradesh — 131.9 km buffer
+            - generic [ref=e1555] [cursor=pointer]:
+              - checkbox "Jharkhand — 159.8 km buffer"
+              - paragraph [ref=e1560]: Jharkhand — 159.8 km buffer
+            - generic [ref=e1563] [cursor=pointer]:
+              - checkbox "Karnataka — 247.3 km buffer"
+              - paragraph [ref=e1568]: Karnataka — 247.3 km buffer
+            - generic [ref=e1571] [cursor=pointer]:
+              - checkbox "Kerala — 110.0 km buffer"
+              - paragraph [ref=e1576]: Kerala — 110.0 km buffer
+            - generic [ref=e1579] [cursor=pointer]:
+              - checkbox "Madhya Pradesh — 313.5 km buffer"
+              - paragraph [ref=e1584]: Madhya Pradesh — 313.5 km buffer
+            - generic [ref=e1587] [cursor=pointer]:
+              - checkbox "Maharashtra — 313.1 km buffer"
+              - paragraph [ref=e1592]: Maharashtra — 313.1 km buffer
+            - generic [ref=e1595] [cursor=pointer]:
+              - checkbox "Manipur — 84.4 km buffer"
+              - paragraph [ref=e1600]: Manipur — 84.4 km buffer
+            - generic [ref=e1603] [cursor=pointer]:
+              - checkbox "Meghalaya — 84.9 km buffer"
+              - paragraph [ref=e1608]: Meghalaya — 84.9 km buffer
+            - generic [ref=e1611] [cursor=pointer]:
+              - checkbox "Mizoram — 82.2 km buffer"
+              - paragraph [ref=e1616]: Mizoram — 82.2 km buffer
+            - generic [ref=e1619] [cursor=pointer]:
+              - checkbox "Nagaland — 72.5 km buffer"
+              - paragraph [ref=e1624]: Nagaland — 72.5 km buffer
+            - generic [ref=e1627] [cursor=pointer]:
+              - checkbox "Orissa — 222.9 km buffer"
+              - paragraph [ref=e1632]: Orissa — 222.9 km buffer
+            - generic [ref=e1635] [cursor=pointer]:
+              - checkbox "Puducherry — 13.2 km buffer"
+              - paragraph [ref=e1640]: Puducherry — 13.2 km buffer
+            - generic [ref=e1643] [cursor=pointer]:
+              - checkbox "Punjab — 126.2 km buffer"
+              - paragraph [ref=e1648]: Punjab — 126.2 km buffer
+            - generic [ref=e1651] [cursor=pointer]:
+              - checkbox "Rajasthan — 330.3 km buffer"
+              - paragraph [ref=e1656]: Rajasthan — 330.3 km buffer
+            - generic [ref=e1659] [cursor=pointer]:
+              - checkbox "Sikkim — 47.8 km buffer"
+              - paragraph [ref=e1664]: Sikkim — 47.8 km buffer
+            - generic [ref=e1667] [cursor=pointer]:
+              - checkbox "Tamil Nadu — 204.0 km buffer"
+              - paragraph [ref=e1672]: Tamil Nadu — 204.0 km buffer
+            - generic [ref=e1675] [cursor=pointer]:
+              - checkbox "Tripura — 58.0 km buffer"
+              - paragraph [ref=e1680]: Tripura — 58.0 km buffer
+            - generic [ref=e1683] [cursor=pointer]:
+              - checkbox "Uttar Pradesh — 277.1 km buffer"
+              - paragraph [ref=e1688]: Uttar Pradesh — 277.1 km buffer
+            - generic [ref=e1691] [cursor=pointer]:
+              - checkbox "Uttarakhand — 128.9 km buffer"
+              - paragraph [ref=e1696]: Uttarakhand — 128.9 km buffer
+            - generic [ref=e1699] [cursor=pointer]:
+              - checkbox "West Bengal — 165.3 km buffer"
+              - paragraph [ref=e1704]: West Bengal — 165.3 km buffer
+      - generic [ref=e1706]:
+        - heading "Buffer radius" [level=3] [ref=e1712]:
+          - text: Buffer radius
+          - generic [ref=e1713]:
+            - link "Link to heading":
+              - /url: "#buffer-radius"
+              - img
+        - paragraph [ref=e1718]: Same radius applied to every supplier in the batch. Pick based on the typical scale of your suppliers — smaller buffers for individual sites, larger for districts or industrial clusters.
+        - generic [ref=e1721]:
+          - paragraph [ref=e1725]: Radius (km)
+          - generic [ref=e1726]:
+            - slider "Radius (km)" [ref=e1730]:
+              - generic:
+                - generic:
+                  - paragraph: "5"
+            - generic:
+              - generic:
+                - paragraph: "1"
+              - generic:
+                - paragraph: "100"
+        - paragraph [ref=e1736]: One industrial site plus immediate surroundings. Sensible default for a single supplier.
+        - paragraph [ref=e1741]:
+          - text: "Note: selected"
+          - strong [ref=e1742]: regions
+          - text: screen at their own area-matched buffer; this radius applies only to any
+          - strong [ref=e1743]: ad-hoc
+          - text: locations in the batch.
+      - generic [ref=e1745]:
+        - generic [ref=e1747]:
+          - generic [ref=e1749]:
+            - heading "Indicators" [level=3] [ref=e1755]:
+              - text: Indicators
+              - generic [ref=e1756]:
+                - link "Link to heading":
+                  - /url: "#indicators"
+                  - img
+            - paragraph [ref=e1761]: Same indicators applied to every supplier.
+          - generic [ref=e1765]:
+            - button "Select all" [ref=e1770] [cursor=pointer]:
+              - paragraph [ref=e1774]: Select all
+            - button "Deselect all" [ref=e1779] [cursor=pointer]:
+              - paragraph [ref=e1783]: Deselect all
+        - group [ref=e1786]:
+          - generic "keyboard_arrow_down Air Pollution (9 / 9 selected)" [ref=e1787] [cursor=pointer]:
+            - generic [ref=e1788]:
+              - generic [ref=e1790]: keyboard_arrow_down
+              - paragraph [ref=e1793]: Air Pollution (9 / 9 selected)
+          - generic [ref=e1795]:
+            - generic [ref=e1798] [cursor=pointer]:
+              - checkbox "**Select all Air Pollution**" [checked]
+              - paragraph [ref=e1803]:
+                - strong [ref=e1804]: Select all Air Pollution
+            - separator [ref=e1809]
+            - generic [ref=e1811]:
+              - generic [ref=e1813]:
+                - generic [ref=e1816] [cursor=pointer]:
+                  - checkbox "NO₂" [checked]
+                  - paragraph [ref=e1821]: NO₂
+                - generic [ref=e1824] [cursor=pointer]:
+                  - checkbox "HCHO" [checked]
+                  - paragraph [ref=e1829]: HCHO
+                - generic [ref=e1832] [cursor=pointer]:
+                  - checkbox "O₃" [checked]
+                  - paragraph [ref=e1837]: O₃
+              - generic [ref=e1839]:
+                - generic [ref=e1842] [cursor=pointer]:
+                  - checkbox "SO₂" [checked]
+                  - paragraph [ref=e1847]: SO₂
+                - generic [ref=e1850] [cursor=pointer]:
+                  - checkbox "PM₂.₅" [checked]
+                  - paragraph [ref=e1855]: PM₂.₅
+                - generic [ref=e1858] [cursor=pointer]:
+                  - checkbox "AAI (Aerosol Absorbing Index)" [checked]
+                  - paragraph [ref=e1863]: AAI (Aerosol Absorbing Index)
+              - generic [ref=e1865]:
+                - generic [ref=e1868] [cursor=pointer]:
+                  - checkbox "CO" [checked]
+                  - paragraph [ref=e1873]: CO
+                - generic [ref=e1876] [cursor=pointer]:
+                  - checkbox "PM₁₀" [checked]
+                  - paragraph [ref=e1881]: PM₁₀
+                - generic [ref=e1884] [cursor=pointer]:
+                  - checkbox "AOD (Aerosol Optical Depth)" [checked]
+                  - paragraph [ref=e1889]: AOD (Aerosol Optical Depth)
+        - group [ref=e1892]:
+          - generic "keyboard_arrow_down GHG emissions (3 / 3 selected)" [ref=e1893] [cursor=pointer]:
+            - generic [ref=e1894]:
+              - generic [ref=e1896]: keyboard_arrow_down
+              - paragraph [ref=e1899]: GHG emissions (3 / 3 selected)
+          - generic [ref=e1901]:
+            - generic [ref=e1904] [cursor=pointer]:
+              - checkbox "**Select all GHG emissions**" [checked]
+              - paragraph [ref=e1909]:
+                - strong [ref=e1910]: Select all GHG emissions
+            - separator [ref=e1915]
+            - generic [ref=e1917]:
+              - generic [ref=e1922] [cursor=pointer]:
+                - checkbox "CH₄" [checked]
+                - paragraph [ref=e1927]: CH₄
+              - generic [ref=e1932] [cursor=pointer]:
+                - checkbox "CO₂ (ODIAC)" [checked]
+                - paragraph [ref=e1937]: CO₂ (ODIAC)
+              - generic [ref=e1942] [cursor=pointer]:
+                - checkbox "Nighttime lights (VIIRS)" [checked]
+                - paragraph [ref=e1947]: Nighttime lights (VIIRS)
+        - group [ref=e1950]:
+          - generic "keyboard_arrow_down Nature/Land (7 / 7 selected)" [ref=e1951] [cursor=pointer]:
+            - generic [ref=e1952]:
+              - generic [ref=e1954]: keyboard_arrow_down
+              - paragraph [ref=e1957]: Nature/Land (7 / 7 selected)
+          - generic [ref=e1959]:
+            - generic [ref=e1962] [cursor=pointer]:
+              - checkbox "**Select all Nature/Land**" [checked]
+              - paragraph [ref=e1967]:
+                - strong [ref=e1968]: Select all Nature/Land
+            - separator [ref=e1973]
+            - generic [ref=e1975]:
+              - generic [ref=e1977]:
+                - generic [ref=e1980] [cursor=pointer]:
+                  - checkbox "Key Biodiversity Areas" [checked]
+                  - paragraph [ref=e1985]: Key Biodiversity Areas
+                - generic [ref=e1988] [cursor=pointer]:
+                  - checkbox "Forest loss (Hansen)" [checked]
+                  - paragraph [ref=e1993]: Forest loss (Hansen)
+                - generic [ref=e1996] [cursor=pointer]:
+                  - checkbox "Vegetation recovery" [checked]
+                  - paragraph [ref=e2001]: Vegetation recovery
+              - generic [ref=e2003]:
+                - generic [ref=e2006] [cursor=pointer]:
+                  - checkbox "Dynamic World land cover" [checked]
+                  - paragraph [ref=e2011]: Dynamic World land cover
+                - generic [ref=e2014] [cursor=pointer]:
+                  - checkbox "NDVI (vegetation index)" [checked]
+                  - paragraph [ref=e2019]: NDVI (vegetation index)
+              - generic [ref=e2021]:
+                - generic [ref=e2024] [cursor=pointer]:
+                  - checkbox "Habitat conversion" [checked]
+                  - paragraph [ref=e2029]: Habitat conversion
+                - generic [ref=e2032] [cursor=pointer]:
+                  - checkbox "Water / flooded vegetation" [checked]
+                  - paragraph [ref=e2037]: Water / flooded vegetation
+      - generic [ref=e2039]:
+        - heading "Run" [level=3] [ref=e2045]:
+          - text: Run
+          - generic [ref=e2046]:
+            - link "Link to heading":
+              - /url: "#run"
+              - img
+        - paragraph [ref=e2051]:
+          - strong [ref=e2052]: Suppliers.
+          - text: "0"
+          - strong [ref=e2053]: Buffer.
+          - text: 5 km
+          - strong [ref=e2054]: Indicators.
+          - text: "19"
+        - alert [ref=e2057]:
+          - paragraph [ref=e2062]: Pick at least one supplier above.
+        - paragraph [ref=e2067]:
+          - strong [ref=e2068]: Screening window
+        - generic [ref=e2070]:
+          - button "30 d" [ref=e2075] [cursor=pointer]:
+            - paragraph [ref=e2079]: 30 d
+          - button "90 d" [ref=e2084] [cursor=pointer]:
+            - paragraph [ref=e2088]: 90 d
+          - button "6 mo" [ref=e2093] [cursor=pointer]:
+            - paragraph [ref=e2097]: 6 mo
+          - button "12 mo" [ref=e2102] [cursor=pointer]:
+            - paragraph [ref=e2106]: 12 mo
+          - button "Custom" [ref=e2111] [cursor=pointer]:
+            - paragraph [ref=e2115]: Custom
+        - paragraph [ref=e2120]:
+          - text: "Estimated compute time:"
+          - strong [ref=e2121]: ~60 seconds
+          - text: (approximate)
+        - group [ref=e2124]:
+          - generic "keyboard_arrow_right Advanced options" [ref=e2125] [cursor=pointer]:
+            - generic [ref=e2126]:
+              - generic [ref=e2128]: keyboard_arrow_right
+              - paragraph [ref=e2131]: Advanced options
+        - generic [ref=e2134] [cursor=pointer]:
+          - checkbox "Strict audit mode (disable fallback)"
+          - paragraph [ref=e2139]: Strict audit mode (disable fallback)
+        - paragraph [ref=e2144]: When enabled, suppliers with sparse satellite coverage in their indicators show as failed rather than substituting with same-period-previous-year or regional climatology data. Use this for audit-defensible rankings where every value must be a current-period measurement.
+        - button "Run Prioritisation" [disabled] [ref=e2147]:
+          - paragraph [ref=e2151]: Run Prioritisation

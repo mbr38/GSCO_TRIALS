@@ -22,7 +22,6 @@ from utils.ee_init import require_earth_engine
 
 st.set_page_config(
     page_title="Prioritisation Setup — GSCO",
-    page_icon="📋",
     layout="wide",
     initial_sidebar_state="expanded",
 )

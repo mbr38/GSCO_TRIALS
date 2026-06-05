@@ -78,11 +78,14 @@ def run_batch(
             state.kind = PrioritisationStateKind.S3_RESULTS
             return
 
-        # Run one supplier.
+        # Run one supplier. Region suppliers (Regional analysis) carry their
+        # own area-matched radius; node / ad-hoc suppliers fall back to the
+        # shared page-level radius.
         try:
+            supplier_radius = supplier.get("radius_km") or radius_km
             aoi = {
                 "centre":    {"lat": supplier["lat"], "lon": supplier["lon"]},
-                "radius_km": radius_km,
+                "radius_km": supplier_radius,
             }
             centre_metadata = {
                 "source":    f"P-08 batch · {supplier['source']}",
@@ -143,10 +146,10 @@ def _classify_per_supplier(
 
     - "failed"  : no requested indicator delivered a value
     - "partial" : at least one delivered AND either some other
-                  requested indicator returned None OR ``_failures`` /
-                  provenance ``skipped_reason`` markers are present
+                  requested indicator returned None OR a non-empty
+                  ``_failures`` list is present
     - "success" : every requested indicator delivered AND nothing
-                  in ``_failures`` / provenance flagged a skip
+                  in ``_failures`` flagged an indicator-level failure
 
     When ``selected_indicators`` is ``None`` or empty, falls back to
     the pre-M-E1-INDICATOR-AWARE pillar-aggregate logic so direct
@@ -180,15 +183,19 @@ def _classify_per_supplier(
 
 
 def _has_failures(result: dict) -> bool:
-    """Inspect ``_failures`` and provenance ``skipped_reason`` flags."""
+    """True iff ``_failures`` holds a non-empty per-pillar failure list.
+
+    Mirrors ``ui.page_state.classify_result`` exactly so a supplier in the
+    P-08 batch gets the same status it would on the P-05 screening page.
+
+    Provenance ``skipped_reason`` codes are deliberately NOT treated as
+    failures: they mark *normal* defensive-skip outcomes (background ring
+    over water, sparse coverage, reference-only indicators, etc.) that the
+    screening classifier ignores. Counting them here was a divergence that
+    flipped virtually every supplier to "partial" — even runs where every
+    selected indicator delivered a value (M-PRIO-STATUS fix)."""
     failures = result.get("_failures", {})
-    if any(failures.get(p) for p in ("air", "ghg", "nature")):
-        return True
-    for key, value in result.items():
-        if not isinstance(key, str):
-            continue
-        if not key.startswith("_provenance."):
-            continue
-        if isinstance(value, dict) and value.get("skipped_reason"):
-            return True
-    return False
+    return any(
+        isinstance(v, list) and len(v) > 0
+        for v in failures.values()
+    )

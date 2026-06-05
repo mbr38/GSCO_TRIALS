@@ -285,7 +285,9 @@ def test_empty_supplier_list_transitions_to_s3_no_calls(patched_screening_run):
         },
         "partial",
     ),
-    # Pillar scores OK but a provenance skipped_reason is present → partial.
+    # Pillar scores OK and a provenance skipped_reason present, but no
+    # _failures → success. M-PRIO-STATUS: skipped_reason marks a normal
+    # defensive skip, NOT a failure (mirrors ui.page_state.classify_result).
     (
         {
             "air.audit_followup_priority": 0.5,
@@ -294,7 +296,7 @@ def test_empty_supplier_list_transitions_to_s3_no_calls(patched_screening_run):
             "composite.overall_screening": 0.5,
             "_provenance.nature.kba": {"skipped_reason": "no_dw_pixels"},
         },
-        "partial",
+        "success",
     ),
     # All pillars None → failed.
     (
@@ -384,19 +386,21 @@ class TestClassifyPerSupplierSelectionAware:
     ({"_failures": {}}, False),
     ({"_failures": {"air": []}}, False),
     ({"_failures": {"air": [{"indicator_id": "air.no2.score"}]}}, True),
+    # M-PRIO-STATUS: provenance skipped_reason is a normal defensive skip,
+    # NOT a failure (mirrors ui.page_state.classify_result, which ignores it).
     (
         {"_provenance.air.no2": {"skipped_reason": "no_s5p_pixels"}},
-        True,
+        False,
     ),
     # Provenance without a skipped_reason key → not a failure.
     ({"_provenance.air.no2": {"data_type": "satellite_observation"}}, False),
-    # Mixed: _failures empty, one prov skip → True.
+    # Mixed: _failures empty (no real failure), one prov skip → not a failure.
     (
         {
             "_failures": {"air": []},
             "_provenance.ghg.ch4": {"skipped_reason": "no_s5p_pixels"},
         },
-        True,
+        False,
     ),
 ])
 def test_has_failures(payload, expected):
@@ -424,3 +428,47 @@ def test_screening_run_receives_per_supplier_aoi(patched_screening_run):
     assert "P-08 batch" in first["centre_metadata"]["source"]
     assert first["time_range"] == ("2026-01-01", "2026-04-01")
     assert first["selected_indicators"] == {"air.no2.score", "ghg.ch4.score"}
+
+
+# ---------------------------------------------------------------------------
+# Per-supplier radius override (Regional-analysis region buffers)
+# ---------------------------------------------------------------------------
+
+def test_per_supplier_radius_overrides_shared_radius(patched_screening_run):
+    """A supplier carrying its own ``radius_km`` (a region's area-matched
+    buffer) screens at that radius; suppliers without one fall back to the
+    shared page-level radius."""
+    setup = {
+        "suppliers": [
+            {
+                "id": "region_A", "name": "Region A", "lat": 1.0, "lon": 1.0,
+                "source": "region", "radius_km": 120.0,
+            },
+            {
+                "id": "ad_1", "name": "Ad hoc 1", "lat": 2.0, "lon": 2.0,
+                "source": "ad_hoc", "radius_km": None,
+            },
+        ],
+        "radius_km":  5,
+        "time_range": ["2026-01-01", "2026-04-01"],
+        "indicators": ["air.no2.score"],
+        "mode":       "prioritisation",
+    }
+    state = PrioritisationState(
+        kind=PrioritisationStateKind.S2_RUNNING, setup=setup,
+    )
+    run_batch(state, setup, on_progress=_noop_progress)
+    calls = patched_screening_run.call_log
+    assert calls[0]["aoi"]["radius_km"] == 120.0   # region's own buffer
+    assert calls[1]["aoi"]["radius_km"] == 5        # shared fallback
+
+
+def test_missing_radius_key_falls_back_to_shared(patched_screening_run):
+    """Legacy supplier dicts with no ``radius_km`` key at all still work —
+    ``.get`` returns None → shared radius."""
+    setup = _setup(1)  # _supplier() emits no radius_km key
+    state = PrioritisationState(
+        kind=PrioritisationStateKind.S2_RUNNING, setup=setup,
+    )
+    run_batch(state, setup, on_progress=_noop_progress)
+    assert patched_screening_run.call_log[0]["aoi"]["radius_km"] == 5

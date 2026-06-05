@@ -1,0 +1,146 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8533/
+          - paragraph [ref=e21]: Landing
+      - listitem [ref=e22]:
+        - link "Scope Setup" [ref=e24] [cursor=pointer]:
+          - /url: http://localhost:8533/Scope_Setup
+          - paragraph [ref=e27]: Scope Setup
+      - listitem [ref=e28]:
+        - link "Workflow Hub" [ref=e30] [cursor=pointer]:
+          - /url: http://localhost:8533/Workflow_Hub
+          - paragraph [ref=e33]: Workflow Hub
+      - listitem [ref=e34]:
+        - link "Inspect — Setup" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8533/Inspect_Setup
+          - paragraph [ref=e39]: Inspect — Setup
+      - listitem [ref=e40]:
+        - link "Inspect — Results" [ref=e42] [cursor=pointer]:
+          - /url: http://localhost:8533/Screening_Results
+          - paragraph [ref=e45]: Inspect — Results
+      - listitem [ref=e46]:
+        - link "Trend View" [ref=e48] [cursor=pointer]:
+          - /url: http://localhost:8533/Trend_View
+          - paragraph [ref=e51]: Trend View
+      - listitem [ref=e52]:
+        - link "Prioritisation — Setup" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Setup
+          - paragraph [ref=e57]: Prioritisation — Setup
+      - listitem [ref=e58]:
+        - link "Prioritisation — Results" [ref=e60] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Results
+          - paragraph [ref=e63]: Prioritisation — Results
+      - listitem [ref=e64]:
+        - link "Indicator Library" [ref=e66] [cursor=pointer]:
+          - /url: http://localhost:8533/Indicator_Library
+          - paragraph [ref=e69]: Indicator Library
+      - listitem [ref=e70]:
+        - link "Saved Analyses" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8533/Saved_Analyses
+          - paragraph [ref=e75]: Saved Analyses
+      - listitem [ref=e76]:
+        - link "Reports" [ref=e78] [cursor=pointer]:
+          - /url: http://localhost:8533/Reports
+          - paragraph [ref=e81]: Reports
+    - generic [ref=e82]:
+      - paragraph [ref=e86] [cursor=pointer]: Developer
+      - listitem [ref=e87]:
+        - link "Engine Scratch (dev)" [ref=e89] [cursor=pointer]:
+          - /url: http://localhost:8533/engine_scratch
+          - paragraph [ref=e92]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e96]:
+      - generic [ref=e397]:
+        - img "Running..." [ref=e398]:
+          - img [ref=e405]
+        - button "Stop" [ref=e403] [cursor=pointer]
+    - generic [ref=e108]:
+      - generic [ref=e214]:
+        - generic [ref=e219]:
+          - button "Fullscreen" [ref=e224] [cursor=pointer]:
+            - img [ref=e225]
+          - img "0" [ref=e230]
+        - paragraph [ref=e237]:
+          - text: Signed in as
+          - strong [ref=e238]: Policy Maker
+          - text: · Session
+          - code [ref=e239]: 7e3ba95b
+        - generic [ref=e243]:
+          - paragraph [ref=e250]: "Scope: not set"
+          - button "Pick scope" [ref=e255] [cursor=pointer]:
+            - paragraph [ref=e259]: Pick scope
+        - button "Sign out" [ref=e264] [cursor=pointer]:
+          - paragraph [ref=e268]: Sign out
+      - separator [ref=e273]
+      - button "Show me around" [ref=e282] [cursor=pointer]:
+        - paragraph [ref=e286]: Show me around
+      - heading "Scope Setup" [level=1] [ref=e291]:
+        - text: Scope Setup
+        - generic [ref=e292]:
+          - link "Link to heading":
+            - /url: "#scope-setup"
+            - img
+      - paragraph [ref=e297]:
+        - text: Choose what you want to screen. You can change this any time from the
+        - strong [ref=e298]: Change scope
+        - text: link in the top nav.
+      - heading "Preview" [level=3] [ref=e404]:
+        - text: Preview
+        - generic [ref=e305]:
+          - link "Link to heading":
+            - /url: "#pick-a-scope-mode"
+            - img
+      - generic [ref=e412]:
+        - paragraph [ref=e417]:
+          - strong [ref=e418]: Regional analysis — India
+        - paragraph [ref=e423]:
+          - text: "Inspectable regions:"
+          - strong [ref=e424]: "33"
+        - paragraph [ref=e429]:
+          - text: No region is selected yet. You'll pick a single region to screen on the
+          - strong [ref=e430]: Inspect
+          - text: page, or several regions on the
+          - strong [ref=e431]: Prioritisation
+          - text: page. Each region screens at a buffer sized to its own area.
+      - generic [ref=e307]:
+        - generic [ref=e311]:
+          - heading "Country" [level=4] [ref=e317]:
+            - text: Country
+            - generic [ref=e318]:
+              - link "Link to heading":
+                - /url: "#country"
+                - img
+          - paragraph [ref=e326]: Screen a country. Choose a region-by-region analysis, or a supply chain operating in that country.
+          - generic [ref=e328]:
+            - paragraph [ref=e332]: Country
+            - generic [ref=e334]:
+              - generic [ref=e335]:
+                - generic [ref=e336]: India
+                - combobox "Selected India. Country" [ref=e338]
+              - img "open" [ref=e340]
+          - generic [ref=e343]:
+            - paragraph [ref=e347]: Analysis type
+            - radiogroup "Analysis type" [ref=e348] [cursor=pointer]:
+              - generic [ref=e349]:
+                - radio "Regional analysis" [checked]
+                - paragraph [ref=e354]: Regional analysis
+              - generic [ref=e355]:
+                - radio "Supply-chain analysis"
+                - paragraph [ref=e360]: Supply-chain analysis
+          - paragraph [ref=e365]: Screen administrative regions. You'll pick the region(s) on the Inspect / Prioritisation page.
+          - button "Preview" [active] [ref=e368] [cursor=pointer]:
+            - paragraph [ref=e372]: Preview
+        - generic [ref=e376]:
+          - heading "No scope" [level=4] [ref=e382]:
+            - text: No scope
+            - generic [ref=e383]:
+              - link "Link to heading":
+                - /url: "#no-scope"
+                - img
+          - paragraph [ref=e388]: Skip scope setup and configure each screening from scratch using free coordinates.
+          - button "Continue without a scope" [ref=e391] [cursor=pointer]:
+            - paragraph [ref=e395]: Continue without a scope

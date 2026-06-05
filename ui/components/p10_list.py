@@ -334,7 +334,7 @@ def _delete_dialog(save_id: str, save_name: str) -> None:
         ):
             saves = st.session_state.get("saved_analyses", [])
             st.session_state["saved_analyses"] = _apply_delete(saves, save_id)
-            st.toast(f"Deleted '{save_name}'.", icon="🗑️")
+            st.toast(f"Deleted '{save_name}'.")
             st.rerun()
 
 

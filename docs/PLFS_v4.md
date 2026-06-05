@@ -146,6 +146,12 @@ This mapping is assumed throughout. Any future change to the Sitemap must preser
 
 ## 6. P-02 — Scope set-up
 
+> **Change note — M-PM-SCOPE-A1 (5 June 2026, Policy-Maker scope redesign).** The Policy-Maker scope flow below is superseded by a two-level pick. Policy Makers now choose a **Country** first, then an **analysis type**, or **No scope**:
+> - **Regional analysis** — *no region is selected at scope time.* The scope stores only the country (`scope = {"kind": "country_regional", "data": {"country": …}}`); the preview is the country map showing the regions that can be inspected later. Region selection is deferred downstream (single region at P-04, multiple at P-07).
+> - **Supply-chain analysis** — pick from the supply chains available *for that country* (demo: India EV). Stores the existing `scope = {"kind": "supply_chain", …}`.
+>
+> Country supply chains are kept **separate** from MNC corporate chains via an `audience` tag on the scope data (`"policy_maker"` vs `"mnc"`); the MNC flow is unchanged and never shows country chains. The legacy single-`region` scope kind is retained only for backward-compat and is no longer produced by P-02. Implemented in `ui/components/p02_form.py`, `ui/components/p02_preview.py`, `demo/scopes/`, `demo/regions.py`. This deliberately diverges from the original spec text and Wireframes §P-02 below.
+
 **Purpose.** Define the supply-chain context the tool will operate on for this session.
 
 **User access.** Both user types, with **diverging defaults but the same available actions** (this is the most important user-type fork in the tool):
@@ -212,6 +218,8 @@ This mapping is assumed throughout. Any future change to the Sitemap must preser
 ---
 
 ## 8. P-04 — Inspect — Setup
+
+> **Change note — M-PM-SCOPE-A1 (5 June 2026).** Centre selection is now scope-driven for the Policy-Maker Regional-analysis scope (`kind == "country_regional"`): P-04 shows a **single-region selectbox** scoped to the scope's country, and the picked region locks its own area-matched buffer (centroid + radius) — the same locked-AOI behaviour the legacy single-`region` scope used. The `supply_chain` scope still shows the node picker (works for both MNC and country chains). Implemented in `ui/components/p04_form.py::_render_country_regional_scoped_form`.
 
 **Purpose.** Configure an Inspect analysis (one location with a user-defined radius).
 
@@ -425,6 +433,8 @@ The three pillar Follow-Up Priority aggregates are recomputed with the **Trend t
 ---
 
 ## 11. P-07 — Prioritisation — Setup
+
+> **Change note — M-PM-SCOPE-A1 (5 June 2026).** For the Policy-Maker Regional-analysis scope (`kind == "country_regional"`), P-07 adds a **Regions** multi-select tab (checkbox per admin1 region in the scope's country) alongside the existing Ad-hoc tab. Each selected region becomes a batch supplier at its centroid carrying **its own area-matched buffer** — i.e. a *per-supplier* `radius_km` override, not the single shared batch radius (the shared radius still applies to ad-hoc entries). The `supply_chain` scope still shows the node checkboxes. Implemented in `ui/components/p07_form.py` (`Supplier.radius_km`, `_render_region_supplier_section`) and threaded through `engine/prioritisation_executor.py`.
 
 **Purpose.** Configure a batch analysis across many or all nodes of the supply chain.
 

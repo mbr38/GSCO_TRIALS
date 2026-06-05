@@ -34,7 +34,7 @@ def render_p11() -> None:
     elif state.kind == ReportStateKind.S3_EXPORT:
         _render_s3(state)
     else:
-        st.error(f"Unknown report state: {state.kind}", icon="⚠️")
+        st.error(f"Unknown report state: {state.kind}")
 
 
 def _get_or_init_state() -> ReportState:
@@ -62,7 +62,6 @@ def _render_s1(state: ReportState) -> None:
             "No report templates available for your user type. "
             "Templates: Policy Maker → General report + Trend report; "
             "MNC → General, GHG (E1), Air (E2), Nature (E4) + Trend report.",
-            icon="⚠️",
         )
         return
 
@@ -93,7 +92,6 @@ def _render_s1(state: ReportState) -> None:
             "No compatible saved analyses yet. Save a screening "
             "or prioritisation result first (P-05, P-08), then "
             "return here to build a report.",
-            icon="📋",
         )
         _disabled_preview_button()
         return
@@ -102,12 +100,19 @@ def _render_s1(state: ReportState) -> None:
         f"{s.get('name', 'Unnamed')} ({s.get('type', '?')})": s["id"]
         for s in compatible
     }
-    # M-REPORT-COOP: the supplier cooperation report is single-supplier by
-    # design (no cross-supplier ranking), so it picks exactly one source via a
-    # selectbox rather than the multi-select other templates use.
-    if state.template_id == "supplier_cooperation":
+    # M-REPORT-SINGLE: every report except Trend is about a single saved
+    # analysis (one screening or one prioritisation batch), so it picks
+    # exactly one source via a selectbox. The Trend report keeps multi-select
+    # because comparing several locations' trends in one report is its point.
+    # (Supplier cooperation was already single-supplier by design — RT/COOP.)
+    if state.template_id != "trend":
+        label = (
+            "Pick the saved analysis (one supplier)"
+            if state.template_id == "supplier_cooperation"
+            else "Pick the saved analysis"
+        )
         selected_label = st.selectbox(
-            "Pick the saved analysis (one supplier)",
+            label,
             options=list(source_options.keys()),
             index=None,
             placeholder="Choose a saved analysis",
@@ -225,7 +230,7 @@ def _disabled_preview_button() -> None:
 def _render_s2(state: ReportState) -> None:
     template = get_template(state.template_id)
     if template is None:
-        st.error("Template missing — return to selection.", icon="⚠️")
+        st.error("Template missing — return to selection.")
         _render_back_button(state)
         return
 
@@ -236,7 +241,6 @@ def _render_s2(state: ReportState) -> None:
         st.error(
             "Selected sources are no longer available. They may "
             "have been deleted. Return to selection.",
-            icon="⚠️",
         )
         _render_back_button(state)
         return
@@ -244,7 +248,7 @@ def _render_s2(state: ReportState) -> None:
     try:
         report_html = build_report_html(state, sources, template)
     except Exception as exc:  # noqa: BLE001
-        st.error(f"Failed to render preview: {exc}", icon="⚠️")
+        st.error(f"Failed to render preview: {exc}")
         _render_back_button(state)
         return
 
@@ -278,7 +282,7 @@ def _render_s2(state: ReportState) -> None:
 def _render_s3(state: ReportState) -> None:
     template = get_template(state.template_id)
     if template is None:
-        st.error("Template missing — return to selection.", icon="⚠️")
+        st.error("Template missing — return to selection.")
         _render_back_button(state)
         return
 
@@ -288,7 +292,6 @@ def _render_s3(state: ReportState) -> None:
         st.error(
             "Selected sources are no longer available. Return to "
             "selection to pick again.",
-            icon="⚠️",
         )
         _render_back_button(state)
         return
@@ -304,7 +307,7 @@ def _render_s3(state: ReportState) -> None:
     try:
         report_html = build_report_html(state, sources, template)
     except Exception as exc:  # noqa: BLE001
-        st.error(f"Failed to assemble report HTML: {exc}", icon="⚠️")
+        st.error(f"Failed to assemble report HTML: {exc}")
         _render_back_button(state)
         return
 
@@ -335,7 +338,7 @@ def _render_pdf_export(state: ReportState, report_html: str) -> None:
     if cached and cached.get("key") == cache_key:
         filename = _build_filename(state, "pdf")
         st.download_button(
-            "📄 Download PDF",
+            "Download PDF",
             data=cached["bytes"],
             file_name=filename,
             mime="application/pdf",
@@ -361,7 +364,7 @@ def _render_pdf_export(state: ReportState, report_html: str) -> None:
                 _render_pdf_deps_error(exc)
                 return
             except Exception as exc:  # noqa: BLE001
-                st.error(f"PDF generation failed: {exc}", icon="⚠️")
+                st.error(f"PDF generation failed: {exc}")
                 return
         st.session_state["p11_pdf_cache"] = {
             "key":          cache_key,
@@ -383,11 +386,11 @@ def _render_csv_export(state: ReportState, sources: list[dict]) -> None:
     try:
         csv_string = render_csv(state, sources)
     except Exception as exc:  # noqa: BLE001
-        st.error(f"CSV generation failed: {exc}", icon="⚠️")
+        st.error(f"CSV generation failed: {exc}")
         return
     filename = _build_filename(state, "csv")
     st.download_button(
-        "📊 Download CSV",
+        "Download CSV",
         data=csv_string.encode("utf-8"),
         file_name=filename,
         mime="text/csv",
@@ -405,12 +408,12 @@ def _render_json_export(state: ReportState, sources: list[dict], template) -> No
     try:
         json_string = render_json(state, sources, template)
     except Exception as exc:  # noqa: BLE001
-        st.error(f"JSON generation failed: {exc}", icon="⚠️")
+        st.error(f"JSON generation failed: {exc}")
         return
     filename = _build_filename(state, "json")
     data_bytes = json_string.encode("utf-8")
     st.download_button(
-        "📦 Download JSON",
+        "Download JSON",
         data=data_bytes,
         file_name=filename,
         mime="application/json",
@@ -428,7 +431,6 @@ def _render_pdf_deps_error(exc: PdfDependencyError) -> None:
         "**PDF generation isn't available** — the host machine is "
         "missing one of weasyprint's native dependencies (Pango, "
         "Cairo, or GLib).",
-        icon="⚠️",
     )
     with st.expander("How to fix this"):
         st.markdown(

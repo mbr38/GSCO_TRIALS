@@ -189,6 +189,20 @@ def regions_for_country(country: str) -> tuple[Region, ...]:
     return _country_cache[country]
 
 
+def country_boundary_fc(country: str) -> "ee.FeatureCollection":
+    """Styled GAUL-level1 ``FeatureCollection`` for ``country``.
+
+    Outline only (no fill, 2 px blue stroke) — used by the P-02
+    Regional-analysis preview to draw the country's administrative
+    boundary under the per-region markers. Server-side; no ``getInfo``.
+    """
+    return (
+        ee.FeatureCollection(_GAUL_LEVEL1_ASSET)
+        .filter(ee.Filter.eq("ADM0_NAME", country))
+        .style(color="2563eb", fillColor="00000000", width=2)
+    )
+
+
 def clear_cache() -> None:
     """Reset both caches. Exposed for tests."""
     global _all_countries_cache

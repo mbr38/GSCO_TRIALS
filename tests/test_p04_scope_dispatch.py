@@ -86,6 +86,18 @@ def test_source_for_region_scope_includes_name_and_country():
 
 
 # ---------------------------------------------------------------------------
+# Country-regional scope
+# ---------------------------------------------------------------------------
+
+def test_source_for_country_regional_scope_includes_country():
+    """Regional-analysis scope fixes only the country; the region is
+    chosen downstream, so the source names the country."""
+    scope = {"kind": "country_regional", "data": {"country": "India"}}
+    result = _source_for_scope(scope)
+    assert result == "P-04 regional analysis · India"
+
+
+# ---------------------------------------------------------------------------
 # Defensive fallbacks
 # ---------------------------------------------------------------------------
 

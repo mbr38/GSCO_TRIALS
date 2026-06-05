@@ -59,6 +59,17 @@ def _render_scope_summary(scope: dict | None) -> None:
         st.caption(
             f"Industry: *{chain.industry}* · Tiers: {', '.join(tiers)}"
         )
+    elif scope["kind"] == "country_regional":
+        # No EE on P-03 — format from the stored country string only.
+        country = scope["data"]["country"]
+        col1, col2 = st.columns(2)
+        col1.metric("Country",  country)
+        col2.metric("Analysis", "Regional")
+        st.caption(
+            "Pick a single region on **Inspect**, or several regions on "
+            "**Prioritisation**. Each region screens at its own "
+            "area-matched buffer."
+        )
     elif scope["kind"] == "region":
         r = scope["data"]
         col1, col2, col3 = st.columns(3)

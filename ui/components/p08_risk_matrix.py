@@ -56,7 +56,6 @@ def render_risk_matrix(state: PrioritisationState) -> None:
             "needed to plot a 2D matrix. Your batch ran "
             f"{len(axis_options)} pillar(s). Use the **Ranking** "
             "tab for single-pillar prioritisation.",
-            icon="📊",
         )
         return
 
@@ -81,7 +80,6 @@ def render_risk_matrix(state: PrioritisationState) -> None:
         st.warning(
             "X and Y axes are the same — pick two different "
             "pillars to see clusters.",
-            icon="⚠️",
         )
         return
 
@@ -93,7 +91,6 @@ def render_risk_matrix(state: PrioritisationState) -> None:
         st.info(
             "No suppliers have scores for both selected pillars. "
             "Check the Ranking tab for per-supplier status.",
-            icon="📊",
         )
         return
 
@@ -118,6 +115,10 @@ def render_risk_matrix(state: PrioritisationState) -> None:
             from ui.components.p08_ranked_table import drill_to_supplier
             drill_to_supplier(state, plottable[point_idx]["name"])
 
+    # Numbered key — markers show an index (not the full name) to avoid label
+    # overlap when suppliers cluster. Full names live here and on hover.
+    _render_marker_key(plottable)
+
     # Q3: caption reporting omitted suppliers.
     if omitted_count > 0:
         st.caption(
@@ -125,6 +126,24 @@ def render_risk_matrix(state: PrioritisationState) -> None:
             f"or have no score for the selected pillars and aren't "
             f"shown. See the **Ranking** tab for the complete list."
         )
+
+
+def _render_marker_key(plottable: list[dict]) -> None:
+    """Render the number→supplier key beneath the matrix.
+
+    Two columns to stay compact for batches of up to 20 suppliers.
+    """
+    with st.expander("Marker key (number → supplier)", expanded=True):
+        half = (len(plottable) + 1) // 2
+        col_a, col_b = st.columns(2)
+        for col, chunk_start in ((col_a, 0), (col_b, half)):
+            lines = [
+                f"**{i + 1}.** {p['name']}"
+                for i, p in enumerate(plottable)
+                if chunk_start <= i < chunk_start + half
+            ]
+            if lines:
+                col.markdown("  \n".join(lines))
 
 
 def _build_axis_options(
@@ -215,18 +234,22 @@ def _build_figure(
     points: list[dict], x_axis: str, y_axis: str,
 ) -> go.Figure:
     """Build the Plotly scatter figure."""
-    _, high_threshold = TRAFFIC_LIGHT_THRESHOLDS
+    low_threshold, high_threshold = TRAFFIC_LIGHT_THRESHOLDS
 
     colours = [_band_colour(p["composite"]) for p in points]
-    names   = [p["name"] for p in points]
+    # Markers carry a short index instead of the full name — clustered
+    # suppliers overlap illegibly with on-marker names (and zoom doesn't help,
+    # since the text is marker-anchored). The number maps to the key rendered
+    # below the chart; full names stay available on hover.
+    labels  = [str(i + 1) for i in range(len(points))]
     xs      = [p["x"] for p in points]
     ys      = [p["y"] for p in points]
     hover   = [
-        f"<b>{p['name']}</b><br>"
+        f"<b>{i + 1}. {p['name']}</b><br>"
         f"{x_axis}: {p['x']:.2f}<br>"
         f"{y_axis}: {p['y']:.2f}<br>"
         f"Composite: {_fmt_composite(p['composite'])}"
-        for p in points
+        for i, p in enumerate(points)
     ]
 
     fig = go.Figure()
@@ -234,32 +257,27 @@ def _build_figure(
         x=xs, y=ys,
         mode="markers+text",
         marker=dict(
-            size=14,
+            size=20,
             color=colours,
             line=dict(width=1, color="#1f2937"),
         ),
-        text=names,
-        textposition="top center",
+        text=labels,
+        textposition="middle center",
+        textfont=dict(color="#0b0f17", size=10),
         hovertext=hover,
         hoverinfo="text",
         showlegend=False,
     ))
 
-    # Quadrant lines at the high-priority (red/amber) threshold.
-    fig.add_hline(
-        y=high_threshold,
-        line_dash="dash",
-        line_color="#9ca3af",
-        annotation_text=f"{y_axis} = {high_threshold:.2f}",
-        annotation_position="right",
-    )
-    fig.add_vline(
-        x=high_threshold,
-        line_dash="dash",
-        line_color="#9ca3af",
-        annotation_text=f"{x_axis} = {high_threshold:.2f}",
-        annotation_position="top",
-    )
+    # Threshold lines on BOTH axes at the moderate (0.33) and high (0.66)
+    # bands. High = dashed (the audit-first cut); moderate = lighter dotted so
+    # the grid reads as a 3×3 band without becoming chaotic.
+    for thr, dash, colour in (
+        (low_threshold,  "dot",  "#4b5563"),
+        (high_threshold, "dash", "#9ca3af"),
+    ):
+        fig.add_hline(y=thr, line_dash=dash, line_color=colour)
+        fig.add_vline(x=thr, line_dash=dash, line_color=colour)
 
     fig.add_annotation(
         x=0.05, y=0.95, xref="paper", yref="paper",
@@ -284,9 +302,17 @@ def _build_figure(
         xanchor="right",
     )
 
+    # Ticks at the band edges (moderate + high) so the axes read against the
+    # same thresholds as the gridlines.
+    tickvals  = [0.0, low_threshold, high_threshold, 1.0]
+    ticktext  = ["0", f"{low_threshold:.2f}", f"{high_threshold:.2f}", "1"]
+    axis_base = dict(
+        range=[-0.05, 1.05],
+        tickmode="array", tickvals=tickvals, ticktext=ticktext,
+    )
     fig.update_layout(
-        xaxis=dict(title=f"{x_axis} Follow-Up Priority", range=[-0.05, 1.05]),
-        yaxis=dict(title=f"{y_axis} Follow-Up Priority", range=[-0.05, 1.05]),
+        xaxis=dict(title=f"{x_axis} Follow-Up Priority", **axis_base),
+        yaxis=dict(title=f"{y_axis} Follow-Up Priority", **axis_base),
         margin=dict(l=60, r=20, t=20, b=60),
         height=560,
         hovermode="closest",

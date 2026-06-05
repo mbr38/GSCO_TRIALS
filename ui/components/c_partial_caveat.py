@@ -34,5 +34,4 @@ def render_partial_caveat(selected_indicators: set[str]) -> None:
         f"priority below are computed from the **{selected_count} of "
         f"{total} indicators** you selected. They reflect what was "
         f"measured, not a full pillar assessment.",
-        icon="ℹ️",
     )

@@ -1,0 +1,201 @@
+{
+  "id":       "india_ev",
+  "name":     "India — EV Battery Supply Chain (demo)",
+  "industry": "Electric-vehicle battery",
+  "country":  "India",
+  "audience": "policy_maker",
+  "nodes": [
+    {
+      "id":    "in_ev_001",
+      "name":  "Katghora Lithium and REE Block",
+      "tier":  "1 Resources/Reserves",
+      "lat":   22.517448,
+      "lon":   82.576334,
+      "notes": "Lithium · Deposit/centroid · Korba, Chhattisgarh"
+    },
+    {
+      "id":    "in_ev_002",
+      "name":  "Salal-Haimna Lithium, Titanium and Bauxite Block",
+      "tier":  "1 Resources/Reserves",
+      "lat":   33.170093,
+      "lon":   74.816054,
+      "notes": "Lithium · Deposit/centroid · Reasi, UT: Jammu and Kashmir"
+    },
+    {
+      "id":    "in_ev_004",
+      "name":  "Bangalore Refinery",
+      "tier":  "3 Processing/Refining",
+      "lat":   12.971599,
+      "lon":   77.594563,
+      "notes": "Gold · Bangalore, Karnataka"
+    },
+    {
+      "id":    "in_ev_006",
+      "name":  "Daruka Minchem Pvt. Ltd.",
+      "tier":  "3 Processing/Refining",
+      "lat":   25.340739,
+      "lon":   74.631318,
+      "notes": "Mica · Bhilwara, Rajasthan"
+    },
+    {
+      "id":    "in_ev_007",
+      "name":  "Metallurgical Products India Pvt. Ltd.",
+      "tier":  "3 Processing/Refining",
+      "lat":   19.08496,
+      "lon":   73.126684,
+      "notes": "Tantalum · District Raigad, Maharashtra"
+    },
+    {
+      "id":    "in_ev_008",
+      "name":  "Precious Minerals and Smelting Limited",
+      "tier":  "3 Processing/Refining",
+      "lat":   19.078213,
+      "lon":   82.020285,
+      "notes": "Tin · Jagdalpur, Chhattisgarh"
+    },
+    {
+      "id":    "in_ev_009",
+      "name":  "Exide Energy Solutions (EESL)",
+      "tier":  "4 Component Mfg",
+      "lat":   15.317277,
+      "lon":   75.713888,
+      "notes": "Battery Cell"
+    },
+    {
+      "id":    "in_ev_010",
+      "name":  "Log9 Materials",
+      "tier":  "4 Component Mfg",
+      "lat":   13.07233,
+      "lon":   77.5932,
+      "notes": "Battery Cell · Jakkuru Layout, Bengaluru, Karnataka"
+    },
+    {
+      "id":    "in_ev_011",
+      "name":  "Ola Electric",
+      "tier":  "4 Component Mfg",
+      "lat":   12.294956,
+      "lon":   78.408175,
+      "notes": "Battery Cell · Krishnagiri, Tamil Nadu"
+    },
+    {
+      "id":    "in_ev_012",
+      "name":  "Amara Raja Batteries",
+      "tier":  "4 Component Mfg",
+      "lat":   17.513425,
+      "lon":   78.404133,
+      "notes": "Battery Cell · Gachibowli, Hyderabad, Telangana"
+    },
+    {
+      "id":    "in_ev_013",
+      "name":  "TDS Lithium-Ion Battery Gujarat (TDSG)",
+      "tier":  "4 Component Mfg",
+      "lat":   23.496629,
+      "lon":   72.003803,
+      "notes": "Battery Cell · Maruti Suzuki Supplier Park, Ahmedabad, Gujarat"
+    },
+    {
+      "id":    "in_ev_014",
+      "name":  "JSW Group",
+      "tier":  "4 Component Mfg",
+      "lat":   20.462521,
+      "lon":   85.882989,
+      "notes": "Battery Cell · Cuttack"
+    },
+    {
+      "id":    "in_ev_015",
+      "name":  "Hyundai-Kia — Chennai",
+      "tier":  "5 Final Product (EV Plant)",
+      "lat":   13.08268,
+      "lon":   80.270718,
+      "notes": "EV Plant"
+    },
+    {
+      "id":    "in_ev_016",
+      "name":  "JBM — Mathura, Uttar Pradesh",
+      "tier":  "5 Final Product (EV Plant)",
+      "lat":   27.492413,
+      "lon":   77.673673,
+      "notes": "EV Plant"
+    },
+    {
+      "id":    "in_ev_017",
+      "name":  "Piaggio — Baramati, Maharashtra",
+      "tier":  "5 Final Product (EV Plant)",
+      "lat":   18.179179,
+      "lon":   74.607797,
+      "notes": "EV Plant"
+    },
+    {
+      "id":    "in_ev_018",
+      "name":  "Tata — Dharwad, Karnataka",
+      "tier":  "5 Final Product (EV Plant)",
+      "lat":   15.458924,
+      "lon":   75.007808,
+      "notes": "EV Plant"
+    },
+    {
+      "id":    "in_ev_019",
+      "name":  "Attero (NITI Aayog)",
+      "tier":  "6 Recycling",
+      "lat":   28.611768,
+      "lon":   77.374425,
+      "notes": "Battery Recycling"
+    },
+    {
+      "id":    "in_ev_022",
+      "name":  "Li-Circle",
+      "tier":  "6 Recycling",
+      "lat":   12.957714,
+      "lon":   77.588549,
+      "notes": "Battery Recycling"
+    },
+    {
+      "id":    "in_ev_024",
+      "name":  "Ziptrax",
+      "tier":  "6 Recycling",
+      "lat":   28.450751,
+      "lon":   77.183499,
+      "notes": "Battery Recycling"
+    },
+    {
+      "id":    "in_ev_025",
+      "name":  "Lohum",
+      "tier":  "6 Recycling",
+      "lat":   28.474388,
+      "lon":   77.50399,
+      "notes": "Battery Recycling · Greater Noida, Gautam Budh Nagar, Uttar Pradesh"
+    },
+    {
+      "id":    "in_ev_026",
+      "name":  "Attero (Asterix)",
+      "tier":  "6 Recycling",
+      "lat":   28.603202,
+      "lon":   77.390578,
+      "notes": "Battery Recycling · Sector 64, Noida, Uttar Pradesh"
+    },
+    {
+      "id":    "in_ev_027",
+      "name":  "Ace Green Recycling",
+      "tier":  "6 Recycling",
+      "lat":   28.730579,
+      "lon":   77.775879,
+      "notes": "Battery Recycling · Hapur, Uttar Pradesh"
+    },
+    {
+      "id":    "in_ev_028",
+      "name":  "Rubamin",
+      "tier":  "6 Recycling",
+      "lat":   22.33026,
+      "lon":   73.16591,
+      "notes": "Battery Recycling · Gorwa, Vadodara, Gujarat"
+    },
+    {
+      "id":    "in_ev_029",
+      "name":  "E-Parisara",
+      "tier":  "6 Recycling",
+      "lat":   13.223585,
+      "lon":   77.257024,
+      "notes": "Battery Recycling · Gollapuram"
+    }
+  ]
+}

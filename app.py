@@ -16,7 +16,6 @@ from utils.state import init_session, set_user_type
 # M-PARTIAL-CAVEAT — page_title drives the browser tab + sidebar entry.
 st.set_page_config(
     page_title="Landing — GSCO",
-    page_icon="🌍",
     layout="centered",
     initial_sidebar_state="expanded",
 )

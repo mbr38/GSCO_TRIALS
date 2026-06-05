@@ -14,26 +14,28 @@ from demo.scopes import (
     SupplyChain,
     SupplyChainNode,
     all_scopes,
+    country_scopes,
     get_scope,
+    mnc_scopes,
 )
 
 
-# Module-level constant — the three scope IDs we ship in v1. Locks the
-# count and the identifiers; adding a fourth scope means adding the ID
-# here too.
-_EXPECTED_SCOPE_IDS: tuple[str, ...] = (
+# Module-level constants. The three Brazil MNC chains plus the India EV
+# country chain. Adding a scope means adding the ID here too.
+_BRAZIL_SCOPE_IDS: tuple[str, ...] = (
     "garments_sao_paulo_rio",
     "steel_minas_gerais",
     "soy_para_mato_grosso",
 )
+_EXPECTED_SCOPE_IDS: tuple[str, ...] = _BRAZIL_SCOPE_IDS + ("india_ev",)
 
 
 # ---------------------------------------------------------------------------
 # Load + count
 # ---------------------------------------------------------------------------
 
-def test_all_scopes_returns_three_entries():
-    assert len(all_scopes()) == 3
+def test_all_scopes_returns_four_entries():
+    assert len(all_scopes()) == 4
 
 
 def test_all_scopes_returns_sorted_by_name():
@@ -63,9 +65,9 @@ def test_scope_has_at_least_one_node(scope_id):
     assert len(scope.nodes) >= 1
 
 
-@pytest.mark.parametrize("scope_id", _EXPECTED_SCOPE_IDS)
-def test_scope_country_is_brazil(scope_id):
-    """v1 demo scopes all live in Brazil — locks the locked decision."""
+@pytest.mark.parametrize("scope_id", _BRAZIL_SCOPE_IDS)
+def test_mnc_scope_country_is_brazil(scope_id):
+    """The three MNC demo chains all live in Brazil."""
     assert get_scope(scope_id).country == "Brazil"
 
 
@@ -101,11 +103,58 @@ def test_every_node_parsed_as_typed_dataclass(scope_id):
 def test_get_scope_returns_the_named_scope():
     scope = get_scope("steel_minas_gerais")
     assert isinstance(scope, SupplyChain)
-    assert scope.name.startswith("Iron & Steel")
+    # Branded with a real Brazilian steelmaker; geography retained in the name.
+    assert scope.name == "Usiminas — Iron & Steel (Minas Gerais)"
 
 
 def test_get_scope_returns_none_for_unknown_id():
     assert get_scope("nope") is None
+
+
+# ---------------------------------------------------------------------------
+# Audience split — MNC corporate chains vs country chains
+# ---------------------------------------------------------------------------
+
+def test_brazil_chains_default_to_mnc_audience():
+    """The three Brazil JSONs carry no ``audience`` field → default 'mnc'."""
+    for scope_id in _BRAZIL_SCOPE_IDS:
+        assert get_scope(scope_id).audience == "mnc"
+
+
+def test_india_ev_is_a_policy_maker_chain():
+    chain = get_scope("india_ev")
+    assert chain is not None
+    assert chain.audience == "policy_maker"
+    assert chain.country == "India"
+
+
+def test_india_ev_has_24_clean_nodes():
+    """The 5 country-centroid placeholders are dropped — 24 real nodes."""
+    chain = get_scope("india_ev")
+    assert len(chain.nodes) == 24
+    # No node sits on India's geographic centroid placeholder coordinate.
+    for node in chain.nodes:
+        assert not (node.lat == pytest.approx(20.593684)
+                    and node.lon == pytest.approx(78.96288)), node.id
+
+
+def test_mnc_scopes_excludes_india_ev():
+    """``mnc_scopes`` is the MNC picker source — must not leak the
+    India EV country chain."""
+    ids = {s.id for s in mnc_scopes()}
+    assert ids == set(_BRAZIL_SCOPE_IDS)
+    assert "india_ev" not in ids
+
+
+def test_country_scopes_india_returns_india_ev():
+    scopes = country_scopes("India")
+    assert {s.id for s in scopes} == {"india_ev"}
+
+
+def test_country_scopes_brazil_is_empty():
+    """The Brazil chains are MNC-audience, so the Policy-Maker country
+    picker finds nothing for Brazil (yet)."""
+    assert country_scopes("Brazil") == ()
 
 
 def test_steel_scope_first_node_matches_source_json():

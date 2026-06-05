@@ -39,7 +39,6 @@ from utils.ee_init import require_earth_engine
 
 st.set_page_config(
     page_title="Screening Results — GSCO",
-    page_icon="🧭",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -321,7 +320,7 @@ def _render_e1_all_failed(state: PageState) -> None:
     if state.error:
         # Orchestrator raised — no payload to inspect; keep the existing
         # generic-failure message.
-        st.error(f"Screening failed. {state.error}", icon="⚠️")
+        st.error(f"Screening failed. {state.error}")
     else:
         reason = detect_e1_reason(state.result)
         if reason == "ring_empty":
@@ -332,7 +331,6 @@ def _render_e1_all_failed(state: PageState) -> None:
                 "likely because the AOI is too large or the region has "
                 "sparse satellite coverage (common in the Amazon, "
                 "polar areas, or remote oceans).",
-                icon="⚠️",
             )
             st.info(
                 "**What you can try:**\n\n"
@@ -347,12 +345,10 @@ def _render_e1_all_failed(state: PageState) -> None:
                 "found for this AOI in the screening window. This may "
                 "be due to persistent cloud cover, an AOI over water, "
                 "or an asset coverage gap.",
-                icon="⚠️",
             )
         else:
             st.error(
                 "Screening failed. All pillars returned no data.",
-                icon="⚠️",
             )
 
     col_a, col_b = st.columns(2)

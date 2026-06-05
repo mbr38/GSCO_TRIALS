@@ -23,7 +23,6 @@ from utils.ee_init import require_earth_engine
 
 st.set_page_config(
     page_title="Engine scratch — GSCO",
-    page_icon="🧪",
     layout="wide",
 )
 
@@ -665,7 +664,7 @@ with right_col:
         if rresult.get("_failures"):
             failures_dict = rresult["_failures"]
             total = sum(len(v) for v in failures_dict.values())
-            with st.expander(f"⚠ {total} failure(s) across pillars"):
+            with st.expander(f"{total} failure(s) across pillars"):
                 for pillar_name, failure_list in failures_dict.items():
                     st.markdown(f"**{pillar_name.upper()} pillar**")
                     for fail in failure_list:
@@ -757,6 +756,6 @@ if st.button("GAUL smoke test"):
             "centroid_lat": round(r.centroid_lat, 2),
             "centroid_lon": round(r.centroid_lon, 2),
             "radius_km": r.radius_km,
-            "capped": "✓" if r.is_capped else "",
+            "capped": "" if r.is_capped else "",
         })
     st.dataframe(rows)

@@ -1,0 +1,61 @@
+- generic [ref=e2]:
+  - list [ref=e10]:
+    - generic [ref=e11]:
+      - paragraph [ref=e15] [cursor=pointer]: Main
+      - listitem [ref=e16]:
+        - link "Landing" [ref=e18] [cursor=pointer]:
+          - /url: http://localhost:8533/
+          - paragraph [ref=e21]: Landing
+      - listitem [ref=e22]:
+        - link "Scope Setup" [ref=e24] [cursor=pointer]:
+          - /url: http://localhost:8533/Scope_Setup
+          - paragraph [ref=e27]: Scope Setup
+      - listitem [ref=e28]:
+        - link "Workflow Hub" [ref=e30] [cursor=pointer]:
+          - /url: http://localhost:8533/Workflow_Hub
+          - paragraph [ref=e33]: Workflow Hub
+      - listitem [ref=e34]:
+        - link "Inspect — Setup" [ref=e36] [cursor=pointer]:
+          - /url: http://localhost:8533/Inspect_Setup
+          - paragraph [ref=e39]: Inspect — Setup
+      - listitem [ref=e40]:
+        - link "Inspect — Results" [ref=e42] [cursor=pointer]:
+          - /url: http://localhost:8533/Screening_Results
+          - paragraph [ref=e45]: Inspect — Results
+      - listitem [ref=e46]:
+        - link "Trend View" [ref=e48] [cursor=pointer]:
+          - /url: http://localhost:8533/Trend_View
+          - paragraph [ref=e51]: Trend View
+      - listitem [ref=e52]:
+        - link "Prioritisation — Setup" [ref=e54] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Setup
+          - paragraph [ref=e57]: Prioritisation — Setup
+      - listitem [ref=e58]:
+        - link "Prioritisation — Results" [ref=e60] [cursor=pointer]:
+          - /url: http://localhost:8533/Prioritisation_Results
+          - paragraph [ref=e63]: Prioritisation — Results
+      - listitem [ref=e64]:
+        - link "Indicator Library" [ref=e66] [cursor=pointer]:
+          - /url: http://localhost:8533/Indicator_Library
+          - paragraph [ref=e69]: Indicator Library
+      - listitem [ref=e70]:
+        - link "Saved Analyses" [ref=e72] [cursor=pointer]:
+          - /url: http://localhost:8533/Saved_Analyses
+          - paragraph [ref=e75]: Saved Analyses
+      - listitem [ref=e76]:
+        - link "Reports" [ref=e78] [cursor=pointer]:
+          - /url: http://localhost:8533/Reports
+          - paragraph [ref=e81]: Reports
+    - generic [ref=e82]:
+      - paragraph [ref=e86] [cursor=pointer]: Developer
+      - listitem [ref=e87]:
+        - link "Engine Scratch (dev)" [ref=e89] [cursor=pointer]:
+          - /url: http://localhost:8533/engine_scratch
+          - paragraph [ref=e92]: Engine Scratch (dev)
+  - generic [ref=e3]:
+    - banner [ref=e96]:
+      - generic [ref=e195]:
+        - img "Running..." [ref=e196]:
+          - img [ref=e197]
+        - button "Stop" [ref=e201] [cursor=pointer]
+    - paragraph [ref=e208]: Initialising Earth Engine…

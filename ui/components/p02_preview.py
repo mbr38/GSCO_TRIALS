@@ -20,7 +20,7 @@ import ee
 import geemap.foliumap as geemap
 import streamlit as st
 
-from demo.regions import Region
+from demo.regions import Region, country_boundary_fc, regions_for_country
 from demo.scopes import SupplyChain
 
 
@@ -142,6 +142,72 @@ def _zoom_for_radius(km: float) -> int:
         return 8
     z = 7 + math.log2(156 / display_km)
     return max(3, min(18, round(z)))
+
+
+# ---------------------------------------------------------------------------
+# Country-regional preview
+# ---------------------------------------------------------------------------
+
+def render_country_regional_preview(country: str) -> None:
+    """Regional-analysis preview — whole-country map, no region picked yet.
+
+    No region is selected at scope time: this preview just establishes
+    the country and shows the regions that can be inspected later (one
+    marker per admin1 centroid). The single region (Inspect) or the
+    multiple regions (Prioritisation) are chosen downstream on P-04/P-07.
+    """
+    regions = regions_for_country(country)
+
+    col_meta, col_map = st.columns([1, 1])
+    with col_meta:
+        st.markdown(f"**Regional analysis — {country}**")
+        st.markdown(f"Inspectable regions: **{len(regions)}**")
+        st.caption(
+            "No region is selected yet. You'll pick a single region to "
+            "screen on the **Inspect** page, or several regions on the "
+            "**Prioritisation** page. Each region screens at a buffer "
+            "sized to its own area."
+        )
+    with col_map:
+        _render_country_map(country, regions)
+
+
+def _render_country_map(country: str, regions) -> None:
+    """Country map — admin1 boundary outline + a marker per region centroid."""
+    if regions:
+        mean_lat = sum(r.centroid_lat for r in regions) / len(regions)
+        mean_lon = sum(r.centroid_lon for r in regions) / len(regions)
+        lat_span = max(r.centroid_lat for r in regions) - min(
+            r.centroid_lat for r in regions
+        )
+        lon_span = max(r.centroid_lon for r in regions) - min(
+            r.centroid_lon for r in regions
+        )
+        zoom = _zoom_for_span(max(lat_span, lon_span))
+    else:
+        mean_lat, mean_lon, zoom = 0.0, 0.0, 3
+
+    m = geemap.Map(center=[mean_lat, mean_lon], zoom=zoom)
+    m.add_basemap("SATELLITE")
+    m.addLayer(country_boundary_fc(country), {}, f"{country} regions")
+    for region in regions:
+        m.add_marker(
+            location=[region.centroid_lat, region.centroid_lon],
+            popup=region.name,
+        )
+    m.to_streamlit(height=350)
+
+
+def _zoom_for_span(span_deg: float) -> int:
+    """Leaflet zoom so a lat/lon extent of ``span_deg`` fits comfortably.
+
+    Mirrors the spirit of ``_zoom_for_radius`` but keyed on the angular
+    spread of the region centroids rather than a buffer radius.
+    """
+    if span_deg <= 0:
+        return 6
+    z = round(math.log2(360 / max(span_deg, 0.1))) - 1
+    return max(3, min(12, z))
 
 
 # ---------------------------------------------------------------------------
