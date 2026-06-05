@@ -115,6 +115,13 @@ def render_risk_matrix(state: PrioritisationState) -> None:
             from ui.components.p08_ranked_table import drill_to_supplier
             drill_to_supplier(state, plottable[point_idx]["name"])
 
+    # Band legend so the shading reads without guessing.
+    st.caption(
+        "Bands (each axis): **low** < 0.33 · **moderate** 0.33–0.66 · "
+        "**high** > 0.66. Shading runs green (low both) → amber (moderate) → "
+        "red (**high both — audit first**, top-right)."
+    )
+
     # Numbered key — markers show an index (not the full name) to avoid label
     # overlap when suppliers cluster. Full names live here and on hover.
     _render_marker_key(plottable)
@@ -269,15 +276,25 @@ def _build_figure(
         showlegend=False,
     ))
 
-    # Threshold lines on BOTH axes at the moderate (0.33) and high (0.66)
-    # bands. High = dashed (the audit-first cut); moderate = lighter dotted so
-    # the grid reads as a 3×3 band without becoming chaotic.
-    for thr, dash, colour in (
-        (low_threshold,  "dot",  "#4b5563"),
-        (high_threshold, "dash", "#9ca3af"),
-    ):
-        fig.add_hline(y=thr, line_dash=dash, line_color=colour)
-        fig.add_vline(x=thr, line_dash=dash, line_color=colour)
+    # Shade the 3×3 grid into low / moderate / high bands so the regions read
+    # at a glance instead of from faint dashed lines. Traffic-light tints on a
+    # diagonal: green (low both) → amber (moderate) → red (high both / audit
+    # first). Drawn below the markers; kept low-opacity so points stay legible.
+    edges = [-0.05, low_threshold, high_threshold, 1.05]
+    for xi in range(3):
+        for yi in range(3):
+            fig.add_shape(
+                type="rect", layer="below",
+                x0=edges[xi], x1=edges[xi + 1],
+                y0=edges[yi], y1=edges[yi + 1],
+                fillcolor=_band_cell_fill(xi, yi),
+                line=dict(width=0),
+            )
+    # Thin, solid band separators at the threshold values — precise without
+    # the muddy dashes.
+    for thr in (low_threshold, high_threshold):
+        fig.add_hline(y=thr, line_width=1, line_color="rgba(255,255,255,0.22)")
+        fig.add_vline(x=thr, line_width=1, line_color="rgba(255,255,255,0.22)")
 
     fig.add_annotation(
         x=0.05, y=0.95, xref="paper", yref="paper",
@@ -318,6 +335,24 @@ def _build_figure(
         hovermode="closest",
     )
     return fig
+
+
+# Diagonal band shading for the 3×3 matrix. Cell band level = x-band + y-band
+# (each 0=low / 1=moderate / 2=high), so the sum runs 0 (low both) → 4 (high
+# both). Traffic-light tint by severity; the high-both corner is strongest so
+# "audit first" pops.
+_BAND_CELL_FILLS: dict[int, str] = {
+    0: "rgba(34, 197, 94, 0.10)",   # low both — green
+    1: "rgba(132, 204, 22, 0.10)",  # low + moderate — yellow-green
+    2: "rgba(245, 158, 11, 0.13)",  # moderate band — amber
+    3: "rgba(239, 68, 68, 0.15)",   # moderate + high — red
+    4: "rgba(239, 68, 68, 0.26)",   # high both (audit first) — strong red
+}
+
+
+def _band_cell_fill(xi: int, yi: int) -> str:
+    """Traffic-light fill for grid cell (xi, yi), 0=low/1=moderate/2=high."""
+    return _BAND_CELL_FILLS[xi + yi]
 
 
 def _band_colour(composite: float | None) -> str:
