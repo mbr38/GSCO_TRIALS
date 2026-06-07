@@ -94,22 +94,24 @@ When the engine work starts you'll also need:
 
 ## 6. Milestones — current status and next step
 
+> **Status (6 June 2026).** The original build-out is **complete** — all six engine milestones and all UI pages (P-01 → P-11) are built and live. The table below is kept as a record. Current work is v1.x refinement (see `docs/Indicators_Audit_and_v1x_Roadmap.md`), not initial construction. For a journey/benefits overview of the finished tool, see `HANDOFF.md`.
+
 | # | Milestone | Status | Files |
 |---|---|---|---|
-| 1 | `engine/constants.py` + `engine/ids.py` | done | new |
-| 2 | `engine/core/` subpackage | done | new |
-| 3 | `engine/air.py` (simplest pillar) | done 3a, doing 3b | new |
-| 4 | `engine/orchestrator.py::ScreeningRun` | not started | new |
-| 5 | `engine/ghg.py` and `engine/nature.py` | not started | new |
-| 6 | `engine/verbal_summary.py` | not started | new |
-| UI-A | P-01 Landing | ✅ done | `app.py` |
-| UI-B | P-02 Scope setup (real, not placeholder) | placeholder | `pages/01_scope_setup.py` |
-| UI-C | P-03 Workflow Hub | not started | new page |
-| UI-D | P-04 Inspect setup | not started | new page |
-| UI-E | P-05 Screening results | not started | new page (use `pages/99_engine_scratch.py` as the EE-pattern reference) |
-| UI-F → UI-K | P-06 through P-11 | not started | new pages |
+| 1 | `engine/constants.py` + `engine/ids.py` | ✅ done | `engine/constants.py`, `engine/ids.py` |
+| 2 | `engine/core/` subpackage | ✅ done | `engine/core/*` |
+| 3 | `engine/air.py` (simplest pillar) | ✅ done | `engine/air.py` |
+| 4 | `engine/orchestrator.py::ScreeningRun` | ✅ done | `engine/orchestrator.py` (also `TrendRun`, `PrioritisationBatch`) |
+| 5 | `engine/ghg.py` and `engine/nature.py` | ✅ done | `engine/ghg.py`, `engine/nature.py` |
+| 6 | `engine/verbal_summary.py` | ✅ done | `engine/verbal_summary.py` |
+| UI-A | P-01 Landing | ✅ done | `app.py` (router: `gsco_app.py`) |
+| UI-B | P-02 Scope setup (real, not placeholder) | ✅ done | `pages/02_Scope_Setup.py` |
+| UI-C | P-03 Workflow Hub | ✅ done | `pages/03_Workflow_Hub.py` |
+| UI-D | P-04 Inspect setup | ✅ done | `pages/04_Inspect_Setup.py` |
+| UI-E | P-05 Screening results | ✅ done | `pages/05_Screening_Results.py` |
+| UI-F → UI-K | P-06 through P-11 | ✅ done | `pages/06_*` … `pages/11_*` |
 
-Engine milestones 1 through 4 should ship before the result-page UI (P-05/P-06) so the UI has real data to render. UI for P-02, P-03, P-04 can proceed in parallel with the engine.
+All engine and UI milestones have shipped. Remaining work is v1.x indicator refinement and the genuine deferred stubs: P-07 country-database mode, and P-11 ESRS datapoint codes + policy/action/target sub-sections (see the reconciliation banner in `docs/PLFS_v4.md`).
 
 ## 7. Conventions
 
