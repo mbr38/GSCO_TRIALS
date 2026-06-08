@@ -185,9 +185,13 @@ This framing resolves the **regional washout** concern: a regionally-embedded su
 | Industrial Combustion Proxy Score | `0.60·NO₂_score + 0.40·CO_score` | NO₂ dominates because it's the more facility-attributable signal; CO supports |
 | Heavy Industry / Sulphur-Heavy Activity Score | `0.60·SO₂_score + 0.30·NO₂_score + 0.10·PM_or_Aerosol_score` | SO₂ dominates because it's sector-specific |
 | VOC / Photochemical Pollution Context Score | `0.50·HCHO_score + 0.30·NO₂_score + 0.20·O₃_score` | HCHO dominates as VOC proxy |
-| Smoke / Dust / Regional Transport Score | `0.40·CO_score + 0.40·AAI_score + 0.20·PM_or_Aerosol_score` | Used as **`Fire_or_Regional_Transport_Risk`** in the GHG pillar (see §4.3) |
+| Smoke / Dust / Regional Transport Score | `0.40·CO_score + 0.40·AAI_score + 0.20·PM_or_Aerosol_score` | Borrowed into the GHG pillar as **`Fire_or_Regional_Transport_Risk`** (§2.2). **Currently unconsumed:** its only consumer was `CH₄_Context_Adjusted`, which M-CH4-A1 removed (CH₄ is now reference data), so `ghg.fire_or_regional_transport_risk` is still computed but feeds no live score — reserved for a future surface. |
 | Industrial Air Pollution Burden Score | `0.40·NO₂_score + 0.35·SO₂_score + 0.25·PM_or_Aerosol_score` | Most ESG-relevant; closest to ESRS E2 / GRI 305-7 framing |
-| `PM_or_Aerosol_score` | `0.60·PM2.5_score + 0.40·AAI_score` when CAMS available; fallback to `1.00·AAI_score` otherwise | Fallback trigger: `cams_valid_pixel_pct < CAMS_MIN_VALID_PCT` (default 0.5) **or** the CAMS site mean is null over the analysis window. Below half-buffer coverage the CAMS mean is dominated by border-pixel noise. Tunable as `CAMS_MIN_VALID_PCT` in code. |
+| `PM_or_Aerosol_score` | `0.60·PM2.5_score + 0.40·AAI_score` when CAMS PM₂.₅ is usable; fallback to `1.00·AAI_score` otherwise | **Shipped fallback trigger (`engine.air.compute_pm_or_aerosol`): `air.pm25.score is None OR air.pm25.site is None`** — either indicates the CAMS PM₂.₅ reading is unusable over the window. NOTE: the `CAMS_MIN_VALID_PCT` constant (0.5) exists but in v1 is **emitted only as provenance metadata** (`_air_extra`), not applied as a live pixel-coverage gate; the live trigger is the null-check above. A `cams_valid_pixel_pct < CAMS_MIN_VALID_PCT` coverage gate is a v1.x follow-up. |
+
+> **Which sub-aggregates actually feed a live score (audit clarification).** Of the six sub-aggregates above, only **two are consumed by a live composite**: `PM_or_Aerosol_score` (feeds `Air_Pollution_Proxy_Score`, §1.3) and `Industrial_Combustion_Proxy` (borrowed into the GHG core as `ghg.combustion_proxy`, §2.2 — the 0.60 term). The other four are **computed and emitted as drill-down/context tiles but enter no live score**: `Heavy_Industry`, `VOC_Photochemical`, and `Industrial_Air_Pollution_Burden` are display-only (they are not terms in `Air_Pollution_Proxy_Score` or any GHG aggregate), and `Smoke_Dust_Regional_Transport` is borrowed into GHG but currently unconsumed (see its row note). They remain in the payload for the C5 expander and the indicator library.
+
+> **AOD is orphaned from all composites.** `air.aod` (§1.1, "optional") runs the §0.2 core and emits a severity score + confidence, but its score is **not** a term in `PM_or_Aerosol_score` (which is PM₂.₅ / AAI — *not* AAI/AOD), nor in `Air_Pollution_Proxy_Score`, nor any sub-aggregate. AOD is a **standalone context / drill-down indicator**: its only effects are (a) its `confidence` enters the Air measurement-quality mean (§8.2) when selected, and (b) it carries wind attributability (§2.4). It does not drive the Air or GHG composite.
 
 ### 1.3 Pillar aggregates
 
@@ -276,8 +280,10 @@ PM (CAMS), AOD (MAIAC), ODIAC CO₂, VIIRS NTL, Dynamic World, Hansen, NDVI, KBA
 | Fossil_CO₂_Context | `CO₂_score` (normalised CO₂ flux within Site_Buffer) | Single value, but see §5.2 on data-vintage handling |
 | High_GWP_Sector_Risk | **Deferred to v1.1.** Requires sector input. In v1 set to `0` and rebalance Core_GHG_Audit_Support to sum to 1.0 over the remaining four terms — see §7.1 | n/a in v1 |
 | Fossil_Combustion_Score (optional) | `0.50·Fossil_CO₂_Context + 0.30·NO₂_CO_SO₂_Combustion_Proxy + 0.20·Activity_Score` | Useful for heavy-industry suppliers |
-| CH₄_Context_Adjusted | `CH₄_Hotspot_Score − 0.20·Fire_or_Regional_Transport_Risk` | See §7.3 for `Fire_or_Regional_Transport_Risk` |
-| Activity_Adjusted_CO₂ | `0.70·Fossil_CO₂_Context + 0.30·Nighttime_Light_Activity` | Useful when reported emissions are unavailable |
+| CH₄_Context_Adjusted | ~~`CH₄_Hotspot_Score − 0.20·Fire_or_Regional_Transport_Risk`~~ | **No longer computed (M-CH4-A1).** CH₄ is now reference data, so `compute_ch4_context_adjusted` is not called in `run_pillar`; formula retained for provenance only. |
+| Activity_Adjusted_CO₂ | `0.70·Fossil_CO₂_Context + 0.30·Nighttime_Light_Activity` | **Display/context only** — computed but not in the live composite (`Core_GHG_Audit_Support`); useful when reported emissions are unavailable |
+
+> **Which GHG sub-aggregates feed the live score (audit clarification).** Only **`Combustion_Proxy`** and **`Activity_Score`** (VIIRS flaring) feed the live `Core_GHG_Audit_Support` (§2.3). **`Fossil_CO₂_Context`** (ODIAC) and **CH₄** are **reference-only** — computed/displayed as standing-exposure context but outside the composite (M5.5b / M-CH4-A1). `Fossil_Combustion_Score`, `Activity_Adjusted_CO₂`, and `CO₂_Context` are display/validation aids, not live-score terms; `CH₄_Context_Adjusted` is no longer computed at all.
 
 ### 2.2a VIIRS grammar
 
@@ -374,9 +380,9 @@ with *persistence* in place of HF as the consistency term.
 **v1 (no sector context):**
 
 ```
-Core_GHG_Audit_Support_v1 =                      (M-GHG-REDESIGN-A1: VIIRS-led)
-    0.60·Activity_Score
-  + 0.40·Combustion_Proxy                          (sums to 1.00)
+Core_GHG_Audit_Support_v1 =              (M-VIIRS-REDESIGN-A1 VR5: combustion-led)
+    0.40·Activity_Score
+  + 0.60·Combustion_Proxy                          (sums to 1.00)
 
   Method: ODIAC's CO₂_Context is no longer in the live composite (M5.5b);
   CH₄_Context_Adjusted is no longer in the live composite either
@@ -385,17 +391,21 @@ Core_GHG_Audit_Support_v1 =                      (M-GHG-REDESIGN-A1: VIIRS-led)
   data joining Hansen + ODIAC). High_GWP_Sector_Risk stays at 0 in v1
   pending sector input (Tier C1a).
 
-  M-GHG-REDESIGN-A1 (GATE B, 31 May 2026): VIIRS (Activity_Score) is
-  re-grammared to persistence-weighted ring-relative sustained contrast
-  (§2.2a) — a sustained-emissions *presence* signal, not a transient
-  anomaly, and the most directly supplier-attributable, GHG-specific
-  term (VIIRS↔ODIAC Spearman 0.70, docs/ghg_odiac_validation.md §1). Its
-  weight is therefore raised to **lead** the composite at 0.60;
-  Combustion_Proxy (the borrowed Air NO₂/CO transient signal) drops to
-  0.40 as the supporting cross-pollutant check. The prior 0.815/0.185
-  split was an artifact of CH₄'s removal renormalisation (0.44/0.54), not
-  a deliberate "combustion dominates" decision. Pre-M-GHG-REDESIGN-A1:
-  Combustion 0.815, Activity 0.185. See audit §3.4 for full lineage.
+  M-VIIRS-REDESIGN-A1 (VR5, 1 June 2026): VIIRS was split into two outputs
+  (§2.2a) — flaring severity (Activity_Score = ghg.viirs.score) and
+  lit-contrast attributability. M-GHG-SANITY-A1 found the Air NO₂/CO
+  combustion borrow is the stronger GHG-intensity ranker (Spearman ρ 0.85
+  vs operator-expected tier), so `Combustion_Proxy` **leads** the composite
+  at 0.60; VIIRS `Activity_Score` is the supporting directional
+  intense-source check at 0.40. This **inverted** the earlier
+  M-GHG-REDESIGN-A1 GATE-B split (0.60 Activity / 0.40 Combustion, VIIRS-led),
+  which the M-VIIRS-DIAG-A1 diagnostics showed could not rank industrial
+  intensity (heavy/middle indistinguishable, rural false-High). Lineage of
+  the (Activity / Combustion) weights: 0.185 / 0.815 (M-CH4-A1 renorm) →
+  0.60 / 0.40 (M-GHG-REDESIGN-A1 GATE B, VIIRS-led) → **0.40 / 0.60**
+  (M-VIIRS-REDESIGN-A1 VR5, combustion-led — current). The engine constant
+  is `CORE_GHG_AUDIT_SUPPORT_WEIGHTS` (activity 0.40 / combustion 0.60). See
+  §2.2a and docs/M-VIIRS-REDESIGN-A1_closed_entry.md for full lineage.
 
 GHG_Data_Quality_Attribution_v1 =
     0.34·Temporal_Coverage + 0.33·Spatial_Resolution_Suitability
@@ -505,11 +515,18 @@ Per the architectural lock (M-ATTRIB-A1 / `attributability.py`): **no categorica
 ### 3.2 Sub-aggregate indicators
 
 ```
-Biodiversity_Exposure =
-    0.40·KBA_Proximity_or_Overlap
-  + 0.30·Sensitive_LandCover_Presence
-  + 0.20·Water_or_FloodedVegetation_Exposure
-  + 0.10·Buffer_Sensitivity_v1   (= 0 in v1 without sector context; see §7.1)
+Biodiversity_Exposure =                  (renormalised over the surviving 3 terms)
+    0.4444·KBA_Proximity_or_Overlap
+  + 0.3333·Sensitive_LandCover_Presence
+  + 0.2222·Water_or_FloodedVegetation_Exposure    (sums to 1.00)
+
+  Method: the designed fourth term `Buffer_Sensitivity_v1` is 0 in v1
+  (no sector context; see §7.1). Rather than keep a `0.10·0` dead term
+  (which would cap the aggregate at 0.90), the engine DROPS it and rescales
+  the three survivors by 1/0.90 — so the raw design weights 0.40 / 0.30 / 0.20
+  become the shipped 0.4444 / 0.3333 / 0.2222 (`BIODIVERSITY_EXPOSURE_WEIGHTS`,
+  each = raw ÷ 0.90). This is the renormalised SHIPPED form, not the raw
+  design split; it lets the aggregate reach 1.00.
 
 Habitat_Conversion =                              (audit §9.3 v1.4: Hansen demoted)
     0.40·Natural_Habitat_Loss_pct
@@ -604,8 +621,9 @@ Nature_FollowUp_Priority =
 > - `External_Driver_Screening` (was 0.10) is now **reference data**: the
 >   `regional_loss_evidence` ring-vs-buffer Hansen ratio surfaced on the M-UI-A6
 >   Hansen card. It does not enter any composite or measurement-quality score.
-> The four surviving terms are renormalised to sum to 1.00. The followup-priority
-> weight on the renamed aggregate is unchanged (0.15).
+> The four surviving terms are renormalised to sum to 1.00. (At the time of this
+> note the follow-up quality weight was 0.15; M-WEIGHTS-HARMONISE-A1 subsequently
+> raised it to the shared `w_q = 0.20` — see §3.3 and the harmonise note above.)
 
 Sub-formula breakdowns for the data-quality components:
 
@@ -614,7 +632,7 @@ Sub-formula breakdowns for the data-quality components:
 | `Valid_Pixel_Coverage` | `valid_pixel_count / total_pixel_count` in the composite | After cloud/shadow masking. Goes down automatically over water or in heavily cloud-covered regions, which is the right behaviour. |
 | `Cloud_or_Observation_Quality` | `1 − mean_cloud_pct` weighted by SCL confidence | Sentinel-2-specific cloud quality. |
 | `DynamicWorld_Class_Confidence` | Mean of `prob_<dominant_class>` band over Site_Buffer | Already in [0, 1]. High when one class clearly dominates, low when pixels are ambiguous. |
-| `Seasonal_Comparability` | `1 − \|month_offset\| / 6`, where `month_offset` is the months between current and baseline composite | When current and baseline composites end in different months, NDVI and Dynamic World composition differ naturally (winter leaves, crop cycles, flooded seasons). Same month → 1.0. 3 months apart → 0.5. 6 months apart → 0.0. Divided by 6 because a 7-month offset is equivalent to a 5-month offset in the other direction. This term carries 0.15 weight inside Nature_Quality_Attribution — without it, comparing July to January would inflate Habitat_Conversion artificially and the user would not see it was seasonally confounded. |
+| `Seasonal_Comparability` | `1 − \|month_offset\| / 6`, where `month_offset` is the months between current and baseline composite | When current and baseline composites end in different months, NDVI and Dynamic World composition differ naturally (winter leaves, crop cycles, flooded seasons). Same month → 1.0. 3 months apart → 0.5. 6 months apart → 0.0. Divided by 6 because a 7-month offset is equivalent to a 5-month offset in the other direction. This term carries **0.20** weight inside `Nature_Measurement_Quality` (the renamed aggregate; was 0.15 pre-renormalisation) — without it, comparing July to January would inflate Habitat_Conversion artificially and the user would not see it was seasonally confounded. |
 | `Supplier_Spatial_Link` | See §7.5 | Confidence-side check: is the observed change clustered near the supplier point? |
 | `External_Driver_Screening` | See §7.5 | Confidence-side check: is there an obvious non-supplier explanation (fire, drought, regional loss)? |
 
@@ -628,7 +646,7 @@ These three indicators are nested, not parallel. Habitat conversion is the umbre
 | **Built-up expansion** | Specifically the *natural → built* subset, plus growth of pre-existing built-up area | Most permanent kind of conversion and most attributable to a supplier when adjacent to the supplier footprint. Signals supplier-site expansion, industrial development, or surrounding urbanisation. |
 | **Bare-ground / disturbance expansion** | Specifically the *natural → bare* subset, plus growth of pre-existing bare ground | Signals clearing, quarrying, construction prep, mining disturbance, land degradation. Most ambiguous subtype — Dynamic World's "bare" class confuses dry soil, rock, construction sites, and post-fire scars. |
 
-The Habitat_Conversion aggregate (§3.2) intentionally double-counts the built and bare subsets as "bonus weight" on the ESG-priority subtypes — the 0.35 master term captures all conversion, then the 0.25 and 0.20 terms add weight on top for the two most material subtypes.
+The Habitat_Conversion aggregate (§3.2) intentionally double-counts the built and bare subsets as "bonus weight" on the ESG-priority subtypes — the **0.40** master term (`Natural_Habitat_Loss_pct`) captures all conversion, then the **0.27** (`Natural_to_Built_pct`) and **0.22** (`Natural_to_Bare_pct`) terms add weight on top for the two most material subtypes (the fourth term is `0.11·Annualised_Conversion_Rate_score`). These are the post-Hansen-demotion shipped weights (§3.2); pre-demotion they were 0.35 / 0.25 / 0.20.
 
 ### 3.5 Dynamic World class mapping (natural / non-natural buckets)
 
@@ -669,7 +687,7 @@ Overall_Screening_Score = ⅓ · Air_Pollution_Audit_FollowUp_Priority
                         + ⅓ · Nature_FollowUp_Priority
 ```
 
-Equal ⅓ weights are the v1 default per `PLFS_v4.md` §9. Sector-aware weighting is a v1.x extension. The composite confidence is `min(Air_Attribution_Confidence, GHG_Data_Quality_Attribution, Nature_Quality_Attribution)` — a conservative choice that prevents one strong pillar from masking weak signal in another.
+Equal ⅓ weights are the v1 default per `PLFS_v4.md` §9. Sector-aware weighting is a v1.x extension. The composite confidence is `min(air.measurement_quality_score, ghg.measurement_quality, nature.measurement_quality)` — the minimum across the three pillar measurement-quality values (§8.3), a conservative choice that prevents one strong pillar from masking weak signal in another. (Pre-M-WEIGHTS-HARMONISE-A1 the GHG term was `ghg.data_quality_attribution`; it is now `ghg.measurement_quality` so all three pillars use the same concept.)
 
 ---
 
@@ -1019,45 +1037,38 @@ The weights are in `engine.constants.CONFIDENCE_FORMULA_WEIGHTS`; the multiplier
 
 ### 8.2 Pillar-level rollup
 
-Each pillar continues to drive its own `*_attribution`/`*_quality_attribution` score via the existing weight dictionaries in `engine.constants`; the term *derivations* are what shift after A1.
+Each pillar rolls its per-indicator confidences up to a single pillar-level **measurement-quality** value; the composite (§8.3) mins over the three. M-ATTRIB-A1 renamed the Air/Nature rollups to `*_measurement_quality` (the old `*_attribution` / `*_quality_attribution` names are reference-only conflations of measurement quality and attributability), and M-WEIGHTS-HARMONISE-A1 unified the GHG rollup onto a `measurement_quality` mean so all three pillars feed the composite min with the same concept.
 
-**Air pillar — `air.attribution_confidence_score`.** Uniform mean of per-pollutant `air.<gas>.confidence` over the survivors. No weight dict (Air already used a uniform mean pre-A1).
+**Air pillar — `air.measurement_quality_score`** (M-ATTRIB-A1 AT16; legacy alias `air.attribution_confidence_score` is still emitted for back-compat). Uniform mean of per-pollutant `air.<gas>.confidence` over the survivors. No weight dict (Air always used a uniform mean). `engine.air.compute_measurement_quality_score`.
 
-**GHG pillar — `ghg.data_quality_attribution`.** Existing `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS` (0.33 / 0.27 / 0.27 / 0.13) drives the rollup. Three of the four sub-scores now derive from per-indicator A1 inputs read from `_provenance.ghg.<ind>.extra.confidence_terms`; the fourth is unchanged:
+**GHG pillar — `ghg.measurement_quality`** (M-WEIGHTS-HARMONISE-A1; was `ghg.data_quality_attribution`). Bottom-up **survivor-mean of the two SCORED GHG terms' per-indicator confidences** — VIIRS flaring (`ghg.viirs.confidence`) and the Air NO₂/CO combustion borrow (a weighted NO₂/CO confidence). CO₂ (ODIAC) and CH₄ are reference-only and excluded by construction. `engine.ghg.compute_ghg_measurement_quality`. This is what feeds the composite-confidence min.
 
-| Sub-score | Post-A1 derivation |
-|---|---|
-| `ghg.temporal_coverage` | Mean of per-indicator `N_valid` across GHG indicators that emitted terms |
-| `ghg.spatial_resolution_suitability` | Mean of per-indicator `spatial_context` across GHG indicators |
-| `ghg.retrieval_inventory_quality` | Mean of per-indicator `QA` across GHG indicators |
-| `ghg.nearby_source_isolation` | Unchanged — §7.2 satellite-only spatial proxy; methodologically independent of per-indicator data quality |
+> `ghg.data_quality_attribution` is **still computed and displayed** (C5 / C6 / report) as a data-quality breakdown — `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS` (**0.34 / 0.33 / 0.33**) over `ghg.temporal_coverage` (mean per-indicator `N_valid`), `ghg.spatial_resolution_suitability` (mean `spatial_context`), and `ghg.retrieval_inventory_quality` (mean `QA`), survivor-renormalised. M-ATTRIB-A1 (AT15) removed the former fourth term `nearby_source_isolation` (was 0.13 — an attributability concept with a fixed-1.0 placeholder that inflated the score; reserved for a future GHG attributability surface, §7.2). It no longer drives the composite-confidence min — `ghg.measurement_quality` does.
 
-Survivor-renormalise applies: missing per-indicator terms drop out of the mean; missing sub-scores get renormalised against `GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS`.
+**Nature pillar — `nature.measurement_quality`** (M-ATTRIB-A1 AT13; renamed from `Nature_Quality_Attribution`). Weighted sum over `NATURE_MEASUREMENT_QUALITY_WEIGHTS` (**0.35 / 0.25 / 0.20 / 0.20**), survivor-renormalised. `engine.nature.compute_nature_measurement_quality`:
 
-**Nature pillar — `nature.quality_attribution`.** Existing `NATURE_QUALITY_ATTRIBUTION_WEIGHTS` (0.20 / 0.20 / 0.20 / 0.15 / 0.15 / 0.10) drives the rollup. Only one sub-score's derivation changes; the other five were already real (not placeholders):
+| Sub-score | Weight | Derivation |
+|---|---|---|
+| `nature.valid_pixel_coverage` | 0.35 | Mean of per-indicator `QA` across the Nature indicators that emitted terms |
+| `nature.cloud_observation_quality` | 0.25 | Sentinel-2 cloud quality |
+| `nature.dw.class_confidence` | 0.20 | DW dominant-class probability (already real) |
+| `nature.seasonal_comparability` | 0.20 | `1 − |month_offset| / 6` |
 
-| Sub-score | Post-A1 derivation |
-|---|---|
-| `nature.valid_pixel_coverage` | Mean of per-indicator `QA` across the Nature indicators that emitted terms |
-| `nature.cloud_observation_quality` | Unchanged (Sentinel-2 cloud quality) |
-| `nature.dw.class_confidence` | Unchanged (DW probability, already real) |
-| `nature.seasonal_comparability` | Unchanged (months-offset placeholder pending Tier C) |
-| `nature.supplier_spatial_link` | Unchanged (§7.5 placeholder) |
-| `nature.external_driver_screening` | Unchanged — `compute_regional_loss_evidence` per audit §9.3 v1.4 |
+M-ATTRIB-A1 removed the two former attribution terms — `supplier_spatial_link` (was 0.15, now a categorical attributability state, §7.5) and `external_driver_screening` (was 0.10, now reference data via `regional_loss_evidence`, §7.5) — and renormalised the four survivors to sum to 1.00. The constant `NATURE_QUALITY_ATTRIBUTION_WEIGHTS` no longer exists.
 
 ### 8.3 Composite confidence
 
-Unchanged formula:
+The composite confidence is the **minimum across the three pillar measurement-quality values** (`engine.orchestrator.compute_composite_confidence`):
 
 ```
 composite.confidence = min(
-    air.attribution_confidence_score,
-    ghg.data_quality_attribution,
-    nature.quality_attribution,
+    air.measurement_quality_score,
+    ghg.measurement_quality,        # M-WEIGHTS-HARMONISE-A1: was ghg.data_quality_attribution
+    nature.measurement_quality,
 )
 ```
 
-After A1, this `min` is genuinely informative — it surfaces the weakest-pillar confidence as the headline number. Strict-None propagates: if any pillar confidence is None, the composite is None.
+M-WEIGHTS-HARMONISE-A1 moved the GHG term in this `min` from `ghg.data_quality_attribution` onto `ghg.measurement_quality`, so all three pillars now contribute the same measurement-quality concept. The `min` surfaces the weakest-pillar confidence as the headline number. Strict-None propagates: if any pillar confidence is None, the composite is None.
 
 ### 8.4 Audit transparency — `provenance.extra.confidence_terms`
 

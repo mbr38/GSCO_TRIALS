@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from engine.constants import (
+    BIODIVERSITY_EXPOSURE_WEIGHTS,
     CORE_GHG_AUDIT_SUPPORT_WEIGHTS,
     GHG_DATA_QUALITY_ATTRIBUTION_WEIGHTS,
     HABITAT_CONVERSION_WEIGHTS,
@@ -106,3 +107,43 @@ class TestDocConstantsSync:
         )
         # M-CH4-A1: two keys after ODIAC demotion + CH₄ reclassification.
         assert len(doc_weights) == 2
+
+        # M-VIIRS-REDESIGN-A1 VR5 (combustion-led): the set-equality check above
+        # CANNOT catch a term↔weight INVERSION ({0.40, 0.60} is order-blind).
+        # The doc previously showed 0.60·Activity / 0.40·Combustion (the
+        # superseded VIIRS-led split) while the engine ships 0.40·activity /
+        # 0.60·combustion. Pin the ASSIGNMENT so that drift trips loudly.
+        act_doc = float(re.search(r"(\d\.\d{2})·Activity_Score", block).group(1))
+        comb_doc = float(re.search(r"(\d\.\d{2})·Combustion_Proxy", block).group(1))
+        assert act_doc == round(CORE_GHG_AUDIT_SUPPORT_WEIGHTS["ghg.activity_score"], 2), (
+            f"IC_v4 §2.3 assigns {act_doc} to Activity_Score but engine "
+            f"ghg.activity_score = {CORE_GHG_AUDIT_SUPPORT_WEIGHTS['ghg.activity_score']} "
+            "(term↔weight inversion — combustion must lead at 0.60)"
+        )
+        assert comb_doc == round(CORE_GHG_AUDIT_SUPPORT_WEIGHTS["ghg.combustion_proxy"], 2), (
+            f"IC_v4 §2.3 assigns {comb_doc} to Combustion_Proxy but engine "
+            f"ghg.combustion_proxy = {CORE_GHG_AUDIT_SUPPORT_WEIGHTS['ghg.combustion_proxy']}"
+        )
+
+    def test_ic_v4_biodiversity_exposure_weights_match_engine_constants(self) -> None:
+        # §3.2: Buffer_Sensitivity_v1 = 0 dropped; three survivors renormalised
+        # ÷0.90 → 0.4444 / 0.3333 / 0.2222. The doc must show the renormalised
+        # SHIPPED values, not the raw design split (0.40 / 0.30 / 0.20).
+        text = _ic_text()
+        m = re.search(
+            r"Biodiversity_Exposure =.*?\(sums to 1\.00\)",
+            text, flags=re.DOTALL,
+        )
+        assert m is not None, "Could not find Biodiversity_Exposure formula block"
+        block = m.group(0)
+        doc_weights = [float(x) for x in re.findall(r"(\d\.\d{2,4})·", block)]
+        assert _approx_set(doc_weights) == _approx_set(
+            list(BIODIVERSITY_EXPOSURE_WEIGHTS.values())
+        ), (
+            f"Biodiversity_Exposure weights in IC_v4 §3.2 ({doc_weights}) drifted "
+            f"from engine BIODIVERSITY_EXPOSURE_WEIGHTS "
+            f"({list(BIODIVERSITY_EXPOSURE_WEIGHTS.values())}) — doc must show the "
+            "renormalised shipped values (0.4444/0.3333/0.2222), not design (0.40/0.30/0.20)"
+        )
+        # Three survivors after Buffer_Sensitivity_v1 dropped.
+        assert len(doc_weights) == 3

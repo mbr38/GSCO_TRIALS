@@ -207,3 +207,44 @@ remains pending separate sign-off.
 - **Audit doc sync.** `Indicators_Audit_and_v1x_Roadmap.md` §9.3 needs an
   amendment note (regional_loss_evidence reframing); pending explicit
   sign-off to edit the audit doc.
+
+## Post-closure amendment (2026-06-08) — cause-#2 guard removal reverted
+
+The perf pass tagged **cause-#2** (M-PERF-PARALLEL #3b) removed the two
+`current_ic.size().getInfo()` / `baseline_ic.size().getInfo()` guards from
+`compute_supplier_spatial_link`, on the stated grounds that they were
+"redundant" — that `compute_habitat_conversion` exercised the empty-window
+case upstream and that the transition-count reducer was an implicit existence
+check (saving ~2-6 s per screening).
+
+**Both grounds were wrong, and the removal reintroduced a hard crash.** When
+either Dynamic World window is empty, `ic.select("label").mode()` yields a
+band-less image and the subsequent `.remap()` throws
+`Image.remap: Image has no bands`. That is a raw `ee.EEException`, which the
+`_run_one_nature_task` worker does **not** catch (it catches only
+`IndicatorComputeError`), so the entire screening fails instead of degrading.
+The "redundant" reasoning failed because: (a) cause-#2 itself decoupled
+`compute_supplier_spatial_link` from `compute_habitat_conversion` and runs them
+**in parallel**, so habitat's upstream empty-window handling provides no
+protection; and (b) the count reducer is never reached — `.remap()` on the
+band-less image throws first.
+
+Most common trigger: the baseline window (`HABITAT_BASELINE_YEARS = 5` earlier)
+predating Dynamic World's 2015-06 coverage start — i.e. any screening with a
+`time_range` start before ~mid-2020. Tiny/offshore AOIs and very recent windows
+with no DW composite trigger it too.
+
+**Fix (restores the guard):** `compute_supplier_spatial_link` now short-circuits
+to the documented **sparse** attributability state
+(`attributability_state = "sparse"`, null centroid/offset, `n_change_pixels = 0`,
+provenance `skipped_reason = "no_dw_pixels"`) when either window is empty,
+before the remap. The guard is the original `.size().getInfo()` form with `or`
+short-circuiting, so the second round-trip only happens when the current window
+is non-empty. AT18 is unchanged — the function still runs unconditionally when
+habitat is selected; it now degrades to sparse instead of crashing.
+
+Tests: `tests/test_nature.py::TestSupplierSpatialLink::test_sparse_when_dw_window_empty`
+(new regression) and `::test_sparse_when_count_reducer_returns_zero` (corrected
+to genuinely exercise the in-window zero-transition path, distinct from the
+empty-window guard). Full suite green (2099 passed). No indicator-formula or
+weight change — engine-defensive only; the audit doc is not affected.

@@ -1267,19 +1267,36 @@ class TestSupplierSpatialLink:
         assert out["nature.supplier_spatial_link.n_change_pixels"] == 3
 
     def test_sparse_when_count_reducer_returns_zero(self, monkeypatch) -> None:
-        # M-ATTRIB-A1 perf cause-#2: we removed the two redundant
-        # .size().getInfo() guards (saved ~2-6s per screening). Empty DW
-        # windows now surface implicitly via the count reducer returning 0
-        # (no transition pixels) rather than via an explicit IC.size()
-        # check. This test pins the new behaviour — n_change=0 → sparse.
+        # Both windows have DW scenes (so the size guard passes), but no
+        # natural→non-natural transition pixels exist → the count reducer
+        # returns 0 → sparse. This pins the in-window "no change" path,
+        # distinct from the empty-window size guard (which is covered by
+        # test_sparse_when_dw_window_empty below).
         _install_spatial_link_fakes(
-            monkeypatch, current_size=0, baseline_size=5,
+            monkeypatch, current_size=5, baseline_size=5,
             n_change=0, centroid_lon=0.005, centroid_lat=0.0,
         )
         out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
         assert out["nature.habitat.attributability_state"] == "sparse"
         assert out["nature.supplier_spatial_link.centroid_offset_km"] is None
         assert out["nature.supplier_spatial_link.n_change_pixels"] == 0
+
+    def test_sparse_when_dw_window_empty(self, monkeypatch) -> None:
+        # Empty baseline window (e.g. baseline predates DW's 2015-06 coverage)
+        # → `.select("label").mode()` is band-less → `.remap()` would throw a
+        # raw ee.EEException that the worker does NOT catch, crashing the whole
+        # screening. The restored size guard must short-circuit to sparse.
+        # (Regression for "Image.remap: Image has no bands".)
+        _install_spatial_link_fakes(
+            monkeypatch, current_size=5, baseline_size=0,
+            n_change=99, centroid_lon=0.005, centroid_lat=0.0,
+        )
+        out = compute_supplier_spatial_link(_LINK_AOI, _LINK_TR, ee_client=None)
+        assert out["nature.habitat.attributability_state"] == "sparse"
+        assert out["nature.supplier_spatial_link.centroid_offset_km"] is None
+        assert out["nature.supplier_spatial_link.n_change_pixels"] == 0
+        terms = out["_provenance.nature.supplier_spatial_link"]["extra"]["spatial_link_terms"]
+        assert terms["skipped_reason"] == "no_dw_pixels"
 
     def test_provenance_carries_spatial_link_terms(self, monkeypatch) -> None:
         _install_spatial_link_fakes(

@@ -829,6 +829,15 @@ the dominant runtime cost for full-screening mode and for P-08 batch runs.
   That's 4 round-trips for habitat conversion alone. Combine the two 
   histograms into one server-side call returning both windows in a single 
   Dictionary.
+- **`compute_supplier_spatial_link` (engine/nature.py)** — issues two
+  `.size().getInfo()` empty-window checks plus the transition-count and
+  centroid reductions. **These size checks are correctness guards, not
+  redundancy** (restored 8 Jun 2026 after the cause-#2 perf pass removed them
+  and reintroduced the `Image.remap: Image has no bands` crash on empty DW
+  windows — see `docs/M-ATTRIB-A1_closed_entry.md` post-closure amendment).
+  When batching this function, **fold the size check into the server-side
+  Dictionary — do NOT delete it.** The remap fails on a band-less `.mode()`
+  composite before any reducer runs, so an existence check must precede it.
 - **Knock-on impact.** With ~7 Nature indicators each doing similar 
   patterns, a single full screening run can issue 20–30 sequential EE 
   calls. P-08 batch mode (up to 30 nodes) compounds this. Target: cap 

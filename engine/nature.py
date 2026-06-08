@@ -1268,13 +1268,60 @@ def compute_supplier_spatial_link(
     centroid_lat: float | None = None
     centroid_lon: float | None = None
 
-    # Perf (M-ATTRIB-A1 / cause-#2): the two .size().getInfo() guards that
-    # previously gated this block were redundant. compute_habitat_conversion
-    # runs before us in run_pillar against the same time_range + AOI, so the
-    # empty-window case is already exercised upstream via M-NATURE-DEFENSIVE.
-    # The count reducer below is itself an implicit existence check (returns
-    # 0 if the transition mask has no pixels), so removing the guards saves
-    # 2 round-trips per screening (~2-6 s) without loss of safety.
+    # M-NATURE-DEFENSIVE: guard against an empty DW window before the remap.
+    # When either collection has no scenes (common trigger: the baseline
+    # window — HABITAT_BASELINE_YEARS earlier — predates Dynamic World's
+    # 2015-06 coverage; also tiny/offshore AOIs), `.select("label").mode()`
+    # yields a band-less image and `.remap()` throws "Image has no bands".
+    # That's a raw ee.EEException, NOT an IndicatorComputeError, so the
+    # `_run_one_nature_task` worker does NOT catch it and the whole screening
+    # fails. Sparse here is the documented honest "not enough signal to
+    # attribute". (This restores the size guard removed by M-ATTRIB-A1
+    # cause-#2, whose justification was wrong: cause-#2 decoupled this task
+    # from compute_habitat_conversion and runs them in parallel, so habitat's
+    # upstream empty-window handling does not protect us; and the count
+    # reducer is never reached — `.remap()` on a band-less image throws first.
+    # `or` short-circuits, so the second round-trip only happens when the
+    # current window is non-empty.)
+    if current_ic.size().getInfo() == 0 or baseline_ic.size().getInfo() == 0:
+        sparse_state = compute_habitat_attributability(None, 0)
+        sparse_terms = {
+            "attributability_state": sparse_state,
+            "centroid_offset_km":    None,
+            "centroid_lat":          None,
+            "centroid_lon":          None,
+            "n_change_pixels":       0,
+            "n_min_pixels":          n_min_pixels,
+            "direction":             None,
+            "skipped_reason":        "no_dw_pixels",
+        }
+        return {
+            "nature.supplier_spatial_link.centroid_offset_km": None,
+            "nature.supplier_spatial_link.centroid_lat":       None,
+            "nature.supplier_spatial_link.centroid_lon":       None,
+            "nature.supplier_spatial_link.n_change_pixels":    0,
+            "nature.habitat.attributability_state":            sparse_state,
+            "_provenance.nature.supplier_spatial_link": build_provenance(
+                indicator_id="nature.supplier_spatial_link",
+                asset_id=cfg.asset_id,
+                band="label",
+                data_type=cfg.data_type,
+                data_source=cfg.data_source,
+                native_scale_m=cfg.scale_m,
+                time_range=time_range,
+                method_note=(
+                    "Centroid of natural→non-natural DW transition pixels "
+                    f"(baseline {HABITAT_BASELINE_YEARS}y earlier) vs supplier "
+                    "coordinate; geodesic offset bucketed categorically. "
+                    "Attributability surface (M-ATTRIB-A1) — NOT in any composite "
+                    "or measurement-quality score; sparse (no usable DW pixels "
+                    "in one or both windows)"
+                ),
+                observations=None,
+                extra={"spatial_link_terms": sparse_terms},
+            ),
+        }
+
     current_label = current_ic.select("label").mode()
     baseline_label = baseline_ic.select("label").mode()
 
