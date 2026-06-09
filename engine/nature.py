@@ -96,6 +96,7 @@ from engine.core import (
     haversine_km,
     method_note_fragment,
     six_step,
+    with_guaranteed_band,
 )
 from engine.core.buffers import background_ring, site_buffer
 from engine.core.fallback import FallbackContext
@@ -1581,10 +1582,23 @@ def _ndvi_low_area_pct(
     # intersection failure against the sinusoidal-projected MODIS NDVI IC
     # which this helper consumes. Same workaround as six_step; see comment
     # there for the full rationale.
-    mean_image = (
+    # M-NDVI-EMPTY-WINDOW: when the requested window has zero MODIS NDVI
+    # granules over the site, `.mean()` is a band-less image and the `.lt(0.3)`
+    # mask below would throw "Image.lt: ... Got 0 and 1" — a raw ee.EEException
+    # (not an IndicatorComputeError) that `_run_one_nature_task` does NOT
+    # swallow, so it failed the WHOLE NDVI indicator. This fires even when
+    # six_step has already recovered the site over an SPPY fallback window
+    # (`hf_time_range`), because this secondary reduction re-filters the
+    # collection over the *original* (empty) `time_range`. NDVI data presence
+    # is governed by six_step; `with_guaranteed_band` substitutes a fully-masked
+    # band server-side (zero extra getInfo) so the `.lt` is well-typed and the
+    # reduceRegion returns no value → 0 % low-NDVI (same outcome as the
+    # collapsed masked-mean path documented above).
+    mean_image = with_guaranteed_band(
         ic.filterDate(time_range[0], time_range[1])
           .filterBounds(geom.bounds())
-          .mean()
+          .mean(),
+        "NDVI",
     )
     low_mask = mean_image.lt(0.3)
     reduction = (

@@ -42,6 +42,7 @@ from engine.core.fallback import (
     sliding_lookback_windows,
     sppy_window,
 )
+from engine.core.ee_safety import with_guaranteed_band
 from engine.core.normalisation import to_score
 from engine.core.provenance import build_provenance
 from engine.core.repeatable_core import (
@@ -116,6 +117,7 @@ __all__ = [
     "sparse_provenance_extra",
     "sppy_window",
     "to_score",
+    "with_guaranteed_band",
     "WindAnomalyDayMeasurement",
     "WindAttributabilityState",
 ]

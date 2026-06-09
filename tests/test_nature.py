@@ -33,6 +33,7 @@ from engine.nature import (
     _buffer_area_ha,
     _format_kba_result,
     _ndvi_inverted_anomaly,
+    _ndvi_low_area_pct,
     _normalise_dw_histogram,
     compute_biodiversity_exposure,
     compute_habitat_conversion,
@@ -302,6 +303,53 @@ class TestNdviSubScores:
 
     def test_inverted_anomaly_none_when_score_missing(self) -> None:
         assert _ndvi_inverted_anomaly({}) is None
+
+
+class TestNdviLowAreaPct:
+    """M-NDVI-EMPTY-WINDOW regression — when the requested window has zero
+    MODIS NDVI granules over the site, `filtered.mean()` is a band-less image
+    and `mean_image.lt(0.3)` would throw `Image.lt: ... Got 0 and 1`. That raw
+    ee.EEException is NOT caught by `_run_one_nature_task`, so it failed the
+    WHOLE NDVI indicator — even when six_step's SPPY fallback had already
+    recovered the site over an earlier window. `with_guaranteed_band` makes the
+    `.lt` well-typed server-side; an empty window then reduces to no NDVI value
+    → 0 % low-NDVI, with NO extra getInfo round-trip (the size guard is gone)."""
+
+    _AOI_LOCAL = {"centre": {"lat": 0.0, "lon": 0.0}, "radius_km": 50}
+    _TR_LOCAL = ("2026-01-01", "2026-04-01")
+
+    @staticmethod
+    def _fake_ic(monkeypatch, *, reduction_return=None):
+        from unittest.mock import MagicMock
+
+        chain = MagicMock()
+        for attr in ("filterDate", "filterBounds", "mean", "lt", "reduceRegion"):
+            getattr(chain, attr).return_value = chain
+        chain.getInfo.return_value = reduction_return
+        monkeypatch.setattr("engine.nature.site_buffer", lambda *_a, **_k: MagicMock())
+        monkeypatch.setattr("engine.nature.ee.Reducer", MagicMock())
+        # The guard is tested directly in TestWithGuaranteedBand; here we make
+        # it an identity passthrough so the reduceRegion result drives output.
+        monkeypatch.setattr(
+            "engine.nature.with_guaranteed_band", lambda img, _band: img,
+        )
+        return chain
+
+    def test_empty_window_returns_zero(self, monkeypatch) -> None:
+        # Empty window → reduceRegion yields no "NDVI" key → 0 % low-NDVI.
+        chain = self._fake_ic(monkeypatch, reduction_return={})
+        result = _ndvi_low_area_pct(self._AOI_LOCAL, chain, self._TR_LOCAL, 250.0)
+        assert result == 0.0
+        # No `.size().getInfo()` round-trip — only the reduceRegion getInfo.
+        assert chain.getInfo.call_count == 1
+
+    def test_non_empty_window_computes_pct(self, monkeypatch) -> None:
+        chain = self._fake_ic(monkeypatch, reduction_return={"NDVI": 0.42})
+        result = _ndvi_low_area_pct(self._AOI_LOCAL, chain, self._TR_LOCAL, 250.0)
+        assert result == pytest.approx(42.0)
+        chain.mean.assert_called_once()
+        chain.lt.assert_called_once_with(0.3)
+        assert chain.getInfo.call_count == 1
 
     # M-TREND-A1 (TR17): the _ndvi_negative_trend tests are removed — the
     # function is deleted (the NDVI slope is demoted to drill-down-only).
