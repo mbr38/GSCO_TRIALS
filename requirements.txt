@@ -27,7 +27,11 @@ folium>=0.16,<0.18
 streamlit-folium>=0.20
 
 # Earth Engine
-earthengine-api>=0.1.380
+# Upper-bounded: geemap 0.34.4's foliumap.Map calls the private
+# `ee.data._credentials`, which newer earthengine-api releases removed
+# (AttributeError on map render). 0.1.399 is the known-good version tested
+# with this geemap pin. Re-test the map pages before raising the ceiling.
+earthengine-api>=0.1.380,<0.1.400
 
 # Data and stats — for indicator computation later
 numpy>=1.26
