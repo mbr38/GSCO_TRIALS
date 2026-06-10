@@ -19,7 +19,7 @@ For each item you get: **where it lives** (the file), **what it looks like** (so
 
 ---
 
-## ⭐ The short version — what actually needs doing
+##  The short version — what actually needs doing
 
 If you only remember five things:
 
@@ -48,11 +48,13 @@ The tool cannot fetch any satellite data without a Google Earth Engine project. 
   ```
 - **When it needs attention:** only if the Google Cloud project changes, or on a brand-new computer. If the app shows "Earth Engine project ID not set," this is why.
 
-> **Note:** This is the **only** credential the live tool needs. (You may see mentions of OpenAQ or Earthdata/Earthaccess in old research notes — those were for one-off validation experiments and are **not** part of the running tool. You do not need API keys for them.)
+> **Note:** This is the **only** credential needed to run the tool **locally** (on your own laptop). (You may see mentions of OpenAQ or Earthdata/Earthaccess in old research notes — those were for one-off validation experiments and are **not** part of the running tool. You do not need API keys for them.)
+>
+> The **hosted website** (the public `streamlit.app` link) authenticates a different way — through a *service account* instead of a personal Google login, because no human is sitting at the server to log in. See **§8 "The live website"** for what that is, why it exists, and how people access the site.
 
 ---
 
-## 2. The climatology fallback data — refresh annually ⭐
+## 2. The climatology fallback data — refresh annually 
 
 **What it is:** When the tool screens a site whose surroundings can't be measured (for example a coastal site whose comparison ring falls mostly over the ocean), it falls back to a stored **per-country average and spread** for each indicator. That stored table is a file. It is built from the last 3 years of satellite data, so it slowly goes stale.
 
@@ -165,10 +167,83 @@ The file `engine/constants.py` holds **every** adjustable number the engine uses
 | **When the provider publishes** | Upload + repoint the new ODIAC CO₂ vintage (§3b). |
 | **Occasionally / on alert** | Check the Earth Engine dataset-status page for deprecations (§3d); review the "first-pass" thresholds during v1.x calibration (§5). |
 | **Only as a deliberate project** | Touch `requirements.txt` version pins (§6); change the earliest-date floor (§4). |
+| **As needed (the hosted site)** | Share the link + password with a new user, change the password, or replace the service-account key (§8). The site re-deploys itself whenever you push to `main`. |
 
 ---
 
-## 8. If you're unsure
+## 8. The live website (Streamlit Cloud) — the service account and how to reach it
+
+Everything above is about running the tool **on your own computer**. There is also a **hosted version** — a public web link anyone you invite can open in a browser, with nothing to install. This section explains how it works, **why we created a "service account,"** and **how to give someone access.**
+
+### Where it lives
+
+- **The site:** <https://digitalauditing-gsco.streamlit.app/>
+- **The host:** [Streamlit Community Cloud](https://share.streamlit.io) — a free hosting service for Streamlit apps.
+- **What it runs:** the exact same code as this repository (`mbr38/GSCO_TRIALS`, `main` branch). Streamlit Cloud watches GitHub and **rebuilds the site automatically every time code is pushed to `main`.** So "deploying an update" just means pushing your change — there is no separate publish step.
+
+### Why we created a service account 
+
+On your laptop, a person proves they're allowed to use Earth Engine by running `earthengine authenticate` and logging in with their Google account in a browser (that's §1). **On a server, that doesn't work** — there's no browser and no person sitting there to log in, and we should never bake one employee's personal Google login into a public website.
+
+The solution is a **service account**: a special, non-human Google account that *belongs to the project itself* and logs in automatically using a key file instead of a person. We created one in the `supply-chain-observatory` Google Cloud project and gave it two permissions ("roles"):
+
+- **Earth Engine Resource Admin** — lets it use Earth Engine's data.
+- **Service Usage Consumer** — lets it call the project's services at all.
+
+That service account is what allows the hosted website to run screenings for visitors **without anyone logging in**. Creating and using it adds **no cost** (Earth Engine is free on the project's non-commercial tier; the account and the permissions themselves are free).
+
+### The settings the website needs ("secrets")
+
+The website needs a few private values that are deliberately **kept out of the code and out of GitHub** (so they never leak). They live in the Streamlit Cloud dashboard, under **Settings → Secrets**, and are pasted in as text:
+
+| Secret | What it is |
+|---|---|
+| `EE_PROJECT_ID` | The Earth Engine project name (`supply-chain-observatory`). |
+| `EE_SERVICE_ACCOUNT_JSON` | The service account's key — the whole key file, pasted in as one block. **This is the sensitive one; treat it like a password.** |
+| `APP_PASSWORD` | The password visitors must type to enter the site (see below). |
+
+The code that reads these is `utils/ee_init.py` (the service account) and `utils/auth.py` (the password). Both are written so that **on a laptop, where these secrets are absent, the tool behaves exactly as it always has** — personal Google login, no password prompt. The hosted behaviour only switches on because those secrets are present on the server.
+
+### How someone accesses the site 
+
+The site is **password-protected**. Anyone who opens the link is asked for a password before they can see anything.
+
+**To give a colleague access, send them two things:**
+
+1. The link: <https://digitalauditing-gsco.streamlit.app/>
+2. The password (the `APP_PASSWORD` value) — ideally sent separately from the link.
+
+They open the link, type the password, and they're in. **No Google account, no Streamlit account, nothing to install.**
+
+Two things to expect:
+
+- **The first visit after a quiet period takes ~30 seconds** while the site "wakes up." This is normal for the free hosting tier; anyone can wake it just by opening the link.
+- **Everyone shares the project's Earth Engine quota.** Each screening a visitor runs uses the same free allowance. The password is what keeps that limited to people you've actually invited — so **don't post the password publicly.**
+
+### Looking after it
+
+- **To change the password:** edit `APP_PASSWORD` in the Streamlit Cloud **Settings → Secrets** box and reboot the app from the dashboard. (Do **not** put the password in the code.)
+- **If the service account key is ever lost or leaked:** create a new key for the service account in Google Cloud (IAM & Admin → Service Accounts → the account → Keys → Add key → JSON), paste the new key into `EE_SERVICE_ACCOUNT_JSON`, and reboot. The old key can then be deleted.
+- **If the site fails to start** with a permission error mentioning Earth Engine: the service account's two roles (above) may need re-granting, or a newly granted permission may still be propagating (give it a few minutes).
+- **You never deploy by hand** — pushing to `main` on GitHub is the deploy.
+
+### ⚠️ If you change the code: four things that behave differently on the server
+
+The hosted site runs on a **fresh Linux machine with freshly installed libraries**, which is *not* identical to a laptop where things were installed gradually over time. Four traps caught us setting this up; if you edit the code, keep them in mind. **The danger with all four is that the code still works perfectly on your laptop, so the breakage only shows up after you push.**
+
+1. **Adding a new map? You must write `ee_initialize=False`.** Every `geemap.Map(...)` call in the code passes `ee_initialize=False` (search the code to see the pattern). This tells the mapping library *not* to log in to Earth Engine by itself — our own code (`utils/ee_init.py`) already did that. If you add a new map and leave this off, **the map will work on your laptop but crash on the live site** with an error about `ee.data._credentials`. Always copy the existing pattern, including that argument.
+
+2. **Don't pin `earthengine-api` to an old version.** In `requirements.txt`, the mapping library (`geemap`) requires `earthengine-api` version **1.0.0 or newer**. A previous attempt to pin it *lower* made the install impossible on the server. There's a comment in `requirements.txt` explaining this — leave that pin alone.
+
+3. **`packages.txt` is fussy** (this file lists the system libraries the PDF export needs). Two rules: **(a)** one bare package name per line, **(b) no comment lines and no blank-line clutter** — the hosting platform tries to install *every* word in the file as a package, including words inside comments, so a `#` comment makes the whole install fail. Keep it to just the package names.
+
+4. **The server must use Python 3.11.** This is chosen once, in the Streamlit Cloud dashboard under the app's **Advanced settings**, at the time the app is created. The whole library set is tuned for 3.11 (see §6); a newer Python breaks the maps. If the app ever has to be recreated from scratch, set Python to **3.11** before deploying.
+
+> **The golden rule for any code change:** after the site redeploys, **open it and run one real screening end-to-end** (pick a site → Inspect → Results → try a PDF export). Passing tests on your laptop is necessary but not sufficient — the server's fresh library versions can differ, so always confirm on the live site too.
+
+---
+
+## 9. If you're unsure
 
 - **A doc and the code disagree?** The `docs/` files are authoritative — but **do not edit them**; flag the mismatch to a developer.
 - **For any indicator/threshold decision**, `docs/Indicators_Audit_and_v1x_Roadmap.md` is the master v1.x authority.
