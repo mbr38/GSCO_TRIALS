@@ -117,7 +117,10 @@ def _build_base_map(setup: dict) -> geemap.Map:
     radius_km = setup["radius_km"]
     zoom      = _zoom_for_radius_km(radius_km * 2)
 
-    m = geemap.Map(center=[centre["lat"], centre["lon"]], zoom=zoom)
+    # ee_initialize=False: the page already called require_earth_engine();
+    # geemap's own initialiser uses a private ee.data attribute removed in
+    # newer earthengine-api releases.
+    m = geemap.Map(center=[centre["lat"], centre["lon"]], zoom=zoom, ee_initialize=False)
     m.add_basemap("SATELLITE")
 
     buffer = _aoi_geom(centre, radius_km)

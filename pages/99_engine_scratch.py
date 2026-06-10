@@ -703,7 +703,7 @@ with left_col:
     site_geom = site_buffer(centre, radius_km)
     ring_geom = background_ring(centre, radius_km)
 
-    m = geemap.Map(center=[lat, lon], zoom=8)
+    m = geemap.Map(center=[lat, lon], zoom=8, ee_initialize=False)  # EE already initialised by require_earth_engine()
     m.add_basemap("SATELLITE")
 
     # Pollutant layer first (bottom) — only in Single pollutant mode, and only

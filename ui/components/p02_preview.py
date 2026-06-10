@@ -60,7 +60,10 @@ def _render_chain_map(chain: SupplyChain) -> None:
     """Map view of a supply chain — one marker per node."""
     mean_lat = sum(n.lat for n in chain.nodes) / len(chain.nodes)
     mean_lon = sum(n.lon for n in chain.nodes) / len(chain.nodes)
-    m = geemap.Map(center=[mean_lat, mean_lon], zoom=5)
+    # ee_initialize=False: EE is already initialised by the page's
+    # require_earth_engine() call; geemap's own initialiser reaches for a
+    # private ee.data attribute removed in newer earthengine-api releases.
+    m = geemap.Map(center=[mean_lat, mean_lon], zoom=5, ee_initialize=False)
     m.add_basemap("SATELLITE")
     for node in chain.nodes:
         m.add_marker(
@@ -108,6 +111,7 @@ def _render_region_map(region: Region) -> None:
     m = geemap.Map(
         center=[region.centroid_lat, region.centroid_lon],
         zoom=_zoom_for_radius(region.radius_km),
+        ee_initialize=False,  # see _render_chain_map note
     )
     m.add_basemap("SATELLITE")
     m.add_marker(
@@ -187,7 +191,7 @@ def _render_country_map(country: str, regions) -> None:
     else:
         mean_lat, mean_lon, zoom = 0.0, 0.0, 3
 
-    m = geemap.Map(center=[mean_lat, mean_lon], zoom=zoom)
+    m = geemap.Map(center=[mean_lat, mean_lon], zoom=zoom, ee_initialize=False)  # see _render_chain_map note
     m.add_basemap("SATELLITE")
     m.addLayer(country_boundary_fc(country), {}, f"{country} regions")
     for region in regions:
