@@ -15,7 +15,6 @@ from demo.indicator_library import (
     _load_manifest,
     _pillar_for,
     _stub_entry,
-    get_esg_caveat,
     load_library,
 )
 from ui.components.p04_indicator_registry import ALL_INDICATOR_IDS
@@ -159,11 +158,6 @@ def test_load_manifest_returns_dict_with_meta_and_indicators():
     manifest = _load_manifest()
     assert "_meta" in manifest
     assert "air.no2.score" in manifest
-
-
-def test_get_esg_caveat_returns_manifest_string():
-    caveat = get_esg_caveat()
-    assert "indicative" in caveat.lower()
 
 
 # ---------------------------------------------------------------------------

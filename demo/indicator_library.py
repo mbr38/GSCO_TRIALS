@@ -248,11 +248,6 @@ def _resolve_live_formula(indicator_id: str) -> dict | None:
     }
 
 
-def get_esg_caveat() -> str:
-    """Top-level caveat for the ESG field. Rendered once at page top."""
-    return _load_manifest().get("_meta", {}).get("esg_caveat", "")
-
-
 # M-UI-A2
 def tooltip_summary_for(indicator_id: str) -> str | None:
     """Return the two-sentence summary for an indicator, or None.

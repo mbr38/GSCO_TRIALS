@@ -11,7 +11,6 @@ import streamlit as st
 
 from demo.indicator_library import (
     IndicatorCardContent,
-    get_esg_caveat,
     load_library,
 )
 from engine.constants import INDICATOR_CONFIDENCE_FAMILY
@@ -84,11 +83,7 @@ _COASTAL_HANDLING_CARD_PARAGRAPH: str = (
 
 
 def render_indicator_library() -> None:
-    library    = load_library()
-    esg_caveat = get_esg_caveat()
-
-    if esg_caveat:
-        st.info(esg_caveat)
+    library = load_library()
 
     search_query = st.text_input(
         "Search indicators",
