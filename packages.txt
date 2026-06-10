@@ -1,0 +1,8 @@
+# apt packages installed by Streamlit Community Cloud at build time.
+# Required by weasyprint (P-11 PDF export), which loads Pango, Cairo and
+# GLib at render time. See README "System dependencies".
+# Ignored by local `streamlit run` — only used by the hosted build.
+libpango-1.0-0
+libpangoft2-1.0-0
+libcairo2
+libglib2.0-0

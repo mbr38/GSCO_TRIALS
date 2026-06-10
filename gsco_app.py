@@ -12,6 +12,7 @@ Run with: ``streamlit run gsco_app.py``.
 import streamlit as st
 
 from ui.theme.theme import apply_gsco_theme
+from utils.auth import require_password
 
 # Inject the GSCO global CSS at the top of the navigation script.
 # Streamlit's standard rerun model re-executes this entire script
@@ -19,6 +20,10 @@ from ui.theme.theme import apply_gsco_theme
 # not an alternative execution model), so this call themes every page
 # render — no per-page wrapper needed.
 apply_gsco_theme()
+
+# Password gate for the deployed demo. No-op locally (no APP_PASSWORD secret),
+# so the local run experience is unchanged. Must run before pages render.
+require_password()
 
 
 landing = st.Page(
